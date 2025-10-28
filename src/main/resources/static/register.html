@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - QuickShare.NetDisk</title>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .register-container {
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 450px;
+            width: 100%;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo h1 {
+            font-size: 2.5em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group small {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .links {
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        .links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            color: #ef4444;
+            background: #fee;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .success {
+            color: #10b981;
+            background: #efe;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success.show {
+            display: block;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+<a href="index.html" class="back-btn">← QuickShare</a>
+
+<div class="register-container">
+    <div class="logo">
+        <h1>📦 QuickShare.NetDisk</h1>
+        <p>创建您的账户</p>
+    </div>
+
+    <div id="errorMsg" class="error"></div>
+    <div id="successMsg" class="success"></div>
+
+    <form id="registerForm" onsubmit="handleRegister(event)">
+        <div class="form-group">
+            <label>用户名 *</label>
+            <input type="text" id="username" placeholder="请输入用户名" required minlength="3">
+            <small>至少3个字符</small>
+        </div>
+
+        <div class="form-group">
+            <label>密码 *</label>
+            <input type="password" id="password" placeholder="请输入密码" required minlength="6">
+            <small>至少6个字符</small>
+        </div>
+
+        <div class="form-group">
+            <label>确认密码 *</label>
+            <input type="password" id="confirmPassword" placeholder="请再次输入密码" required>
+        </div>
+
+        <div class="form-group">
+            <label>邮箱 *</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="email" id="email" placeholder="请输入邮箱" required style="flex: 1;">
+                <button type="button" class="btn" id="sendCodeBtn" onclick="sendVerificationCode()" style="width: auto; padding: 15px 20px;">发送验证码</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>邮箱验证码 *</label>
+            <input type="text" id="verificationCode" placeholder="请输入6位验证码" required maxlength="6">
+        </div>
+
+        <div class="form-group">
+            <label>昵称</label>
+            <input type="text" id="nickname" placeholder="请输入昵称(可选)">
+        </div>
+
+        <!-- Google reCAPTCHA -->
+        <div class="form-group" style="display: flex; justify-content: center;">
+            <div class="g-recaptcha" data-sitekey="6LcIlu4rAAAAADoE2u7yXzWLMs_goEQeT-vTWqga"></div>
+        </div>
+
+        <button type="submit" class="btn" id="registerBtn">注册</button>
+    </form>
+
+    <div class="links">
+        已有账户? <a href="login.html">立即登录</a>
+    </div>
+</div>
+
+<script>
+    // 自动检测协议
+    const API_BASE = window.location.hostname === 'localhost'
+        ? 'http://localhost:8080/api'
+        : `${window.location.protocol}//${window.location.host}/api`;
+
+    function showError(message) {
+        const errorMsg = document.getElementById('errorMsg');
+        errorMsg.textContent = message;
+        errorMsg.classList.add('show');
+        setTimeout(() => {
+            errorMsg.classList.remove('show');
+        }, 5000);
+    }
+
+    function showSuccess(message) {
+        const successMsg = document.getElementById('successMsg');
+        successMsg.textContent = message;
+        successMsg.classList.add('show');
+    }
+
+    // 发送验证码
+    let countdown = 0;
+    async function sendVerificationCode() {
+        const email = document.getElementById('email').value.trim();
+
+        if (!email) {
+            showError('请先输入邮箱地址');
+            return;
+        }
+
+        if (countdown > 0) {
+            showError(`请等待 ${countdown} 秒后再试`);
+            return;
+        }
+
+        // 获取 reCAPTCHA token
+        const recaptchaResponse = grecaptcha.getResponse();
+        if (!recaptchaResponse) {
+            showError('请先完成人机验证');
+            return;
+        }
+
+        const sendCodeBtn = document.getElementById('sendCodeBtn');
+        sendCodeBtn.disabled = true;
+        sendCodeBtn.textContent = '发送中...';
+
+        try {
+            const response = await fetch(`${API_BASE}/auth/send-code`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    recaptchaToken: recaptchaResponse
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.code === 200) {
+                showSuccess('验证码已发送到您的邮箱,请查收!');
+
+                // 开始倒计时
+                countdown = 60;
+                const timer = setInterval(() => {
+                    countdown--;
+                    sendCodeBtn.textContent = `${countdown}秒后重试`;
+
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        sendCodeBtn.disabled = false;
+                        sendCodeBtn.textContent = '发送验证码';
+                    }
+                }, 1000);
+
+                // 重置 reCAPTCHA
+                grecaptcha.reset();
+            } else {
+                showError(result.message || '发送失败');
+                sendCodeBtn.disabled = false;
+                sendCodeBtn.textContent = '发送验证码';
+                grecaptcha.reset();
+            }
+        } catch (error) {
+            showError('网络错误,请稍后重试');
+            sendCodeBtn.disabled = false;
+            sendCodeBtn.textContent = '发送验证码';
+            grecaptcha.reset();
+        }
+    }
+
+    async function handleRegister(event) {
+        event.preventDefault();
+
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const email = document.getElementById('email').value.trim();
+        const nickname = document.getElementById('nickname').value.trim();
+        const verificationCode = document.getElementById('verificationCode').value.trim();
+
+        // 验证
+        if (username.length < 3) {
+            showError('用户名至少3个字符');
+            return;
+        }
+
+        if (password.length < 6) {
+            showError('密码至少6个字符');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            showError('两次输入的密码不一致');
+            return;
+        }
+
+        if (!email) {
+            showError('邮箱不能为空');
+            return;
+        }
+
+        if (!verificationCode) {
+            showError('请输入邮箱验证码');
+            return;
+        }
+
+        const registerBtn = document.getElementById('registerBtn');
+        registerBtn.disabled = true;
+        registerBtn.textContent = '注册中...';
+
+        try {
+            const response = await fetch(`${API_BASE}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password,
+                    email: email,
+                    nickname: nickname || null,
+                    verificationCode: verificationCode
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.code === 200) {
+                // 保存用户信息和 token
+                localStorage.setItem('token', result.data.token);
+                localStorage.setItem('user', JSON.stringify(result.data));
+
+                showSuccess('注册成功! 正在跳转...');
+
+                setTimeout(() => {
+                    window.location.href = 'netdisk.html';
+                }, 1500);
+            } else {
+                showError(result.message || '注册失败');
+                registerBtn.disabled = false;
+                registerBtn.textContent = '注册';
+            }
+        } catch (error) {
+            showError('网络错误,请稍后重试');
+            registerBtn.disabled = false;
+            registerBtn.textContent = '注册';
+        }
+    }
+
+    // 检查是否已登录
+    window.addEventListener('load', () => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            window.location.href = 'netdisk.html';
+        }
+    });
+</script>
+</body>
+</html>

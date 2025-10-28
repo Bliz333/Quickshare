@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickShare - 快速文件分享</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .file-item-info {
+            flex: 1;
+        }
+
+        .remove-file-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .remove-file-btn:hover {
+            background: #dc2626;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f0f2ff;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-box {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f0f2ff;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result-box.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .result-label {
+            font-weight: bold;
+            color: #666;
+        }
+
+        .result-value {
+            color: #333;
+            font-family: monospace;
+        }
+
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+
+        .copy-btn:hover {
+            background: #764ba2;
+        }
+
+        .success {
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .download-info {
+            background: #f0f2ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .qrcode-container {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .qrcode-container canvas,
+        .qrcode-container img {
+            margin: 0 auto;
+            display: block;
+        }
+
+        .qrcode-hint {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .save-qr-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+
+        .save-qr-btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div style="display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto;">
+            <div>
+                <h1>📦 QuickShare</h1>
+                <p>快速、安全的文件分享平台</p>
+            </div>
+            <div id="authButtons">
+                <button onclick="location.href='login.html'" style="background: white; color: #667eea; border: 2px solid white; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-size: 1em; margin-left: 10px; font-weight: bold;">登录</button>
+                <button onclick="location.href='register.html'" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-size: 1em; margin-left: 10px; font-weight: bold;">注册</button>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('upload')">上传文件</button>
+            <button class="tab" onclick="switchTab('download')">下载文件</button>
+        </div>
+
+        <!-- 上传标签页 -->
+        <div id="upload-tab" class="tab-content active">
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">点击选择文件或拖拽文件到这里(支持多文件)</div>
+                <input type="file" id="fileInput" style="display: none;" multiple onchange="handleFileSelect(event)">
+            </div>
+
+            <div class="file-list" id="fileList" style="display: none;">
+                <h4>已选择的文件:</h4>
+                <div id="fileItems"></div>
+            </div>
+
+            <div style="margin-top: 30px;">
+                <div class="input-group">
+                    <label>提取码 (可选，不填则自动生成)</label>
+                    <input type="text" id="extractCode" placeholder="输入4位数字提取码，如: 1234" maxlength="6">
+                </div>
+
+                <div class="input-group">
+                    <label>有效期 (小时，默认24小时)</label>
+                    <input type="number" id="expireHours" placeholder="24" value="24" min="1">
+                </div>
+
+                <div class="input-group">
+                    <label>最大下载次数 (不填则不限制)</label>
+                    <input type="number" id="maxDownload" placeholder="如: 10" min="1">
+                </div>
+
+                <button class="btn" id="uploadBtn" onclick="uploadAndShare()" disabled>
+                    上传并生成分享链接
+                </button>
+            </div>
+
+            <div class="result-box" id="resultBox">
+                <h3 style="margin-bottom: 20px; color: #667eea;">✅ 分享链接已生成</h3>
+                <div class="result-item">
+                    <span class="result-label">分享链接:</span>
+                    <div>
+                        <span class="result-value" id="shareUrl"></span>
+                        <button class="copy-btn" onclick="copyToClipboard('shareUrl')">复制</button>
+                    </div>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">分享码:</span>
+                    <div>
+                        <span class="result-value" id="shareCode"></span>
+                        <button class="copy-btn" onclick="copyToClipboard('shareCode')">复制</button>
+                    </div>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">提取码:</span>
+                    <div>
+                        <span class="result-value" id="resultExtractCode"></span>
+                        <button class="copy-btn" onclick="copyToClipboard('resultExtractCode')">复制</button>
+                    </div>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">过期时间:</span>
+                    <span class="result-value" id="expireTime"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下载标签页 -->
+        <div id="download-tab" class="tab-content">
+            <div class="input-group">
+                <label>分享码</label>
+                <input type="text" id="downloadShareCode" placeholder="输入8位分享码">
+            </div>
+
+            <div class="input-group">
+                <label>提取码</label>
+                <input type="text" id="downloadExtractCode" placeholder="输入提取码">
+            </div>
+
+            <button class="btn" onclick="getShareInfo()">查看文件信息</button>
+
+            <div class="download-info" id="downloadInfo" style="display: none;">
+                <h3 style="margin-bottom: 15px; color: #667eea;">📄 文件信息</h3>
+                <p><strong>文件名:</strong> <span id="downloadFileName"></span></p>
+                <p><strong>过期时间:</strong> <span id="downloadExpireTime"></span></p>
+                <p><strong>剩余下载次数:</strong> <span id="downloadRemaining"></span></p>
+                <button class="btn" onclick="downloadFile()" style="margin-top: 20px;">下载文件</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 检查登录状态
+    window.addEventListener('load', () => {
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        if (token && user.username) {
+            // 已登录,修改按钮
+            const authButtons = document.getElementById('authButtons');
+            if (authButtons) {
+                authButtons.innerHTML = `
+                    <span style="color: white; margin-right: 15px;">欢迎, ${user.nickname || user.username}</span>
+                    <button onclick="handleLogout()" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold;">退出登录</button>
+                `;
+            }
+        }
+
+        const hash = window.location.hash;
+        if (hash.includes('share=')) {
+            const params = new URLSearchParams(hash.substring(1));
+            const shareCode = params.get('share');
+            const code = params.get('code');
+
+            if (shareCode && code) {
+                // 切换到下载标签
+                const tabs = document.querySelectorAll('.tab');
+                const tabContents = document.querySelectorAll('.tab-content');
+
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+
+                tabs[1].classList.add('active');
+                document.getElementById('download-tab').classList.add('active');
+
+                // 自动填充
+                document.getElementById('downloadShareCode').value = shareCode;
+                document.getElementById('downloadExtractCode').value = code;
+
+                // 延迟获取信息,确保 DOM 已渲染
+                setTimeout(() => {
+                    getShareInfo();
+                }, 1000);
+            }
+        }
+
+    });
+
+    function handleLogout() {
+        if (confirm('确定要退出登录吗?')) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            location.reload();
+        }
+    }
+
+    // 自动检测协议,支持 HTTPS
+    const API_BASE = window.location.hostname === 'localhost'
+        ? 'http://localhost:8080/api'
+        : `${window.location.protocol}//${window.location.host}/api`;
+
+    let selectedFiles = [];
+    let currentShareCode = '';
+
+    // 标签页切换
+    function switchTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        event.target.classList.add('active');
+        document.getElementById(tab + '-tab').classList.add('active');
+    }
+
+    // 拖拽上传
+    const uploadArea = document.getElementById('uploadArea');
+
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFiles(Array.from(files));
+        }
+    });
+
+    // 文件选择
+    function handleFileSelect(event) {
+        const files = event.target.files;
+        if (files.length > 0) {
+            handleFiles(Array.from(files));
+        }
+    }
+
+    function handleFiles(files) {
+        selectedFiles = [...selectedFiles, ...files];
+        displayFileList();
+        document.getElementById('uploadBtn').disabled = false;
+        document.getElementById('resultBox').classList.remove('show');
+    }
+
+    function displayFileList() {
+        const fileList = document.getElementById('fileList');
+        const fileItems = document.getElementById('fileItems');
+
+        if (selectedFiles.length === 0) {
+            fileList.style.display = 'none';
+            return;
+        }
+
+        fileList.style.display = 'block';
+        fileItems.innerHTML = '';
+
+        selectedFiles.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                    <div class="file-item-info">
+                        <strong>${file.name}</strong><br>
+                        <small>${formatFileSize(file.size)}</small>
+                    </div>
+                    <button class="remove-file-btn" onclick="removeFile(${index})">删除</button>
+                `;
+            fileItems.appendChild(fileItem);
+        });
+    }
+
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        displayFileList();
+        if (selectedFiles.length === 0) {
+            document.getElementById('uploadBtn').disabled = true;
+        }
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    // 上传并分享
+    async function uploadAndShare() {
+        if (selectedFiles.length === 0) {
+            alert('请先选择文件!');
+            return;
+        }
+
+        const uploadBtn = document.getElementById('uploadBtn');
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="loading"></span> 上传中...';
+
+        const resultBox = document.getElementById('resultBox');
+        resultBox.innerHTML = '<h3 style="margin-bottom: 20px; color: #667eea;">⏳ 正在上传和生成分享链接...</h3>';
+        resultBox.classList.add('show');
+
+        const shareLinks = [];
+
+        try {
+            // 获取 token（如果有的话）
+            const token = localStorage.getItem('token') || '';
+
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+
+                // 1. 上传文件
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const uploadResponse = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    headers: token ? {
+                        'Authorization': `Bearer ${token}`
+                    } : {},
+                    body: formData
+                });
+
+                const uploadResult = await uploadResponse.json();
+
+                if (uploadResult.code !== 200) {
+                    throw new Error(`上传 ${file.name} 失败: ${uploadResult.message || uploadResult.msg || '未知错误'}`);
+                }
+
+                // 2. 创建分享链接
+                const shareData = {
+                    fileId: uploadResult.data.id,
+                    extractCode: document.getElementById('extractCode').value || null,
+                    expireHours: parseInt(document.getElementById('expireHours').value) || null,
+                    maxDownload: parseInt(document.getElementById('maxDownload').value) || null
+                };
+
+                const shareResponse = await fetch(`${API_BASE}/share`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(shareData)
+                });
+
+                const shareResult = await shareResponse.json();
+
+                if (shareResult.code !== 200) {
+                    throw new Error(`生成分享链接失败: ${shareResult.message || shareResult.msg || '未知错误'}`);
+                }
+
+                shareLinks.push({
+                    fileName: file.name,
+                    ...shareResult.data
+                });
+            }
+
+            // 显示所有分享链接
+            displayShareLinks(shareLinks);
+
+            // 清空文件列表
+            selectedFiles = [];
+            displayFileList();
+            document.getElementById('uploadBtn').disabled = true;
+            uploadBtn.innerHTML = '上传并生成分享链接';
+
+        } catch (error) {
+            alert('操作失败: ' + error.message);
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '上传并生成分享链接';
+            resultBox.classList.remove('show');
+        }
+    }
+
+
+
+    function displayShareLinks(shareLinks) {
+        const resultBox = document.getElementById('resultBox');
+        let html = '<h3 style="margin-bottom: 20px; color: #667eea;">✅ 分享链接已生成</h3>';
+
+        shareLinks.forEach((link, index) => {
+            const fullShareUrl = `${window.location.protocol}//${window.location.host}/#share=${link.shareCode}&code=${link.extractCode}`;
+
+            html += `
+                    <div style="margin-bottom: 30px; padding: 20px; background: #f0f2ff; border-radius: 10px;">
+                        <h4 style="margin-bottom: 15px; color: #333;">文件 ${index + 1}: ${link.fileName}</h4>
+                        <div class="result-item">
+                            <span class="result-label">完整分享链接:</span>
+                            <div>
+                                <span class="result-value" id="fullUrl${index}">${fullShareUrl}</span>
+                                <button class="copy-btn" onclick="copyText('fullUrl${index}', this)">复制</button>
+                            </div>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">分享码:</span>
+                            <div>
+                                <span class="result-value" id="shareCode${index}">${link.shareCode}</span>
+                                <button class="copy-btn" onclick="copyText('shareCode${index}', this)">复制</button>
+                            </div>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">提取码:</span>
+                            <div>
+                                <span class="result-value" id="extractCode${index}">${link.extractCode}</span>
+                                <button class="copy-btn" onclick="copyText('extractCode${index}', this)">复制</button>
+                            </div>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">过期时间:</span>
+                            <span class="result-value">${link.expireTime || '永久有效'}</span>
+                        </div>
+                        <div class="qrcode-container">
+                            <div id="qrcode${index}"></div>
+                            <div class="qrcode-hint">📱 扫码即可下载文件</div>
+                            <button class="save-qr-btn" onclick="saveQRCode(${index}, '${link.fileName}')">💾 保存二维码</button>
+                        </div>
+                    </div>
+                `;
+        });
+
+        resultBox.innerHTML = html;
+        resultBox.classList.add('show');
+
+        // 生成二维码
+        shareLinks.forEach((link, index) => {
+            const fullShareUrl = `${window.location.protocol}//${window.location.host}/#share=${link.shareCode}&code=${link.extractCode}`;
+            new QRCode(document.getElementById(`qrcode${index}`), {
+                text: fullShareUrl,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        });
+    }
+
+    // 保存二维码
+    function saveQRCode(index, fileName) {
+        const qrcodeElement = document.getElementById(`qrcode${index}`);
+        const canvas = qrcodeElement.querySelector('canvas');
+
+        if (canvas) {
+            // 将 canvas 转换为图片
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `QRCode_${fileName.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            });
+        } else {
+            alert('二维码生成中,请稍后再试');
+        }
+    }
+
+    // 改进的复制功能
+    function copyText(elementId, button) {
+        const text = document.getElementById(elementId).textContent;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = button.textContent;
+                button.textContent = '✓ 已复制!';
+                button.style.background = '#10b981';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#667eea';
+                }, 2000);
+            }).catch(err => {
+                fallbackCopy(text, button);
+            });
+        } else {
+            fallbackCopy(text, button);
+        }
+    }
+
+    function fallbackCopy(text, button) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            const originalText = button.textContent;
+            button.textContent = '✓ 已复制!';
+            button.style.background = '#10b981';
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.style.background = '#667eea';
+            }, 2000);
+        } catch (err) {
+            alert('复制失败,请手动复制');
+        }
+        document.body.removeChild(textarea);
+    }
+
+
+
+    // 获取分享信息
+    async function getShareInfo() {
+        const shareCode = document.getElementById('downloadShareCode').value.trim();
+        const extractCode = document.getElementById('downloadExtractCode').value.trim();
+
+        if (!shareCode || !extractCode) {
+            alert('请输入分享码和提取码!');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/share/${shareCode}?extractCode=${extractCode}`);
+            const result = await response.json();
+
+            if (result.code !== 200) {
+                throw new Error(result.message);
+            }
+
+            const data = result.data;
+            document.getElementById('downloadFileName').textContent = data.fileName;
+            document.getElementById('downloadExpireTime').textContent = data.expireTime || '永久有效';
+            document.getElementById('downloadRemaining').textContent = data.maxDownload === -1 ? '不限制' : data.maxDownload;
+            document.getElementById('downloadInfo').style.display = 'block';
+            currentShareCode = shareCode;
+
+        } catch (error) {
+            alert('获取失败: ' + error.message);
+            document.getElementById('downloadInfo').style.display = 'none';
+        }
+    }
+
+    // 下载文件
+    function downloadFile() {
+        const shareCode = document.getElementById('downloadShareCode').value.trim();
+        const extractCode = document.getElementById('downloadExtractCode').value.trim();
+
+        const url = `${API_BASE}/download/${shareCode}?extractCode=${extractCode}`;
+        window.open(url, '_blank');
+    }
+</script>
+</body>
+</html>

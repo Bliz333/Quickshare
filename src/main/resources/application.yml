@@ -1,0 +1,55 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/quickshare?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: 858070143
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+
+  servlet:
+    multipart:
+      max-file-size: 2GB
+      max-request-size: 2GB
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: enzo.han928@gmail.com
+    password: zhwujbyryhrjlfxt # 刚才生成的 App Password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+server:
+  port: 8080
+
+
+recaptcha:
+  site-key: 6LcIlu4rAAAAADoE2u7yXzWLMs_goEQeT-vTWqga        # ← 必须添加！从 Google 获取
+  secret-key: 6LcIlu4rAAAAALvXMevfrZjrOLX7_MA05qtDwPn8      # ← 必须替换！从 Google 获取
+  verify-url: https://www.google.com/recaptcha/api/siteverify
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+file:
+  upload-dir: /Users/szhao/quickshare/uploads
+
+jwt:
+  secret: your-very-long-secret-key-at-least-256-bits-for-hs256-algorithm-security
+  expiration: 86400000  # 24小时

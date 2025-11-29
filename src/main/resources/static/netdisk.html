@@ -2,1813 +2,400 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的网盘 - 📦 QuickShare.NetDisk</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title data-i18n="title">我的网盘 - QuickShare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 防止主题闪烁 -->
+    <script>
+        (function() {
+            const saved = localStorage.getItem('quickshare-theme');
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
 
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* ==================== 主题变量 ==================== */
+        :root {
+            --primary: #0ea5e9;
+            --primary-light: #38bdf8;
+            --primary-dark: #0284c7;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --bg-light: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.5);
+        }
+
+        .dark-mode {
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #f87171;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --bg-light: #0f172a;
+            --bg-card: #1e293b;
+            --border-color: #334155;
+            --glass-bg: rgba(30, 41, 59, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f7fa;
-            min-height: 100vh;
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        /* 顶部导航栏 */
-        .navbar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .bg-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; opacity: 0.15; pointer-events: none; }
+        .blob { position: absolute; filter: blur(120px); opacity: 0.4; border-radius: 50%; animation: float 25s infinite alternate; }
+        .blob-1 { top: -15%; left: -15%; width: 45vw; height: 45vw; background: var(--primary-light); animation-delay: 0s; }
+        .blob-2 { bottom: -15%; right: -15%; width: 45vw; height: 45vw; background: var(--accent); animation-delay: -5s; }
+        .blob-3 { top: 50%; left: 40%; width: 35vw; height: 35vw; background: var(--primary); opacity: 0.25; animation-delay: -10s; }
+
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(50px, 50px) rotate(20deg); } }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-sub); }
+
+        .glass-effect {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
         }
 
-        .navbar-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .navbar-left h1 {
-            font-size: 1.5em;
-        }
-
-        .navbar-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn-nav {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.95em;
-            transition: all 0.3s;
-        }
-
-        .btn-nav:hover {
-            background: rgba(255,255,255,0.3);
-        }
-
-        /* 主容器 */
-        .container {
-            display: flex;
-            height: calc(100vh - 60px);
-        }
-
-        /* 左侧边栏 */
-        .sidebar {
-            width: 240px;
-            background: white;
-            border-right: 1px solid #e0e0e0;
-            padding: 20px;
-        }
-
-        .sidebar-item {
-            padding: 12px 15px;
-            margin-bottom: 5px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .sidebar-item:hover {
-            background: #f5f7fa;
-        }
-
-        .sidebar-item.active {
-            background: #e8ebff;
-            color: #667eea;
-            font-weight: bold;
-        }
-
-        /* 主内容区 */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* 工具栏 */
-        .toolbar {
-            background: white;
-            padding: 15px 30px;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .toolbar-left {
-            display: flex;
-            gap: 10px;
-        }
-
-        .toolbar-right {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.95em;
-            transition: all 0.3s;
-        }
-
-        .btn:hover {
-            background: #764ba2;
-            transform: translateY(-2px);
-        }
-
-        .btn-outline {
-            background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-        }
-
-        .btn-outline:hover {
-            background: #f0f2ff;
-        }
-
-        /* 面包屑导航 */
-        .breadcrumb {
-            padding: 15px 30px;
-            background: white;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .breadcrumb-item {
-            color: #667eea;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .breadcrumb-item:hover {
-            text-decoration: underline;
-        }
-
-        .breadcrumb-separator {
-            color: #ccc;
-        }
-
-        /* 文件列表区域 */
-        .file-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px 30px;
-        }
-
-        /* 视图切换 */
-        .view-switch {
-            display: flex;
-            gap: 5px;
-        }
-
-        .view-btn {
-            padding: 8px 12px;
-            background: white;
-            border: 1px solid #e0e0e0;
-            cursor: pointer;
-            border-radius: 6px;
-        }
-
-        .view-btn.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-
-        /* 列表视图 */
-        .list-view {
-            display: block;
-        }
-
-        .list-header {
-            display: grid;
-            grid-template-columns: 80px 2fr 1fr 1fr 150px;
-            gap: 15px;
-            padding: 12px 15px;
-            background: #f5f7fa;
-            border-radius: 8px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #666;
-        }
-
-        .list-item {
-            display: grid;
-            grid-template-columns: 80px 2fr 1fr 1fr 150px;
-            gap: 15px;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
-
-        .list-item:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-        }
-
-        .list-item.active {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-            background: #f8f9ff;
-        }
-
-        .list-item:hover .item-actions,
-        .list-item.active .item-actions {
-            opacity: 1;
-        }
-
-        .item-thumbnail {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 6px;
-            background: #f0f0f0;
-        }
-
-        .item-icon {
-            font-size: 2em;
-            width: 60px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .item-name {
-            font-weight: 500;
-            color: #333;
-            cursor: pointer;
-        }
-
-        .item-name:hover {
-            color: #667eea;
-        }
-
-        .item-actions {
-            position: absolute;
-            right: 15px;
-            display: flex;
-            gap: 10px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .action-btn {
-            padding: 6px 12px;
-            background: #f5f7fa;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.2s;
-        }
-
-        .action-btn:hover {
-            background: #667eea;
-            color: white;
-        }
-
-        /* 图标视图 */
-        .grid-view {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 20px;
-        }
-
-        .grid-item {
-            background: white;
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .grid-item:hover,
-        .grid-item.active {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-4px);
-            background: #f8f9ff;
-        }
-
-        .grid-item-thumbnail {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            background: #f0f0f0;
-            display: block;
-        }
-
-        .grid-item-icon-large {
-            font-size: 4em;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 120px;
-        }
-
-        .grid-item-name {
-            font-size: 0.85em;
-            color: #333;
-            word-break: break-word;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            line-height: 1.4;
-            max-height: 2.8em;
-            margin-top: auto;
-        }
-
-        .grid-item-actions {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            display: flex;
-            gap: 5px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .grid-item:hover .grid-item-actions,
-        .grid-item.active .grid-item-actions {
-            opacity: 1;
-        }
-
-        .grid-action-btn {
-            padding: 6px 10px;
-            background: rgba(255,255,255,0.95);
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1.1em;
-            transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .grid-action-btn:hover {
-            background: #667eea;
-            transform: scale(1.1);
-        }
-
-        /* 排序下拉 */
-        .sort-select {
-            padding: 8px 12px;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        /* 空状态 */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-        }
-
-        .empty-state-icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-        }
-
-        /* 隐藏类 */
-        .hidden {
-            display: none;
-        }
-
-        /* 上传区域 */
-        .upload-input {
-            display: none;
-        }
-
-        /* 预览弹窗 */
         .preview-modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 10000;
-            align-items: center;
-            justify-content: center;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            align-items: center; justify-content: center;
         }
-
-        .preview-modal.active {
-            display: flex;
-        }
-
-        .preview-content {
-            max-width: 90%;
-            max-height: 90%;
-            position: relative;
-        }
-
+        .preview-modal.active { display: flex; }
+        .preview-content { max-width: 90%; max-height: 90%; position: relative; }
         .preview-close {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 10001;
-            transition: all 0.3s;
+            position: absolute; top: 20px; right: 20px;
+            width: 40px; height: 40px; border-radius: 50%;
+            background: rgba(255,255,255,0.1); color: #fff;
+            border: none; cursor: pointer; font-size: 1.2rem;
+            transition: all 0.3s; z-index: 1010;
         }
-
-        .preview-close:hover {
-            background: white;
-            transform: rotate(90deg);
-        }
-
-        .preview-image {
-            max-width: 100%;
-            max-height: 90vh;
-            border-radius: 8px;
-        }
-
-        .preview-video {
-            max-width: 100%;
-            max-height: 90vh;
-            border-radius: 8px;
-        }
-
-        .preview-pdf {
-            width: 90vw;
-            height: 90vh;
-            border: none;
-            border-radius: 8px;
-        }
-
+        .preview-close:hover { background: var(--primary); transform: rotate(90deg); }
+        .preview-image { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 12px; }
+        .preview-video { max-width: 90vw; max-height: 90vh; border-radius: 12px; }
         .preview-text {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            max-width: 800px;
-            max-height: 80vh;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            background: var(--bg-card); color: var(--text-main);
+            padding: 30px; border-radius: 12px;
+            max-width: 800px; max-height: 80vh;
+            overflow-y: auto; white-space: pre-wrap;
+            font-family: monospace;
         }
-
         .preview-unsupported {
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            text-align: center;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #fff; padding: 40px;
+            border-radius: 16px; text-align: center;
         }
 
-        .preview-unsupported button {
-            margin-top: 20px;
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 256px;  /* 侧边栏宽度 w-64 = 16rem = 256px */
+            width: calc(100% - 256px);
+            height: 100%;
+            background: rgba(0,0,0,0.3);
+            z-index: 55;
         }
 
-        /* 手机端适配 */
+        .mobile-overlay.active { display: block; }
+
+        main.blur-content { filter: blur(2px); transition: filter 0.3s ease; }
+
         @media (max-width: 768px) {
-            .navbar {
-                padding: 10px 15px;
-            }
-
-            .navbar-left h1 {
-                font-size: 1.2em;
-            }
-
-            .btn-nav {
-                padding: 6px 12px;
-                font-size: 0.85em;
-            }
-
-            .user-info span {
-                display: none;
-            }
-
             .sidebar {
-                position: fixed;
-                left: -240px;
-                top: 50px;
-                height: calc(100vh - 50px);
-                z-index: 100;
-                transition: left 0.3s;
+                position: fixed; top: 0; left: 0; height: 100vh;
+                transform: translateX(-100%);
+                background: var(--bg-card);
+                z-index: 60; transition: transform 0.3s ease;
+                border-right: 1px solid var(--border-color);
             }
-
-            .sidebar.active {
-                left: 0;
-            }
-
-            .container {
-                height: calc(100vh - 50px);
-            }
-
-            .toolbar {
-                padding: 10px 15px;
-                flex-wrap: wrap;
-            }
-
-            .toolbar-left {
-                flex: 1;
-                min-width: 100%;
-                margin-bottom: 10px;
-            }
-
-            .toolbar-right {
-                flex: 1;
-                justify-content: space-between;
-            }
-
-            .btn {
-                padding: 8px 15px;
-                font-size: 0.9em;
-            }
-
-            .breadcrumb {
-                padding: 10px 15px;
-                font-size: 0.9em;
-            }
-
-            .file-area {
-                padding: 15px;
-            }
-
-            /* 手机端列表视图 */
-            .list-header {
-                display: none;
-            }
-
-            .list-item {
-                grid-template-columns: 50px 1fr auto;
-                gap: 10px;
-                padding: 10px;
-                min-height: 70px;
-            }
-
-            .item-thumbnail,
-            .item-icon {
-                width: 50px;
-                height: 50px;
-                font-size: 1.5em;
-            }
-
-            .item-name {
-                font-size: 0.9em;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                padding-right: 10px;
-            }
-
-            .list-item > div:nth-child(3),
-            .list-item > div:nth-child(4) {
-                display: none;
-            }
-
-            .item-actions {
-                position: static;
-                opacity: 0;
-                flex-direction: column;
-                gap: 5px;
-                transition: opacity 0.3s;
-            }
-
-            .list-item.active .item-actions {
-                opacity: 1;
-            }
-
-            .action-btn {
-                padding: 8px;
-                font-size: 1.2em;
-                min-width: 40px;
-                background: #f5f7fa;
-            }
-
-            .action-btn:active {
-                background: #667eea;
-                color: white;
-            }
-
-            /* 手机端网格视图 */
-            .grid-view {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-                gap: 10px;
-            }
-
-            .grid-item {
-                padding: 10px;
-                min-height: 150px;
-            }
-
-            .grid-item-thumbnail,
-            .grid-item-icon-large {
-                height: 80px;
-            }
-
-            .grid-item-icon-large {
-                font-size: 3em;
-            }
-
-            .grid-item-name {
-                font-size: 0.8em;
-            }
-
-            .grid-item-actions {
-                opacity: 0;
-            }
-
-            .grid-item.active .grid-item-actions {
-                opacity: 1;
-            }
-
-            .grid-action-btn {
-                font-size: 1em;
-                padding: 5px 8px;
-            }
-
-            .sort-select {
-                font-size: 0.85em;
-                padding: 6px 10px;
-            }
+            .sidebar.active { transform: translateX(0); }
         }
 
-        /* 平板适配 */
-        @media (min-width: 769px) and (max-width: 1024px) {
-            .sidebar {
-                width: 200px;
-            }
+        button, .cursor-pointer { touch-action: manipulation; }
 
-            .grid-view {
-                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            }
+        .mask-image-linear {
+            mask-image: linear-gradient(to right, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
+        }
 
-            .list-header {
-                grid-template-columns: 70px 2fr 1fr 1fr 120px;
-            }
+        /* 图标过渡 */
+        #transferIcon {
+            /* 保持原大小 */
+            width: 1.25rem;
+            height: 1.25rem;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* 弹性效果 */
+            transform-origin: center;
+        }
 
-            .list-item {
-                grid-template-columns: 70px 2fr 1fr 1fr 120px;
-            }
+        /* 图标激活态类名 */
+        #transferIcon.is-active {
+            transform: scale(1.24); /* 1.55 / 1.25 ≈ 1.24 倍 */
+        }
+
+        /* 角标过渡 */
+        #transferCount {
+            display: flex; /* 一直保持 flex，通过透明度隐藏 */
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s;
+            opacity: 0;
+            transform: scale(0);
+        }
+
+        /* 角标激活态类名 */
+        #transferCount.is-visible {
+            opacity: 1;
+            transform: scale(1);
         }
     </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'var(--primary)',
+                        'primary-light': 'var(--primary-light)',
+                        'primary-dark': 'var(--primary-dark)',
+                        page: 'var(--bg-light)',
+                        card: 'var(--bg-card)',
+                        border: 'var(--border-color)',
+                        text: {
+                            main: 'var(--text-main)',
+                            sub: 'var(--text-sub)'
+                        },
+                        brand: {
+                            50: 'rgba(14, 165, 233, 0.1)',
+                            100: 'rgba(14, 165, 233, 0.15)',
+                            500: 'var(--primary)',
+                            600: 'var(--primary-dark)',
+                            700: 'var(--primary-dark)',
+                            900: '#1E3A8A',
+                        },
+                        ai: {
+                            500: '#8B5CF6',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-<!-- 顶部导航栏 -->
-<div class="navbar">
-    <div class="navbar-left">
-        <h1>📦 QuickShare.NetDisk</h1>
-    </div>
-    <div class="navbar-right">
-        <div class="user-info">
-            <span id="userName">用户名</span>
-        </div>
-        <button class="btn-nav" onclick="location.href='index.html'">文件分享</button>
-        <button class="btn-nav" onclick="handleLogout()">退出登录</button>
-    </div>
+<body class="bg-page text-text-main h-screen flex overflow-hidden selection:bg-brand-100 selection:text-brand-700">
+
+<div class="bg-glow">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
 </div>
 
-<div class="container">
-    <!-- 左侧边栏 -->
-    <div class="sidebar">
-        <div class="sidebar-item active" onclick="showCategory('all')">
-            📁 全部文件
+<div class="mobile-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<aside class="w-64 bg-card border-r border-border flex flex-col shrink-0 z-20 sidebar transition-colors duration-300">
+    <div class="h-16 flex items-center px-6 border-b border-border">
+        <div class="w-8 h-8 bg-gradient-to-br from-brand-500 to-ai-500 rounded-lg flex items-center justify-center text-white mr-3 shadow-md shadow-brand-500/20">
+            <i class="fa-solid fa-cloud"></i>
         </div>
-        <div class="sidebar-item" onclick="showCategory('image')">
-            🖼️ 图片
-        </div>
-        <div class="sidebar-item" onclick="showCategory('document')">
-            📄 文档
-        </div>
-        <div class="sidebar-item" onclick="showCategory('video')">
-            🎬 视频
-        </div>
-        <div class="sidebar-item" onclick="showCategory('audio')">
-            🎵 音频
-        </div>
-        <div class="sidebar-item" onclick="showCategory('other')">
-            📦 其他
-        </div>
+        <span class="font-bold text-lg tracking-tight text-text-main">QuickShare</span>
     </div>
 
-    <!-- 主内容区 -->
-    <div class="main-content">
-        <!-- 工具栏 -->
-        <div class="toolbar">
-            <div class="toolbar-left">
-                <button class="btn" onclick="document.getElementById('fileUpload').click()">
-                    ⬆️ 上传文件
-                </button>
-                <button class="btn btn-outline" onclick="createFolder()">
-                    📁 新建文件夹
-                </button>
-                <input type="file" id="fileUpload" class="upload-input" multiple onchange="handleFileUpload(event)">
-            </div>
-            <div class="toolbar-right">
-                <select class="sort-select" onchange="sortFiles(this.value)">
-                    <option value="name">按名称排序</option>
-                    <option value="time">按时间排序</option>
-                    <option value="size">按大小排序</option>
-                    <option value="type">按类型排序</option>
-                </select>
-                <div class="view-switch">
-                    <button class="view-btn active" onclick="switchView('list')">📋</button>
-                    <button class="view-btn" onclick="switchView('grid')">🔲</button>
-                </div>
-            </div>
+    <nav class="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
+        <div class="px-2 mb-6">
+            <button onclick="document.getElementById('fileUpload').click()" class="w-full bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 transition-all py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 font-medium group">
+                <i class="fa-solid fa-plus group-hover:rotate-90 transition-transform"></i>
+                <span data-i18n="uploadBtn">上传文件</span>
+            </button>
+            <input type="file" id="fileUpload" class="hidden" multiple onchange="handleFileUpload(event)">
         </div>
 
-        <!-- 面包屑导航 -->
-        <div class="breadcrumb">
-            <span class="breadcrumb-item" onclick="navigateToFolder(0)">全部文件</span>
-            <span id="breadcrumbPath"></span>
-        </div>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 bg-brand-50 text-brand-600 rounded-lg font-medium transition-colors sidebar-item active" onclick="showCategory('all')">
+            <i class="fa-solid fa-folder-open w-5 text-center"></i>
+            <span data-i18n="allFiles">全部文件</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-text-sub hover:bg-brand-50 hover:text-text-main rounded-lg transition-colors sidebar-item" onclick="showCategory('image')">
+            <i class="fa-regular fa-image w-5 text-center"></i>
+            <span data-i18n="images">图片</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-text-sub hover:bg-brand-50 hover:text-text-main rounded-lg transition-colors sidebar-item" onclick="showCategory('document')">
+            <i class="fa-regular fa-file-lines w-5 text-center"></i>
+            <span data-i18n="documents">文档</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-text-sub hover:bg-brand-50 hover:text-text-main rounded-lg transition-colors sidebar-item" onclick="showCategory('video')">
+            <i class="fa-solid fa-film w-5 text-center"></i>
+            <span data-i18n="videos">视频</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-text-sub hover:bg-brand-50 hover:text-text-main rounded-lg transition-colors sidebar-item" onclick="showCategory('audio')">
+            <i class="fa-solid fa-music w-5 text-center"></i>
+            <span data-i18n="audios">音频</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-text-sub hover:bg-brand-50 hover:text-text-main rounded-lg transition-colors sidebar-item" onclick="showCategory('other')">
+            <i class="fa-solid fa-box-archive w-5 text-center"></i>
+            <span data-i18n="others">其他</span>
+        </a>
+    </nav>
 
-        <!-- 文件列表区域 -->
-        <div class="file-area">
-            <!-- 列表视图 -->
-            <div id="listView" class="list-view">
-                <div class="list-header">
-                    <div>预览</div>
-                    <div>名称</div>
-                    <div>大小</div>
-                    <div>修改时间</div>
-                    <div></div>
-                </div>
-                <div id="listContent">
-                    <!-- 文件列表将通过JS动态生成 -->
-                </div>
-            </div>
+    <div class="p-4 border-t border-border bg-page/50">
+        <button onclick="createFolder()" class="w-full mb-3 bg-card border border-border hover:border-brand-500 text-text-sub hover:text-brand-500 py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors">
+            <i class="fa-solid fa-folder-plus"></i>
+            <span data-i18n="newFolderBtn">新建文件夹</span>
+        </button>
 
-            <!-- 图标视图 -->
-            <div id="gridView" class="grid-view hidden">
-                <!-- 文件网格将通过JS动态生成 -->
+        <div class="flex items-center gap-3 pt-2 cursor-pointer hover:opacity-80">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="User" class="w-8 h-8 rounded-full bg-card p-0.5 border border-border">
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-text-main truncate" id="userName">用户名</p>
+                <p class="text-xs text-text-sub truncate">Pro Plan</p>
             </div>
-
-            <!-- 空状态 -->
-            <div id="emptyState" class="empty-state hidden">
-                <div class="empty-state-icon">📁</div>
-                <h3>暂无文件</h3>
-                <p>上传您的第一个文件吧!</p>
-            </div>
+            <button onclick="handleLogout()" class="text-text-sub hover:text-text-main" title="退出">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
         </div>
     </div>
-</div>
+</aside>
 
-<!-- 文件预览弹窗 -->
+<!-- Main -->
+<main class="flex-1 flex flex-col min-w-0 bg-transparent transition-all duration-300 relative z-10">
+    <header class="h-16 md:h-16 border-b border-border flex items-center justify-between px-4 md:px-6 shrink-0 glass-effect sticky top-0 z-20">
+        <div class="flex items-center gap-3 md:gap-4 overflow-hidden flex-1">
+            <button class="md:hidden p-2 -ml-2 hover:bg-brand-50 rounded-lg text-text-sub" onclick="toggleSidebar()">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+
+            <div class="flex items-center text-sm text-text-sub overflow-hidden whitespace-nowrap mask-image-linear w-full">
+                <span class="hover:text-brand-600 cursor-pointer hover:underline shrink-0" onclick="navigateToFolder(0)" data-i18n="allFilesPath">全部文件</span>
+                <span id="breadcrumbPath" class="flex items-center"></span>
+            </div>
+        </div>
+
+        <div class="hidden md:block flex-1 max-w-xl mx-8 relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-text-sub opacity-50"></i>
+            <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="搜索文件..."
+                   class="w-full bg-page/50 border border-border text-text-main text-sm rounded-lg focus:ring-2 focus:ring-brand-100 focus:border-brand-500 block pl-10 p-2.5 transition-all placeholder-text-sub/50"
+                   onkeyup="handleSearch(event)">
+        </div>
+
+        <div class="flex items-center gap-2 md:gap-4 text-text-sub shrink-0 ml-2">
+            <button class="hidden md:block p-2 hover:bg-brand-50 rounded-lg transition-colors" onclick="location.href='index.html'" title="分享首页">
+                <i class="fa-solid fa-share-nodes"></i>
+            </button>
+            <div class="relative">
+                <button class="p-2 hover:bg-brand-50 rounded-lg transition-colors w-8 h-8 flex flex-col items-center justify-center" onclick="toggleTransferPanel()" id="transferBtn" title="文件传输">
+                    <!-- 传输图标 - 单边箭头粗线圆角版 -->
+                    <svg id="transferIcon" class="w-5 h-5 transition-all duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                        <!-- 左边上传：长竖线 + 左单边箭头 -->
+                        <line x1="8" y1="21" x2="8" y2="3" class="text-text-sub"/>
+                        <polyline points="4,7 8,3" class="text-text-sub"/>
+                        <!-- 右边下载：长竖线 + 右单边箭头 -->
+                        <line x1="16" y1="3" x2="16" y2="21" class="text-text-sub"/>
+                        <polyline points="20,17 16,21" class="text-text-sub"/>
+                    </svg>
+                    <!-- 底部进度条 - 默认隐藏 -->
+                    <div id="transferProgressWrap" class="w-6 h-1 bg-border rounded-full overflow-hidden mt-0.5 hidden transition-all duration-300">
+                        <div id="transferProgressBar" class="h-full bg-brand-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </button>
+                <!-- 任务数量徽章 -->
+                <span id="transferCount" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full hidden items-center justify-center font-bold shadow-sm border border-white">0</span>
+            </div>
+            <button class="p-2 hover:bg-brand-50 rounded-lg transition-colors w-8 h-8 flex items-center justify-center" onclick="toggleTheme()" id="darkModeToggle" title="切换主题">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+
+
+            <button class="p-2 hover:bg-brand-50 rounded-lg transition-colors text-xs font-bold w-8 h-8 flex items-center justify-center border border-border" onclick="toggleLanguage()" id="langBtn">EN</button>
+
+            <div class="hidden md:block h-4 w-px bg-border"></div>
+
+            <div class="flex bg-page/80 rounded-lg p-0.5 border border-border">
+                <button class="p-1.5 md:p-2 rounded-md transition-colors view-btn active" onclick="switchView('list')" title="列表视图">
+                    <i class="fa-solid fa-list text-xs md:text-sm"></i>
+                </button>
+                <button class="p-1.5 md:p-2 rounded-md transition-colors view-btn" onclick="switchView('grid')" title="网格视图">
+                    <i class="fa-solid fa-grip text-xs md:text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto p-3 md:p-6 scroll-smooth">
+        <div class="mb-6 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-text-sub" id="currentViewTitle">文件夹和文件</h3>
+            <select class="bg-card border border-border text-text-main text-sm rounded-lg px-3 py-1.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none" onchange="sortFiles(this.value)" id="sortSelect">
+                <option value="name" data-i18n="sortByName">按名称排序</option>
+                <option value="time" data-i18n="sortByTime">按时间排序</option>
+                <option value="size" data-i18n="sortBySize">按大小排序</option>
+                <option value="type" data-i18n="sortByType">按类型排序</option>
+            </select>
+        </div>
+
+        <div id="listView">
+            <div class="bg-card/80 backdrop-blur-sm border border-border rounded-xl overflow-hidden shadow-sm">
+                <div class="grid grid-cols-12 gap-4 p-4 border-b border-border text-xs font-medium text-text-sub uppercase bg-page/50">
+                    <div class="col-span-6" data-i18n="name">名称</div>
+                    <div class="col-span-2" data-i18n="size">大小</div>
+                    <div class="col-span-3" data-i18n="modifiedTime">修改时间</div>
+                    <div class="col-span-1 text-right" data-i18n="actions">操作</div>
+                </div>
+                <div id="listContent"></div>
+            </div>
+        </div>
+
+        <div id="gridView" class="hidden grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4"></div>
+
+        <div id="emptyState" class="hidden text-center py-20">
+            <div class="text-6xl text-brand-100 mb-4 animate-bounce"><i class="fa-regular fa-folder-open"></i></div>
+            <h3 class="text-lg font-semibold text-text-main mb-2" data-i18n="emptyStateTitle">暂无文件</h3>
+            <p class="text-text-sub" data-i18n="emptyStateText">上传您的第一个文件吧!</p>
+        </div>
+    </div>
+</main>
+
 <div id="previewModal" class="preview-modal" onclick="closePreview()">
-    <button class="preview-close" onclick="closePreview()">×</button>
+    <button class="preview-close" onclick="closePreview()"><i class="fa-solid fa-xmark"></i></button>
     <div class="preview-content" onclick="event.stopPropagation()">
         <div id="previewContainer"></div>
     </div>
 </div>
 
-<script>
-    const API_BASE = `${window.location.protocol}//${window.location.host}/api`;
-
-    let currentView = 'list';
-    let currentFolder = 0;
-    let currentCategory = 'all';
-    let files = [];
-    let folders = [];
-    let currentShareFile = null;
-    let isMobile = window.innerWidth <= 768;
-    let activeItemIndex = -1;
-
-    // 文件类型映射
-    const FILE_TYPE_MAP = {
-        'jpg': 'image', 'jpeg': 'image', 'png': 'image', 'gif': 'image', 'bmp': 'image', 'svg': 'image', 'webp': 'image',
-        'doc': 'document', 'docx': 'document', 'pdf': 'document', 'txt': 'document', 'xls': 'document', 'xlsx': 'document', 'ppt': 'document', 'pptx': 'document',
-        'mp4': 'video', 'avi': 'video', 'mov': 'video', 'wmv': 'video', 'mkv': 'video',
-        'mp3': 'audio', 'wav': 'audio', 'flac': 'audio', 'aac': 'audio',
-        'zip': 'archive', 'rar': 'archive', '7z': 'archive', 'tar': 'archive'
-    };
-
-    // 检查是否支持预览
-    function canPreview(file) {
-        const fileType = file.fileType || file.type || '';
-        const fileName = file.originalName || file.fileName || file.name || '';
-
-        return fileType.startsWith('image/') ||
-            fileType.startsWith('video/') ||
-            fileType === 'application/pdf' ||
-            fileType === 'text/plain' ||
-            fileName.endsWith('.txt') ||
-            fileName.endsWith('.png') ||
-            fileName.endsWith('.jpg') ||
-            fileName.endsWith('.jpeg') ||
-            fileName.endsWith('.gif') ||
-            fileName.endsWith('.mp4');
-    }
-
-    // 监听窗口大小变化
-    window.addEventListener('resize', () => {
-        isMobile = window.innerWidth <= 768;
-    });
-
-    // 检查登录状态
-    window.addEventListener('load', () => {
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-        if (!token || !user.username) {
-            alert('请先登录!');
-            window.location.href = 'login.html';
-            return;
-        }
-
-        document.getElementById('userName').textContent = user.nickname || user.username;
-        loadFiles();
-    });
-
-    // 点击文档任意处关闭激活状态
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.list-item') && !e.target.closest('.grid-item')) {
-            clearActiveItems();
-        }
-    });
-
-    // 清除所有激活状态
-    function clearActiveItems() {
-        document.querySelectorAll('.list-item.active, .grid-item.active').forEach(item => {
-            item.classList.remove('active');
-        });
-        activeItemIndex = -1;
-    }
-
-    // 退出登录
-    function handleLogout() {
-        if (confirm('确定要退出登录吗?')) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = 'index.html';
-        }
-    }
-
-    // 切换视图
-    function switchView(view) {
-        currentView = view;
-        document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
-
-        if (view === 'list') {
-            document.getElementById('listView').classList.remove('hidden');
-            document.getElementById('gridView').classList.add('hidden');
-        } else {
-            document.getElementById('listView').classList.add('hidden');
-            document.getElementById('gridView').classList.remove('hidden');
-        }
-        clearActiveItems();
-        renderFiles();
-    }
-
-    // 显示分类
-    function showCategory(category) {
-        currentCategory = category;
-        document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
-        event.target.classList.add('active');
-        clearActiveItems();
-        renderFiles();
-    }
-
-    // 获取文件类型
-    function getFileType(fileName) {
-        const ext = fileName.split('.').pop().toLowerCase();
-        return FILE_TYPE_MAP[ext] || 'other';
-    }
-
-    // 加载文件
-    async function loadFiles() {
-        const token = localStorage.getItem('token');
-
-        if (!token || token === 'test-token-12345') {
-            files = [];
-            renderFiles();
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_BASE}/files`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const result = await response.json();
-
-            if (result.code === 200 && result.data) {
-                files = result.data;
-                files.forEach(file => {
-                    if (!file.type) {
-                        file.type = getFileType(file.originalName || file.fileName || file.name);
-                    }
-                });
-
-                saveFiles();
-                renderFiles();
-                return;
-            } else if (result.code === 401 || (result.message && result.message.includes('认证'))) {
-                alert('登录已过期，请重新登录');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                window.location.href = 'login.html';
-                return;
-            } else {
-                throw new Error(result.message || '加载失败');
-            }
-        } catch (error) {
-            console.error('从后端加载文件失败:', error);
-
-            const storageKey = getUserStorageKey();
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                files = JSON.parse(saved);
-                files.forEach(file => {
-                    if (!file.type) {
-                        file.type = getFileType(file.originalName || file.fileName || file.name);
-                    }
-                });
-                console.log('从 localStorage 加载文件:', files.length, '个文件');
-            } else {
-                files = [];
-            }
-            renderFiles();
-        }
-    }
-
-    // 获取当前用户的存储键名
-    function getUserStorageKey() {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const userId = user.id || user.username || 'default';
-        const domain = window.location.host;
-        return `uploadedFiles_${userId}_${domain}`;
-    }
-
-    // 保存文件
-    function saveFiles() {
-        const storageKey = getUserStorageKey();
-        localStorage.setItem(storageKey, JSON.stringify(files));
-        console.log('文件已保存到:', storageKey);
-    }
-
-    // 渲染文件列表
-    function renderFiles() {
-        const listContent = document.getElementById('listContent');
-        const gridView = document.getElementById('gridView');
-        const emptyState = document.getElementById('emptyState');
-
-        const filteredFiles = currentCategory === 'all'
-            ? files
-            : files.filter(file => file.type === currentCategory);
-
-        if (filteredFiles.length === 0) {
-            emptyState.classList.remove('hidden');
-            listContent.innerHTML = '';
-            gridView.innerHTML = '';
-            return;
-        }
-
-        emptyState.classList.add('hidden');
-
-        if (currentView === 'list') {
-            renderListView(listContent, filteredFiles);
-        } else {
-            renderGridView(gridView, filteredFiles);
-        }
-    }
-
-    function renderListView(container, filteredFiles) {
-        const token = localStorage.getItem('token');
-
-        container.innerHTML = filteredFiles.map(file => {
-            const originalIndex = files.indexOf(file);
-            const fileType = file.fileType || file.type || '';
-            const fileName = file.originalName || file.fileName || file.name;
-
-            const thumbnailUrl = `${API_BASE}/files/${file.id}/preview?token=${encodeURIComponent(token)}&max_size=100`;
-
-            let thumbnailHtml = '';
-
-            if (fileType.startsWith('image/')) {
-                thumbnailHtml = `<img src="${thumbnailUrl}" class="item-thumbnail" alt="${fileName}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                <div class="item-icon" style="display:none;">🖼️</div>`;
-            } else if (fileType.startsWith('video/')) {
-                thumbnailHtml = `<video class="item-thumbnail" preload="metadata" muted><source src="${thumbnailUrl}#t=0.1"></video>`;
-            } else {
-                thumbnailHtml = `<div class="item-icon">${getFileIcon(file)}</div>`;
-            }
-
-            if (isMobile) {
-                return `
-                <div class="list-item" data-index="${originalIndex}" onclick="handleMobileListItemClick(event, ${originalIndex})">
-                    ${thumbnailHtml}
-                    <div class="item-name" onclick="handleMobileListNameClick(event, ${originalIndex})">${fileName}</div>
-                    <div class="item-actions">
-                        <button class="action-btn" onclick="shareFile(${originalIndex}); event.stopPropagation();">🔗</button>
-                        <button class="action-btn" onclick="downloadFile(${originalIndex}); event.stopPropagation();">⬇️</button>
-                        <button class="action-btn" onclick="renameFile(${originalIndex}); event.stopPropagation();">✏️</button>
-                        <button class="action-btn" onclick="deleteFile(${originalIndex}); event.stopPropagation();">🗑️</button>
-                    </div>
-                </div>
-            `;
-            } else {
-                return `
-                <div class="list-item" data-index="${originalIndex}">
-                    ${thumbnailHtml}
-                    <div class="item-name" onclick="handleDesktopNameClick(event, ${originalIndex})">${fileName}</div>
-                    <div>${formatFileSize(file.fileSize || file.size)}</div>
-                    <div>${formatDate(file.uploadTime || file.time)}</div>
-                    <div class="item-actions">
-                        <button class="action-btn" onclick="shareFile(${originalIndex}); event.stopPropagation();">分享</button>
-                        <button class="action-btn" onclick="downloadFile(${originalIndex}); event.stopPropagation();">下载</button>
-                        <button class="action-btn" onclick="renameFile(${originalIndex}); event.stopPropagation();">重命名</button>
-                        <button class="action-btn" onclick="deleteFile(${originalIndex}); event.stopPropagation();">删除</button>
-                    </div>
-                </div>
-            `;
-            }
-        }).join('');
-    }
-
-    function renderGridView(container, filteredFiles) {
-        const token = localStorage.getItem('token');
-
-        container.innerHTML = filteredFiles.map(file => {
-            const originalIndex = files.indexOf(file);
-            const fileType = file.fileType || file.type || '';
-            const fileName = file.originalName || file.fileName || file.name;
-
-            const thumbnailUrl = `${API_BASE}/files/${file.id}/preview?token=${encodeURIComponent(token)}&max_size=100`;
-
-            let thumbnailHtml = '';
-            let hasThumbnail = false;
-
-            if (fileType.startsWith('image/')) {
-                hasThumbnail = true;
-                thumbnailHtml = `
-                <img src="${thumbnailUrl}"
-                     class="grid-item-thumbnail"
-                     alt="${fileName}"
-                     loading="lazy"
-                     onclick="handleGridThumbnailClick(event, ${originalIndex})"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                <div class="grid-item-icon-large" style="display:none;">🖼️</div>`;
-
-            } else if (fileType.startsWith('video/')) {
-                hasThumbnail = true;
-                thumbnailHtml = `
-                <video class="grid-item-thumbnail"
-                       preload="metadata"
-                       muted
-                       onclick="handleGridThumbnailClick(event, ${originalIndex})"
-                       style="object-fit: cover;">
-                    <source src="${thumbnailUrl}#t=0.1">
-                </video>`;
-
-            } else if (fileType === 'application/pdf') {
-                thumbnailHtml = `<div class="grid-item-icon-large" onclick="handleGridIconClick(event, ${originalIndex})">📄</div>`;
-            } else if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
-                thumbnailHtml = `<div class="grid-item-icon-large" onclick="handleGridIconClick(event, ${originalIndex})">📝</div>`;
-            } else if (fileType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-                thumbnailHtml = `<div class="grid-item-icon-large" onclick="handleGridIconClick(event, ${originalIndex})">📘</div>`;
-            } else if (fileType.includes('excel') || fileName.endsWith('.xls') || fileName.endsWith('.xlsx')) {
-                thumbnailHtml = `<div class="grid-item-icon-large" onclick="handleGridIconClick(event, ${originalIndex})">📊</div>`;
-            } else if (fileType.includes('powerpoint') || fileName.endsWith('.ppt') || fileName.endsWith('.pptx')) {
-                thumbnailHtml = `<div class="grid-item-icon-large" onclick="handleGridIconClick(event, ${originalIndex})">📊</div>`;
-            } else if (fileType.startsWith('audio/')) {
-                thumbnailHtml = `<div class="grid-item-icon-large" onclick="handleGridIconClick(event, ${originalIndex})">🎵</div>`;
-            } else if (fileType.includes('zip') || fileType.includes('rar') || fileType.includes('7z')) {
-                thumbnailHtml = `<div class="grid-item-icon-large" onclick="handleGridIconClick(event, ${originalIndex})">📦</div>`;
-            } else {
-                thumbnailHtml = `<div class="grid-item-icon-large" onclick="handleGridIconClick(event, ${originalIndex})">📄</div>`;
-            }
-
-            return `
-            <div class="grid-item" data-index="${originalIndex}" onclick="handleGridItemClick(event, ${originalIndex})">
-                <div class="grid-item-actions">
-                    <button class="grid-action-btn" onclick="shareFile(${originalIndex}); event.stopPropagation();">🔗</button>
-                    <button class="grid-action-btn" onclick="downloadFile(${originalIndex}); event.stopPropagation();">⬇️</button>
-                    <button class="grid-action-btn" onclick="renameFile(${originalIndex}); event.stopPropagation();">✏️</button>
-                    <button class="grid-action-btn" onclick="deleteFile(${originalIndex}); event.stopPropagation();">🗑️</button>
-                </div>
-                ${thumbnailHtml}
-                <div class="grid-item-name" onclick="handleGridNameClick(event, ${originalIndex})">${fileName}</div>
-            </div>
-        `;
-        }).join('');
-    }
-
-    // 手机端列表视图 - 点击文件区域（激活/取消激活）
-    function handleMobileListItemClick(event, index) {
-        // 如果点击的是按钮或文件名，不处理
-        if (event.target.closest('.item-actions') || event.target.closest('.item-name')) {
-            return;
-        }
-
-        event.stopPropagation();
-        const item = event.currentTarget;
-
-        if (item.classList.contains('active')) {
-            // 已激活，取消激活
-            item.classList.remove('active');
-            activeItemIndex = -1;
-        } else {
-            // 未激活，激活该项
-            clearActiveItems();
-            item.classList.add('active');
-            activeItemIndex = index;
-        }
-    }
-
-    // 手机端列表视图 - 点击文件名（预览）
-    function handleMobileListNameClick(event, index) {
-        event.stopPropagation();
-        const item = event.currentTarget.closest('.list-item');
-        const file = files[index];
-
-        if (!item.classList.contains('active')) {
-            // 未激活，先激活
-            clearActiveItems();
-            item.classList.add('active');
-            activeItemIndex = index;
-        } else {
-            // 已激活，打开预览
-            if (canPreview(file)) {
-                previewFile(index);
-            } else {
-                alert('该文件类型不支持预览');
-            }
-        }
-    }
-
-    // 电脑端列表视图点击文件名 - 直接预览
-    function handleDesktopNameClick(event, index) {
-        event.stopPropagation();
-        const file = files[index];
-
-        if (canPreview(file)) {
-            previewFile(index);
-        } else {
-            alert('该文件类型不支持预览');
-        }
-    }
-
-    // 手机端网格视图点击处理（点击空白区域）
-    function handleGridItemClick(event, index) {
-        if (!isMobile) return;
-
-        // 如果点击的是缩略图、图标、文件名或按钮，不处理
-        if (event.target.closest('.grid-item-thumbnail') ||
-            event.target.closest('.grid-item-icon-large') ||
-            event.target.closest('.grid-item-name') ||
-            event.target.closest('.grid-item-actions')) {
-            return;
-        }
-
-        event.stopPropagation();
-        const item = event.currentTarget;
-
-        if (item.classList.contains('active')) {
-            // 已激活，取消激活
-            item.classList.remove('active');
-            activeItemIndex = -1;
-        } else {
-            // 未激活，激活该项
-            clearActiveItems();
-            item.classList.add('active');
-            activeItemIndex = index;
-        }
-    }
-
-    // 点击网格缩略图 - 激活或预览
-    function handleGridThumbnailClick(event, index) {
-        event.stopPropagation();
-
-        if (isMobile) {
-            const item = event.target.closest('.grid-item');
-            if (!item.classList.contains('active')) {
-                // 第一次点击：激活
-                clearActiveItems();
-                item.classList.add('active');
-                activeItemIndex = index;
-                return;
-            }
-            // 已激活：预览
-        }
-
-        // 电脑端或手机端已激活：预览
-        previewFile(index);
-    }
-
-    // 点击网格图标 - 激活或预览
-    function handleGridIconClick(event, index) {
-        event.stopPropagation();
-
-        if (isMobile) {
-            const item = event.target.closest('.grid-item');
-            if (!item.classList.contains('active')) {
-                // 第一次点击：激活
-                clearActiveItems();
-                item.classList.add('active');
-                activeItemIndex = index;
-                return;
-            }
-            // 已激活：预览
-        }
-
-        // 电脑端或手机端已激活：预览
-        const file = files[index];
-        if (canPreview(file)) {
-            previewFile(index);
-        } else {
-            alert('该文件类型不支持预览');
-        }
-    }
-
-    // 点击网格文件名 - 激活或触发操作
-    function handleGridNameClick(event, index) {
-        event.stopPropagation();
-
-        if (isMobile) {
-            const item = event.target.closest('.grid-item');
-            if (!item.classList.contains('active')) {
-                // 第一次点击：激活
-                clearActiveItems();
-                item.classList.add('active');
-                activeItemIndex = index;
-                return;
-            }
-            // 已激活：下载
-        }
-
-        // 电脑端或手机端已激活：下载
-        downloadFile(index);
-    }
-
-    function getFileIcon(file) {
-        const type = file.type;
-        if (type === 'image') return '🖼️';
-        if (type === 'document') return '📄';
-        if (type === 'video') return '🎬';
-        if (type === 'audio') return '🎵';
-        if (type === 'archive') return '📦';
-        return '📄';
-    }
-
-    function formatFileSize(bytes) {
-        if (!bytes || bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-    }
-
-    function formatDate(dateStr) {
-        if (!dateStr) return '';
-        const date = new Date(dateStr);
-        return date.toLocaleString('zh-CN');
-    }
-
-    // 文件上传
-    async function handleFileUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const token = localStorage.getItem('token');
-        if (!token || token === 'test-token-12345') {
-            alert('请先登录！');
-            window.location.href = 'login.html';
-            return;
-        }
-
-        const uploadBtn = document.querySelector('.toolbar-left .btn');
-        const originalText = uploadBtn.textContent;
-        uploadBtn.textContent = '⏳ 上传中...';
-        uploadBtn.disabled = true;
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const response = await fetch(`${API_BASE}/upload`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            const result = await response.json();
-
-            if (result.code === 200) {
-                alert('✅ 上传成功！');
-
-                result.data.type = getFileType(result.data.originalName || result.data.fileName);
-                files.push(result.data);
-                saveFiles();
-                renderFiles();
-
-                event.target.value = '';
-            } else if (result.code === 401 || (result.message && result.message.includes('认证'))) {
-                alert('登录已过期，请重新登录');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                window.location.href = 'login.html';
-            } else {
-                throw new Error(result.message || '上传失败');
-            }
-        } catch (error) {
-            console.error('上传失败:', error);
-            alert('❌ 上传失败: ' + error.message);
-        } finally {
-            uploadBtn.textContent = originalText;
-            uploadBtn.disabled = false;
-        }
-    }
-
-    // 创建文件夹
-    async function createFolder() {
-        const name = prompt('请输入文件夹名称:');
-
-        // 调试：打印输入的名称
-        console.log('===== 创建文件夹请求 =====');
-        console.log('1. 原始输入:', name);
-        console.log('2. 是否为空:', name === null || name === '');
-
-        if (!name || !name.trim()) {
-            console.log('❌ 文件夹名称为空，取消创建');
-            return;
-        }
-
-        const trimmedName = name.trim();
-        console.log('3. 清理后的名称:', trimmedName);
-        console.log('4. 清理后长度:', trimmedName.length);
-
-        const token = localStorage.getItem('token');
-        if (!token || token === 'test-token-12345') {
-            alert('请先登录！');
-            window.location.href = 'login.html';
-            return;
-        }
-
-        const requestBody = {
-            name: trimmedName,
-            parentId: currentFolder || null
-        };
-
-        console.log('5. 请求体:', requestBody);
-        console.log('6. JSON字符串:', JSON.stringify(requestBody));
-        console.log('7. 请求URL:', `${API_BASE}/folders`);
-        console.log('8. Token存在:', !!token);
-
-        try {
-            const response = await fetch(`${API_BASE}/folders`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(requestBody)
-            });
-
-            console.log('9. 响应状态:', response.status);
-            console.log('10. 响应状态文本:', response.statusText);
-
-            const responseText = await response.text();
-            console.log('11. 响应原始文本:', responseText);
-
-            let result;
-            try {
-                result = JSON.parse(responseText);
-                console.log('12. 响应JSON:', result);
-            } catch (e) {
-                console.error('❌ 响应不是有效的JSON:', e);
-                throw new Error('服务器返回了无效的响应格式');
-            }
-
-            if (result.code === 200) {
-                console.log('✅ 创建成功');
-                alert('✅ 文件夹创建成功！');
-                loadFiles();
-            } else if (result.code === 401 || (result.message && result.message.includes('认证'))) {
-                console.log('❌ 认证失败');
-                alert('登录已过期，请重新登录');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                window.location.href = 'login.html';
-            } else {
-                const errorMsg = result.message || result.msg || '创建失败';
-                console.error('❌ 创建失败:', errorMsg);
-                throw new Error(errorMsg);
-            }
-        } catch (error) {
-            console.error('❌ 发生错误:', error);
-            console.error('错误堆栈:', error.stack);
-
-            if (error.message.includes('Failed to fetch')) {
-                alert('❌ 网络请求失败\n\n可能原因：\n1. 后端服务未启动\n2. 跨域问题\n3. 网络连接问题');
-            } else if (error.message.includes('404') || error.message.includes('Not Found')) {
-                alert('⚠️ 后端接口不存在\n\nPOST /api/folders 接口未找到\n\n请确保：\n1. FolderRequest 类已创建\n2. Controller 中的 @PostMapping("/folders") 存在\n3. 后端已重新编译运行');
-            } else {
-                alert('❌ 创建文件夹失败\n\n' + error.message + '\n\n详情请查看浏览器控制台 (F12)');
-            }
-        }
-
-        console.log('========================');
-    }
-
-    // 分享文件
-    async function shareFile(index) {
-        const file = files[index];
-        currentShareFile = file;
-
-        const token = localStorage.getItem('token');
-        if (!token || token === 'test-token-12345') {
-            alert('请先登录！');
-            window.location.href = 'login.html';
-            return;
-        }
-
-        const expireDays = prompt('设置有效期（天数）：\n1 = 1天\n7 = 7天\n30 = 30天\n-1 = 永久', '7');
-        if (!expireDays) return;
-
-        const extractCode = prompt('设置提取码（选填，最多6位）：', '');
-
-        try {
-            const response = await fetch(`${API_BASE}/share`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    fileId: file.id,
-                    validDays: parseInt(expireDays),
-                    extractCode: extractCode || null
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.code === 200) {
-                const shareData = result.data;
-                // 生成包含分享码和提取码的完整链接
-                let shareUrl = `${window.location.protocol}//${window.location.host}/index.html?share=${shareData.shareCode}`;
-
-                // 如果有提取码，添加到URL中
-                if (shareData.extractCode) {
-                    shareUrl += `&code=${shareData.extractCode}`;
-                }
-
-                const text = `文件分享链接：\n${shareUrl}\n\n${shareData.extractCode ? '提取码：' + shareData.extractCode : '无需提取码'}\n\n直接复制链接到浏览器即可自动填写提取码！`;
-
-                copyToClipboard(text);
-            } else if (result.code === 401 || (result.message && result.message.includes('认证'))) {
-                alert('登录已过期，请重新登录');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                window.location.href = 'login.html';
-            } else {
-                alert('❌ 分享失败: ' + result.message);
-            }
-        } catch (error) {
-            console.error('分享失败:', error);
-            alert('❌ 分享失败: ' + error.message);
-        }
-    }
-
-    // 复制到剪贴板
-    function copyToClipboard(text) {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert('✅ 分享链接已复制到剪贴板！\n\n' + text);
-            }).catch(err => {
-                console.error('Clipboard API 失败:', err);
-                fallbackCopy(text);
-            });
-        } else {
-            fallbackCopy(text);
-        }
-    }
-
-    // 降级复制方案
-    function fallbackCopy(text) {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.top = '0';
-        textarea.style.left = '0';
-        textarea.style.width = '1px';
-        textarea.style.height = '1px';
-        textarea.style.padding = '0';
-        textarea.style.border = 'none';
-        textarea.style.outline = 'none';
-        textarea.style.boxShadow = 'none';
-        textarea.style.background = 'transparent';
-
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-
-        try {
-            const successful = document.execCommand('copy');
-            if (successful) {
-                alert('✅ 分享链接已复制到剪贴板！\n\n' + text);
-            } else {
-                alert('复制失败，请手动复制：\n\n' + text);
-            }
-        } catch (err) {
-            console.error('降级复制失败:', err);
-            alert('无法自动复制，请手动复制：\n\n' + text);
-        }
-
-        document.body.removeChild(textarea);
-    }
-
-    // 下载文件
-    async function downloadFile(index) {
-        const file = files[index];
-        const token = localStorage.getItem('token');
-
-        if (!token) {
-            alert('请先登录！');
-            window.location.href = 'login.html';
-            return;
-        }
-
-        try {
-            // 使用预览接口下载文件
-            const downloadUrl = `${API_BASE}/files/${file.id}/preview?token=${encodeURIComponent(token)}`;
-
-            // 创建隐藏的下载链接
-            const a = document.createElement('a');
-            a.href = downloadUrl;
-            a.download = file.originalName || file.fileName || file.name || 'download';
-            a.style.display = 'none';
-
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            // 可选：显示下载提示
-            console.log('开始下载:', file.originalName || file.fileName);
-        } catch (error) {
-            console.error('下载失败:', error);
-            alert('❌ 下载失败: ' + error.message);
-        }
-    }
-
-    // 删除文件
-    async function deleteFile(index) {
-        const file = files[index];
-        if (!confirm(`确定要删除这个文件吗？\n\n${file.originalName || file.fileName}`)) {
-            return;
-        }
-
-        const token = localStorage.getItem('token');
-        if (!token) {
-            alert('请先登录！');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_BASE}/files/${file.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const result = await response.json();
-
-            if (result.code === 200) {
-                files.splice(index, 1);
-                saveFiles();
-                renderFiles();
-                alert('✅ 删除成功');
-            } else {
-                alert('❌ 删除失败: ' + result.message);
-            }
-        } catch (error) {
-            console.error('删除失败:', error);
-            alert('❌ 删除失败: ' + error.message);
-        }
-    }
-
-    // 重命名文件
-    async function renameFile(index) {
-        const file = files[index];
-        const oldName = file.originalName || file.fileName || file.name;
-        const newName = prompt('请输入新名称:', oldName);
-
-        if (!newName) return;
-
-        if (newName === oldName) {
-            alert('名称未改变');
-            return;
-        }
-
-        const token = localStorage.getItem('token');
-        if (!token) {
-            alert('请先登录！');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_BASE}/files/${file.id}/rename`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ newName: newName })
-            });
-
-            const result = await response.json();
-
-            if (result.code === 200) {
-                if (file.originalName) {
-                    file.originalName = newName;
-                } else if (file.fileName) {
-                    file.fileName = newName;
-                } else {
-                    file.name = newName;
-                }
-
-                file.type = getFileType(newName);
-
-                saveFiles();
-                renderFiles();
-                alert('✅ 重命名成功！');
-            } else {
-                alert('❌ 重命名失败: ' + result.message);
-            }
-        } catch (error) {
-            console.error('重命名失败:', error);
-            alert('❌ 重命名失败: ' + error.message);
-        }
-    }
-
-    // 排序
-    function sortFiles(sortBy) {
-        if (sortBy === 'name') {
-            files.sort((a, b) => (a.originalName || a.fileName || '').localeCompare(b.originalName || b.fileName || ''));
-        } else if (sortBy === 'time') {
-            files.sort((a, b) => new Date(b.uploadTime || b.time) - new Date(a.uploadTime || a.time));
-        } else if (sortBy === 'size') {
-            files.sort((a, b) => (b.fileSize || b.size || 0) - (a.fileSize || a.size || 0));
-        } else if (sortBy === 'type') {
-            files.sort((a, b) => (a.type || '').localeCompare(b.type || ''));
-        }
-        renderFiles();
-    }
-
-    function navigateToFolder(folderId) {
-        currentFolder = folderId;
-        loadFiles();
-    }
-
-    // 预览文件
-    async function previewFile(index) {
-        const file = files[index];
-        const token = localStorage.getItem('token');
-
-        if (!token) {
-            alert('请先登录！');
-            return;
-        }
-
-        const fileType = file.fileType || file.type || '';
-        const previewUrl = `${API_BASE}/files/${file.id}/preview?token=${encodeURIComponent(token)}`;
-        const container = document.getElementById('previewContainer');
-        const modal = document.getElementById('previewModal');
-
-        container.innerHTML = '';
-
-        try {
-            if (fileType.startsWith('image/')) {
-                container.innerHTML = `<img src="${previewUrl}" class="preview-image" alt="${file.originalName}">`;
-                modal.classList.add('active');
-
-            } else if (fileType.startsWith('video/')) {
-                container.innerHTML = `
-                <video class="preview-video" controls autoplay>
-                    <source src="${previewUrl}" type="${fileType}">
-                    您的浏览器不支持视频播放。
-                </video>
-            `;
-                modal.classList.add('active');
-
-            } else if (fileType === 'application/pdf') {
-                container.innerHTML = `<iframe src="${previewUrl}" class="preview-pdf"></iframe>`;
-                modal.classList.add('active');
-
-            } else if (fileType === 'text/plain' || file.originalName.endsWith('.txt')) {
-                const response = await fetch(previewUrl);
-                const text = await response.text();
-                container.innerHTML = `<div class="preview-text">${escapeHtml(text)}</div>`;
-                modal.classList.add('active');
-
-            } else {
-                container.innerHTML = `
-                <div class="preview-unsupported">
-                    <h3>😔 无法预览此文件类型</h3>
-                    <p>${file.originalName}</p>
-                    <button class="btn" onclick="downloadFileById(${file.id})">下载文件</button>
-                </div>
-            `;
-                modal.classList.add('active');
-            }
-        } catch (error) {
-            console.error('预览失败:', error);
-            alert('预览失败: ' + error.message);
-        }
-    }
-
-    // 关闭预览
-    function closePreview() {
-        const modal = document.getElementById('previewModal');
-        modal.classList.remove('active');
-
-        const video = modal.querySelector('video');
-        if (video) {
-            video.pause();
-        }
-    }
-
-    // HTML 转义
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // 通过 ID 下载文件
-    async function downloadFileById(fileId) {
-        const token = localStorage.getItem('token');
-        const url = `${API_BASE}/files/${fileId}/preview?token=${encodeURIComponent(token)}`;
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = '';
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    }
-
-    // 按 ESC 键关闭预览
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closePreview();
-        }
-    });
-</script>
+<!-- 移动端上传按钮 -->
+<button onclick="document.getElementById('fileUpload').click()" class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-brand-600 text-white rounded-full shadow-lg shadow-brand-600/40 flex items-center justify-center text-xl z-40 hover:scale-105 transition-transform active:scale-95">
+    <i class="fa-solid fa-plus"></i>
+</button>
+
+<!-- JS 文件 -->
+<script src="js/config.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/lang-switch.js"></script>
+<script src="js/netdisk.js"></script>
+<script src="js/netdisk-render.js"></script>
+<script src="js/transfer.js"></script>
 
 </body>
 </html>

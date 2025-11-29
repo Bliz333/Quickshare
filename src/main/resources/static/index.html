@@ -2,859 +2,476 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuickShare - 快速文件分享</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title data-i18n="title">QuickShare - 极速传送</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- 防止主题闪烁：在 head 中立即检测并应用主题 -->
+    <script>
+        (function() {
+            const saved = localStorage.getItem('quickshare-theme');
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
     </script>
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* ==================== 浅色主题（默认） ==================== */
+        :root {
+            --primary: #0ea5e9;
+            --primary-light: #38bdf8;
+            --primary-dark: #0284c7;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --bg-light: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --shadow-strong: 0 15px 30px rgba(0, 0, 0, 0.1);
+            --radius: 16px;
+            --mouse-x: 50%;
+            --mouse-y: 50%;
         }
+
+        /* ==================== 暗黑主题 ==================== */
+        .dark-mode {
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #f87171;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --bg-light: #0f172a;
+            --bg-card: #1e293b;
+            --border-color: #334155;
+            --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --shadow-strong: 0 15px 30px rgba(0, 0, 0, 0.6);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-main);
             min-height: 100vh;
-            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
+        /* 动态背景 */
+        .bg-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; opacity: 0.3; }
+        .blob { position: absolute; filter: blur(100px); opacity: 0.6; border-radius: 50%; animation: float 20s infinite alternate; }
+        .blob-1 { top: -10%; left: -10%; width: 40vw; height: 40vw; background: #93c5fd; animation-delay: 0s; }
+        .blob-2 { bottom: -10%; right: -10%; width: 50vw; height: 50vw; background: #3b82f6; animation-delay: -5s; }
+        .blob-3 { top: 40%; left: 40%; width: 30vw; height: 30vw; background: #7dd3fc; opacity: 0.4; animation-delay: -10s; }
 
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
+        /* 暗黑模式背景 */
+        .dark-mode .blob-1 { background: #4f46e5; }
+        .dark-mode .blob-2 { background: #6366f1; }
+        .dark-mode .blob-3 { background: #818cf8; }
 
-        .header h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(50px, 50px) rotate(20deg); } }
 
-        .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        .card {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            margin-bottom: 30px;
-        }
-
-        .tabs {
+        /* ========== 顶部按钮组 ========== */
+        .top-buttons {
+            position: fixed;
+            top: 20px;
+            right: 20px;
             display: flex;
             gap: 10px;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #e0e0e0;
+            z-index: 100;
         }
 
-        .tab {
-            padding: 15px 30px;
-            background: none;
-            border: none;
+        .top-btn {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text-sub);
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            border-radius: 50px;
             cursor: pointer;
-            font-size: 1.1em;
-            color: #666;
+            font-size: 0.85rem;
+            font-weight: 500;
             transition: all 0.3s;
-            border-bottom: 3px solid transparent;
-            margin-bottom: -2px;
-        }
-
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-            font-weight: bold;
-        }
-
-        .tab:hover {
-            color: #667eea;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-            animation: fadeIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .upload-area {
-            border: 3px dashed #667eea;
-            border-radius: 15px;
-            padding: 60px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: #f8f9ff;
-        }
-
-        .file-list {
-            margin-top: 20px;
-        }
-
-        .file-item {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 15px;
-            background: white;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #e0e0e0;
+            justify-content: center;
         }
 
-        .file-item-info {
-            flex: 1;
-        }
-
-        .remove-file-btn {
-            background: #ef4444;
+        .top-btn:hover {
+            background: var(--primary);
             color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(14, 165, 233, 0.3);
         }
 
-        .remove-file-btn:hover {
-            background: #dc2626;
+        /* 暗黑模式按钮样式 */
+        .dark-mode .top-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-color);
         }
 
-        .upload-area:hover {
-            border-color: #764ba2;
-            background: #f0f2ff;
+        .dark-mode .top-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
         }
 
-        .upload-area.dragover {
-            border-color: #764ba2;
-            background: #e8ebff;
-            transform: scale(1.02);
+        /* 主题切换按钮特殊样式 */
+        #darkModeToggle {
+            width: 40px;
+            padding: 8px;
         }
 
-        .upload-icon {
-            font-size: 4em;
-            margin-bottom: 20px;
+        #darkModeToggle i {
+            font-size: 1rem;
+            transition: transform 0.3s;
         }
 
-        .upload-text {
-            font-size: 1.2em;
-            color: #666;
-            margin-bottom: 10px;
+        #darkModeToggle:hover i {
+            transform: rotate(20deg) scale(1.1);
         }
 
-        .file-info {
-            margin-top: 20px;
-            padding: 20px;
-            background: #f0f2ff;
-            border-radius: 10px;
-            display: none;
+        .container { width: 100%; max-width: 550px; margin: 80px auto 40px; position: relative; z-index: 10; padding: 0 20px; }
+
+        /* Header */
+        .header { margin-bottom: 30px; text-align: center; }
+        .header h1 { font-size: 2.8rem; font-weight: 700; margin-bottom: 5px; color: var(--primary-dark); transition: color 0.3s; }
+        .dark-mode .header h1 { color: var(--primary-light); }
+        .header p { font-size: 1rem; color: var(--text-sub); font-weight: 400; }
+
+        /* Auth Buttons */
+        .auth-group { display: flex; justify-content: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .btn-auth { padding: 10px 24px; border-radius: 50px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s; border: 1px solid var(--border-color); }
+        .btn-login { background: var(--bg-card); color: var(--text-main); }
+        .btn-login:hover { border-color: var(--primary); box-shadow: var(--shadow-subtle); }
+        .btn-register { background: var(--primary); color: white; border: 1px solid var(--primary); box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3); }
+        .btn-register:hover { opacity: 0.9; box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4); transform: translateY(-1px); }
+
+        .dark-mode .btn-register { box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); }
+        .dark-mode .btn-register:hover { box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4); }
+
+        /* Main Card */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 30px;
+            box-shadow: var(--shadow-strong);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .file-info.show {
-            display: block;
+        .card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            border-radius: var(--radius);
+            opacity: 0;
+            transition: opacity 0.5s;
+            background: radial-gradient(circle 100px at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 70%);
         }
 
-        .input-group {
-            margin-bottom: 20px;
+        .card:hover::after { opacity: 1; }
+
+        .dark-mode .card:hover::after {
+            background: radial-gradient(circle 100px at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 70%);
         }
 
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #333;
-        }
+        /* Tabs */
+        .tabs { display: flex; background: var(--bg-light); padding: 4px; border-radius: 10px; margin-bottom: 25px; border: 1px solid var(--border-color); }
+        .tab { flex: 1; padding: 10px 0; background: transparent; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; color: var(--text-sub); border-radius: 8px; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .tab.active { color: var(--primary-dark); background: var(--bg-card); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+        .tab:hover:not(.active) { color: var(--primary); }
+        .dark-mode .tab.active { color: var(--primary-light); box-shadow: none; }
 
-        .input-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1em;
-            transition: border-color 0.3s;
-        }
+        .tab-content { display: none; opacity: 0; transform: translateY(10px); transition: all 0.4s ease; }
+        .tab-content.active { display: block; opacity: 1; transform: translateY(0); }
 
-        .input-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
+        /* Upload Area */
+        .upload-area { border: 2px dashed var(--border-color); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: var(--bg-light); }
+        .upload-area:hover, .upload-area.dragover { border-color: var(--primary); background: rgba(14, 165, 233, 0.05); box-shadow: 0 0 15px rgba(14, 165, 233, 0.2); }
+        .dark-mode .upload-area:hover, .dark-mode .upload-area.dragover { background: rgba(99, 102, 241, 0.1); box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); }
+        .upload-icon { font-size: 3rem; margin-bottom: 15px; color: var(--primary); transition: transform 0.3s; }
+        .upload-area:hover .upload-icon { transform: scale(1.05); }
+        .upload-text { font-size: 1rem; color: var(--text-main); font-weight: 500; }
+        .upload-text small { display: block; margin-top: 6px; color: var(--text-sub); font-weight: 400; font-size: 0.85rem; }
 
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 10px;
-            font-size: 1.1em;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: bold;
-            width: 100%;
-        }
+        /* File List */
+        .file-list { margin-top: 20px; }
+        .file-list h4 { color: var(--primary-dark); margin-bottom: 10px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        .dark-mode .file-list h4 { color: var(--primary-light); }
+        .file-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 8px; transition: all 0.2s; }
+        .file-item:hover { background: rgba(14, 165, 233, 0.05); border-color: var(--primary); }
+        .dark-mode .file-item:hover { background: rgba(99, 102, 241, 0.1); }
+        .file-item-info strong { display: block; color: var(--text-main); font-weight: 500; font-size: 0.9rem; }
+        .file-item-info small { color: var(--text-sub); font-size: 0.8rem; }
+        .remove-file-btn { background: #fee2e2; color: var(--danger); border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .remove-file-btn:hover { background: var(--danger); color: white; transform: rotate(90deg); }
+        .dark-mode .remove-file-btn { background: rgba(239, 68, 68, 0.2); }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-        }
+        /* Inputs */
+        .input-group { margin-bottom: 20px; position: relative; }
+        .input-group label { display: block; margin-bottom: 8px; font-size: 0.85rem; font-weight: 600; color: var(--text-sub); }
+        .input-group input { width: 100%; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; color: var(--text-main); transition: all 0.3s; font-family: 'Outfit', sans-serif; }
+        .input-group input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3); }
+        .dark-mode .input-group input:focus { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3); }
+        .input-group input::placeholder { color: #94a3b8; }
 
-        .btn:active {
-            transform: translateY(0);
-        }
+        /* Main Button */
+        .btn { background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.3s; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4); position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(14, 165, 233, 0.5); }
+        .btn:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; box-shadow: none; transform: none; }
+        .dark-mode .btn { box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); }
+        .dark-mode .btn:hover { box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5); }
+        .dark-mode .btn:disabled { background: #374151; color: #6b7280; }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
+        /* Result Box */
+        .result-box { margin-top: 30px; display: none; padding-top: 20px; border-top: 1px solid var(--border-color); }
+        .result-box.show { display: block; animation: slideUp 0.5s ease-out; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-        .result-box {
-            margin-top: 30px;
-            padding: 25px;
-            background: #f0f2ff;
-            border-radius: 10px;
-            display: none;
-        }
+        .result-card-container { background: rgba(14, 165, 233, 0.05); border: 1px solid rgba(14, 165, 233, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
+        .dark-mode .result-card-container { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3); }
 
-        .result-box.show {
-            display: block;
-            animation: fadeIn 0.5s;
-        }
+        .result-item { background: var(--bg-card); border-radius: 8px; padding: 0; margin-bottom: 10px; border: 1px solid var(--border-color); overflow: hidden; }
+        .result-label { font-size: 0.65rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; padding: 8px 12px 6px; display: block; letter-spacing: 1px; background: var(--bg-light); border-bottom: 1px solid var(--border-color); }
+        .result-value-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; }
+        .result-value { font-family: 'Monaco', 'Consolas', monospace; font-size: 0.8rem; color: var(--primary-dark); word-break: break-all; flex: 1; line-height: 1.4; user-select: all; cursor: text; padding: 4px; border-radius: 4px; background: var(--bg-light); }
+        .dark-mode .result-value { color: var(--primary-light); }
 
-        .result-item {
+        .copy-btn { background: var(--primary); color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 5px; white-space: nowrap; flex-shrink: 0; }
+        .copy-btn:hover { opacity: 0.9; }
+        .copy-btn.copied { background: var(--success) !important; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important; }
+
+        /* Download Info */
+        .download-info { background: rgba(14, 165, 233, 0.05); border: 1px solid rgba(14, 165, 233, 0.2); padding: 20px; border-radius: 12px; margin-top: 25px; }
+        .dark-mode .download-info { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3); }
+        .download-info h3 { color: var(--primary-dark); margin-bottom: 15px; display: flex; align-items: center; gap: 8px; font-size: 1.2rem; }
+        .dark-mode .download-info h3 { color: var(--primary-light); }
+        .download-info p { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--border-color); color: var(--text-main); font-size: 0.9rem; }
+        .download-info p strong { color: var(--text-sub); font-weight: 500; }
+        .download-info p:last-of-type { border-bottom: none; }
+
+        /* QR Code */
+        .qrcode-container { text-align: center; padding: 10px; background: white; border: 1px solid var(--border-color); border-radius: 8px; margin-top: 15px; display: inline-block; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+        .qrcode-container canvas { display: block; }
+        .qrcode-hint { margin-top: 8px; color: var(--text-sub); font-size: 0.8rem; font-weight: 500; }
+        /* QR Code - 居中显示 */
+        .qrcode-wrapper {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-
-        .result-label {
-            font-weight: bold;
-            color: #666;
-        }
-
-        .result-value {
-            color: #333;
-            font-family: monospace;
-        }
-
-        .copy-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
-            margin-left: 10px;
-        }
-
-        .copy-btn:hover {
-            background: #764ba2;
-        }
-
-        .success {
-            color: #10b981;
-            font-weight: bold;
-        }
-
-        .error {
-            color: #ef4444;
-            font-weight: bold;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .download-info {
-            background: #f0f2ff;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
+            justify-content: center;
+            margin: 15px 0;
         }
 
         .qrcode-container {
             text-align: center;
-            padding: 20px;
+            padding: 12px;
             background: white;
-            border-radius: 10px;
-            margin-top: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark-mode .qrcode-container {
+            background: #1e293b;
+            border-color: #334155;
         }
 
         .qrcode-container canvas,
         .qrcode-container img {
-            margin: 0 auto;
             display: block;
         }
 
         .qrcode-hint {
-            margin-top: 10px;
-            color: #666;
-            font-size: 0.9em;
+            margin-top: 8px;
+            color: var(--text-sub);
+            font-size: 0.8rem;
+            font-weight: 500;
         }
 
-        .save-qr-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1em;
-            margin-top: 10px;
-            transition: all 0.3s;
-        }
+        /* Toast */
+        .toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; }
+        .toast { background: var(--bg-card); border: 1px solid var(--primary); color: var(--text-main); padding: 12px 20px; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-strong); transform: translateY(-100px); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
 
-        .save-qr-btn:hover {
-            background: #764ba2;
-            transform: translateY(-2px);
+        .loading-spinner { width: 18px; height: 18px; border: 2px solid var(--border-color); border-radius: 50%; border-top-color: var(--primary); animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .container { margin-top: 70px; padding: 0 15px; }
+            .header h1 { font-size: 2.2rem; }
+            .card { padding: 20px; }
+            .result-value-row { flex-direction: column; align-items: flex-start; padding: 8px 12px; }
+            .result-value { font-size: 0.75rem; width: 100%; margin-bottom: 5px; }
+            .copy-btn { padding: 4px 10px; font-size: 0.7rem; }
+            .auth-group { flex-direction: column; gap: 8px; }
+            .btn-auth { width: 100%; }
+            .top-buttons { top: 15px; right: 15px; gap: 8px; }
         }
     </style>
 </head>
 <body>
+
+<div class="bg-glow">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- 顶部按钮组：主题切换 + 语言切换 -->
+<div class="top-buttons">
+    <button class="top-btn" id="darkModeToggle" onclick="toggleTheme()" title="切换主题">
+        <i class="fa-solid fa-moon"></i>
+    </button>
+    <button class="top-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
+</div>
+
 <div class="container">
     <div class="header">
-        <div style="display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto;">
-            <div>
-                <h1>📦 QuickShare</h1>
-                <p>快速、安全的文件分享平台</p>
-            </div>
-            <div id="authButtons">
-                <button onclick="location.href='login.html'" style="background: white; color: #667eea; border: 2px solid white; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-size: 1em; margin-left: 10px; font-weight: bold;">登录</button>
-                <button onclick="location.href='register.html'" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-size: 1em; margin-left: 10px; font-weight: bold;">注册</button>
-            </div>
+        <h1 data-i18n="heading">QuickShare</h1>
+        <p data-i18n="subtitle">Next-Gen Secure File Sharing</p>
+        <div id="authButtons" class="auth-group">
+            <button onclick="location.href='login.html'" class="btn-auth btn-login" data-i18n="loginBtn">登录</button>
+            <button onclick="location.href='register.html'" class="btn-auth btn-register" data-i18n="registerBtn">注册账号</button>
         </div>
     </div>
-    <div class="card">
+
+    <div class="card" id="mainCard">
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('upload')">上传文件</button>
-            <button class="tab" onclick="switchTab('download')">下载文件</button>
+            <button class="tab active" onclick="switchTab('upload')" data-i18n="uploadTab"><i class="fa-solid fa-cloud-arrow-up"></i> 上传</button>
+            <button class="tab" onclick="switchTab('download')" data-i18n="downloadTab"><i class="fa-solid fa-cloud-arrow-down"></i> 下载</button>
         </div>
 
-        <!-- 上传标签页 -->
         <div id="upload-tab" class="tab-content active">
             <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-                <div class="upload-icon">📁</div>
-                <div class="upload-text">点击选择文件或拖拽文件到这里(支持多文件)</div>
+                <div class="upload-icon"><i class="fa-solid fa-box-archive"></i></div>
+                <div class="upload-text" data-i18n="uploadAreaText">
+                    点击或拖拽文件至此
+                    <small>(支持多文件批量上传，最大 10GB)</small>
+                </div>
                 <input type="file" id="fileInput" style="display: none;" multiple onchange="handleFileSelect(event)">
             </div>
 
             <div class="file-list" id="fileList" style="display: none;">
-                <h4>已选择的文件:</h4>
+                <h4 data-i18n="selectedFiles"><i class="fa-solid fa-list-check"></i> 待上传列表:</h4>
                 <div id="fileItems"></div>
             </div>
 
-            <div style="margin-top: 30px;">
+            <div style="margin-top: 25px;">
                 <div class="input-group">
-                    <label>提取码 (可选，不填则自动生成)</label>
-                    <input type="text" id="extractCode" placeholder="输入4位数字提取码，如: 1234" maxlength="6">
+                    <label data-i18n="extractCodeLabel"><i class="fa-solid fa-key"></i> 提取码 (可选)</label>
+                    <input type="text" id="extractCode" data-i18n="extractCodePlaceholder" placeholder="4-6位数字或字母" maxlength="6">
                 </div>
 
-                <div class="input-group">
-                    <label>有效期 (小时，默认24小时)</label>
-                    <input type="number" id="expireHours" placeholder="24" value="24" min="1">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label data-i18n="expireHoursLabel"><i class="fa-regular fa-clock"></i> 有效期 (小时)</label>
+                        <input type="number" id="expireHours" placeholder="24" value="24" min="1">
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="maxDownloadLabel"><i class="fa-solid fa-download"></i> 最大次数</label>
+                        <input type="number" id="maxDownload" data-i18n="maxDownloadPlaceholder" placeholder="无限制" min="1">
+                    </div>
                 </div>
 
-                <div class="input-group">
-                    <label>最大下载次数 (不填则不限制)</label>
-                    <input type="number" id="maxDownload" placeholder="如: 10" min="1">
-                </div>
-
-                <button class="btn" id="uploadBtn" onclick="uploadAndShare()" disabled>
-                    上传并生成分享链接
+                <button class="btn" id="uploadBtn" onclick="uploadAndShare()" disabled data-i18n="uploadAndShareBtn">
+                    <span>开始上传并分享</span> <i class="fa-solid fa-share-nodes"></i>
                 </button>
             </div>
 
-            <div class="result-box" id="resultBox">
-                <h3 style="margin-bottom: 20px; color: #667eea;">✅ 分享链接已生成</h3>
-                <div class="result-item">
-                    <span class="result-label">分享链接:</span>
-                    <div>
-                        <span class="result-value" id="shareUrl"></span>
-                        <button class="copy-btn" onclick="copyToClipboard('shareUrl')">复制</button>
-                    </div>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">分享码:</span>
-                    <div>
-                        <span class="result-value" id="shareCode"></span>
-                        <button class="copy-btn" onclick="copyToClipboard('shareCode')">复制</button>
-                    </div>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">提取码:</span>
-                    <div>
-                        <span class="result-value" id="resultExtractCode"></span>
-                        <button class="copy-btn" onclick="copyToClipboard('resultExtractCode')">复制</button>
-                    </div>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">过期时间:</span>
-                    <span class="result-value" id="expireTime"></span>
-                </div>
-            </div>
+            <div class="result-box" id="resultBox"></div>
         </div>
 
-        <!-- 下载标签页 -->
         <div id="download-tab" class="tab-content">
             <div class="input-group">
-                <label>分享码</label>
-                <input type="text" id="downloadShareCode" placeholder="输入8位分享码">
+                <label data-i18n="shareCodeLabel"><i class="fa-solid fa-hashtag"></i> 分享码</label>
+                <input type="text" id="downloadShareCode" data-i18n="downloadShareCodePlaceholder" placeholder="请输入8位分享码">
             </div>
 
             <div class="input-group">
-                <label>提取码</label>
-                <input type="text" id="downloadExtractCode" placeholder="输入提取码">
+                <label data-i18n="extractCodeLabel2"><i class="fa-solid fa-lock"></i> 提取码 (如有)</label>
+                <input type="text" id="downloadExtractCode" data-i18n="downloadExtractCodePlaceholder" placeholder="请输入提取码">
             </div>
 
-            <button class="btn" onclick="getShareInfo()">查看文件信息</button>
+            <button class="btn" onclick="getShareInfo()" data-i18n="viewFileInfoBtn">
+                <span>查看文件信息</span> <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
 
             <div class="download-info" id="downloadInfo" style="display: none;">
-                <h3 style="margin-bottom: 15px; color: #667eea;">📄 文件信息</h3>
-                <p><strong>文件名:</strong> <span id="downloadFileName"></span></p>
-                <p><strong>过期时间:</strong> <span id="downloadExpireTime"></span></p>
-                <p><strong>剩余下载次数:</strong> <span id="downloadRemaining"></span></p>
-                <button class="btn" onclick="downloadFile()" style="margin-top: 20px;">下载文件</button>
+                <h3 data-i18n="fileInfoTitle"><i class="fa-regular fa-file-lines"></i> 文件详情</h3>
+                <p><strong data-i18n="fileName">文件名</strong> <span id="downloadFileName"></span></p>
+                <p><strong data-i18n="expireTime">过期时间</strong> <span id="downloadExpireTime"></span></p>
+                <p><strong data-i18n="remainingDownloads">剩余次数</strong> <span id="downloadRemaining"></span></p>
+                <button class="btn" onclick="downloadFile()" style="margin-top: 20px; background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);" data-i18n="downloadBtn">
+                    <span>立即下载</span> <i class="fa-solid fa-download"></i>
+                </button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- 加载 JS 文件 -->
+<script src="js/config.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/lang-switch.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/qrcode-handler.js"></script>
+<script src="js/upload.js"></script>
+<script src="js/download.js"></script>
+
+<!-- 页面初始化 -->
 <script>
-    // 检查登录状态
+    /* ================= Fluid Light Effect ================= */
+    document.addEventListener('mousemove', (e) => {
+        const card = document.getElementById('mainCard');
+        if (!card) return;
+        const rect = card.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        card.style.setProperty('--mouse-x', `${x}%`);
+        card.style.setProperty('--mouse-y', `${y}%`);
+    });
+
+    /* ================= 页面加载 ================= */
     window.addEventListener('load', () => {
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        checkLoginState();
+        initUploadArea();
 
-        if (token && user.username) {
-            // 已登录,修改按钮
-            const authButtons = document.getElementById('authButtons');
-            if (authButtons) {
-                authButtons.innerHTML = `
-                    <span style="color: white; margin-right: 15px;">欢迎, ${user.nickname || user.username}</span>
-                    <button onclick="handleLogout()" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold;">退出登录</button>
-                `;
-            }
-        }
-
-        const hash = window.location.hash;
-        if (hash.includes('share=')) {
-            const params = new URLSearchParams(hash.substring(1));
-            const shareCode = params.get('share');
-            const code = params.get('code');
-
-            if (shareCode && code) {
-                // 切换到下载标签
-                const tabs = document.querySelectorAll('.tab');
-                const tabContents = document.querySelectorAll('.tab-content');
-
-                tabs.forEach(t => t.classList.remove('active'));
-                tabContents.forEach(c => c.classList.remove('active'));
-
-                tabs[1].classList.add('active');
-                document.getElementById('download-tab').classList.add('active');
-
-                // 自动填充
-                document.getElementById('downloadShareCode').value = shareCode;
-                document.getElementById('downloadExtractCode').value = code;
-
-                // 延迟获取信息,确保 DOM 已渲染
-                setTimeout(() => {
-                    getShareInfo();
-                }, 1000);
-            }
-        }
-
-    });
-
-    function handleLogout() {
-        if (confirm('确定要退出登录吗?')) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            location.reload();
-        }
-    }
-
-    // 自动检测协议,支持 HTTPS
-    const API_BASE = window.location.hostname === 'localhost'
-        ? 'http://localhost:8080/api'
-        : `${window.location.protocol}//${window.location.host}/api`;
-
-    let selectedFiles = [];
-    let currentShareCode = '';
-
-    // 标签页切换
-    function switchTab(tab) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-        event.target.classList.add('active');
-        document.getElementById(tab + '-tab').classList.add('active');
-    }
-
-    // 拖拽上传
-    const uploadArea = document.getElementById('uploadArea');
-
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
-    });
-
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragover');
-    });
-
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleFiles(Array.from(files));
+        const { shareCode, extractCode } = parseShareParams();
+        if (shareCode) {
+            initGuestMode(shareCode, extractCode);
         }
     });
-
-    // 文件选择
-    function handleFileSelect(event) {
-        const files = event.target.files;
-        if (files.length > 0) {
-            handleFiles(Array.from(files));
-        }
-    }
-
-    function handleFiles(files) {
-        selectedFiles = [...selectedFiles, ...files];
-        displayFileList();
-        document.getElementById('uploadBtn').disabled = false;
-        document.getElementById('resultBox').classList.remove('show');
-    }
-
-    function displayFileList() {
-        const fileList = document.getElementById('fileList');
-        const fileItems = document.getElementById('fileItems');
-
-        if (selectedFiles.length === 0) {
-            fileList.style.display = 'none';
-            return;
-        }
-
-        fileList.style.display = 'block';
-        fileItems.innerHTML = '';
-
-        selectedFiles.forEach((file, index) => {
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            fileItem.innerHTML = `
-                    <div class="file-item-info">
-                        <strong>${file.name}</strong><br>
-                        <small>${formatFileSize(file.size)}</small>
-                    </div>
-                    <button class="remove-file-btn" onclick="removeFile(${index})">删除</button>
-                `;
-            fileItems.appendChild(fileItem);
-        });
-    }
-
-    function removeFile(index) {
-        selectedFiles.splice(index, 1);
-        displayFileList();
-        if (selectedFiles.length === 0) {
-            document.getElementById('uploadBtn').disabled = true;
-        }
-    }
-
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-    }
-
-    // 上传并分享
-    async function uploadAndShare() {
-        if (selectedFiles.length === 0) {
-            alert('请先选择文件!');
-            return;
-        }
-
-        const uploadBtn = document.getElementById('uploadBtn');
-        uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '<span class="loading"></span> 上传中...';
-
-        const resultBox = document.getElementById('resultBox');
-        resultBox.innerHTML = '<h3 style="margin-bottom: 20px; color: #667eea;">⏳ 正在上传和生成分享链接...</h3>';
-        resultBox.classList.add('show');
-
-        const shareLinks = [];
-
-        try {
-            // 获取 token（如果有的话）
-            const token = localStorage.getItem('token') || '';
-
-            for (let i = 0; i < selectedFiles.length; i++) {
-                const file = selectedFiles[i];
-
-                // 1. 上传文件
-                const formData = new FormData();
-                formData.append('file', file);
-
-                const uploadResponse = await fetch(`${API_BASE}/upload`, {
-                    method: 'POST',
-                    headers: token ? {
-                        'Authorization': `Bearer ${token}`
-                    } : {},
-                    body: formData
-                });
-
-                const uploadResult = await uploadResponse.json();
-
-                if (uploadResult.code !== 200) {
-                    throw new Error(`上传 ${file.name} 失败: ${uploadResult.message || uploadResult.msg || '未知错误'}`);
-                }
-
-                // 2. 创建分享链接
-                const shareData = {
-                    fileId: uploadResult.data.id,
-                    extractCode: document.getElementById('extractCode').value || null,
-                    expireHours: parseInt(document.getElementById('expireHours').value) || null,
-                    maxDownload: parseInt(document.getElementById('maxDownload').value) || null
-                };
-
-                const shareResponse = await fetch(`${API_BASE}/share`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(shareData)
-                });
-
-                const shareResult = await shareResponse.json();
-
-                if (shareResult.code !== 200) {
-                    throw new Error(`生成分享链接失败: ${shareResult.message || shareResult.msg || '未知错误'}`);
-                }
-
-                shareLinks.push({
-                    fileName: file.name,
-                    ...shareResult.data
-                });
-            }
-
-            // 显示所有分享链接
-            displayShareLinks(shareLinks);
-
-            // 清空文件列表
-            selectedFiles = [];
-            displayFileList();
-            document.getElementById('uploadBtn').disabled = true;
-            uploadBtn.innerHTML = '上传并生成分享链接';
-
-        } catch (error) {
-            alert('操作失败: ' + error.message);
-            uploadBtn.disabled = false;
-            uploadBtn.innerHTML = '上传并生成分享链接';
-            resultBox.classList.remove('show');
-        }
-    }
-
-
-
-    function displayShareLinks(shareLinks) {
-        const resultBox = document.getElementById('resultBox');
-        let html = '<h3 style="margin-bottom: 20px; color: #667eea;">✅ 分享链接已生成</h3>';
-
-        shareLinks.forEach((link, index) => {
-            const fullShareUrl = `${window.location.protocol}//${window.location.host}/#share=${link.shareCode}&code=${link.extractCode}`;
-
-            html += `
-                    <div style="margin-bottom: 30px; padding: 20px; background: #f0f2ff; border-radius: 10px;">
-                        <h4 style="margin-bottom: 15px; color: #333;">文件 ${index + 1}: ${link.fileName}</h4>
-                        <div class="result-item">
-                            <span class="result-label">完整分享链接:</span>
-                            <div>
-                                <span class="result-value" id="fullUrl${index}">${fullShareUrl}</span>
-                                <button class="copy-btn" onclick="copyText('fullUrl${index}', this)">复制</button>
-                            </div>
-                        </div>
-                        <div class="result-item">
-                            <span class="result-label">分享码:</span>
-                            <div>
-                                <span class="result-value" id="shareCode${index}">${link.shareCode}</span>
-                                <button class="copy-btn" onclick="copyText('shareCode${index}', this)">复制</button>
-                            </div>
-                        </div>
-                        <div class="result-item">
-                            <span class="result-label">提取码:</span>
-                            <div>
-                                <span class="result-value" id="extractCode${index}">${link.extractCode}</span>
-                                <button class="copy-btn" onclick="copyText('extractCode${index}', this)">复制</button>
-                            </div>
-                        </div>
-                        <div class="result-item">
-                            <span class="result-label">过期时间:</span>
-                            <span class="result-value">${link.expireTime || '永久有效'}</span>
-                        </div>
-                        <div class="qrcode-container">
-                            <div id="qrcode${index}"></div>
-                            <div class="qrcode-hint">📱 扫码即可下载文件</div>
-                            <button class="save-qr-btn" onclick="saveQRCode(${index}, '${link.fileName}')">💾 保存二维码</button>
-                        </div>
-                    </div>
-                `;
-        });
-
-        resultBox.innerHTML = html;
-        resultBox.classList.add('show');
-
-        // 生成二维码
-        shareLinks.forEach((link, index) => {
-            const fullShareUrl = `${window.location.protocol}//${window.location.host}/#share=${link.shareCode}&code=${link.extractCode}`;
-            new QRCode(document.getElementById(`qrcode${index}`), {
-                text: fullShareUrl,
-                width: 200,
-                height: 200,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
-            });
-        });
-    }
-
-    // 保存二维码
-    function saveQRCode(index, fileName) {
-        const qrcodeElement = document.getElementById(`qrcode${index}`);
-        const canvas = qrcodeElement.querySelector('canvas');
-
-        if (canvas) {
-            // 将 canvas 转换为图片
-            canvas.toBlob(function(blob) {
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `QRCode_${fileName.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            });
-        } else {
-            alert('二维码生成中,请稍后再试');
-        }
-    }
-
-    // 改进的复制功能
-    function copyText(elementId, button) {
-        const text = document.getElementById(elementId).textContent;
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => {
-                const originalText = button.textContent;
-                button.textContent = '✓ 已复制!';
-                button.style.background = '#10b981';
-                setTimeout(() => {
-                    button.textContent = originalText;
-                    button.style.background = '#667eea';
-                }, 2000);
-            }).catch(err => {
-                fallbackCopy(text, button);
-            });
-        } else {
-            fallbackCopy(text, button);
-        }
-    }
-
-    function fallbackCopy(text, button) {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-            document.execCommand('copy');
-            const originalText = button.textContent;
-            button.textContent = '✓ 已复制!';
-            button.style.background = '#10b981';
-            setTimeout(() => {
-                button.textContent = originalText;
-                button.style.background = '#667eea';
-            }, 2000);
-        } catch (err) {
-            alert('复制失败,请手动复制');
-        }
-        document.body.removeChild(textarea);
-    }
-
-
-
-    // 获取分享信息
-    async function getShareInfo() {
-        const shareCode = document.getElementById('downloadShareCode').value.trim();
-        const extractCode = document.getElementById('downloadExtractCode').value.trim();
-
-        if (!shareCode || !extractCode) {
-            alert('请输入分享码和提取码!');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_BASE}/share/${shareCode}?extractCode=${extractCode}`);
-            const result = await response.json();
-
-            if (result.code !== 200) {
-                throw new Error(result.message);
-            }
-
-            const data = result.data;
-            document.getElementById('downloadFileName').textContent = data.fileName;
-            document.getElementById('downloadExpireTime').textContent = data.expireTime || '永久有效';
-            document.getElementById('downloadRemaining').textContent = data.maxDownload === -1 ? '不限制' : data.maxDownload;
-            document.getElementById('downloadInfo').style.display = 'block';
-            currentShareCode = shareCode;
-
-        } catch (error) {
-            alert('获取失败: ' + error.message);
-            document.getElementById('downloadInfo').style.display = 'none';
-        }
-    }
-
-    // 下载文件
-    function downloadFile() {
-        const shareCode = document.getElementById('downloadShareCode').value.trim();
-        const extractCode = document.getElementById('downloadExtractCode').value.trim();
-
-        const url = `${API_BASE}/download/${shareCode}?extractCode=${extractCode}`;
-        window.open(url, '_blank');
-    }
 </script>
 </body>
 </html>

@@ -349,4 +349,96 @@ public class FileServiceImpl implements FileService {
         BeanUtils.copyProperties(fileInfo, vo);
         return vo;
     }
+
+    // 在 FileServiceImpl.java 中添加以下实现
+    @Override
+    public List<FileInfoVO> getFilesByFolder(Long parentId, Long userId) {
+        QueryWrapper<FileInfo> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", userId);
+        queryWrapper.eq("parent_id", parentId); // 核心：根据父ID筛选
+        queryWrapper.eq("deleted", 0);          // 排除已删除的
+        queryWrapper.eq("is_folder", 1);
+
+
+        queryWrapper.orderByDesc("upload_time");
+
+        List<FileInfo> fileInfos = fileInfoMapper.selectList(queryWrapper);
+
+        // 将 Entity 转换为 VO (假设你已有转换逻辑，或者使用 BeanUtils)
+        return fileInfos.stream().map(file -> {
+            FileInfoVO vo = new FileInfoVO();
+            BeanUtils.copyProperties(file, vo);
+            vo.setName(file.getOriginalName());  // 设置 name 字段
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * 删除文件夹
+     */
+    @Override
+    public void deleteFolder(Long folderId, Long userId) {
+        // 查询文件夹
+        FileInfo folder = fileInfoMapper.selectById(folderId);
+
+        if (folder == null) {
+            throw new RuntimeException("文件夹不存在");
+        }
+
+        // 验证是否是文件夹所有者
+        if (!folder.getUserId().equals(userId)) {
+            throw new RuntimeException("无权删除此文件夹");
+        }
+
+        // 验证是否是文件夹
+        if (folder.getIsFolder() != 1) {
+            throw new RuntimeException("该对象不是文件夹");
+        }
+
+        // 删除文件夹下的所有文件
+        QueryWrapper<FileInfo> wrapper = new QueryWrapper<>();
+        wrapper.eq("parent_id", folderId);
+        List<FileInfo> children = fileInfoMapper.selectList(wrapper);
+
+        for (FileInfo child : children) {
+            if (child.getIsFolder() == 1) {
+                // 递归删除子文件夹
+                deleteFolder(child.getId(), userId);
+            } else {
+                // 删除文件
+                fileInfoMapper.deleteById(child.getId());
+            }
+        }
+
+        // 删除文件夹本身
+        fileInfoMapper.deleteById(folderId);
+    }
+
+    /**
+     * 重命名文件夹
+     */
+    @Override
+    public void renameFolder(Long folderId, String newName, Long userId) {
+        // 查询文件夹
+        FileInfo folder = fileInfoMapper.selectById(folderId);
+
+        if (folder == null) {
+            throw new RuntimeException("文件夹不存在");
+        }
+
+        // 验证是否是文件夹所有者
+        if (!folder.getUserId().equals(userId)) {
+            throw new RuntimeException("无权修改此文件夹");
+        }
+
+        // 验证是否是文件夹
+        if (folder.getIsFolder() != 1) {
+            throw new RuntimeException("该对象不是文件夹");
+        }
+
+        // 更新文件夹名
+        folder.setOriginalName(newName);
+        folder.setFileName(newName);
+        fileInfoMapper.updateById(folder);
+    }
 }

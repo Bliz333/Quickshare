@@ -55,4 +55,19 @@ public interface FileService {
      */
     FileInfoVO createFolder(String folderName, Long parentId, Long userId);
 
+    /**
+     * 根据父文件夹ID获取文件列表
+     * @param parentId 父文件夹ID (0代表根目录)
+     * @param userId 用户ID
+     */
+    List<FileInfoVO> getFilesByFolder(Long parentId, Long userId);
+    /**
+     * 删除文件夹
+     */
+    void deleteFolder(Long folderId, Long userId);
+
+    /**
+     * 重命名文件夹
+     */
+    void renameFolder(Long folderId, String newName, Long userId);
 }

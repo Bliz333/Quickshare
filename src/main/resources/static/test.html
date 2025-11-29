@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title data-i18n="title">QuickShare - 极速传送</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        /* 浅色主题 - 模仿 Dropbox/Drive 的简洁风格 */
+        :root {
+            --primary: #0ea5e9; /* 浅蓝色 Sky Blue */
+            --primary-light: #38bdf8; /* 更浅的蓝 */
+            --primary-dark: #0284c7; /* 深蓝 */
+            --accent: #06b6d4; /* Cyan */
+            --success: #10b981; /* 绿色 (保留作为成功提示色) */
+            --danger: #ef4444; /* 红色 */
+            --text-main: #0f172a; /* 深色文字 */
+            --text-sub: #64748b; /* 灰色副标题 */
+            --bg-light: #f8fafc; /* 极浅背景色 */
+            --bg-card: #ffffff; /* 卡片背景 */
+            --border-color: #e2e8f0; /* 边框 */
+            --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --shadow-strong: 0 15px 30px rgba(0, 0, 0, 0.1);
+            --radius: 16px;
+
+            /* Fluid Light Variables for Card Shine */
+            --mouse-x: 50%;
+            --mouse-y: 50%;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-light); /* 浅色背景 */
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 动态背景 - 浅色模式下的微妙辉光 */
+        .bg-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            overflow: hidden;
+            opacity: 0.3; /* 降低透明度 */
+        }
+
+        .blob {
+            position: absolute;
+            filter: blur(100px);
+            opacity: 0.6;
+            border-radius: 50%;
+            animation: float 20s infinite alternate;
+        }
+
+        .blob-1 {
+            top: -10%;
+            left: -10%;
+            width: 40vw;
+            height: 40vw;
+            background: #93c5fd; /* 浅蓝 */
+            animation-delay: 0s;
+        }
+
+        .blob-2 {
+            bottom: -10%;
+            right: -10%;
+            width: 50vw;
+            height: 50vw;
+            background: #3b82f6; /* 已改为纯蓝色系 */
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            top: 40%;
+            left: 40%;
+            width: 30vw;
+            height: 30vw;
+            background: #7dd3fc; /* 天蓝 */
+            opacity: 0.4;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(50px, 50px) rotate(20deg); }
+        }
+
+        /* 语言切换按钮 - 调整为浅色主题 */
+        .lang-switch {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text-sub);
+            border: 1px solid var(--border-color);
+            padding: 6px 14px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        .lang-switch:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(14, 165, 233, 0.3);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 550px; /* 略微收窄，更精致 */
+            margin: 80px auto 40px;
+            position: relative;
+            z-index: 10;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        .header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: var(--primary-dark); /* 深蓝标题 */
+        }
+
+        .header p {
+            font-size: 1rem;
+            color: var(--text-sub);
+            font-weight: 400;
+        }
+
+        /* Auth Buttons */
+        .auth-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-auth {
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-login {
+            background: var(--bg-card);
+            color: var(--text-main);
+        }
+
+        .btn-login:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .btn-register {
+            background: var(--primary);
+            color: white;
+            border: 1px solid var(--primary);
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+        }
+
+        .btn-register:hover {
+            opacity: 0.9;
+            box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4);
+            transform: translateY(-1px);
+        }
+
+        /* Main White Card - Includes Fluid Light Effect */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 30px;
+            box-shadow: var(--shadow-strong); /* 干净的阴影 */
+            transition: all 0.3s ease;
+            position: relative; /* Needed for ::after */
+            overflow: hidden; /* Keep shine contained */
+        }
+
+        /* New: Fluid Light Effect */
+        .card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            border-radius: var(--radius);
+            opacity: 0;
+            transition: opacity 0.5s;
+            /* Use radial gradient pointing to cursor position */
+            background: radial-gradient(
+                circle 100px at var(--mouse-x) var(--mouse-y),
+                rgba(255, 255, 255, 0.4) 0%,
+                rgba(255, 255, 255, 0) 70%
+            );
+        }
+
+        .card:hover::after {
+            opacity: 1; /* Show effect on hover */
+        }
+
+
+        /* Tabs - 简洁明了的导航栏 */
+        .tabs {
+            display: flex;
+            background: var(--bg-light);
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px 0;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-sub);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab.active {
+            color: var(--primary-dark);
+            background: var(--bg-card);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--bg-light);
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--primary);
+            background: #eef4ff; /* 极浅蓝背景 */
+            /* 添加鼠标悬停特效：微妙的蓝色阴影 */
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+            transition: transform 0.3s;
+        }
+
+        .upload-area:hover .upload-icon {
+            transform: scale(1.05);
+        }
+
+        .upload-text {
+            font-size: 1rem;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .upload-text small {
+            display: block;
+            margin-top: 6px;
+            color: var(--text-sub);
+            font-weight: 400;
+            font-size: 0.85rem;
+        }
+
+        /* File List */
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-list h4 {
+            color: var(--primary-dark);
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .file-item:hover {
+            background: #eef4ff;
+            border-color: #c7d2fe;
+        }
+
+        .file-item-info strong {
+            display: block;
+            color: var(--text-main);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .file-item-info small {
+            color: var(--text-sub);
+            font-size: 0.8rem;
+        }
+
+        .remove-file-btn {
+            background: #fee2e2;
+            color: var(--danger);
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .remove-file-btn:hover {
+            background: var(--danger);
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        /* Inputs */
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-sub);
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            color: var(--text-main);
+            transition: all 0.3s;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3);
+            background: white;
+        }
+
+        .input-group input::placeholder {
+            color: #94a3b8;
+        }
+
+        /* Main Action Button */
+        .btn {
+            /* 修改为渐变蓝色 */
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.5);
+        }
+
+        .btn:disabled {
+            background: #cbd5e1;
+            color: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Result Box */
+        .result-box {
+            margin-top: 30px;
+            display: none;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .result-box.show {
+            display: block;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-card-container {
+            background: #f7f9fd; /* 浅蓝底纹 */
+            border: 1px solid #dbeafe;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        /* 改进的结果展示区域 */
+        .result-item {
+            background: white;
+            border-radius: 8px;
+            padding: 0;
+            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .result-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            padding: 8px 12px 6px;
+            display: block;
+            letter-spacing: 1px;
+            background: #f1f5f9;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-value-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+        }
+
+        .result-value {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.8rem;
+            color: var(--primary-dark);
+            word-break: break-all;
+            flex: 1;
+            line-height: 1.4;
+            user-select: all;
+            cursor: text;
+            padding: 4px;
+            border-radius: 4px;
+            background: #f8fafc;
+        }
+
+        /* 复制按钮 - 浅色主题下的风格 */
+        .copy-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .copy-btn:hover {
+            opacity: 0.9;
+        }
+
+        .copy-btn.copied {
+            background: var(--success) !important;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+        }
+
+        .copy-btn.copied i {
+            animation: checkBounce 0.5s ease;
+        }
+
+        /* Download Info */
+        .download-info {
+            background: #f7f9fd;
+            border: 1px solid #dbeafe;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 25px;
+        }
+
+        .download-info h3 {
+            color: var(--primary-dark);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.2rem;
+        }
+
+        .download-info p {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border-color);
+            color: var(--text-main);
+            font-size: 0.9rem;
+        }
+
+        .download-info p strong {
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        .download-info p:last-child {
+            border-bottom: none;
+        }
+
+        /* QR Code - 专注于减少视觉白边 */
+        .qrcode-container {
+            text-align: center;
+            padding: 10px; /* 减少 padding */
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 15px;
+            display: inline-block; /* 保证容器紧凑 */
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        /* 确保 canvas 紧凑 */
+        .qrcode-container canvas {
+            display: block;
+        }
+        .qrcode-hint {
+            margin-top: 8px;
+            color: var(--text-sub);
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        /* Custom Toast (Kept dark for contrast/alert) */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--primary);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
+
+        .loading-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .container { margin-top: 60px; padding: 0 15px; }
+            .header h1 { font-size: 2.5rem; }
+            .card { padding: 20px; }
+            .result-value-row {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 8px 12px;
+            }
+            .result-value {
+                font-size: 0.75rem;
+                width: 100%;
+                margin-bottom: 5px;
+            }
+            .copy-btn {
+                padding: 4px 10px;
+                font-size: 0.7rem;
+            }
+            .copy-btn-text {
+                display: inline; /* Re-show text on mobile for clarity */
+            }
+            .auth-group {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .btn-auth {
+                width: 100%;
+            }
+        }
+        /* 浅色主题 - 模仿 Dropbox/Drive 的简洁风格 */
+        :root {
+            /* ... 保持现有浅色变量 ... */
+            --primary: #0ea5e9;
+            --text-main: #0f172a;
+            --bg-light: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            /* ... 其他浅色变量 ... */
+        }
+
+        /* 暗黑主题变量 */
+        .dark-mode {
+            --primary: #4f46e5; /* Indigo */
+            --primary-light: #6366f1;
+            --primary-dark: #4338ca;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #f87171;
+            --text-main: #f1f5f9; /* 亮色文字 */
+            --text-sub: #94a3b8; /* 浅灰色文字 */
+            --bg-light: #18181b; /* 主背景 (Zinc 900) */
+            --bg-card: #27272a; /* 卡片背景 (Zinc 800) */
+            --border-color: #3f3f46; /* 深色边框 (Zinc 600) */
+            --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --shadow-strong: 0 15px 30px rgba(0, 0, 0, 0.6);
+        }
+                /* --- 暗黑模式样式覆盖 --- */
+        .dark-mode body {
+            background-color: var(--bg-light);
+            color: var(--text-main);
+        }
+
+        /* 动态背景 */
+        .dark-mode .blob-1 { background: #4f46e5; }
+        .dark-mode .blob-2 { background: #3b82f6; }
+        .dark-mode .blob-3 { background: #6366f1; opacity: 0.5; }
+
+        /* 语言切换 & Dark Mode 按钮 */
+        .dark-mode .lang-switch,
+        .dark-mode #darkModeToggle {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-sub);
+        }
+        .dark-mode .lang-switch:hover,
+        .dark-mode #darkModeToggle:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+        }
+
+        /* Header */
+        .dark-mode .header h1 {
+            color: var(--primary-light);
+        }
+
+        /* Main Card */
+        .dark-mode .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-strong);
+        }
+
+        .dark-mode .card:hover::after {
+            /* 暗黑模式下的鼠标辉光效果更微妙 */
+            background: radial-gradient(
+                circle 100px at var(--mouse-x) var(--mouse-y),
+                rgba(255, 255, 255, 0.15) 0%,
+                rgba(255, 255, 255, 0) 70%
+            );
+        }
+
+        /* Auth Buttons */
+        .dark-mode .btn-login {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+        .dark-mode .btn-register {
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+        }
+        .dark-mode .btn-register:hover {
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+        }
+
+        /* Logged-in user info */
+        .dark-mode #authButtons div > div {
+            background: #3f3f46 !important;
+            border-color: var(--primary-light) !important;
+        }
+        .dark-mode #authButtons .btn-login {
+            background: #3f3f46;
+        }
+
+        /* Tabs */
+        .dark-mode .tabs {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+        }
+        .dark-mode .tab.active {
+            color: var(--text-main);
+            background: var(--bg-light); /* 暗色背景上的亮色选中 */
+            box-shadow: none; /* 移除阴影 */
+        }
+        .dark-mode .tab:hover:not(.active) {
+            color: var(--primary-light);
+        }
+
+        /* Upload Area */
+        .dark-mode .upload-area {
+            border: 2px dashed var(--border-color);
+            background: #1f2937; /* 更深的背景色 */
+        }
+        .dark-mode .upload-area:hover, .dark-mode .upload-area.dragover {
+            border-color: var(--primary-light);
+            background: #334155;
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.2);
+        }
+        .dark-mode .upload-text { color: var(--text-main); }
+        .dark-mode .upload-text small { color: var(--text-sub); }
+
+        /* File List */
+        .dark-mode .file-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+        }
+        .dark-mode .file-item:hover {
+            background: #3f3f46;
+            border-color: var(--primary);
+        }
+        .dark-mode .remove-file-btn {
+            background: #450a0a; /* 红色系背景 */
+            color: var(--danger);
+        }
+        .dark-mode .remove-file-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Inputs */
+        .dark-mode .input-group input {
+            background: #1f2937;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+        .dark-mode .input-group input:focus {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+            background: #1f2937;
+        }
+
+        /* Buttons */
+        .dark-mode .btn {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+        }
+        .dark-mode .btn:hover {
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.5);
+        }
+        .dark-mode .btn:disabled {
+            background: #374151;
+            color: #4b5563;
+        }
+
+        /* Result Box */
+        .dark-mode .result-box {
+            border-top: 1px solid var(--border-color);
+        }
+        .dark-mode .result-card-container {
+            background: #1f2937;
+            border: 1px solid #3b82f6;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .dark-mode .result-item {
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+        }
+        .dark-mode .result-label {
+            background: #182230;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .dark-mode .result-value {
+            color: var(--primary-light);
+            background: #1f2937;
+        }
+        .dark-mode .copy-btn {
+            background: var(--primary);
+        }
+        .dark-mode .copy-btn.copied {
+            background: var(--success) !important;
+        }
+        .dark-mode .copy-btn[style*="default"] {
+            background: #374151 !important;
+            color: var(--text-sub) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+
+        /* QR Code */
+        .dark-mode .qrcode-container {
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Download Info */
+        .dark-mode .download-info {
+            background: #1f2937;
+            border: 1px solid #4f46e5;
+        }
+        .dark-mode .download-info h3 {
+            color: var(--primary-light);
+        }
+        .dark-mode .download-info p {
+            border-bottom: 1px dashed var(--border-color);
+            color: var(--text-main);
+        }
+        .dark-mode .download-info p strong {
+            color: var(--text-sub);
+        }
+
+        /* Toast (保持高对比度) */
+        .dark-mode .toast {
+            background: rgba(241, 245, 249, 0.9); /* 亮色背景 */
+            color: var(--text-main); /* 深色文字 */
+            border: 1px solid var(--primary);
+        }
+        .dark-mode .toast .loading-spinner {
+            border: 2px solid rgba(0,0,0,0.3);
+            border-top-color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+<div class="bg-glow">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- 语言切换按钮 -->
+<button class="lang-switch" id="langBtn" onclick="toggleLanguage()">EN</button>
+
+<div class="container">
+    <div class="header">
+        <h1 data-i18n="heading">QuickShare</h1>
+        <p data-i18n="subtitle">Next-Gen Secure File Sharing</p>
+        <div id="authButtons" class="auth-group">
+            <button onclick="location.href='login.html'" class="btn-auth btn-login" data-i18n="loginBtn">登录</button>
+            <button onclick="location.href='register.html'" class="btn-auth btn-register" data-i18n="registerBtn">注册账号</button>
+        </div>
+    </div>
+
+    <div class="card" id="mainCard">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('upload')" data-i18n="uploadTab"><i class="fa-solid fa-cloud-arrow-up"></i> 上传</button>
+            <button class="tab" onclick="switchTab('download')" data-i18n="downloadTab"><i class="fa-solid fa-cloud-arrow-down"></i> 下载</button>
+        </div>
+
+        <div id="upload-tab" class="tab-content active">
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon"><i class="fa-solid fa-box-archive"></i></div>
+                <div class="upload-text" data-i18n="uploadAreaText">
+                    点击或拖拽文件至此
+                    <small>(支持多文件批量上传，最大 10GB)</small>
+                </div>
+                <input type="file" id="fileInput" style="display: none;" multiple onchange="handleFileSelect(event)">
+            </div>
+
+            <div class="file-list" id="fileList" style="display: none;">
+                <h4 data-i18n="selectedFiles"><i class="fa-solid fa-list-check"></i> 待上传列表:</h4>
+                <div id="fileItems"></div>
+            </div>
+
+            <div style="margin-top: 25px;">
+                <div class="input-group">
+                    <label data-i18n="extractCodeLabel"><i class="fa-solid fa-key"></i> 提取码 (可选)</label>
+                    <input type="text" id="extractCode" data-i18n="extractCodePlaceholder" placeholder="4-6位数字或字母" maxlength="6">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label data-i18n="expireHoursLabel"><i class="fa-regular fa-clock"></i> 有效期 (小时)</label>
+                        <input type="number" id="expireHours" placeholder="24" value="24" min="1">
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="maxDownloadLabel"><i class="fa-solid fa-download"></i> 最大次数</label>
+                        <input type="number" id="maxDownload" placeholder="无限制" min="1">
+                    </div>
+                </div>
+
+                <button class="btn" id="uploadBtn" onclick="uploadAndShare()" disabled data-i18n="uploadAndShareBtn">
+                    <span>开始上传并分享</span> <i class="fa-solid fa-share-nodes"></i>
+                </button>
+            </div>
+
+            <div class="result-box" id="resultBox"></div>
+        </div>
+
+        <div id="download-tab" class="tab-content">
+            <div class="input-group">
+                <label data-i18n="shareCodeLabel"><i class="fa-solid fa-hashtag"></i> 分享码</label>
+                <input type="text" id="downloadShareCode" data-i18n="downloadShareCodePlaceholder" placeholder="请输入8位分享码">
+            </div>
+
+            <div class="input-group">
+                <label data-i18n="extractCodeLabel2"><i class="fa-solid fa-lock"></i> 提取码 (如有)</label>
+                <input type="text" id="downloadExtractCode" data-i18n="downloadExtractCodePlaceholder" placeholder="请输入提取码">
+            </div>
+
+            <button class="btn" onclick="getShareInfo()" data-i18n="viewFileInfoBtn">
+                <span>查看文件信息</span> <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+
+            <div class="download-info" id="downloadInfo" style="display: none;">
+                <h3 data-i18n="fileInfoTitle"><i class="fa-regular fa-file-lines"></i> 文件详情</h3>
+                <p><strong data-i18n="fileName">文件名</strong> <span id="downloadFileName" style="color: var(--text-main);"></span></p>
+                <p><strong data-i18n="expireTime">过期时间</strong> <span id="downloadExpireTime"></span></p>
+                <p><strong data-i18n="remainingDownloads">剩余次数</strong> <span id="downloadRemaining"></span></p>
+                <button class="btn" onclick="downloadFile()" style="margin-top: 20px; background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);" data-i18n="downloadBtn">
+                    <span>立即下载</span> <i class="fa-solid fa-download"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 语言切换脚本 (假设外部文件 lang-switch.js 存在，此处仅用于保持代码完整性) -->
+<script>
+    /* ================= Fluid Light Effect JS ================= */
+    document.addEventListener('mousemove', (e) => {
+        const card = document.getElementById('mainCard');
+        if (!card) return;
+
+        const rect = card.getBoundingClientRect();
+        // Calculate relative position within the card (0 to 100%)
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+        // Update CSS variables for the pseudo-element in the card
+        card.style.setProperty('--mouse-x', `${x}%`);
+        card.style.setProperty('--mouse-y', `${y}%`);
+    });
+
+    // Add touch support for mobile shine effect
+    document.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 0) {
+            const touch = e.touches[0];
+            const card = document.getElementById('mainCard');
+            if (!card) return;
+
+            const rect = card.getBoundingClientRect();
+            const x = ((touch.clientX - rect.left) / rect.width) * 100;
+            const y = ((touch.clientY - rect.top) / rect.height) * 100;
+
+            card.style.setProperty('--mouse-x', `${x}%`);
+            card.style.setProperty('--mouse-y', `${y}%`);
+
+            // Ensure opacity is 1 on touchmove
+            card.style.setProperty('opacity', '1');
+        }
+    });
+
+    document.addEventListener('touchstart', (e) => {
+         const card = document.getElementById('mainCard');
+         if (card) card.classList.add('touch-active');
+    });
+
+    document.addEventListener('touchend', (e) => {
+        const card = document.getElementById('mainCard');
+        if (card) card.classList.remove('touch-active');
+    });
+
+    /* ================= Language Switching ================= */
+    const i18n = {
+        'zh': {
+            title: 'QuickShare - 极速传送',
+            heading: 'QuickShare',
+            subtitle: '新一代安全文件分享',
+            loginBtn: '登录',
+            registerBtn: '注册账号',
+            uploadTab: '上传',
+            downloadTab: '下载',
+            uploadAreaText: '点击或拖拽文件至此',
+            selectedFiles: '待上传列表:',
+            extractCodeLabel: '提取码 (可选)',
+            extractCodePlaceholder: '4-6位数字或字母',
+            expireHoursLabel: '有效期 (小时)',
+            maxDownloadLabel: '最大次数',
+            uploadAndShareBtn: '开始上传并分享',
+            shareCodeLabel: '分享码',
+            downloadShareCodePlaceholder: '请输入8位分享码',
+            extractCodeLabel2: '提取码 (如有)',
+            downloadExtractCodePlaceholder: '请输入提取码',
+            viewFileInfoBtn: '查看文件信息',
+            fileInfoTitle: '文件详情',
+            fileName: '文件名',
+            expireTime: '过期时间',
+            remainingDownloads: '剩余次数',
+            downloadBtn: '立即下载',
+            copied: '已复制',
+            copy: '复制',
+            none: '无需提取码',
+            manualCopy: '复制失败，请长按文字手动复制',
+            fetchError: '获取失败',
+            extractCodeError: '提取码错误或必填',
+            copyError: '内部错误：无法找到文本元素',
+            shareSuccess: '文件分享成功!',
+            shareCode: '分享码',
+            fullLink: '完整链接 (一键访问)',
+            extractCode: '提取码',
+            scanToAccess: '扫描二维码直达',
+            fetching: '正在获取文件信息...',
+            logoutConfirm: '确定要退出登录吗?',
+            logout: '退出',
+            myNetdisk: '网盘主页'
+        },
+        'en': {
+            title: 'QuickShare - Fast Transfer',
+            heading: 'QuickShare',
+            subtitle: 'Next-Gen Secure File Sharing',
+            loginBtn: 'Login',
+            registerBtn: 'Register',
+            uploadTab: 'Upload',
+            downloadTab: 'Download',
+            uploadAreaText: 'Click or drag files here',
+            selectedFiles: 'Files to Upload:',
+            extractCodeLabel: 'Access Code (Optional)',
+            extractCodePlaceholder: '4-6 digits or letters',
+            expireHoursLabel: 'Expires in (Hours)',
+            maxDownloadLabel: 'Max Downloads',
+            uploadAndShareBtn: 'Upload and Share',
+            shareCodeLabel: 'Share Code',
+            downloadShareCodePlaceholder: 'Enter 8-digit share code',
+            extractCodeLabel2: 'Access Code (If required)',
+            downloadExtractCodePlaceholder: 'Enter access code',
+            viewFileInfoBtn: 'View File Info',
+            fileInfoTitle: 'File Details',
+            fileName: 'File Name',
+            expireTime: 'Expires',
+            remainingDownloads: 'Remaining Downloads',
+            downloadBtn: 'Download Now',
+            copied: 'Copied',
+            copy: 'Copy',
+            none: 'None',
+            manualCopy: 'Copy failed. Please long press to copy the selected text',
+            fetchError: 'Failed to fetch',
+            extractCodeError: 'Access code required or invalid',
+            copyError: 'Internal error: Could not find text element',
+            shareSuccess: 'Files shared successfully!',
+            shareCode: 'Share Code',
+            fullLink: 'Full Link (Auto-Fill)',
+            extractCode: 'Access Code',
+            scanToAccess: 'Scan to access',
+            fetching: 'Fetching file info...',
+            logoutConfirm: 'Are you sure you want to log out?',
+            logout: 'Logout',
+            myNetdisk: 'My Netdisk'
+        }
+    };
+
+    let currentLang = 'zh';
+
+    function getCurrentLanguage() {
+        return currentLang;
+    }
+
+    function setLanguage(lang) {
+        currentLang = lang;
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+            const key = element.getAttribute('data-i18n');
+            const translation = i18n[lang][key] || i18n['zh'][key];
+
+            // Handle text content, title, and placeholder attributes
+            if (element.tagName === 'TITLE') {
+                document.title = translation;
+            } else if (element.tagName === 'INPUT' && element.hasAttribute('placeholder')) {
+                element.placeholder = translation;
+            } else {
+                // Update inner HTML for buttons/labels, preserving icons
+                const icon = element.querySelector('i');
+                if (icon) {
+                    element.innerHTML = `${icon.outerHTML} ${translation}`;
+                } else {
+                    element.textContent = translation;
+                }
+            }
+        });
+        // Update lang switch button
+        document.getElementById('langBtn').textContent = lang === 'zh' ? 'EN' : '中文';
+        checkLoginState(); // Update auth button texts
+    }
+
+    function toggleLanguage() {
+        const newLang = currentLang === 'zh' ? 'en' : 'zh';
+        setLanguage(newLang);
+    }
+
+    // Initialize language
+    document.addEventListener('DOMContentLoaded', () => {
+        const browserLang = navigator.language.startsWith('en') ? 'en' : 'zh';
+        setLanguage(browserLang);
+    });
+    /* ================= UI Utilities ================= */
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'success' ? '<i class="fa-solid fa-check-circle"></i>' : '<i class="fa-solid fa-circle-exclamation"></i>';
+        toast.innerHTML = `${icon} <span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    /* ================= 核心逻辑 (API 模拟) ================= */
+    // 配置 API 地址 - 这是一个模拟实现，实际部署时需要真实的后端
+    const API_BASE = window.location.hostname === 'localhost'
+        ? 'http://localhost:8080/api'
+        : `${window.location.protocol}//${window.location.host}/api`;
+
+    let selectedFiles = [];
+
+    // 页面加载初始化
+    window.addEventListener('load', () => {
+        checkLoginState();
+        let shareCode = null;
+        let extractCode = null;
+
+        // 检查 URL hash (#share=XXX&code=YYY) 或 search (?share=XXX&code=YYY)
+        const urlParams = new URLSearchParams(window.location.hash.substring(1) || window.location.search);
+        shareCode = urlParams.get('share');
+        extractCode = urlParams.get('code');
+
+        if (shareCode) {
+            initGuestMode(shareCode, extractCode);
+        }
+    });
+
+    function initGuestMode(shareCode, extractCode) {
+        console.log('进入访客模式:', shareCode, extractCode);
+        switchTab('download');
+        if (shareCode) document.getElementById('downloadShareCode').value = shareCode;
+        if (extractCode) document.getElementById('downloadExtractCode').value = extractCode;
+
+        const lang = getCurrentLanguage();
+
+        if (shareCode) {
+            showToast(i18n[lang].fetching, 'success');
+            setTimeout(() => {
+                getShareInfo();
+            }, 500);
+        }
+    }
+
+    function checkLoginState() {
+        // This is a mockup of the login state check as we don't have a real API
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const lang = getCurrentLanguage();
+
+        if (token && user.username) {
+            const logoutText = i18n[lang].logout;
+            const netdiskText = i18n[lang].myNetdisk;
+            const authButtons = document.getElementById('authButtons');
+
+            if (authButtons) {
+                authButtons.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:15px; flex-wrap: wrap; justify-content: center;">
+                        <button onclick="location.href='netdisk.html'" class="btn-auth btn-register" style="padding: 8px 20px;">
+                            <i class="fa-solid fa-hard-drive"></i> ${netdiskText}
+                        </button>
+                        <div style="display:flex; align-items:center; gap:8px; background: #eef4ff; padding: 6px 12px; border-radius: 50px; border: 1px solid var(--primary);">
+                            <div style="width:30px; height:30px; background: linear-gradient(45deg, var(--primary), var(--primary-light)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size: 0.9rem;">
+                                ${user.nickname ? user.nickname[0].toUpperCase() : user.username[0].toUpperCase()}
+                            </div>
+                            <span style="font-weight:500; font-size: 0.9rem; color: var(--text-main);">${user.nickname || user.username}</span>
+                            <button onclick="handleLogout()" class="btn-auth btn-login" style="padding: 4px 12px; font-size: 0.75rem; margin-left: 4px; border-color: var(--border-color);">
+                                <i class="fa-solid fa-right-from-bracket"></i> ${logoutText}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+             // Re-render default buttons if needed after lang switch
+            const authButtons = document.getElementById('authButtons');
+            if (authButtons && authButtons.querySelector('.btn-register')?.textContent !== i18n[lang].registerBtn) {
+                 authButtons.innerHTML = `
+                     <button onclick="location.href='login.html'" class="btn-auth btn-login" data-i18n="loginBtn">${i18n[lang].loginBtn}</button>
+                     <button onclick="location.href='register.html'" class="btn-auth btn-register" data-i18n="registerBtn">${i18n[lang].registerBtn}</button>
+                 `;
+            }
+        }
+    }
+
+    function handleLogout() {
+        const lang = getCurrentLanguage();
+        // Use a custom modal or message box instead of confirm()
+        const isConfirmed = window.prompt(i18n[lang].logoutConfirm + ' (Type "yes" to confirm)') === 'yes';
+
+        if (isConfirmed) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            location.reload();
+        }
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        const tabButtons = document.querySelectorAll('.tab');
+        if(tab === 'upload') tabButtons[0].classList.add('active');
+        else tabButtons[1].classList.add('active');
+
+        document.getElementById(tab + '-tab').classList.add('active');
+
+        // Hide download info when switching away from download tab
+        if (tab === 'upload') {
+            document.getElementById('downloadInfo').style.display = 'none';
+        }
+    }
+
+    /* ================= 上传逻辑 ================= */
+    const uploadArea = document.getElementById('uploadArea');
+    ['dragenter', 'dragover'].forEach(evt => {
+        uploadArea.addEventListener(evt, (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(evt => {
+        uploadArea.addEventListener(evt, (e) => { e.preventDefault(); uploadArea.classList.remove('dragover'); });
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) handleFiles(Array.from(files));
+    });
+
+    function handleFileSelect(event) {
+        if (event.target.files.length > 0) handleFiles(Array.from(event.target.files));
+    }
+
+    function handleFiles(files) {
+        selectedFiles = [...selectedFiles, ...files];
+        displayFileList();
+        document.getElementById('uploadBtn').disabled = false;
+        document.getElementById('resultBox').classList.remove('show');
+        showToast(`Added ${files.length} file(s)`, 'success');
+    }
+
+    function displayFileList() {
+        const fileList = document.getElementById('fileList');
+        const fileItems = document.getElementById('fileItems');
+
+        if (selectedFiles.length === 0) {
+            fileList.style.display = 'none';
+            return;
+        }
+
+        fileList.style.display = 'block';
+        fileItems.innerHTML = '';
+
+        selectedFiles.forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            item.innerHTML = `
+                <div class="file-item-info">
+                    <strong><i class="fa-regular fa-file"></i> ${file.name}</strong>
+                    <small>${formatFileSize(file.size)}</small>
+                </div>
+                <button class="remove-file-btn" onclick="removeFile(${index})"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            fileItems.appendChild(item);
+        });
+    }
+
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        displayFileList();
+        if (selectedFiles.length === 0) document.getElementById('uploadBtn').disabled = true;
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Simulating fetch with exponential backoff for resilience
+    const MAX_RETRIES = 3;
+    async function fetchWithRetry(url, options, retryCount = 0) {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: `HTTP error! Status: ${response.status}` }));
+                throw new Error(errorData.message || 'Network request failed');
+            }
+            return response;
+        } catch (error) {
+            if (retryCount < MAX_RETRIES) {
+                const delay = Math.pow(2, retryCount) * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return fetchWithRetry(url, options, retryCount + 1);
+            }
+            throw error;
+        }
+    }
+
+    async function uploadAndShare() {
+        const lang = getCurrentLanguage();
+        if (selectedFiles.length === 0) return;
+
+        const uploadBtn = document.getElementById('uploadBtn');
+        const originalBtnContent = uploadBtn.innerHTML;
+
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = `<div class="loading-spinner"></div> <span style="margin-left: 10px;">${lang === 'zh' ? '处理中...' : 'Processing...'}</span>`;
+
+        const resultBox = document.getElementById('resultBox');
+        resultBox.classList.remove('show');
+
+        const shareLinks = [];
+        const token = localStorage.getItem('token') || '';
+
+        try {
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                showToast(`${lang === 'zh' ? '正在上传' : 'Uploading'} ${file.name}... (${i + 1}/${selectedFiles.length})`, 'success');
+
+                // 1. Upload File (Mock API call)
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const upRes = await fetchWithRetry(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                    body: formData
+                });
+
+                const upData = await upRes.json();
+                if (upData.code !== 200) throw new Error(upData.message || 'Upload failed');
+
+                // 2. Create Share Link (Mock API call)
+                const sharePayload = {
+                    fileId: upData.data.id,
+                    extractCode: document.getElementById('extractCode').value.trim() || null,
+                    expireHours: parseInt(document.getElementById('expireHours').value) || null,
+                    maxDownload: parseInt(document.getElementById('maxDownload').value) || null
+                };
+
+                const shareRes = await fetchWithRetry(`${API_BASE}/share`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...(token ? {'Authorization': `Bearer ${token}`} : {}) },
+                    body: JSON.stringify(sharePayload)
+                });
+
+                const shareData = await shareRes.json();
+                if (shareData.code !== 200) throw new Error(shareData.message || 'Share failed');
+
+                shareLinks.push({ fileName: file.name, ...shareData.data });
+            }
+
+            displayShareLinks(shareLinks);
+            selectedFiles = [];
+            displayFileList();
+            showToast(i18n[lang].shareSuccess, 'success');
+
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            uploadBtn.innerHTML = originalBtnContent;
+            uploadBtn.disabled = selectedFiles.length === 0;
+        }
+    }
+
+    function displayShareLinks(links) {
+        const lang = getCurrentLanguage();
+        const resultBox = document.getElementById('resultBox');
+
+        let html = `<h3 style="color:var(--primary-dark); text-align:center; margin-bottom:20px; font-weight: 700;">
+            <i class="fa-solid fa-circle-check" style="color:var(--success);"></i> ${i18n[lang].shareSuccess}
+        </h3>`;
+
+        links.forEach((link, idx) => {
+            const baseUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+            let fullUrl = `${baseUrl}#share=${link.shareCode}`;
+            if(link.extractCode) fullUrl += `&code=${link.extractCode}`;
+
+            html += `
+                <div class="result-card-container">
+                    <h4 style="color:var(--text-main); margin-bottom:15px; display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 600;">
+                        <i class="fa-regular fa-file-lines" style="color: var(--primary);"></i>
+                        <span>${idx + 1}. ${link.fileName}</span>
+                    </h4>
+
+                    <!-- Full Link -->
+                    <div class="result-item">
+                        <span class="result-label">
+                            <i class="fa-solid fa-link"></i> ${i18n[lang].fullLink}
+                        </span>
+                        <div class="result-value-row">
+                            <span class="result-value" id="fullUrl${idx}">${fullUrl}</span>
+                            <button class="copy-btn" onclick="copyText('fullUrl${idx}', this)">
+                                <i class="fa-regular fa-copy"></i>
+                                <span class="copy-btn-text">${i18n[lang].copy}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top: 10px;">
+                        <!-- Share Code -->
+                        <div class="result-item">
+                            <span class="result-label">
+                                <i class="fa-solid fa-hashtag"></i> ${i18n[lang].shareCode}
+                            </span>
+                            <div class="result-value-row">
+                                <span class="result-value" id="shareCode${idx}">${link.shareCode}</span>
+                                <button class="copy-btn" onclick="copyText('shareCode${idx}', this)">
+                                    <i class="fa-regular fa-copy"></i>
+                                    <span class="copy-btn-text">${i18n[lang].copy}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Extract Code -->
+                        <div class="result-item">
+                            <span class="result-label">
+                                <i class="fa-solid fa-key"></i> ${i18n[lang].extractCode}
+                            </span>
+                            <div class="result-value-row">
+                                <span class="result-value" id="extractCode${idx}">${link.extractCode || i18n[lang].none}</span>
+                                ${link.extractCode ? `
+                                    <button class="copy-btn" onclick="copyText('extractCode${idx}', this)">
+                                        <i class="fa-regular fa-copy"></i>
+                                        <span class="copy-btn-text">${i18n[lang].copy}</span>
+                                    </button>
+                                ` : `<span class="copy-btn" style="background: #f1f5f9; color: var(--text-sub); border: 1px solid var(--border-color); cursor: default;"><i class="fa-solid fa-unlock-keyhole"></i> ${i18n[lang].none}</span>`}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- QR Code -->
+                    <div style="text-align: center;">
+                        <div class="qrcode-container">
+                            <div id="qrcode${idx}"></div>
+                            <p class="qrcode-hint">
+                                <i class="fa-solid fa-qrcode"></i>
+                                ${i18n[lang].scanToAccess}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        resultBox.innerHTML = html;
+        resultBox.classList.add('show');
+
+        // 生成二维码 - 使用深蓝色适配浅色背景，并且没有多余白边
+        links.forEach((link, idx) => {
+            const baseUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+            let fullUrl = `${baseUrl}#share=${link.shareCode}`;
+            if(link.extractCode) fullUrl += `&code=${link.extractCode}`;
+
+            new QRCode(document.getElementById(`qrcode${idx}`), {
+                text: fullUrl,
+                width: 128,
+                height: 128,
+                colorDark: "#0f172a", // 深色，与浅色主题搭配
+                colorLight: "#ffffff",  // 白色
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        });
+    }
+
+    /* ================= 复制函数 (已优化) ================= */
+    function copyText(id, btn) {
+        const element = document.getElementById(id);
+        if (!element) {
+            showToast(i18n[getCurrentLanguage()].copyError, 'error');
+            return;
+        }
+        const text = (element.innerText || element.textContent).trim();
+        const originalHTML = btn.innerHTML;
+        const lang = getCurrentLanguage();
+
+        const handleSuccess = () => {
+            btn.classList.add('copied');
+            btn.innerHTML = `
+                <i class="fa-solid fa-check"></i>
+                <span class="copy-btn-text">${i18n[lang].copied}</span>
+            `;
+            showToast(i18n[lang].copied + '!', 'success');
+            setTimeout(() => {
+                btn.classList.remove('copied');
+                btn.innerHTML = originalHTML;
+            }, 2000);
+        };
+
+        const handleError = () => {
+            showToast(i18n[lang].manualCopy, 'error');
+            // Fallback to prompt/selection
+            if (window.getSelection && document.createRange) {
+                const selection = window.getSelection();
+                const range = document.createRange();
+                range.selectNodeContents(element);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        };
+
+        // Try modern API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(handleSuccess)
+                .catch(() => tryLegacyCopy(text, handleSuccess, handleError));
+        } else {
+            tryLegacyCopy(text, handleSuccess, handleError);
+        }
+    }
+
+    function tryLegacyCopy(text, onSuccess, onFail) {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            if (successful) {
+                onSuccess();
+            } else {
+                onFail();
+            }
+        } catch (err) {
+            onFail();
+        }
+    }
+
+    /* ================= 下载逻辑 ================= */
+    let currentShareInfo = null;
+
+    async function getShareInfo() {
+        const lang = getCurrentLanguage();
+        const sCode = document.getElementById('downloadShareCode').value.trim();
+        const eCode = document.getElementById('downloadExtractCode').value.trim();
+
+        document.getElementById('downloadInfo').style.display = 'none';
+
+        if(!sCode) {
+            showToast(i18n[lang].downloadShareCodePlaceholder, 'error');
+            return;
+        }
+
+        try {
+            let url = `${API_BASE}/share/${sCode}`;
+            if(eCode) url += `?extractCode=${eCode}`;
+
+            const res = await fetchWithRetry(url);
+            const data = await res.json();
+
+            if(data.code !== 200) {
+                if(data.code === 403) {
+                    throw new Error(i18n[lang].extractCodeError);
+                }
+                throw new Error(data.message || i18n[lang].fetchError);
+            }
+
+            currentShareInfo = data.data;
+
+            document.getElementById('downloadFileName').textContent = currentShareInfo.fileName;
+
+            let expireText = lang === 'zh' ? '永久有效' : 'Never';
+            if (currentShareInfo.expireTime) {
+                expireText = new Date(currentShareInfo.expireTime).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US');
+            }
+
+            document.getElementById('downloadExpireTime').textContent = expireText;
+            document.getElementById('downloadRemaining').textContent = (currentShareInfo.maxDownload === -1 || currentShareInfo.maxDownload === null)
+                ? (lang === 'zh' ? '无限制' : 'Unlimited')
+                : currentShareInfo.remainingDownloads || currentShareInfo.maxDownload;
+
+            const infoBox = document.getElementById('downloadInfo');
+            infoBox.style.display = 'block';
+            infoBox.style.animation = 'slideUp 0.5s ease-out';
+            showToast(lang === 'zh' ? '文件信息获取成功!' : 'File info retrieved!', 'success');
+
+        } catch (err) {
+            showToast(err.message, 'error');
+            currentShareInfo = null;
+        }
+    }
+
+    function downloadFile() {
+        if (!currentShareInfo) {
+            showToast(i18n[getCurrentLanguage()].fetchError, 'error');
+            return;
+        }
+
+        const sCode = document.getElementById('downloadShareCode').value.trim();
+        const eCode = document.getElementById('downloadExtractCode').value.trim();
+
+        const downloadUrl = `${API_BASE}/download/${sCode}?extractCode=${eCode}`;
+
+        // Increment download count (mock update logic)
+        if (currentShareInfo.remainingDownloads > 0 || currentShareInfo.maxDownload === null || currentShareInfo.maxDownload === -1) {
+            // In a real app, this would be handled by the backend before serving the file
+            showToast(i18n[getCurrentLanguage()].downloadBtn + '中...', 'success');
+            window.open(downloadUrl, '_blank');
+            // A successful download means the count might decrease, refresh UI
+            setTimeout(getShareInfo, 1000);
+        } else if (currentShareInfo.remainingDownloads === 0) {
+            showToast(i18n[getCurrentLanguage()].remainingDownloads + '已用完', 'error');
+        }
+    }
+</script>
+</body>
+</html>

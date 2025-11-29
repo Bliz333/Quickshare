@@ -12,4 +12,9 @@ public class FileInfoVO {
     private Long fileSize;
     private String fileType;
     private LocalDateTime uploadTime;
+    private String name;           // 文件夹名称（用于前端显示）
+    private Integer isFolder;      // 0=文件，1=文件夹
+    private Long parentId;         // 父文件夹ID
+    private Integer fileCount;     // 文件夹内文件数量（可选）
+    private LocalDateTime createTime;  // 创建时间
 }

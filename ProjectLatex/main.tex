@@ -52,6 +52,21 @@ han.shiz@northeastern.edu
 QuickShare is a modern cloud-based file sharing platform designed to address the growing need for secure and efficient file distribution in enterprise and educational environments. The system leverages Spring Boot microservices architecture with JWT authentication, Redis caching, and MySQL persistence to provide a robust solution for file management. Key features include secure file upload/download, temporary share links with customizable expiration and download limits, folder organization, and email-based user authentication. The platform supports files up to 2GB with optimized streaming for large file transfers, making it suitable for real-world deployment in organizations requiring controlled file distribution.
 
 %-------------------------------------------------------------------------
+\section{Related Work}
+
+\subsection{Cloud Storage and File Sharing Systems}
+Cloud-based file sharing has evolved significantly since Dropbox pioneered consumer-focused synchronization in 2008. Current enterprise solutions like Box \cite{box2024enterprise} and Google Drive \cite{googledrive2024} dominate the market but often lack fine-grained access control. Academic research by Li et al. \cite{li2014secure} highlighted security vulnerabilities in popular cloud storage services, motivating our focus on enhanced access control mechanisms.
+
+\subsection{Authentication and Security Mechanisms}
+Modern web applications increasingly adopt JWT (JSON Web Tokens) for stateless authentication \cite{jones2015json}. Unlike traditional session-based authentication, JWT enables horizontal scaling without shared session stores. Spring Security \cite{spring2024security} provides comprehensive support for JWT integration, which QuickShare leverages for its authentication framework. Research by Siriwardena \cite{siriwardena2020advanced} demonstrates that properly implemented JWT with short expiration times and refresh tokens provides robust security for cloud applications.
+
+\subsection{Access Control Models}
+Temporary access mechanisms have been explored in academic literature. Park et al. \cite{park2012timebased} proposed time-based cryptographic access control for cloud storage. QuickShare extends this concept by combining temporal restrictions with download limits and extraction codes, providing multi-layered access control suitable for diverse sharing scenarios.
+
+\subsection{Microservices Architecture}
+Spring Boot \cite{springboot2024} has become the de facto framework for building microservices in Java ecosystems. Studies by Newman \cite{newman2015building} and Richardson \cite{richardson2018microservices} established best practices for microservices design that inform QuickShare's architecture. The integration of Redis for caching and MySQL for persistence follows patterns documented by Redmond and Wilson \cite{redmond2012seven} for polyglot persistence in modern applications.
+
+%-------------------------------------------------------------------------
 \section{Background}
 
 \subsection{Target Market}
@@ -72,15 +87,12 @@ QuickShare targets three primary user segments:
 
 \section{System Architecture}
 
-\twocolumn[{
-    \renewcommand\twocolumn[1][]{#1}%
-    \begin{center}
-      \centering
-      \includegraphics[width=\linewidth]{figures/systemdiagrams.png}
-      \captionof{figure}{System architecture diagram showing the three-tier design with Spring Boot backend, Redis cache layer, MySQL database, and React frontend. The system uses JWT for authentication and supports both authenticated and anonymous file sharing through secure share links.}
-      \label{fig_system}
-    \end{center}
-}]
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/systemdiagrams.png}
+  \caption{System architecture diagram showing the three-tier design with Spring Boot backend, Redis cache layer, MySQL database, and React frontend. The system uses JWT for authentication and supports both authenticated and anonymous file sharing through secure share links.}
+  \label{fig_system}
+\end{figure*}
 
 The QuickShare platform employs a modern microservices architecture built on Spring Boot 3.2, utilizing a three-tier design pattern for scalability and maintainability.
 
@@ -265,10 +277,15 @@ QuickShare represents a significant advancement in secure file sharing technolog
 The project's modular architecture and comprehensive API design position it well for future enhancements and third-party integrations. As organizations continue to prioritize data security and collaboration efficiency, QuickShare offers a compelling alternative to existing solutions, with the flexibility to adapt to evolving business requirements.
 
 %-------------------------------------------------------------------------
+\section{Author Contributions}
 
-% {\small
-% \bibliographystyle{ieee_fullname}
-% \bibliography{egbib}
-% }
+Conceptualization, S.M., S.H.; system architecture and design, S.M., S.H.; backend implementation (Spring Boot, JWT authentication, file management), S.M., S.H.; database design and optimization (MySQL, MyBatis-Plus), S.M.; caching implementation (Redis), S.M.; frontend development (HTML, CSS, JavaScript), S.H.; security implementation and testing, S.M., S.H.; documentation and technical writing, S.M., S.H.; deployment and performance evaluation, S.M., S.H. All authors have read and agreed to the published version of the manuscript.
+
+%-------------------------------------------------------------------------
+
+{\small
+\bibliographystyle{ieee_fullname}
+\bibliography{egbib}
+}
 
 \end{document}

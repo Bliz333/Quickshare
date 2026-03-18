@@ -36,17 +36,11 @@ public class FileController {
     @PostMapping("/upload")
     public Result<FileInfoVO> uploadFile(
             @RequestParam("file") MultipartFile file,
-            @RequestHeader(required = false, value = "Authorization") String authHeader) {
+            @RequestParam(value = "folderId", required = false) Long folderId,
+            @RequestHeader("Authorization") String authHeader) {
         try {
-            Long userId;
-
-            if (authHeader != null && !authHeader.isEmpty()) {
-                userId = getUserIdFromHeader(authHeader);
-            } else {
-                userId = 1L;
-            }
-
-            FileInfoVO vo = fileService.uploadFile(file, userId);
+            Long userId = getUserIdFromHeader(authHeader);
+            FileInfoVO vo = fileService.uploadFile(file, userId, folderId);
             return Result.success(vo);
         } catch (Exception e) {
             return Result.error(e.getMessage());
@@ -54,14 +48,16 @@ public class FileController {
     }
 
     /**
-     * 获取当前用户的文件列表
+     * 获取当前用户当前目录的文件列表
      */
     @GetMapping("/files")
     public Result<List<FileInfoVO>> getUserFiles(
+            @RequestParam(required = false) Long folderId,
             @RequestHeader("Authorization") String authHeader) {
         try {
             Long userId = getUserIdFromHeader(authHeader);
-            List<FileInfoVO> fileList = fileService.getUserFiles(userId);
+            Long targetFolderId = folderId == null ? 0L : folderId;
+            List<FileInfoVO> fileList = fileService.getFilesByFolder(targetFolderId, userId);
             return Result.success(fileList);
         } catch (Exception e) {
             return Result.error(e.getMessage());
@@ -233,15 +229,9 @@ public class FileController {
     @PostMapping("/share")
     public Result<ShareLinkVO> createShare(
             @RequestBody ShareRequestDTO request,
-            @RequestHeader(required = false, value = "Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         try {
-            Long userId;
-            if (authHeader != null && !authHeader.isEmpty()) {
-                userId = getUserIdFromHeader(authHeader);
-            } else {
-                userId = 1L;
-            }
-
+            Long userId = getUserIdFromHeader(authHeader);
             ShareLinkVO vo = fileService.createShareLink(request, userId);
             return Result.success(vo);
         } catch (Exception e) {
@@ -344,13 +334,39 @@ public class FileController {
         try {
             Long userId = getUserIdFromHeader(authHeader);
 
-            // 调用刚才在 Service 中写的方法
-            List<FileInfoVO> fileList = fileService.getFilesByFolder(parentId, userId);
+            List<FileInfoVO> fileList = fileService.getFilesByFolder(parentId, userId)
+                    .stream()
+                    .filter(item -> Integer.valueOf(1).equals(item.getIsFolder()))
+                    .toList();
 
             return Result.success(fileList);
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("获取文件列表失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 重命名文件夹
+     */
+    @PutMapping("/folders/{folderId}/rename")
+    public Result<Void> renameFolder(
+            @PathVariable Long folderId,
+            @RequestBody java.util.Map<String, String> request,
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            Long userId = getUserIdFromHeader(authHeader);
+            String newName = request.get("newName");
+
+            if (newName == null || newName.trim().isEmpty()) {
+                return Result.error("文件夹名不能为空");
+            }
+
+            fileService.renameFolder(folderId, newName.trim(), userId);
+            return Result.success(null);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("重命名文件夹失败: " + e.getMessage());
         }
     }
 }

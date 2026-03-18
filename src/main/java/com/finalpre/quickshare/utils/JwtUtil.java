@@ -14,6 +14,8 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
+    private static final String DEFAULT_ROLE = "USER";
+
     @Value("${jwt.secret}")
     private String secretString;
 
@@ -26,9 +28,14 @@ public class JwtUtil {
     }
 
     public String generateToken(Long userId, String username) {
+        return generateToken(userId, username, DEFAULT_ROLE);
+    }
+
+    public String generateToken(Long userId, String username, String role) {
         return Jwts.builder()
                 .setSubject(userId.toString())
                 .claim("username", username)
+                .claim("role", role == null || role.isEmpty() ? DEFAULT_ROLE : role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(getSecretKey(), SignatureAlgorithm.HS256)
@@ -46,6 +53,15 @@ public class JwtUtil {
     public Long getUserIdFromToken(String token) {
         Claims claims = parseToken(token);
         return Long.parseLong(claims.getSubject());
+    }
+
+    public String getRoleFromToken(String token) {
+        Claims claims = parseToken(token);
+        Object role = claims.get("role");
+        if (role == null) {
+            return DEFAULT_ROLE;
+        }
+        return role.toString();
     }
 
     public boolean validateToken(String token) {

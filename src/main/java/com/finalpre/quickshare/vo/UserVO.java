@@ -11,4 +11,5 @@ public class UserVO {
     private String nickname;
     private LocalDateTime createTime;
     private String token;  // JWT token
+    private String role;
 }

@@ -24,7 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.List;  // ← 修复这行
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,38 +40,65 @@ public class FileServiceImpl implements FileService {
     private FileConfig fileConfig;
 
     @Override
-    public FileInfoVO uploadFile(MultipartFile file, Long userId) {
+    public FileInfoVO uploadFile(MultipartFile file, Long userId, Long folderId) {
         try {
-            // 生成唯一文件名
+            Long targetFolderId = normalizeParentId(folderId);
+            validateTargetFolder(targetFolderId, userId);
+
             String originalFilename = file.getOriginalFilename();
-            String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            String fileName = IdUtil.simpleUUID() + extension;
+            if (originalFilename == null || originalFilename.trim().isEmpty()) {
+                throw new RuntimeException("文件名不能为空");
+            }
+            String safeOriginalName = Paths.get(originalFilename).getFileName().toString();
+            int dotIndex = safeOriginalName.lastIndexOf('.');
+            String extension = dotIndex > 0 ? safeOriginalName.substring(dotIndex + 1).toLowerCase() : "";
+
+            List<String> allowedTypes = fileConfig.getAllowedTypes();
+            if (!allowedTypes.isEmpty() && (extension.isEmpty() || !allowedTypes.contains(extension))) {
+                throw new RuntimeException("不支持的文件类型");
+            }
+
+            long maxSize = fileConfig.getMaxFileSize();
+            if (maxSize > 0 && file.getSize() > maxSize) {
+                throw new RuntimeException("文件大小超过限制");
+            }
+
+            String fileName = IdUtil.simpleUUID() + (extension.isEmpty() ? "" : "." + extension);
 
             // 保存文件
             String uploadDir = fileConfig.getUploadDir();
             Path filePath = Paths.get(uploadDir, fileName);
-            Files.copy(file.getInputStream(), filePath);
+            try (InputStream inputStream = file.getInputStream()) {
+                Files.copy(inputStream, filePath);
+            }
 
             // 计算MD5
-            String md5 = DigestUtil.md5Hex(file.getInputStream());
+            String md5;
+            try (InputStream md5Stream = Files.newInputStream(filePath)) {
+                md5 = DigestUtil.md5Hex(md5Stream);
+            }
+
+            String contentType = file.getContentType();
+            if (contentType == null || contentType.isEmpty()) {
+                contentType = "application/octet-stream";
+            }
 
             // 保存文件信息到数据库
             FileInfo fileInfo = new FileInfo();
             fileInfo.setFileName(fileName);
-            fileInfo.setOriginalName(originalFilename);
+            fileInfo.setOriginalName(safeOriginalName);
             fileInfo.setFilePath(filePath.toString());
             fileInfo.setFileSize(file.getSize());
-            fileInfo.setFileType(file.getContentType());
+            fileInfo.setFileType(contentType);
             fileInfo.setMd5(md5);
             fileInfo.setUploadTime(LocalDateTime.now());
             fileInfo.setUserId(userId);
+            fileInfo.setIsFolder(0);
+            fileInfo.setParentId(targetFolderId);
 
             fileInfoMapper.insert(fileInfo);
 
-            // 返回VO
-            FileInfoVO vo = new FileInfoVO();
-            BeanUtils.copyProperties(fileInfo, vo);
-            return vo;
+            return convertToVO(fileInfo);
 
         } catch (IOException e) {
             throw new RuntimeException("文件上传失败: " + e.getMessage());
@@ -140,6 +167,10 @@ public class FileServiceImpl implements FileService {
             throw new RuntimeException("分享链接不存在");
         }
 
+        if (shareLink.getStatus() == null || shareLink.getStatus() == 0) {
+            throw new RuntimeException("分享链接已失效");
+        }
+
         // 验证提取码
         if (!shareLink.getExtractCode().equals(extractCode)) {
             throw new RuntimeException("提取码错误");
@@ -162,6 +193,9 @@ public class FileServiceImpl implements FileService {
 
         // 获取文件信息
         FileInfo fileInfo = fileInfoMapper.selectById(shareLink.getFileId());
+        if (fileInfo == null || (fileInfo.getDeleted() != null && fileInfo.getDeleted() == 1)) {
+            throw new RuntimeException("文件不存在或已删除");
+        }
 
         // 返回VO
         ShareLinkVO vo = new ShareLinkVO();
@@ -228,7 +262,7 @@ public class FileServiceImpl implements FileService {
         // 1. 查询该用户的所有文件
         QueryWrapper<FileInfo> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId)
-               // .eq("is_deleted", 0)
+                .eq("deleted", 0)
                 .orderByDesc("upload_time");
 
         List<FileInfo> fileList = fileInfoMapper.selectList(wrapper);
@@ -257,7 +291,7 @@ public class FileServiceImpl implements FileService {
             throw new RuntimeException("无权删除此文件");
         }
 
-        // 逻辑删除（MyBatis-Plus 会自动设置 deleted=1）
+        deletePhysicalFile(fileInfo);
         fileInfoMapper.deleteById(fileId);
     }
 
@@ -266,20 +300,24 @@ public class FileServiceImpl implements FileService {
      */
     @Override
     public void renameFile(Long fileId, String newName, Long userId) {
-        // 查询文件
         FileInfo fileInfo = fileInfoMapper.selectById(fileId);
-
         if (fileInfo == null) {
             throw new RuntimeException("文件不存在");
         }
-
-        // 验证是否是文件所有者
         if (!fileInfo.getUserId().equals(userId)) {
             throw new RuntimeException("无权修改此文件");
         }
+        if (fileInfo.getDeleted() != null && fileInfo.getDeleted() == 1) {
+            throw new RuntimeException("文件不存在");
+        }
+        if (Integer.valueOf(1).equals(fileInfo.getIsFolder())) {
+            throw new RuntimeException("该对象不是文件");
+        }
 
-        // 更新文件名
-        fileInfo.setOriginalName(newName);
+        String normalizedName = normalizeItemName(newName, "文件名");
+        ensureNameAvailable(userId, fileInfo.getParentId(), normalizedName, fileId);
+
+        fileInfo.setOriginalName(normalizedName);
         fileInfoMapper.updateById(fileInfo);
     }
 
@@ -291,6 +329,10 @@ public class FileServiceImpl implements FileService {
         FileInfo fileInfo = fileInfoMapper.selectById(fileId);
 
         if (fileInfo == null) {
+            throw new RuntimeException("文件不存在");
+        }
+
+        if (fileInfo.getDeleted() != null && fileInfo.getDeleted() == 1) {
             throw new RuntimeException("文件不存在");
         }
 
@@ -307,29 +349,16 @@ public class FileServiceImpl implements FileService {
      */
     @Override
     public FileInfoVO createFolder(String folderName, Long parentId, Long userId) {
-        // 检查文件夹名是否合法
-        if (folderName == null || folderName.trim().isEmpty()) {
-            throw new RuntimeException("文件夹名不能为空");
-        }
+        String normalizedFolderName = normalizeItemName(folderName, "文件夹名");
+        Long normalizedParentId = normalizeParentId(parentId);
+        ensureNameAvailable(userId, normalizedParentId, normalizedFolderName, null);
 
-        // 检查同一目录下是否已存在同名文件夹
-        QueryWrapper<FileInfo> wrapper = new QueryWrapper<>();
-        wrapper.eq("user_id", userId)
-                .eq("parent_id", parentId == null ? 0 : parentId)
-                .eq("original_name", folderName)
-                .eq("is_folder", 1);
-
-        if (fileInfoMapper.selectCount(wrapper) > 0) {
-            throw new RuntimeException("该目录下已存在同名文件夹");
-        }
-
-        // 创建文件夹记录
         FileInfo folder = new FileInfo();
         folder.setUserId(userId);
-        folder.setOriginalName(folderName);
-        folder.setFileName(folderName);
+        folder.setOriginalName(normalizedFolderName);
+        folder.setFileName(normalizedFolderName);
         folder.setIsFolder(1);
-        folder.setParentId(parentId == null ? 0L : parentId);
+        folder.setParentId(normalizedParentId);
         folder.setFileSize(0L);
         folder.setFileType("folder");
         folder.setUploadTime(LocalDateTime.now());
@@ -347,30 +376,27 @@ public class FileServiceImpl implements FileService {
     private FileInfoVO convertToVO(FileInfo fileInfo) {
         FileInfoVO vo = new FileInfoVO();
         BeanUtils.copyProperties(fileInfo, vo);
+        vo.setName(fileInfo.getOriginalName());
+        vo.setFolderId(fileInfo.getParentId());
+        vo.setCreateTime(fileInfo.getUploadTime());
         return vo;
     }
 
-    // 在 FileServiceImpl.java 中添加以下实现
     @Override
     public List<FileInfoVO> getFilesByFolder(Long parentId, Long userId) {
+        Long normalizedParentId = normalizeParentId(parentId);
         QueryWrapper<FileInfo> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId);
-        queryWrapper.eq("parent_id", parentId); // 核心：根据父ID筛选
-        queryWrapper.eq("deleted", 0);          // 排除已删除的
-        queryWrapper.eq("is_folder", 1);
-
-
-        queryWrapper.orderByDesc("upload_time");
+        queryWrapper.eq("parent_id", normalizedParentId);
+        queryWrapper.eq("deleted", 0);
+        queryWrapper.orderByDesc("is_folder")
+                .orderByDesc("upload_time");
 
         List<FileInfo> fileInfos = fileInfoMapper.selectList(queryWrapper);
 
-        // 将 Entity 转换为 VO (假设你已有转换逻辑，或者使用 BeanUtils)
-        return fileInfos.stream().map(file -> {
-            FileInfoVO vo = new FileInfoVO();
-            BeanUtils.copyProperties(file, vo);
-            vo.setName(file.getOriginalName());  // 设置 name 字段
-            return vo;
-        }).collect(Collectors.toList());
+        return fileInfos.stream()
+                .map(this::convertToVO)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -405,7 +431,7 @@ public class FileServiceImpl implements FileService {
                 // 递归删除子文件夹
                 deleteFolder(child.getId(), userId);
             } else {
-                // 删除文件
+                deletePhysicalFile(child);
                 fileInfoMapper.deleteById(child.getId());
             }
         }
@@ -419,26 +445,84 @@ public class FileServiceImpl implements FileService {
      */
     @Override
     public void renameFolder(Long folderId, String newName, Long userId) {
-        // 查询文件夹
         FileInfo folder = fileInfoMapper.selectById(folderId);
-
         if (folder == null) {
             throw new RuntimeException("文件夹不存在");
         }
-
-        // 验证是否是文件夹所有者
         if (!folder.getUserId().equals(userId)) {
             throw new RuntimeException("无权修改此文件夹");
         }
-
-        // 验证是否是文件夹
+        if (folder.getDeleted() != null && folder.getDeleted() == 1) {
+            throw new RuntimeException("文件夹不存在");
+        }
         if (folder.getIsFolder() != 1) {
             throw new RuntimeException("该对象不是文件夹");
         }
 
-        // 更新文件夹名
-        folder.setOriginalName(newName);
-        folder.setFileName(newName);
+        String normalizedName = normalizeItemName(newName, "文件夹名");
+        ensureNameAvailable(userId, folder.getParentId(), normalizedName, folderId);
+
+        folder.setOriginalName(normalizedName);
+        folder.setFileName(normalizedName);
         fileInfoMapper.updateById(folder);
+    }
+
+    private Long normalizeParentId(Long parentId) {
+        return parentId == null ? 0L : parentId;
+    }
+
+    private String normalizeItemName(String rawName, String label) {
+        if (rawName == null || rawName.trim().isEmpty()) {
+            throw new RuntimeException(label + "不能为空");
+        }
+        return rawName.trim();
+    }
+
+    private void ensureNameAvailable(Long userId, Long parentId, String name, Long currentId) {
+        QueryWrapper<FileInfo> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId)
+                .eq("parent_id", normalizeParentId(parentId))
+                .eq("original_name", name)
+                .eq("deleted", 0);
+        if (currentId != null) {
+            wrapper.ne("id", currentId);
+        }
+
+        if (fileInfoMapper.selectCount(wrapper) > 0) {
+            throw new RuntimeException("该目录下已存在同名文件或文件夹");
+        }
+    }
+
+    private void validateTargetFolder(Long folderId, Long userId) {
+        if (folderId == null || folderId == 0L) {
+            return;
+        }
+
+        FileInfo folder = fileInfoMapper.selectById(folderId);
+        if (folder == null || (folder.getDeleted() != null && folder.getDeleted() == 1)) {
+            throw new RuntimeException("目标文件夹不存在");
+        }
+        if (!userId.equals(folder.getUserId())) {
+            throw new RuntimeException("无权上传到该文件夹");
+        }
+        if (!Integer.valueOf(1).equals(folder.getIsFolder())) {
+            throw new RuntimeException("目标路径不是文件夹");
+        }
+    }
+
+    private void deletePhysicalFile(FileInfo fileInfo) {
+        if (fileInfo == null || Integer.valueOf(1).equals(fileInfo.getIsFolder())) {
+            return;
+        }
+        String filePath = fileInfo.getFilePath();
+        if (filePath == null || filePath.isBlank()) {
+            return;
+        }
+
+        try {
+            Files.deleteIfExists(Paths.get(filePath));
+        } catch (IOException e) {
+            throw new RuntimeException("删除物理文件失败: " + e.getMessage(), e);
+        }
     }
 }

@@ -11,6 +11,7 @@ import com.finalpre.quickshare.vo.UserVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,7 +23,10 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private JwtUtil jwtUtil;
 
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    private static final String DEFAULT_ROLE = "USER";
 
     @Override
     public UserVO register(RegisterDTO dto) {
@@ -43,12 +47,13 @@ public class UserServiceImpl implements UserService {
         userMapper.insert(user);
 
         // 生成 token
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername());
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), DEFAULT_ROLE);
 
         // 返回 VO
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
         vo.setToken(token);
+        vo.setRole(DEFAULT_ROLE);
 
         return vo;
     }
@@ -70,12 +75,13 @@ public class UserServiceImpl implements UserService {
         }
 
         // 生成 token
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername());
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), DEFAULT_ROLE);
 
         // 返回 VO
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
         vo.setToken(token);
+        vo.setRole(DEFAULT_ROLE);
 
         return vo;
     }

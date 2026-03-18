@@ -13,7 +13,7 @@ public interface FileService {
     /**
      * 上传文件
      */
-    FileInfoVO uploadFile(MultipartFile file, Long userId);
+    FileInfoVO uploadFile(MultipartFile file, Long userId, Long folderId);
 
     /**
      * 创建分享链接

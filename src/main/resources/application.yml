@@ -1,14 +1,15 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/quickshare?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
-    username: root
-    password: 858070143
+    url: ${DB_URL:jdbc:mysql://localhost:3306/quickshare?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false}
+    username: ${DB_USERNAME:quickshare}
+    password: ${DB_PASSWORD:change_me}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   redis:
-    host: localhost
-    port: 6379
-    database: 0
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DB:0}
 
   servlet:
     multipart:
@@ -16,10 +17,10 @@ spring:
       max-request-size: 10GB
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: enzo.han928@gmail.com
-    password: zhwujbyryhrjlfxt # 刚才生成的 App Password
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -29,12 +30,12 @@ spring:
             required: true
 
 server:
-  port: 8080
-
+  port: ${SERVER_PORT:8080}
 
 recaptcha:
-  site-key: 6LcIlu4rAAAAADoE2u7yXzWLMs_goEQeT-vTWqga        # ← 必须添加！从 Google 获取
-  secret-key: 6LcIlu4rAAAAALvXMevfrZjrOLX7_MA05qtDwPn8      # ← 必须替换！从 Google 获取
+  enabled: ${RECAPTCHA_ENABLED:true}
+  site-key: ${RECAPTCHA_SITE_KEY:}
+  secret-key: ${RECAPTCHA_SECRET_KEY:}
   verify-url: https://www.google.com/recaptcha/api/siteverify
 
 mybatis-plus:
@@ -48,8 +49,14 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 file:
-  upload-dir: /Users/szhao/quickshare/uploads
+  upload-dir: ${FILE_UPLOAD_DIR:/tmp/quickshare/uploads}
+  allowed-types: ${FILE_ALLOWED_TYPES:} # comma-separated list, empty = all
+  max-size: ${FILE_MAX_SIZE_BYTES:-1}   # -1 means unlimited (rely on servlet limits)
 
 jwt:
-  secret: your-very-long-secret-key-at-least-256-bits-for-hs256-algorithm-security
-  expiration: 86400000  # 24小时
+  secret: ${JWT_SECRET:change-this-secret-at-least-256-bits}
+  expiration: ${JWT_EXPIRATION_MS:86400000}  # 24h
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}

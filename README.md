@@ -13,6 +13,8 @@
 
 </div>
 
+> 项目当前状态、已知问题与近期路线请参阅 `docs/STATUS.md`（2025-02-20 更新）。
+
 ## Table of Contents
 
 - [Features](#features)
@@ -97,8 +99,9 @@ mysql -u root -p
 CREATE DATABASE quickshare;
 EXIT;
 
-# 3. Update application.yml with your database credentials
-# Edit: src/main/resources/application.yml
+# 3. Configure credentials via environment variables (preferred) or copy
+#    src/main/resources/application-local.example.yml to application-local.yml
+#    and fill in DB/Redis/JWT/Mail settings
 
 # 4. Run the application
 mvn spring-boot:run

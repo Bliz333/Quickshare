@@ -301,8 +301,21 @@ async function renameFolder(folderId, oldName) {
         const result = await res.json();
 
         if (result.code === 200) {
+            folders.forEach(folder => {
+                if (folder.id === folderId) {
+                    folder.name = newName;
+                    folder.originalName = newName;
+                    folder.fileName = newName;
+                }
+            });
+            folderPath.forEach(folder => {
+                if (folder.id === folderId) {
+                    folder.name = newName;
+                }
+            });
+            saveFiles();
+            await loadFiles();
             alert('✅ ' + t('renameSuccess'));
-            loadFiles();
         } else {
             alert('❌ ' + t('renameFailed') + ': ' + result.message);
         }
@@ -356,6 +369,11 @@ async function shareFile(index) {
     const extractCode = prompt(t('setExtractCode'), '');
 
     try {
+        const expireDaysValue = parseInt(expireDays, 10);
+        const expireHours = Number.isNaN(expireDaysValue) || expireDaysValue <= 0
+            ? null
+            : expireDaysValue * 24;
+
         const response = await fetch(`${API_BASE}/share`, {
             method: 'POST',
             headers: {
@@ -364,7 +382,7 @@ async function shareFile(index) {
             },
             body: JSON.stringify({
                 fileId: file.id,
-                validDays: parseInt(expireDays),
+                expireHours,
                 extractCode: extractCode || null
             })
         });

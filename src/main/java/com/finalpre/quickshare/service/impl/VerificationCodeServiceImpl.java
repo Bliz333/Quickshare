@@ -28,6 +28,9 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     @Value("${recaptcha.secret-key}")
     private String recaptchaSecretKey;
 
+    @Value("${recaptcha.enabled:true}")
+    private boolean recaptchaEnabled;
+
     private static final String CODE_PREFIX = "email:code:";
     private static final int CODE_EXPIRE_MINUTES = 5;   // 验证码有效期5分钟
 
@@ -35,14 +38,17 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     public String generateAndSendCode(String email, String recaptchaToken) {
         log.info("[验证码发送] 请求邮箱：{}", email);
 
-        // 1️⃣ 临时注释掉 reCAPTCHA 验证（用于测试）
-    /*
-        if (!verifyRecaptcha(recaptchaToken)) {
-        log.warn("[验证码发送] reCAPTCHA 验证失败：{}", email);
-        throw new RuntimeException("人机验证失败，请重试");
-    }
-    */
-        log.info("[验证码发送] 跳过 reCAPTCHA 验证（临时测试模式）");
+        if (recaptchaEnabled) {
+            if (recaptchaToken == null || recaptchaToken.isBlank()) {
+                throw new RuntimeException("缺少人机验证，请重试");
+            }
+            if (!verifyRecaptcha(recaptchaToken)) {
+                log.warn("[验证码发送] reCAPTCHA 验证失败：{}", email);
+                throw new RuntimeException("人机验证失败，请重试");
+            }
+        } else {
+            log.info("[验证码发送] 已关闭 reCAPTCHA 校验（配置项 recaptcha.enabled=false）");
+        }
 
         // 2️⃣ 检查发送频率（60 秒内禁止重复发送）
         String key = CODE_PREFIX + email;
@@ -101,6 +107,10 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
      */
     private boolean verifyRecaptcha(String token) {
         try {
+            if (recaptchaSecretKey == null || recaptchaSecretKey.isBlank()) {
+                log.warn("[reCAPTCHA] 未配置 secret key");
+                return false;
+            }
             RestTemplate restTemplate = new RestTemplate();
             String url = "https://www.google.com/recaptcha/api/siteverify";
 

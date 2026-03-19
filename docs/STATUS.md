@@ -144,28 +144,33 @@
 - 部署基线（已补齐）：新增 `Dockerfile`、`compose.yaml`、`.env.example` 与 MySQL 初始化脚本，当前版本已完成服务器 Docker Compose 联调；运行时镜像现已内置 LibreOffice headless 与常用字体，`compose` 单文件部署也已接入启动期管理员账号自举，部署完成后可直接登录管理后台；同时也已补 `ADMIN_CONSOLE_SLUG` 和 `REGISTRATION_EMAIL_VERIFICATION_ENABLED`，方便本地或测试环境直接起栈联调。
 
 ## 进度表
-| 阶段 | 状态 | 当前判断 | 下一步 |
-| --- | --- | --- | --- |
-| 阶段 0：基线与配置清理 | **已完成** | Docker Compose smoke test 全部通过（2026-03-19）；LibreOffice 预览、管理员自举、隐藏后台入口均在真实容器环境验证通过。 | 继续收紧生产默认值。 |
-| 阶段 1：安全与鉴权强化 | 进行中 | 安全加固和 Docker smoke test 均通过；SMTP 已后台化，支持运行时配置和测试邮件。 | 邮件模板体系、管理员公告邮件、secret 加密方案。 |
-| 阶段 2：文件夹与文件闭环 | 进行中 | `/api/files?folderId=`、上传 `folderId`、文件夹重命名、重名冲突校验、物理文件清理以及网盘分享参数对齐已补上，目录主链路已基本连通。 | 继续收口更深层目录联调、逻辑删除一致性和页面缓存边界。 |
-| 阶段 3：管理员体系与后台 | 进行中 | `User.role` 已落库并接入 JWT，第一批 `ADMIN` 管理员接口、最小后台页面以及频控 / 上传 / 预览 / CORS 策略表单都已就位，管理员已可管理用户、文件、分享和首批安全策略；上传策略现已支持匿名上传开关，预览策略已支持多文件族和扩展名收窄。 | 继续扩充更多可调策略项，并补后台交互和前端回归。 |
-| 阶段 4：易支付接入 | 未开始 | 仅有规划，无订单模型、回调或签名验签实现。 | 阶段 1-3 稳定后再接入。 |
-| 阶段 5：运维与质量 | 未开始 | 已补最小容器化部署与 MySQL 初始化脚本，但仍缺少 Flyway/Liquibase、CI、监控与覆盖率。 | 从分享/预览与目录闭环开始补更完整的自动化测试，再推进迁移脚本和 CI。 |
-
-## 当前执行框架
-1. 管理员页面已接通 overview / users / files / shares 与首批策略配置（频控 / 上传 / 预览 / CORS / 后台入口 / 注册验证），并且管理员身份现已通过服务端实时确认；当前后台也已支持新增用户、删除用户、隐藏后台入口路径切换，以及邮箱验证码 / reCAPTCHA 开关维护。
-2. 每完成一个小步就补测试并执行 `mvn test`。
-3. 当前文件主链路、Docker 联调基线、首页匿名共享入口、分享 / 预览 / 下载最小回归、三个公开入口的基础频控、提取码错误次数限制、CORS 白名单收口、角色基础落库、管理员接口、后台页面、频控 / 上传 / 预览 / CORS / 后台入口 / 注册验证策略接管，以及管理员角色实时同步都已打通；下载链路也已从预览链路拆开；Office 文档预览也已接上 LibreOffice headless 转 PDF 与同源 PDF.js 查看器；`compose` 部署时也可直接自举首个管理员账号。下一步先补真实 Docker / LibreOffice 环境 smoke test，再继续 SMTP、邮件模板 / 公告，以及敏感后台配置的收口工作。
+| 阶段 | 状态 | 说明 |
+| --- | --- | --- |
+| 阶段 0：基线与配置清理 | **已完成** | Docker Compose、Flyway、LibreOffice 镜像、管理员自举 |
+| 阶段 1：安全与鉴权强化 | **已完成** | JWT/RBAC、频控、CORS、SMTP/模板/公告、AES 加密、ShareLink 并发安全 |
+| 阶段 2：文件夹与文件闭环 | **已完成** | 目录 CRUD、ShareLink 清理、深度限制、父目录验证、前端缓存一致性 |
+| 阶段 3：管理员体系与后台 | **已完成** | 全功能管理面板、存储配置（local/S3 实时切换）、所有策略后台化 |
+| 阶段 4：易支付接入 | **已完成** | 多商户易支付、套餐/订单/配额/VIP、定时任务、安全加固 |
+| 阶段 5：运维与质量 | **已完成** | Flyway V1-V3、GitHub Actions CI、结构化日志、健康检查、README/LICENSE |
 
 ## 下次续做起点
-- 本轮记录：`docs/archive/2026-03-19-docker-smoke-test.md`
-- 上一轮记录：`docs/archive/2026-03-19-admin-console-and-registration-controls.md`
-- 历史交接入口：`docs/archive/2026-03-18-session-handoff.md`
-- Docker smoke test 已全部通过（隐藏后台入口、Office 预览、注册页动态配置、匿名上传/分享全链路）。
-- SMTP 后台化、邮件模板体系、管理员公告邮件和敏感配置加密存储均已完成。
-- PDF.js 公开分享页预览和 ShareLink 并发安全加固均已完成。
-- 下一步：StorageService 抽象层（本地 + S3）→ 文件夹深层目录回归。
+- 所有 5 个后端阶段已完成（2026-03-19），153 测试全通过。
+- 剩余工作为**前端 UI 对接**：
+  1. 管理面板：套餐管理表单（CRUD）、支付商户管理表单（CRUD）、订单列表页（查看/手动支付/退款）
+  2. 管理面板：易支付配置已从单一 system_setting 改为 payment_provider 表，旧的 epay 设置表单需替换
+  3. 用户端：购买页面（展示套餐列表 + 选择支付方式 + 跳转支付）、支付结果页
+  4. 用户端：个人中心显示配额（存储空间已用/总量、下载次数、VIP 到期时间）
+- 所有后端 API 已就绪，前端只需对接：
+  - `GET /api/public/plans` — 公开套餐列表
+  - `POST /api/payment/create` — 创建订单并获取支付跳转 URL
+  - `GET /api/payment/orders` — 用户订单历史
+  - `GET /api/payment/order/{no}` — 查询单个订单
+  - `GET /api/profile` — 用户配额信息（storageLimit/Used/downloadLimit/Used/vipExpireTime）
+  - `GET/POST/PUT/DELETE /api/admin/plans` — 管理员套餐 CRUD
+  - `GET/POST/PUT/DELETE /api/admin/payment-providers` — 管理员支付商户 CRUD
+  - `GET /api/admin/orders` — 管理员订单列表
+  - `PUT /api/admin/orders/{id}/mark-paid` — 手动标记支付
+  - `PUT /api/admin/orders/{id}/mark-refunded` — 标记退款
 
 ## 主要缺陷与风险
 - 配置安全：现已去除明文密钥，需按环境变量/本地 profile 正确注入，否则无法连接外部资源。

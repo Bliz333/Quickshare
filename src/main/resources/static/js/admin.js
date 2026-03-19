@@ -15,6 +15,7 @@ const adminState = {
     filePreviewPolicy: null,
     corsPolicy: null,
     smtpPolicy: null,
+    emailTemplates: [],
     isRedirecting: false
 };
 
@@ -676,14 +677,15 @@ function renderPreviewPolicyForm() {
 
 async function refreshPolicySettings(showSuccess = false, silentFailure = false) {
     try {
-        const [rateLimits, adminConsoleAccess, registrationSettings, fileUploadPolicy, filePreviewPolicy, corsPolicy, smtpPolicy] = await Promise.all([
+        const [rateLimits, adminConsoleAccess, registrationSettings, fileUploadPolicy, filePreviewPolicy, corsPolicy, smtpPolicy, emailTemplates] = await Promise.all([
             adminRequest('/admin/settings/rate-limits'),
             adminRequest('/admin/settings/admin-console'),
             adminRequest('/admin/settings/registration'),
             adminRequest('/admin/settings/file-upload'),
             adminRequest('/admin/settings/file-preview'),
             adminRequest('/admin/settings/cors'),
-            adminRequest('/admin/settings/smtp')
+            adminRequest('/admin/settings/smtp'),
+            adminRequest('/admin/settings/email-templates')
         ]);
 
         adminState.rateLimits = rateLimits || [];
@@ -693,12 +695,14 @@ async function refreshPolicySettings(showSuccess = false, silentFailure = false)
         adminState.filePreviewPolicy = filePreviewPolicy || null;
         adminState.corsPolicy = corsPolicy || null;
         adminState.smtpPolicy = smtpPolicy || null;
+        adminState.emailTemplates = emailTemplates || [];
         renderRateLimitPolicies();
         renderAdminConsoleAccessForm();
         renderRegistrationSettingsForm();
         renderUploadPolicyForm();
         renderPreviewPolicyForm();
         renderCorsPolicyForm();
+        renderEmailTemplates();
         renderSmtpPolicyForm();
 
         if (showSuccess && typeof showToast === 'function') {
@@ -959,6 +963,86 @@ async function saveCorsPolicySettings(button) {
             })
         });
 
+        showToast(t('adminPolicySaved'), 'success');
+        await refreshPolicySettings(false, false);
+    } catch (error) {
+        if (!adminState.isRedirecting) {
+            showToast(error.message || t('adminPolicySaveFailed'), 'error');
+        }
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function renderEmailTemplates() {
+    const container = document.getElementById('emailTemplatesContainer');
+    if (!container) return;
+
+    const templates = adminState.emailTemplates || [];
+    if (templates.length === 0) {
+        container.innerHTML = '<p class="text-sm text-text-sub">' + t('adminEmailTemplatesNone') + '</p>';
+        return;
+    }
+
+    container.innerHTML = templates.map(tpl => {
+        const locales = tpl.locales || {};
+        const localeKeys = Object.keys(locales).sort((a, b) => a === 'en' ? -1 : b === 'en' ? 1 : a.localeCompare(b));
+
+        return `
+        <div class="space-y-4 border border-border rounded-[18px] p-4">
+            <div>
+                <h3 class="font-medium text-text-main">${escapeHtml(tpl.description || tpl.templateType)}</h3>
+                <p class="text-xs text-text-sub mt-1">${t('adminEmailTemplateVars')}: <code>${escapeHtml(tpl.availableVariables || '')}</code></p>
+            </div>
+            ${localeKeys.map(locale => {
+                const lt = locales[locale];
+                const prefix = 'emailTpl_' + tpl.templateType + '_' + locale;
+                return `
+                <div class="space-y-2">
+                    <p class="text-sm font-medium text-text-sub">${locale.toUpperCase()}</p>
+                    <div>
+                        <label class="block text-xs text-text-sub mb-1" for="${prefix}_subject">${t('adminEmailTemplateSubject')}</label>
+                        <input id="${prefix}_subject" type="text" class="settings-field" value="${escapeHtml(lt.subject || '')}">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-text-sub mb-1" for="${prefix}_body">${t('adminEmailTemplateBody')}</label>
+                        <textarea id="${prefix}_body" rows="5" class="settings-field">${escapeHtml(lt.body || '')}</textarea>
+                    </div>
+                </div>`;
+            }).join('')}
+            <button type="button" class="action-btn" onclick="saveEmailTemplate('${escapeHtml(tpl.templateType)}', this)">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span data-i18n="adminSaveSettings">${t('adminSaveSettings')}</span>
+            </button>
+        </div>`;
+    }).join('');
+}
+
+async function saveEmailTemplate(templateType, button) {
+    const templates = adminState.emailTemplates || [];
+    const tpl = templates.find(t => t.templateType === templateType);
+    if (!tpl) return;
+
+    const locales = {};
+    for (const locale of Object.keys(tpl.locales || {})) {
+        const prefix = 'emailTpl_' + templateType + '_' + locale;
+        const subjectEl = document.getElementById(prefix + '_subject');
+        const bodyEl = document.getElementById(prefix + '_body');
+        if (!subjectEl || !bodyEl) continue;
+        locales[locale] = {
+            subject: subjectEl.value,
+            body: bodyEl.value
+        };
+    }
+
+    if (Object.keys(locales).length === 0) return;
+
+    button.disabled = true;
+    try {
+        await adminRequest('/admin/settings/email-templates/' + encodeURIComponent(templateType), {
+            method: 'PUT',
+            body: JSON.stringify({ locales })
+        });
         showToast(t('adminPolicySaved'), 'success');
         await refreshPolicySettings(false, false);
     } catch (error) {

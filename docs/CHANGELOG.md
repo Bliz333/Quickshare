@@ -2,6 +2,22 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-19 (邮件模板体系)
+
+- 本轮主题：多语言邮件模板体系，验证码邮件国际化
+- 核心变更：
+  - 新增 `EmailTemplate` record 支持多语言模板 + 变量替换 `{code}`, `{expireMinutes}`, `{appName}`
+  - 新增 `EmailTemplateService`，内置英文/中文验证码默认模板，管理员可覆盖
+  - `EmailServiceImpl.sendVerificationCode()` 改为接受 `locale` 参数，按模板渲染
+  - `AuthController.send-code` 接受前端 `locale`；`register.js` 传递当前界面语言
+  - 管理员后台新增邮件模板编辑区（按语言独立编辑主题和正文）
+  - 管理员端点：`GET /api/admin/settings/email-templates`、`PUT .../email-templates/{type}`
+- 验证结果：
+  - `mvn test`：143 测试全通过（+6 邮件模板测试）
+  - `node --check admin.js` / `lang-switch.js` / `register.js`：通过
+  - Docker smoke test：模板读取、自定义更新、变量替换全部正常
+- 下一步：管理员公告/通知邮件、secret 加密方案
+
 ## 2026-03-19 (SMTP 后台化)
 
 - 本轮主题：SMTP 邮件配置接入管理员后台

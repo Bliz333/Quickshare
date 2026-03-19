@@ -1,6 +1,8 @@
 package com.finalpre.quickshare.service.impl;
 
 import com.finalpre.quickshare.service.EmailService;
+import com.finalpre.quickshare.service.EmailTemplate;
+import com.finalpre.quickshare.service.EmailTemplateService;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.SmtpPolicyService;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +12,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.Properties;
 
 @Slf4j
@@ -19,33 +22,39 @@ public class EmailServiceImpl implements EmailService {
     @Autowired
     private SmtpPolicyService smtpPolicyService;
 
+    @Autowired
+    private EmailTemplateService emailTemplateService;
+
     @Override
-    public void sendVerificationCode(String email, String code) {
-        SmtpPolicy policy = smtpPolicyService.getPolicy();
-        if (policy.host() == null || policy.host().isBlank()) {
-            throw new IllegalStateException("邮件服务未配置，请在管理后台设置 SMTP");
-        }
+    public void sendVerificationCode(String email, String code, String locale) {
+        SmtpPolicy policy = requireSmtpPolicy();
 
-        JavaMailSender sender = buildSender(policy);
-        String from = (policy.senderAddress() != null && !policy.senderAddress().isBlank())
-                ? policy.senderAddress()
-                : policy.username();
+        EmailTemplate.LocaleTemplate rendered = emailTemplateService.render(
+                EmailTemplateServiceImpl.TEMPLATE_VERIFICATION_CODE,
+                locale,
+                Map.of("code", code, "expireMinutes", "5", "appName", "QuickShare")
+        );
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(from);
-        message.setTo(email);
-        message.setSubject("QuickShare 邮箱验证码");
-        message.setText("您的验证码是: " + code + "\n\n验证码5分钟内有效,请勿泄露给他人。\n\n如非本人操作,请忽略此邮件。");
-
-        sender.send(message);
+        sendEmail(policy, email, rendered.subject(), rendered.body());
     }
 
     public void sendTestEmail(String to) {
+        SmtpPolicy policy = requireSmtpPolicy();
+        sendEmail(policy, to, "QuickShare SMTP Test Email",
+                "This is a test email. If you received this, your SMTP configuration is working correctly.\n\n"
+                + "这是一封测试邮件，如果您收到此邮件，说明 SMTP 配置正确。");
+        log.info("Test email sent successfully to {}", to);
+    }
+
+    private SmtpPolicy requireSmtpPolicy() {
         SmtpPolicy policy = smtpPolicyService.getPolicy();
         if (policy.host() == null || policy.host().isBlank()) {
             throw new IllegalStateException("邮件服务未配置，请在管理后台设置 SMTP");
         }
+        return policy;
+    }
 
+    private void sendEmail(SmtpPolicy policy, String to, String subject, String body) {
         JavaMailSender sender = buildSender(policy);
         String from = (policy.senderAddress() != null && !policy.senderAddress().isBlank())
                 ? policy.senderAddress()
@@ -54,11 +63,10 @@ public class EmailServiceImpl implements EmailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(to);
-        message.setSubject("QuickShare SMTP 测试邮件");
-        message.setText("这是一封测试邮件，如果您收到此邮件，说明 SMTP 配置正确。");
+        message.setSubject(subject);
+        message.setText(body);
 
         sender.send(message);
-        log.info("Test email sent successfully to {}", to);
     }
 
     private JavaMailSender buildSender(SmtpPolicy policy) {

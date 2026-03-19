@@ -8,6 +8,7 @@ import com.finalpre.quickshare.dto.AdminFilePreviewPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpTestRequest;
 import com.finalpre.quickshare.dto.AdminUserRoleUpdateRequest;
@@ -21,6 +22,7 @@ import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
 import com.finalpre.quickshare.vo.AdminOverviewVO;
 import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
+import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
 import com.finalpre.quickshare.vo.AdminShareVO;
 import com.finalpre.quickshare.vo.UserVO;
@@ -188,6 +190,18 @@ public class AdminController {
     @PostMapping("/settings/smtp/test")
     public Result<Void> sendTestEmail(@RequestBody AdminSmtpTestRequest request) {
         adminPolicyService.sendTestEmail(request.getToEmail());
+        return Result.success();
+    }
+
+    @GetMapping("/settings/email-templates")
+    public Result<List<AdminEmailTemplateVO>> getEmailTemplates() {
+        return Result.success(adminPolicyService.getEmailTemplates());
+    }
+
+    @PutMapping("/settings/email-templates/{templateType}")
+    public Result<Void> updateEmailTemplate(@PathVariable String templateType,
+                                            @RequestBody AdminEmailTemplateUpdateRequest request) {
+        adminPolicyService.updateEmailTemplate(templateType, request);
         return Result.success();
     }
 }

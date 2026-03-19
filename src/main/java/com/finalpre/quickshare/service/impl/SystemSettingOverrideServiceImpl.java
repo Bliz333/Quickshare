@@ -10,6 +10,7 @@ import com.finalpre.quickshare.service.FilePreviewPolicy;
 import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.mapper.SystemSettingMapper;
 import com.finalpre.quickshare.service.CorsPolicy;
+import com.finalpre.quickshare.service.EmailTemplate;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.RateLimitRule;
 import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
@@ -35,6 +36,7 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
     private static final String FILE_PREVIEW_POLICY_KEY = "file-preview.policy";
     private static final String CORS_POLICY_KEY = "cors.policy";
     private static final String SMTP_POLICY_KEY = "smtp.policy";
+    private static final String EMAIL_TEMPLATE_KEY_PREFIX = "email-template.";
 
     private final Map<String, String> cache = new ConcurrentHashMap<>();
 
@@ -162,6 +164,21 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
         }
 
         upsert(SMTP_POLICY_KEY, policy, "admin managed smtp policy");
+    }
+
+    @Override
+    public Optional<EmailTemplate> getEmailTemplate(String templateType) {
+        if (templateType == null || templateType.isBlank()) return Optional.empty();
+        return readValue(EMAIL_TEMPLATE_KEY_PREFIX + templateType, EmailTemplate.class);
+    }
+
+    @Override
+    public void saveEmailTemplate(String templateType, EmailTemplate template) {
+        if (templateType == null || templateType.isBlank() || template == null) {
+            throw new IllegalArgumentException("邮件模板参数不能为空");
+        }
+        upsert(EMAIL_TEMPLATE_KEY_PREFIX + templateType, template,
+                "admin managed email template: " + templateType);
     }
 
     private String buildRateLimitKey(RateLimitScene scene) {

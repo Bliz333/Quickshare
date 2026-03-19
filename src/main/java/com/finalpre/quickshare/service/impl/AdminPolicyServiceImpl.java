@@ -7,6 +7,7 @@ import com.finalpre.quickshare.dto.AdminFilePreviewPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
 import com.finalpre.quickshare.service.AdminConsoleAccessPolicy;
 import com.finalpre.quickshare.service.AdminConsoleAccessService;
@@ -21,6 +22,8 @@ import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
 import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.service.RateLimitPolicyService;
 import com.finalpre.quickshare.service.RateLimitRule;
+import com.finalpre.quickshare.service.EmailTemplate;
+import com.finalpre.quickshare.service.EmailTemplateService;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.SmtpPolicyService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
@@ -30,11 +33,14 @@ import com.finalpre.quickshare.vo.AdminFilePreviewPolicyVO;
 import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
 import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
+import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AdminPolicyServiceImpl implements AdminPolicyService {
@@ -59,6 +65,9 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
 
     @Autowired
     private SmtpPolicyService smtpPolicyService;
+
+    @Autowired
+    private EmailTemplateService emailTemplateService;
 
     @Autowired
     private EmailServiceImpl emailServiceImpl;
@@ -319,6 +328,57 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
             throw new IllegalArgumentException("收件人邮箱不能为空");
         }
         emailServiceImpl.sendTestEmail(toEmail.trim());
+    }
+
+    @Override
+    public List<AdminEmailTemplateVO> getEmailTemplates() {
+        return List.of(
+                toEmailTemplateVO(
+                        EmailTemplateServiceImpl.TEMPLATE_VERIFICATION_CODE,
+                        "Verification code email / 验证码邮件",
+                        "{code}, {expireMinutes}, {appName}"
+                )
+        );
+    }
+
+    @Override
+    public void updateEmailTemplate(String templateType, AdminEmailTemplateUpdateRequest request) {
+        if (request == null || request.getLocales() == null || request.getLocales().isEmpty()) {
+            throw new IllegalArgumentException("邮件模板不能为空");
+        }
+
+        Map<String, EmailTemplate.LocaleTemplate> locales = new LinkedHashMap<>();
+        for (var entry : request.getLocales().entrySet()) {
+            String locale = entry.getKey().trim().toLowerCase();
+            var input = entry.getValue();
+            if (input == null || input.getSubject() == null || input.getBody() == null) {
+                throw new IllegalArgumentException("模板的主题和正文不能为空（" + locale + "）");
+            }
+            locales.put(locale, new EmailTemplate.LocaleTemplate(
+                    input.getSubject().trim(),
+                    input.getBody()
+            ));
+        }
+
+        emailTemplateService.saveTemplate(templateType, new EmailTemplate(locales));
+    }
+
+    private AdminEmailTemplateVO toEmailTemplateVO(String templateType, String description, String variables) {
+        EmailTemplate template = emailTemplateService.getTemplate(templateType);
+        AdminEmailTemplateVO vo = new AdminEmailTemplateVO();
+        vo.setTemplateType(templateType);
+        vo.setDescription(description);
+        vo.setAvailableVariables(variables);
+
+        Map<String, AdminEmailTemplateVO.LocaleTemplateVO> localeMap = new LinkedHashMap<>();
+        for (var entry : template.locales().entrySet()) {
+            AdminEmailTemplateVO.LocaleTemplateVO localeVO = new AdminEmailTemplateVO.LocaleTemplateVO();
+            localeVO.setSubject(entry.getValue().subject());
+            localeVO.setBody(entry.getValue().body());
+            localeMap.put(entry.getKey(), localeVO);
+        }
+        vo.setLocales(localeMap);
+        return vo;
     }
 
     private AdminRateLimitPolicyVO toRateLimitVO(RateLimitScene scene, RateLimitRule rule) {

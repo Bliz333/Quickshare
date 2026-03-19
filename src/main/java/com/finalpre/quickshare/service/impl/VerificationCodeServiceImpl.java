@@ -34,7 +34,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     private static final int CODE_EXPIRE_MINUTES = 5;   // 验证码有效期5分钟
 
     @Override
-    public String generateAndSendCode(String email, String recaptchaToken) {
+    public String generateAndSendCode(String email, String recaptchaToken, String locale) {
         log.info("[验证码发送] 请求邮箱：{}", email);
 
         RegistrationSettingsPolicy registrationSettings = registrationSettingsService.getPolicy();
@@ -69,7 +69,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
 
         try {
             // 4️⃣ 发送邮件
-            emailService.sendVerificationCode(email, code);
+            emailService.sendVerificationCode(email, code, locale);
             log.info("[验证码发送] 邮件发送请求已提交: {}", email);
 
             // 5️⃣ 发送成功后再存入 Redis（防止失败也被限流）

@@ -36,12 +36,13 @@ public class AuthController {
     public Result<String> sendVerificationCode(@RequestBody Map<String, String> request) {
         String email = request.get("email");
         String recaptchaToken = request.get("recaptchaToken");
+        String locale = request.get("locale");
 
         if (email == null || email.isEmpty()) {
             throw new IllegalArgumentException("邮箱不能为空");
         }
 
-        String message = verificationCodeService.generateAndSendCode(email, recaptchaToken);
+        String message = verificationCodeService.generateAndSendCode(email, recaptchaToken, locale);
         return Result.success(message);
     }
 

@@ -6,8 +6,10 @@ import com.finalpre.quickshare.dto.AdminFilePreviewPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
 import com.finalpre.quickshare.vo.AdminConsoleAccessVO;
+import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
 import com.finalpre.quickshare.vo.AdminCorsPolicyVO;
 import com.finalpre.quickshare.vo.AdminFilePreviewPolicyVO;
 import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
@@ -48,4 +50,8 @@ public interface AdminPolicyService {
     void updateSmtpPolicy(AdminSmtpPolicyUpdateRequest request);
 
     void sendTestEmail(String toEmail);
+
+    List<AdminEmailTemplateVO> getEmailTemplates();
+
+    void updateEmailTemplate(String templateType, AdminEmailTemplateUpdateRequest request);
 }

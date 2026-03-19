@@ -166,7 +166,8 @@ async function sendVerificationCode() {
     try {
         const payload = {
             email,
-            recaptchaToken: recaptchaResponse
+            recaptchaToken: recaptchaResponse,
+            locale: typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'en'
         };
 
         const res = await fetch(`${API_BASE}/auth/send-code`, {

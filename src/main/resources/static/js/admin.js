@@ -1054,6 +1054,49 @@ async function saveEmailTemplate(templateType, button) {
     }
 }
 
+async function sendAnnouncement(button) {
+    const subject = document.getElementById('announcementSubject')?.value.trim();
+    const body = document.getElementById('announcementBody')?.value;
+    const userIdsRaw = document.getElementById('announcementUserIds')?.value.trim();
+    const resultEl = document.getElementById('announcementResult');
+
+    if (!subject || !body) {
+        showToast(t('adminAnnouncementEmpty'), 'error');
+        return;
+    }
+
+    const payload = { subject, body };
+    if (userIdsRaw) {
+        payload.userIds = userIdsRaw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    }
+
+    const recipientDesc = payload.userIds ? payload.userIds.length + ' user(s)' : t('adminAnnouncementAllUsers');
+    if (!confirm(t('adminAnnouncementConfirm').replace('{target}', recipientDesc))) return;
+
+    button.disabled = true;
+    if (resultEl) resultEl.textContent = t('adminAnnouncementSending');
+
+    try {
+        const result = await adminRequest('/admin/announcement', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        const msg = t('adminAnnouncementDone')
+            .replace('{total}', result.totalRecipients)
+            .replace('{success}', result.successCount)
+            .replace('{fail}', result.failCount);
+        if (resultEl) resultEl.textContent = msg;
+        showToast(msg, result.failCount > 0 ? 'warning' : 'success');
+    } catch (error) {
+        if (resultEl) resultEl.textContent = '';
+        if (!adminState.isRedirecting) {
+            showToast(error.message || t('adminAnnouncementFailed'), 'error');
+        }
+    } finally {
+        button.disabled = false;
+    }
+}
+
 function renderSmtpPolicyForm() {
     const policy = adminState.smtpPolicy;
     if (!policy) return;

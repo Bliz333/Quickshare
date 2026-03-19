@@ -46,6 +46,11 @@ public class EmailServiceImpl implements EmailService {
         log.info("Test email sent successfully to {}", to);
     }
 
+    public void sendRawEmail(String to, String subject, String body) {
+        SmtpPolicy policy = requireSmtpPolicy();
+        sendEmail(policy, to, subject, body);
+    }
+
     private SmtpPolicy requireSmtpPolicy() {
         SmtpPolicy policy = smtpPolicyService.getPolicy();
         if (policy.host() == null || policy.host().isBlank()) {

@@ -8,6 +8,7 @@ import com.finalpre.quickshare.dto.AdminFilePreviewPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
 import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpTestRequest;
@@ -22,6 +23,7 @@ import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
 import com.finalpre.quickshare.vo.AdminOverviewVO;
 import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
+import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
 import com.finalpre.quickshare.vo.AdminShareVO;
@@ -203,5 +205,10 @@ public class AdminController {
                                             @RequestBody AdminEmailTemplateUpdateRequest request) {
         adminPolicyService.updateEmailTemplate(templateType, request);
         return Result.success();
+    }
+
+    @PostMapping("/announcement")
+    public Result<AdminAnnouncementResultVO> sendAnnouncement(@RequestBody AdminAnnouncementRequest request) {
+        return Result.success(adminService.sendAnnouncement(request));
     }
 }

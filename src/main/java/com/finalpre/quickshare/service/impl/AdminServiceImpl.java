@@ -3,6 +3,7 @@ package com.finalpre.quickshare.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.finalpre.quickshare.common.ResourceNotFoundException;
 import com.finalpre.quickshare.common.UserRole;
+import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
 import com.finalpre.quickshare.dto.AdminCreateUserRequest;
 import com.finalpre.quickshare.entity.FileInfo;
 import com.finalpre.quickshare.entity.ShareLink;
@@ -11,10 +12,14 @@ import com.finalpre.quickshare.mapper.FileInfoMapper;
 import com.finalpre.quickshare.mapper.ShareLinkMapper;
 import com.finalpre.quickshare.mapper.UserMapper;
 import com.finalpre.quickshare.service.AdminService;
+import com.finalpre.quickshare.service.SmtpPolicy;
+import com.finalpre.quickshare.service.SmtpPolicyService;
+import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminFileVO;
 import com.finalpre.quickshare.vo.AdminOverviewVO;
 import com.finalpre.quickshare.vo.AdminShareVO;
 import com.finalpre.quickshare.vo.UserVO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +35,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class AdminServiceImpl implements AdminService {
 
@@ -44,6 +50,12 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private SmtpPolicyService smtpPolicyService;
+
+    @Autowired
+    private EmailServiceImpl emailServiceImpl;
 
     @Override
     public AdminOverviewVO getOverview() {
@@ -302,6 +314,58 @@ public class AdminServiceImpl implements AdminService {
         vo.setUserId(fileInfo.getUserId());
         vo.setUsername(user == null ? null : user.getUsername());
         return vo;
+    }
+
+    @Override
+    public AdminAnnouncementResultVO sendAnnouncement(AdminAnnouncementRequest request) {
+        if (request == null || request.getSubject() == null || request.getSubject().isBlank()) {
+            throw new IllegalArgumentException("公告主题不能为空");
+        }
+        if (request.getBody() == null || request.getBody().isBlank()) {
+            throw new IllegalArgumentException("公告正文不能为空");
+        }
+
+        // Verify SMTP is configured
+        SmtpPolicy smtp = smtpPolicyService.getPolicy();
+        if (smtp.host() == null || smtp.host().isBlank()) {
+            throw new IllegalStateException("邮件服务未配置，请先在 SMTP 设置中完成配置");
+        }
+
+        // Resolve recipients
+        List<User> recipients;
+        if (request.getUserIds() != null && !request.getUserIds().isEmpty()) {
+            recipients = userMapper.selectList(new QueryWrapper<User>()
+                    .eq("deleted", 0)
+                    .in("id", request.getUserIds()));
+        } else {
+            recipients = userMapper.selectList(new QueryWrapper<User>()
+                    .eq("deleted", 0));
+        }
+
+        // Filter users with valid email
+        List<User> validRecipients = recipients.stream()
+                .filter(u -> u.getEmail() != null && !u.getEmail().isBlank() && u.getEmail().contains("@"))
+                .toList();
+
+        AdminAnnouncementResultVO result = new AdminAnnouncementResultVO();
+        result.setTotalRecipients(validRecipients.size());
+        int success = 0;
+        int fail = 0;
+
+        for (User user : validRecipients) {
+            try {
+                emailServiceImpl.sendRawEmail(user.getEmail(), request.getSubject().trim(), request.getBody());
+                success++;
+            } catch (Exception e) {
+                fail++;
+                log.warn("Failed to send announcement to {}. reason={}", user.getEmail(), e.getMessage());
+            }
+        }
+
+        result.setSuccessCount(success);
+        result.setFailCount(fail);
+        log.info("Announcement sent. total={}, success={}, fail={}", validRecipients.size(), success, fail);
+        return result;
     }
 
     private AdminShareVO toAdminShareVO(ShareLink shareLink, FileInfo fileInfo, Map<Long, User> userMap) {

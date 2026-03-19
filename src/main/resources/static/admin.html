@@ -974,6 +974,35 @@
 
         <section class="glass-card rounded-[28px] p-5 md:p-6">
             <div class="mb-5">
+                <h2 class="text-xl font-semibold" data-i18n="adminAnnouncementTitle">Send Announcement</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminAnnouncementSubtitle">Send an email to all registered users or selected users.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="announcementSubject" data-i18n="adminAnnouncementSubjectLabel">Subject</label>
+                    <input id="announcementSubject" type="text" class="settings-field" placeholder="Announcement subject...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="announcementBody" data-i18n="adminAnnouncementBodyLabel">Body</label>
+                    <textarea id="announcementBody" rows="6" class="settings-field" placeholder="Write your announcement here..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="announcementUserIds" data-i18n="adminAnnouncementUserIds">User IDs (optional)</label>
+                    <input id="announcementUserIds" type="text" class="settings-field" placeholder="Leave empty to send to all users. Comma-separated IDs: 1,2,3">
+                </div>
+                <div class="flex items-center gap-4">
+                    <button type="button" class="action-btn" onclick="sendAnnouncement(this)">
+                        <i class="fa-solid fa-bullhorn"></i>
+                        <span data-i18n="adminAnnouncementSend">Send Announcement</span>
+                    </button>
+                    <span id="announcementResult" class="text-sm text-text-sub"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="mb-5">
                 <h2 class="text-xl font-semibold" data-i18n="adminSmtpTitle">SMTP 邮件配置</h2>
                 <p class="text-sm text-text-sub mt-1" data-i18n="adminSmtpSubtitle">配置 SMTP 服务器以支持邮箱验证码发送。</p>
             </div>

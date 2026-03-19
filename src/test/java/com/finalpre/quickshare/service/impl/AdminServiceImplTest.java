@@ -1,6 +1,7 @@
 package com.finalpre.quickshare.service.impl;
 
 import com.finalpre.quickshare.common.ResourceNotFoundException;
+import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
 import com.finalpre.quickshare.dto.AdminCreateUserRequest;
 import com.finalpre.quickshare.entity.FileInfo;
 import com.finalpre.quickshare.entity.ShareLink;
@@ -8,6 +9,9 @@ import com.finalpre.quickshare.entity.User;
 import com.finalpre.quickshare.mapper.FileInfoMapper;
 import com.finalpre.quickshare.mapper.ShareLinkMapper;
 import com.finalpre.quickshare.mapper.UserMapper;
+import com.finalpre.quickshare.service.SmtpPolicy;
+import com.finalpre.quickshare.service.SmtpPolicyService;
+import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminOverviewVO;
 import com.finalpre.quickshare.vo.AdminShareVO;
 import com.finalpre.quickshare.vo.UserVO;
@@ -27,7 +31,13 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -45,6 +55,12 @@ class AdminServiceImplTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private SmtpPolicyService smtpPolicyService;
+
+    @Mock
+    private EmailServiceImpl emailServiceImpl;
 
     @InjectMocks
     private AdminServiceImpl adminService;
@@ -240,5 +256,73 @@ class AdminServiceImplTest {
         assertThatThrownBy(() -> adminService.disableShare(6L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("分享不存在");
+    }
+
+    @Test
+    void sendAnnouncementShouldSendToAllUsersWithValidEmail() {
+        when(smtpPolicyService.getPolicy()).thenReturn(
+                new SmtpPolicy("smtp.test.com", 587, "admin@test.com", "pass", true, "admin@test.com"));
+
+        User u1 = new User(); u1.setId(1L); u1.setEmail("a@test.com");
+        User u2 = new User(); u2.setId(2L); u2.setEmail("b@test.com");
+        User u3 = new User(); u3.setId(3L); u3.setEmail(""); // invalid
+        when(userMapper.selectList(any())).thenReturn(List.of(u1, u2, u3));
+        doNothing().when(emailServiceImpl).sendRawEmail(any(), any(), any());
+
+        AdminAnnouncementRequest request = new AdminAnnouncementRequest();
+        request.setSubject("Test Announcement");
+        request.setBody("Hello everyone!");
+
+        AdminAnnouncementResultVO result = adminService.sendAnnouncement(request);
+
+        assertThat(result.getTotalRecipients()).isEqualTo(2);
+        assertThat(result.getSuccessCount()).isEqualTo(2);
+        assertThat(result.getFailCount()).isEqualTo(0);
+        verify(emailServiceImpl, times(2)).sendRawEmail(any(), eq("Test Announcement"), eq("Hello everyone!"));
+    }
+
+    @Test
+    void sendAnnouncementShouldCountFailures() {
+        when(smtpPolicyService.getPolicy()).thenReturn(
+                new SmtpPolicy("smtp.test.com", 587, "admin@test.com", "pass", true, "admin@test.com"));
+
+        User u1 = new User(); u1.setId(1L); u1.setEmail("ok@test.com");
+        User u2 = new User(); u2.setId(2L); u2.setEmail("fail@test.com");
+        when(userMapper.selectList(any())).thenReturn(List.of(u1, u2));
+        doNothing().when(emailServiceImpl).sendRawEmail(eq("ok@test.com"), any(), any());
+        doThrow(new RuntimeException("SMTP error")).when(emailServiceImpl).sendRawEmail(eq("fail@test.com"), any(), any());
+
+        AdminAnnouncementRequest request = new AdminAnnouncementRequest();
+        request.setSubject("Test");
+        request.setBody("Body");
+
+        AdminAnnouncementResultVO result = adminService.sendAnnouncement(request);
+
+        assertThat(result.getSuccessCount()).isEqualTo(1);
+        assertThat(result.getFailCount()).isEqualTo(1);
+    }
+
+    @Test
+    void sendAnnouncementShouldRejectEmptySubject() {
+        AdminAnnouncementRequest request = new AdminAnnouncementRequest();
+        request.setSubject("");
+        request.setBody("content");
+
+        assertThatThrownBy(() -> adminService.sendAnnouncement(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("公告主题不能为空");
+    }
+
+    @Test
+    void sendAnnouncementShouldRejectWhenSmtpNotConfigured() {
+        when(smtpPolicyService.getPolicy()).thenReturn(
+                new SmtpPolicy("", 587, "", "", true, ""));
+
+        AdminAnnouncementRequest request = new AdminAnnouncementRequest();
+        request.setSubject("Test");
+        request.setBody("Body");
+
+        assertThatThrownBy(() -> adminService.sendAnnouncement(request))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

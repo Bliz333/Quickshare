@@ -42,6 +42,7 @@ public class SecurityConfig {
                                 "/api/share/**",
                                 "/api/download/**",
                                 "/api/preview/**",
+                                "/api/payment/notify",
                                 "/error"
                         ).permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()

@@ -9,6 +9,7 @@ import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
+import com.finalpre.quickshare.dto.AdminEpayPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminPlanRequest;
 import com.finalpre.quickshare.entity.Plan;
 import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
@@ -28,6 +29,7 @@ import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
 import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
+import com.finalpre.quickshare.vo.AdminEpayPolicyVO;
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
 import com.finalpre.quickshare.vo.AdminStoragePolicyVO;
 import com.finalpre.quickshare.vo.AdminShareVO;
@@ -236,6 +238,19 @@ public class AdminController {
     @DeleteMapping("/plans/{planId}")
     public Result<Void> deletePlan(@PathVariable Long planId) {
         adminService.deletePlan(planId);
+        return Result.success();
+    }
+
+    // --- Epay Configuration ---
+
+    @GetMapping("/settings/epay")
+    public Result<AdminEpayPolicyVO> getEpayPolicy() {
+        return Result.success(adminPolicyService.getEpayPolicy());
+    }
+
+    @PutMapping("/settings/epay")
+    public Result<Void> updateEpayPolicy(@RequestBody AdminEpayPolicyUpdateRequest request) {
+        adminPolicyService.updateEpayPolicy(request);
         return Result.success();
     }
 

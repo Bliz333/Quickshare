@@ -11,6 +11,7 @@ import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.mapper.SystemSettingMapper;
 import com.finalpre.quickshare.service.CorsPolicy;
 import com.finalpre.quickshare.service.EmailTemplate;
+import com.finalpre.quickshare.service.EpayPolicy;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.StoragePolicy;
 import com.finalpre.quickshare.service.RateLimitRule;
@@ -41,12 +42,14 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
     private static final String SMTP_POLICY_KEY = "smtp.policy";
     private static final String EMAIL_TEMPLATE_KEY_PREFIX = "email-template.";
     private static final String STORAGE_POLICY_KEY = "storage.policy";
+    private static final String EPAY_POLICY_KEY = "epay.policy";
 
     /** Keys whose config_value contains secrets and must be encrypted at rest. */
     private static final Set<String> SENSITIVE_KEYS = Set.of(
             SMTP_POLICY_KEY,
             REGISTRATION_SETTINGS_KEY,
-            STORAGE_POLICY_KEY
+            STORAGE_POLICY_KEY,
+            EPAY_POLICY_KEY
     );
 
     private final Map<String, String> cache = new ConcurrentHashMap<>();
@@ -204,6 +207,17 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
         }
         upsert(EMAIL_TEMPLATE_KEY_PREFIX + templateType, template,
                 "admin managed email template: " + templateType);
+    }
+
+    @Override
+    public Optional<EpayPolicy> getEpayPolicy() {
+        return readValue(EPAY_POLICY_KEY, EpayPolicy.class);
+    }
+
+    @Override
+    public void saveEpayPolicy(EpayPolicy policy) {
+        if (policy == null) throw new IllegalArgumentException("易支付配置不能为空");
+        upsert(EPAY_POLICY_KEY, policy, "admin managed epay policy");
     }
 
     @Override

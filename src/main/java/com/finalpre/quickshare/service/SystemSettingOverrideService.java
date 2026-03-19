@@ -41,4 +41,8 @@ public interface SystemSettingOverrideService {
     Optional<StoragePolicy> getStoragePolicy();
 
     void saveStoragePolicy(StoragePolicy policy);
+
+    Optional<EpayPolicy> getEpayPolicy();
+
+    void saveEpayPolicy(EpayPolicy policy);
 }

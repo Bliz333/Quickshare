@@ -8,6 +8,7 @@ import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
+import com.finalpre.quickshare.dto.AdminEpayPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminStoragePolicyUpdateRequest;
 import com.finalpre.quickshare.service.AdminConsoleAccessPolicy;
@@ -25,6 +26,7 @@ import com.finalpre.quickshare.service.RateLimitPolicyService;
 import com.finalpre.quickshare.service.RateLimitRule;
 import com.finalpre.quickshare.service.EmailTemplate;
 import com.finalpre.quickshare.service.EmailTemplateService;
+import com.finalpre.quickshare.service.EpayPolicy;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.SmtpPolicyService;
 import com.finalpre.quickshare.service.StoragePolicy;
@@ -37,6 +39,7 @@ import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
 import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
 import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
+import com.finalpre.quickshare.vo.AdminEpayPolicyVO;
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
 import com.finalpre.quickshare.vo.AdminStoragePolicyVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -432,6 +435,42 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
         }
         String err = delegatingStorageService.testS3Connection(policy);
         return err == null ? "connected" : "error: " + err;
+    }
+
+    @Override
+    public AdminEpayPolicyVO getEpayPolicy() {
+        var override = systemSettingOverrideService.getEpayPolicy();
+        EpayPolicy policy = override != null && override.isPresent()
+                ? override.get()
+                : new EpayPolicy(false, "", "", "", "alipay,wxpay");
+
+        AdminEpayPolicyVO vo = new AdminEpayPolicyVO();
+        vo.setEnabled(policy.enabled());
+        vo.setApiUrl(policy.apiUrl());
+        vo.setPid(policy.pid());
+        vo.setHasKey(policy.key() != null && !policy.key().isBlank());
+        vo.setPayTypes(policy.payTypes());
+        return vo;
+    }
+
+    @Override
+    public void updateEpayPolicy(AdminEpayPolicyUpdateRequest request) {
+        if (request == null) throw new IllegalArgumentException("易支付配置不能为空");
+
+        String key = request.getKey();
+        if (key == null) {
+            // Keep existing key
+            var existing = systemSettingOverrideService.getEpayPolicy();
+            key = existing != null && existing.isPresent() ? existing.get().key() : "";
+        }
+
+        systemSettingOverrideService.saveEpayPolicy(new EpayPolicy(
+                Boolean.TRUE.equals(request.getEnabled()),
+                request.getApiUrl() != null ? request.getApiUrl().trim() : "",
+                request.getPid() != null ? request.getPid().trim() : "",
+                key,
+                request.getPayTypes() != null ? request.getPayTypes().trim() : "alipay,wxpay"
+        ));
     }
 
     private AdminEmailTemplateVO toEmailTemplateVO(String templateType, String description, String variables) {

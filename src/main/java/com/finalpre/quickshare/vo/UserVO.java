@@ -12,4 +12,9 @@ public class UserVO {
     private LocalDateTime createTime;
     private String token;  // JWT token
     private String role;
+    private Long storageLimit;
+    private Long storageUsed;
+    private Integer downloadLimit;
+    private Integer downloadUsed;
+    private LocalDateTime vipExpireTime;
 }

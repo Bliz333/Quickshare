@@ -17,6 +17,7 @@ import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
 import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.PreviewResource;
+import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.vo.FileInfoVO;
 import com.finalpre.quickshare.vo.ShareLinkVO;
@@ -59,11 +60,19 @@ public class FileServiceImpl implements FileService {
     @Autowired
     private StorageService storageService;
 
+    @Autowired
+    private QuotaService quotaService;
+
     @Override
     public FileInfoVO uploadFile(MultipartFile file, Long userId, Long folderId) {
         try {
             Long targetFolderId = normalizeParentId(folderId);
             validateTargetFolder(targetFolderId, userId);
+
+            // Check storage quota for authenticated users
+            if (userId != null) {
+                quotaService.checkStorageQuota(userId, file.getSize());
+            }
 
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null || originalFilename.trim().isEmpty()) {
@@ -117,6 +126,11 @@ public class FileServiceImpl implements FileService {
             fileInfo.setParentId(targetFolderId);
 
             fileInfoMapper.insert(fileInfo);
+
+            // Record storage usage
+            if (userId != null) {
+                quotaService.recordStorageUsed(userId, file.getSize());
+            }
 
             return convertToVO(fileInfo);
 
@@ -391,6 +405,11 @@ public class FileServiceImpl implements FileService {
         shareLinkMapper.delete(new QueryWrapper<ShareLink>().eq("file_id", fileId));
         deletePhysicalFile(fileInfo);
         fileInfoMapper.deleteById(fileId);
+
+        // Release storage quota
+        if (fileInfo.getFileSize() != null && fileInfo.getFileSize() > 0) {
+            quotaService.releaseStorage(userId, fileInfo.getFileSize());
+        }
     }
 
     /**

@@ -11,6 +11,7 @@ import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
 import com.finalpre.quickshare.service.OfficePreviewService;
+import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.vo.FileInfoVO;
 import org.junit.jupiter.api.Test;
@@ -58,6 +59,9 @@ class FileServiceImplTest {
 
     @Mock
     private StorageService storageService;
+
+    @Mock
+    private QuotaService quotaService;
 
     @InjectMocks
     private FileServiceImpl fileService;

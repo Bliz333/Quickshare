@@ -10,6 +10,7 @@ import com.finalpre.quickshare.mapper.PaymentOrderMapper;
 import com.finalpre.quickshare.mapper.PlanMapper;
 import com.finalpre.quickshare.service.EpayPolicy;
 import com.finalpre.quickshare.service.PaymentService;
+import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Autowired
     private SystemSettingOverrideService systemSettingOverrideService;
+
+    @Autowired
+    private QuotaService quotaService;
 
     @Override
     public String createOrder(Long userId, Long planId, String payType, String returnUrl) {
@@ -154,7 +158,12 @@ public class PaymentServiceImpl implements PaymentService {
 
         log.info("Payment confirmed. orderNo={}, tradeNo={}, amount={}", orderNo, tradeNo, order.getAmount());
 
-        // TODO: Grant user quota (will be implemented in next step)
+        // Grant user quota
+        try {
+            quotaService.grantQuota(order);
+        } catch (Exception e) {
+            log.error("Failed to grant quota for order {}. Manual intervention needed.", orderNo, e);
+        }
 
         return true;
     }

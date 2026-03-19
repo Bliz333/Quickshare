@@ -22,6 +22,17 @@ public class User {
 
     private LocalDateTime createTime;
 
+    /** Storage limit in bytes (default 1GB) */
+    private Long storageLimit;
+    /** Storage used in bytes */
+    private Long storageUsed;
+    /** Download limit per month (-1=unlimited) */
+    private Integer downloadLimit;
+    /** Downloads used this month */
+    private Integer downloadUsed;
+    /** VIP expiration time */
+    private LocalDateTime vipExpireTime;
+
     @TableLogic
     private Integer deleted;
 }

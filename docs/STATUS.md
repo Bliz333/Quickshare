@@ -1,5 +1,13 @@
 # QuickShare 项目状态（2026-03-19）
 
+## 2026-03-19 可运维性：Flyway + CI + 日志 + 健康检查
+- Flyway 数据库迁移：V1 完整建表，baseline-on-migrate 兼容已有数据库，后续变更用 V2+
+- GitHub Actions CI：Java 17 + Maven 缓存 + 测试 + JS 语法检查 + 打包
+- 结构化日志：dev 用简洁格式，prod 用时间戳 + 文件轮转（50MB/30天/1GB 上限）
+- 增强健康检查：`/api/health` 返回 DB、Redis、Storage 组件状态和整体 UP/DEGRADED
+- `QuickshareApplicationTests` 改为仅在 INTEGRATION_TEST=true 时运行，不阻塞 CI
+- 153 测试全通过 + 1 跳过
+
 ## 2026-03-19 文件夹深层目录回归修复完成
 - 修复 HIGH 级 bug：文件夹递归删除时遗留 ShareLink（安全风险），现在删除文件/文件夹时同步清理所有关联分享链接
 - 递归删除改为 `deleteFolderRecursive` 方法，限制最大递归深度 50 层防止栈溢出

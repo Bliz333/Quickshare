@@ -1,5 +1,12 @@
 # QuickShare 项目状态（2026-03-19）
 
+## 2026-03-19 S3 MinIO Smoke Test 通过
+- 在 Docker Compose 环境中用 MinIO 容器完成 S3 兼容存储全链路验证
+- 文本文件上传/下载/预览、DOCX 上传后 LibreOffice 转 PDF 预览（S3→临时文件→转换→响应）
+- 匿名上传/分享/公开下载/公开预览全部通过，MinIO bucket 中文件正确存储
+- S3 模式下 `getLocalPath()` 成功下载临时文件供 LibreOffice 和缩略图处理
+- compose.yaml 已补 S3 环境变量透传
+
 ## 2026-03-19 StorageService 抽象层 + S3 兼容存储完成
 - 引入 `StorageService` 接口，统一文件存储操作（store/retrieve/delete/exists/getSize/getLocalPath）
 - `LocalStorageService`：本地文件系统实现（默认），向后兼容旧的全路径数据

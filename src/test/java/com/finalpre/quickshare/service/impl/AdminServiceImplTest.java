@@ -11,6 +11,7 @@ import com.finalpre.quickshare.mapper.ShareLinkMapper;
 import com.finalpre.quickshare.mapper.UserMapper;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.SmtpPolicyService;
+import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminOverviewVO;
 import com.finalpre.quickshare.vo.AdminShareVO;
@@ -61,6 +62,9 @@ class AdminServiceImplTest {
 
     @Mock
     private EmailServiceImpl emailServiceImpl;
+
+    @Mock
+    private StorageService storageService;
 
     @InjectMocks
     private AdminServiceImpl adminService;
@@ -231,20 +235,17 @@ class AdminServiceImplTest {
     }
 
     @Test
-    void deleteFileShouldRemovePhysicalFileAndShares(@TempDir Path tempDir) throws Exception {
-        Path filePath = tempDir.resolve("admin-delete.txt");
-        Files.writeString(filePath, "cleanup");
-
+    void deleteFileShouldRemovePhysicalFileAndShares() throws Exception {
         FileInfo fileInfo = new FileInfo();
         fileInfo.setId(8L);
         fileInfo.setIsFolder(0);
-        fileInfo.setFilePath(filePath.toString());
+        fileInfo.setFilePath("admin-delete.txt");
 
         when(fileInfoMapper.selectById(8L)).thenReturn(fileInfo);
 
         adminService.deleteFile(8L);
 
-        assertThat(filePath).doesNotExist();
+        verify(storageService).delete("admin-delete.txt");
         verify(shareLinkMapper).delete(any());
         verify(fileInfoMapper).deleteById(8L);
     }

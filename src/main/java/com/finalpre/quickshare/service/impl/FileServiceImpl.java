@@ -17,6 +17,7 @@ import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
 import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.PreviewResource;
+import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.vo.FileInfoVO;
 import com.finalpre.quickshare.vo.ShareLinkVO;
 import org.springframework.beans.BeanUtils;
@@ -55,6 +56,9 @@ public class FileServiceImpl implements FileService {
     @Autowired
     private OfficePreviewService officePreviewService;
 
+    @Autowired
+    private StorageService storageService;
+
     @Override
     public FileInfoVO uploadFile(MultipartFile file, Long userId, Long folderId) {
         try {
@@ -82,16 +86,15 @@ public class FileServiceImpl implements FileService {
 
             String fileName = IdUtil.simpleUUID() + (extension.isEmpty() ? "" : "." + extension);
 
-            // 保存文件
-            String uploadDir = fileConfig.getUploadDir();
-            Path filePath = Paths.get(uploadDir, fileName);
+            // 保存文件到存储后端
+            String storageKey;
             try (InputStream inputStream = file.getInputStream()) {
-                Files.copy(inputStream, filePath);
+                storageKey = storageService.store(fileName, inputStream, file.getSize());
             }
 
             // 计算MD5
             String md5;
-            try (InputStream md5Stream = Files.newInputStream(filePath)) {
+            try (InputStream md5Stream = storageService.retrieve(storageKey)) {
                 md5 = DigestUtil.md5Hex(md5Stream);
             }
 
@@ -104,7 +107,7 @@ public class FileServiceImpl implements FileService {
             FileInfo fileInfo = new FileInfo();
             fileInfo.setFileName(fileName);
             fileInfo.setOriginalName(safeOriginalName);
-            fileInfo.setFilePath(filePath.toString());
+            fileInfo.setFilePath(storageKey);
             fileInfo.setFileSize(file.getSize());
             fileInfo.setFileType(contentType);
             fileInfo.setMd5(md5);
@@ -250,21 +253,18 @@ public class FileServiceImpl implements FileService {
         // 获取文件信息
         FileInfo fileInfo = fileInfoMapper.selectById(shareLink.getFileId());
 
-        try {
-            // 读取文件
-            File file = new File(fileInfo.getFilePath());
-            if (!file.exists()) {
-                throw new ResourceNotFoundException("文件不存在");
-            }
+        String storageKey = fileInfo.getFilePath();
+        if (!storageService.exists(storageKey)) {
+            throw new ResourceNotFoundException("文件不存在");
+        }
 
-            // 设置响应头
+        try {
             response.setContentType("application/octet-stream");
             response.setHeader("Content-Disposition",
                     "attachment; filename=\"" + new String(fileInfo.getOriginalName().getBytes("UTF-8"), "ISO-8859-1") + "\"");
             response.setContentLengthLong(fileInfo.getFileSize());
 
-            // 写入响应
-            try (InputStream is = new FileInputStream(file);
+            try (InputStream is = storageService.retrieve(storageKey);
                  OutputStream os = response.getOutputStream()) {
                 byte[] buffer = new byte[8192];
                 int length;
@@ -289,8 +289,8 @@ public class FileServiceImpl implements FileService {
         ShareLink shareLink = shareLinkMapper.selectOne(wrapper);
 
         FileInfo fileInfo = fileInfoMapper.selectById(shareLink.getFileId());
-        File file = new File(fileInfo.getFilePath());
-        if (!file.exists()) {
+        String storageKey = fileInfo.getFilePath();
+        if (!storageService.exists(storageKey)) {
             throw new ResourceNotFoundException("文件不存在");
         }
 
@@ -304,16 +304,23 @@ public class FileServiceImpl implements FileService {
         }
 
         String responseFileName = fileInfo.getOriginalName();
-        long contentLength = fileInfo.getFileSize() == null ? file.length() : fileInfo.getFileSize();
+        long contentLength;
+        try {
+            contentLength = fileInfo.getFileSize() == null ? storageService.getSize(storageKey) : fileInfo.getFileSize();
+        } catch (IOException e) {
+            contentLength = 0;
+        }
+        InputStream previewStream = null;
 
-        // Office conversion
+        // Office conversion (needs local file)
         if (officePreviewService.supports(fileInfo.getOriginalName(), contentType)) {
             try {
                 FileInfoVO tempVO = new FileInfoVO();
                 BeanUtils.copyProperties(fileInfo, tempVO);
                 tempVO.setName(fileInfo.getOriginalName());
+                tempVO.setFilePath(storageService.getLocalPath(storageKey).toString());
                 PreviewResource previewResource = officePreviewService.preparePreview(tempVO);
-                file = previewResource.file().toFile();
+                previewStream = new FileInputStream(previewResource.file().toFile());
                 contentType = previewResource.contentType();
                 responseFileName = previewResource.fileName();
                 contentLength = previewResource.contentLength();
@@ -329,7 +336,7 @@ public class FileServiceImpl implements FileService {
                     "inline; filename=\"" + new String(responseFileName.getBytes("UTF-8"), "ISO-8859-1") + "\"");
             response.setContentLengthLong(contentLength);
 
-            try (InputStream is = new FileInputStream(file);
+            try (InputStream is = previewStream != null ? previewStream : storageService.retrieve(storageKey);
                  OutputStream os = response.getOutputStream()) {
                 byte[] buffer = new byte[8192];
                 int length;
@@ -603,13 +610,13 @@ public class FileServiceImpl implements FileService {
         if (fileInfo == null || Integer.valueOf(1).equals(fileInfo.getIsFolder())) {
             return;
         }
-        String filePath = fileInfo.getFilePath();
-        if (filePath == null || filePath.isBlank()) {
+        String storageKey = fileInfo.getFilePath();
+        if (storageKey == null || storageKey.isBlank()) {
             return;
         }
 
         try {
-            Files.deleteIfExists(Paths.get(filePath));
+            storageService.delete(storageKey);
         } catch (IOException e) {
             throw new RuntimeException("删除物理文件失败: " + e.getMessage(), e);
         }

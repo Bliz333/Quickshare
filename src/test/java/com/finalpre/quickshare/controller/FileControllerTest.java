@@ -19,6 +19,7 @@ import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.RequestRateLimitService;
 import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.service.PreviewResource;
+import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import com.finalpre.quickshare.service.impl.CorsPolicyServiceImpl;
 import com.finalpre.quickshare.utils.JwtUtil;
@@ -95,6 +96,9 @@ class FileControllerTest {
 
     @MockBean
     private OfficePreviewService officePreviewService;
+
+    @MockBean
+    private StorageService storageService;
 
     @MockBean
     private SystemSettingOverrideService systemSettingOverrideService;
@@ -185,20 +189,21 @@ class FileControllerTest {
     }
 
     @Test
-    void previewShouldAcceptTokenQueryParam(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
-        Path filePath = tempDir.resolve("demo.txt");
-        Files.writeString(filePath, "hello preview");
-
+    void previewShouldAcceptTokenQueryParam() throws Exception {
         FileInfoVO file = new FileInfoVO();
         file.setId(3L);
         file.setOriginalName("demo.txt");
-        file.setFilePath(filePath.toString());
+        file.setFilePath("demo-key.txt");
         file.setFileType("text/plain");
-        file.setFileSize(Files.size(filePath));
+        file.setFileSize(13L);
 
         mockValidToken("token", 7L);
         when(filePreviewPolicyService.isPreviewAllowed("demo.txt", "text/plain")).thenReturn(true);
         when(fileService.getFileById(3L, 7L)).thenReturn(file);
+        when(storageService.exists("demo-key.txt")).thenReturn(true);
+        when(storageService.getSize("demo-key.txt")).thenReturn(13L);
+        when(storageService.retrieve("demo-key.txt")).thenReturn(
+                new java.io.ByteArrayInputStream("hello preview".getBytes()));
 
         mockMvc.perform(get("/api/files/3/preview")
                         .param("token", "token"))
@@ -211,19 +216,17 @@ class FileControllerTest {
     }
 
     @Test
-    void previewShouldReturnForbiddenWhenPreviewPolicyDisablesType(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
-        Path filePath = tempDir.resolve("demo.docx");
-        Files.writeString(filePath, "office content");
-
+    void previewShouldReturnForbiddenWhenPreviewPolicyDisablesType() throws Exception {
         FileInfoVO file = new FileInfoVO();
         file.setId(3L);
         file.setOriginalName("demo.docx");
-        file.setFilePath(filePath.toString());
+        file.setFilePath("demo-key.docx");
         file.setFileType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-        file.setFileSize(Files.size(filePath));
+        file.setFileSize(14L);
 
         mockValidToken("token", 7L);
         when(fileService.getFileById(3L, 7L)).thenReturn(file);
+        when(storageService.exists("demo-key.docx")).thenReturn(true);
         when(filePreviewPolicyService.isPreviewAllowed("demo.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
                 .thenReturn(false);
 
@@ -236,25 +239,27 @@ class FileControllerTest {
 
     @Test
     void previewShouldConvertOfficeDocumentToPdf(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
-        Path sourceFile = tempDir.resolve("demo.docx");
-        Files.writeString(sourceFile, "office source");
         Path pdfFile = tempDir.resolve("demo.pdf");
         Files.writeString(pdfFile, "%PDF-1.4 demo");
+        Path localDocx = tempDir.resolve("demo.docx");
+        Files.writeString(localDocx, "office source");
 
         FileInfoVO file = new FileInfoVO();
         file.setId(3L);
         file.setOriginalName("demo.docx");
-        file.setFilePath(sourceFile.toString());
+        file.setFilePath("demo-key.docx");
         file.setFileType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-        file.setFileSize(Files.size(sourceFile));
+        file.setFileSize(13L);
 
         mockValidToken("token", 7L);
         when(fileService.getFileById(3L, 7L)).thenReturn(file);
+        when(storageService.exists("demo-key.docx")).thenReturn(true);
+        when(storageService.getLocalPath("demo-key.docx")).thenReturn(localDocx);
         when(filePreviewPolicyService.isPreviewAllowed("demo.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
                 .thenReturn(true);
         when(officePreviewService.supports("demo.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
                 .thenReturn(true);
-        when(officePreviewService.preparePreview(file))
+        when(officePreviewService.preparePreview(any()))
                 .thenReturn(new PreviewResource(pdfFile, "application/pdf", "demo.pdf", Files.size(pdfFile)));
 
         mockMvc.perform(get("/api/files/3/preview")
@@ -266,19 +271,19 @@ class FileControllerTest {
     }
 
     @Test
-    void downloadOwnedFileShouldAllowTokenQueryParam(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
-        Path filePath = tempDir.resolve("demo.txt");
-        Files.writeString(filePath, "hello download");
-
+    void downloadOwnedFileShouldAllowTokenQueryParam() throws Exception {
         FileInfoVO file = new FileInfoVO();
         file.setId(3L);
         file.setOriginalName("demo.txt");
-        file.setFilePath(filePath.toString());
+        file.setFilePath("demo-key.txt");
         file.setFileType("text/plain");
-        file.setFileSize(Files.size(filePath));
+        file.setFileSize(14L);
 
         mockValidToken("token", 7L);
         when(fileService.getFileById(3L, 7L)).thenReturn(file);
+        when(storageService.exists("demo-key.txt")).thenReturn(true);
+        when(storageService.retrieve("demo-key.txt")).thenReturn(
+                new java.io.ByteArrayInputStream("hello download".getBytes()));
 
         mockMvc.perform(get("/api/files/3/download")
                         .param("token", "token"))
@@ -394,13 +399,13 @@ class FileControllerTest {
         FileInfoVO file = new FileInfoVO();
         file.setId(3L);
         file.setOriginalName("missing.txt");
-        file.setFilePath("/tmp/quickshare-not-exist-preview.txt");
+        file.setFilePath("missing-key.txt");
         file.setFileType("text/plain");
         file.setFileSize(12L);
 
         mockValidToken("token", 7L);
-        when(filePreviewPolicyService.isPreviewAllowed("missing.txt", "text/plain")).thenReturn(true);
         when(fileService.getFileById(3L, 7L)).thenReturn(file);
+        when(storageService.exists("missing-key.txt")).thenReturn(false);
 
         mockMvc.perform(get("/api/files/3/preview")
                         .header("Authorization", "Bearer token"))

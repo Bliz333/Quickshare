@@ -7,8 +7,11 @@ import com.finalpre.quickshare.entity.FileInfo;
 import com.finalpre.quickshare.entity.ShareLink;
 import com.finalpre.quickshare.mapper.FileInfoMapper;
 import com.finalpre.quickshare.mapper.ShareLinkMapper;
+import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
+import com.finalpre.quickshare.service.OfficePreviewService;
+import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.vo.FileInfoVO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +30,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +49,15 @@ class FileServiceImplTest {
 
     @Mock
     private FileUploadPolicyService fileUploadPolicyService;
+
+    @Mock
+    private FilePreviewPolicyService filePreviewPolicyService;
+
+    @Mock
+    private OfficePreviewService officePreviewService;
+
+    @Mock
+    private StorageService storageService;
 
     @InjectMocks
     private FileServiceImpl fileService;
@@ -71,7 +84,7 @@ class FileServiceImplTest {
     }
 
     @Test
-    void uploadFileShouldPersistSelectedFolder(@org.junit.jupiter.api.io.TempDir Path tempDir) {
+    void uploadFileShouldPersistSelectedFolder(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "demo.txt",
@@ -86,7 +99,8 @@ class FileServiceImplTest {
         folder.setDeleted(0);
 
         when(fileUploadPolicyService.getPolicy()).thenReturn(new FileUploadPolicy(true, -1L, List.of()));
-        when(fileConfig.getUploadDir()).thenReturn(tempDir.toString());
+        when(storageService.store(any(), any(), anyLong())).thenAnswer(inv -> inv.getArgument(0));
+        when(storageService.retrieve(any())).thenReturn(new java.io.ByteArrayInputStream("hello".getBytes()));
         when(fileInfoMapper.selectById(12L)).thenReturn(folder);
         doAnswer(invocation -> {
             FileInfo saved = invocation.getArgument(0);
@@ -100,7 +114,8 @@ class FileServiceImplTest {
         assertThat(result.getParentId()).isEqualTo(12L);
         assertThat(result.getFolderId()).isEqualTo(12L);
         assertThat(result.getOriginalName()).isEqualTo("demo.txt");
-        assertThat(result.getFilePath()).startsWith(tempDir.toString());
+        assertThat(result.getFilePath()).endsWith(".txt");
+        verify(storageService).store(any(), any(), anyLong());
     }
 
     @Test
@@ -136,29 +151,23 @@ class FileServiceImplTest {
     }
 
     @Test
-    void deleteFileShouldRemovePhysicalFile(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
-        Path filePath = tempDir.resolve("to-delete.txt");
-        java.nio.file.Files.writeString(filePath, "cleanup");
-
+    void deleteFileShouldRemovePhysicalFile() throws Exception {
         FileInfo fileInfo = new FileInfo();
         fileInfo.setId(5L);
         fileInfo.setUserId(7L);
         fileInfo.setIsFolder(0);
-        fileInfo.setFilePath(filePath.toString());
+        fileInfo.setFilePath("to-delete.txt");
 
         when(fileInfoMapper.selectById(5L)).thenReturn(fileInfo);
 
         fileService.deleteFile(5L, 7L);
 
-        assertThat(filePath).doesNotExist();
+        verify(storageService).delete("to-delete.txt");
         verify(fileInfoMapper).deleteById(5L);
     }
 
     @Test
-    void deleteFolderShouldRemoveNestedPhysicalFiles(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
-        Path childFilePath = tempDir.resolve("child.txt");
-        java.nio.file.Files.writeString(childFilePath, "nested");
-
+    void deleteFolderShouldRemoveNestedPhysicalFiles() throws Exception {
         FileInfo folder = new FileInfo();
         folder.setId(10L);
         folder.setUserId(7L);
@@ -168,14 +177,14 @@ class FileServiceImplTest {
         childFile.setId(11L);
         childFile.setUserId(7L);
         childFile.setIsFolder(0);
-        childFile.setFilePath(childFilePath.toString());
+        childFile.setFilePath("child.txt");
 
         when(fileInfoMapper.selectById(10L)).thenReturn(folder);
         when(fileInfoMapper.selectList(any())).thenReturn(List.of(childFile));
 
         fileService.deleteFolder(10L, 7L);
 
-        assertThat(childFilePath).doesNotExist();
+        verify(storageService).delete("child.txt");
         verify(fileInfoMapper).deleteById(11L);
         verify(fileInfoMapper).deleteById(10L);
     }
@@ -299,22 +308,22 @@ class FileServiceImplTest {
     }
 
     @Test
-    void downloadFileShouldStreamFileAndIncreaseDownloadCount(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
-        Path filePath = tempDir.resolve("demo.txt");
-        java.nio.file.Files.writeString(filePath, "download-body");
-
+    void downloadFileShouldStreamFileAndIncreaseDownloadCount() throws Exception {
         ShareLink shareLink = buildShareLink("ABCD1234", "1234");
 
         FileInfo fileInfo = new FileInfo();
         fileInfo.setId(9L);
         fileInfo.setDeleted(0);
         fileInfo.setOriginalName("demo.txt");
-        fileInfo.setFilePath(filePath.toString());
-        fileInfo.setFileSize(java.nio.file.Files.size(filePath));
+        fileInfo.setFilePath("demo-key.txt");
+        fileInfo.setFileSize(13L);
 
         when(shareLinkMapper.selectOne(any())).thenReturn(shareLink);
         when(fileInfoMapper.selectById(9L)).thenReturn(fileInfo);
         when(shareLinkMapper.incrementDownloadCount(1L)).thenReturn(1);
+        when(storageService.exists("demo-key.txt")).thenReturn(true);
+        when(storageService.retrieve("demo-key.txt")).thenReturn(
+                new java.io.ByteArrayInputStream("download-body".getBytes()));
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         fileService.downloadFile("ABCD1234", "1234", response);

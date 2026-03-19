@@ -12,6 +12,7 @@ import com.finalpre.quickshare.service.FileUploadPolicyService;
 import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.PreviewResource;
 import com.finalpre.quickshare.service.RequestRateLimitService;
+import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.FileInfoVO;
 import com.finalpre.quickshare.vo.FilePreviewPolicyVO;
@@ -64,6 +65,9 @@ public class FileController {
 
     @Autowired
     private OfficePreviewService officePreviewService;
+
+    @Autowired
+    private StorageService storageService;
 
     /**
      * 上传文件
@@ -349,8 +353,8 @@ public class FileController {
                                  boolean preview,
                                  Integer maxSize) throws IOException {
         FileInfoVO fileVO = fileService.getFileById(fileId, userId);
-        File file = new File(fileVO.getFilePath());
-        if (!file.exists()) {
+        String storageKey = fileVO.getFilePath();
+        if (!storageService.exists(storageKey)) {
             throw new ResourceNotFoundException("文件不存在");
         }
 
@@ -363,10 +367,14 @@ public class FileController {
         }
 
         String responseFileName = fileVO.getOriginalName();
-        long contentLength = fileVO.getFileSize() == null ? file.length() : fileVO.getFileSize();
+        long contentLength = fileVO.getFileSize() == null ? storageService.getSize(storageKey) : fileVO.getFileSize();
+        InputStream previewStream = null;
+
         if (preview && officePreviewService.supports(fileVO.getOriginalName(), contentType)) {
+            // Office conversion needs local file
+            fileVO.setFilePath(storageService.getLocalPath(storageKey).toString());
             PreviewResource previewResource = officePreviewService.preparePreview(fileVO);
-            file = previewResource.file().toFile();
+            previewStream = new FileInputStream(previewResource.file().toFile());
             contentType = previewResource.contentType();
             responseFileName = previewResource.fileName();
             contentLength = previewResource.contentLength();
@@ -380,7 +388,8 @@ public class FileController {
         boolean isImage = contentType.startsWith("image/");
         if (preview && isImage && maxSize != null && maxSize > 0) {
             try {
-                Thumbnails.of(file)
+                File localFile = storageService.getLocalPath(storageKey).toFile();
+                Thumbnails.of(localFile)
                         .size(maxSize, maxSize)
                         .outputQuality(0.8f)
                         .toOutputStream(response.getOutputStream());
@@ -392,7 +401,7 @@ public class FileController {
 
         response.setContentLengthLong(contentLength);
 
-        try (InputStream is = new FileInputStream(file);
+        try (InputStream is = previewStream != null ? previewStream : storageService.retrieve(storageKey);
              OutputStream os = response.getOutputStream()) {
             byte[] buffer = new byte[8192];
             int length;

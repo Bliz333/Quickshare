@@ -14,6 +14,7 @@ import com.finalpre.quickshare.mapper.UserMapper;
 import com.finalpre.quickshare.service.AdminService;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.SmtpPolicyService;
+import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminFileVO;
 import com.finalpre.quickshare.vo.AdminOverviewVO;
@@ -56,6 +57,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private EmailServiceImpl emailServiceImpl;
+
+    @Autowired
+    private StorageService storageService;
 
     @Override
     public AdminOverviewVO getOverview() {
@@ -232,13 +236,13 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private void deletePhysicalFile(FileInfo fileInfo) {
-        String filePath = fileInfo.getFilePath();
-        if (filePath == null || filePath.isBlank()) {
+        String storageKey = fileInfo.getFilePath();
+        if (storageKey == null || storageKey.isBlank()) {
             return;
         }
 
         try {
-            Files.deleteIfExists(Path.of(filePath));
+            storageService.delete(storageKey);
         } catch (IOException ex) {
             throw new RuntimeException("删除物理文件失败: " + ex.getMessage(), ex);
         }

@@ -49,6 +49,9 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+storage:
+  type: ${STORAGE_TYPE:local}
+
 file:
   upload-dir: ${FILE_UPLOAD_DIR:/tmp/quickshare/uploads}
   allowed-types: ${FILE_ALLOWED_TYPES:} # comma-separated list, empty = all

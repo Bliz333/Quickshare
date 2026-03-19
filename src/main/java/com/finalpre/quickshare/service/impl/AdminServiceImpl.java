@@ -5,9 +5,13 @@ import com.finalpre.quickshare.common.ResourceNotFoundException;
 import com.finalpre.quickshare.common.UserRole;
 import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
 import com.finalpre.quickshare.dto.AdminCreateUserRequest;
+import com.finalpre.quickshare.dto.AdminPaymentProviderRequest;
 import com.finalpre.quickshare.dto.AdminPlanRequest;
+import com.finalpre.quickshare.entity.PaymentProvider;
 import com.finalpre.quickshare.entity.Plan;
+import com.finalpre.quickshare.mapper.PaymentProviderMapper;
 import com.finalpre.quickshare.mapper.PlanMapper;
+import com.finalpre.quickshare.vo.AdminPaymentProviderVO;
 import com.finalpre.quickshare.entity.FileInfo;
 import com.finalpre.quickshare.entity.ShareLink;
 import com.finalpre.quickshare.entity.User;
@@ -66,6 +70,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private PlanMapper planMapper;
+
+    @Autowired
+    private PaymentProviderMapper paymentProviderMapper;
 
     @Override
     public AdminOverviewVO getOverview() {
@@ -271,6 +278,79 @@ public class AdminServiceImpl implements AdminService {
         Plan plan = planMapper.selectById(planId);
         if (plan == null) throw new ResourceNotFoundException("套餐不存在");
         planMapper.deleteById(planId);
+    }
+
+    @Override
+    public List<AdminPaymentProviderVO> getPaymentProviders() {
+        return paymentProviderMapper.selectList(
+                new QueryWrapper<PaymentProvider>().orderByAsc("sort_order").orderByDesc("create_time"))
+                .stream().map(this::toProviderVO).toList();
+    }
+
+    @Override
+    public AdminPaymentProviderVO createPaymentProvider(AdminPaymentProviderRequest request) {
+        validateProviderRequest(request, true);
+        PaymentProvider provider = new PaymentProvider();
+        applyProviderFields(provider, request);
+        provider.setCreateTime(LocalDateTime.now());
+        paymentProviderMapper.insert(provider);
+        return toProviderVO(provider);
+    }
+
+    @Override
+    public AdminPaymentProviderVO updatePaymentProvider(Long providerId, AdminPaymentProviderRequest request) {
+        PaymentProvider provider = paymentProviderMapper.selectById(providerId);
+        if (provider == null) throw new ResourceNotFoundException("支付商户不存在");
+        validateProviderRequest(request, false);
+        // Keep existing key if not provided
+        if (request.getMerchantKey() == null) {
+            request.setMerchantKey(provider.getMerchantKey());
+        }
+        applyProviderFields(provider, request);
+        paymentProviderMapper.updateById(provider);
+        return toProviderVO(provider);
+    }
+
+    @Override
+    public void deletePaymentProvider(Long providerId) {
+        PaymentProvider provider = paymentProviderMapper.selectById(providerId);
+        if (provider == null) throw new ResourceNotFoundException("支付商户不存在");
+        paymentProviderMapper.deleteById(providerId);
+    }
+
+    private void validateProviderRequest(AdminPaymentProviderRequest request, boolean requireKey) {
+        if (request == null || request.getName() == null || request.getName().isBlank())
+            throw new IllegalArgumentException("商户名称不能为空");
+        if (request.getApiUrl() == null || request.getApiUrl().isBlank())
+            throw new IllegalArgumentException("接口地址不能为空");
+        if (request.getPid() == null || request.getPid().isBlank())
+            throw new IllegalArgumentException("商户ID不能为空");
+        if (requireKey && (request.getMerchantKey() == null || request.getMerchantKey().isBlank()))
+            throw new IllegalArgumentException("商户密钥不能为空");
+    }
+
+    private void applyProviderFields(PaymentProvider provider, AdminPaymentProviderRequest request) {
+        provider.setName(request.getName().trim());
+        provider.setApiUrl(request.getApiUrl().trim().replaceAll("/$", ""));
+        provider.setPid(request.getPid().trim());
+        provider.setMerchantKey(request.getMerchantKey());
+        provider.setPayTypes(request.getPayTypes() != null ? request.getPayTypes().trim() : "alipay,wxpay");
+        provider.setEnabled(request.getEnabled() != null ? request.getEnabled() : 1);
+        provider.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+    }
+
+    private AdminPaymentProviderVO toProviderVO(PaymentProvider provider) {
+        AdminPaymentProviderVO vo = new AdminPaymentProviderVO();
+        vo.setId(provider.getId());
+        vo.setName(provider.getName());
+        vo.setApiUrl(provider.getApiUrl());
+        vo.setPid(provider.getPid());
+        vo.setHasKey(provider.getMerchantKey() != null && !provider.getMerchantKey().isBlank());
+        vo.setPayTypes(provider.getPayTypes());
+        vo.setEnabled(provider.getEnabled());
+        vo.setSortOrder(provider.getSortOrder());
+        vo.setCreateTime(provider.getCreateTime());
+        return vo;
     }
 
     private void validatePlanRequest(AdminPlanRequest request) {

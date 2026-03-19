@@ -9,9 +9,11 @@ import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
-import com.finalpre.quickshare.dto.AdminEpayPolicyUpdateRequest;
+// EpayPolicy replaced by PaymentProvider CRUD
+import com.finalpre.quickshare.dto.AdminPaymentProviderRequest;
 import com.finalpre.quickshare.dto.AdminPlanRequest;
 import com.finalpre.quickshare.entity.Plan;
+import com.finalpre.quickshare.vo.AdminPaymentProviderVO;
 import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminStoragePolicyUpdateRequest;
@@ -29,7 +31,7 @@ import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
 import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
-import com.finalpre.quickshare.vo.AdminEpayPolicyVO;
+// AdminEpayPolicyVO replaced by AdminPaymentProviderVO
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
 import com.finalpre.quickshare.vo.AdminStoragePolicyVO;
 import com.finalpre.quickshare.vo.AdminShareVO;
@@ -241,16 +243,27 @@ public class AdminController {
         return Result.success();
     }
 
-    // --- Epay Configuration ---
+    // --- Payment Providers ---
 
-    @GetMapping("/settings/epay")
-    public Result<AdminEpayPolicyVO> getEpayPolicy() {
-        return Result.success(adminPolicyService.getEpayPolicy());
+    @GetMapping("/payment-providers")
+    public Result<List<AdminPaymentProviderVO>> getPaymentProviders() {
+        return Result.success(adminService.getPaymentProviders());
     }
 
-    @PutMapping("/settings/epay")
-    public Result<Void> updateEpayPolicy(@RequestBody AdminEpayPolicyUpdateRequest request) {
-        adminPolicyService.updateEpayPolicy(request);
+    @PostMapping("/payment-providers")
+    public Result<AdminPaymentProviderVO> createPaymentProvider(@RequestBody AdminPaymentProviderRequest request) {
+        return Result.success(adminService.createPaymentProvider(request));
+    }
+
+    @PutMapping("/payment-providers/{providerId}")
+    public Result<AdminPaymentProviderVO> updatePaymentProvider(
+            @PathVariable Long providerId, @RequestBody AdminPaymentProviderRequest request) {
+        return Result.success(adminService.updatePaymentProvider(providerId, request));
+    }
+
+    @DeleteMapping("/payment-providers/{providerId}")
+    public Result<Void> deletePaymentProvider(@PathVariable Long providerId) {
+        adminService.deletePaymentProvider(providerId);
         return Result.success();
     }
 

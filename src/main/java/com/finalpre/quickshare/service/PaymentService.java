@@ -6,8 +6,8 @@ import java.util.Map;
 
 public interface PaymentService {
 
-    /** Create order and return epay redirect URL. */
-    String createOrder(Long userId, Long planId, String payType, String returnUrl);
+    /** Create order and return epay redirect URL. providerId selects which merchant to use. */
+    String createOrder(Long userId, Long planId, Long providerId, String payType, String returnUrl);
 
     /** Process epay async notification. Returns true if payment confirmed. */
     boolean handleNotify(Map<String, String> params);

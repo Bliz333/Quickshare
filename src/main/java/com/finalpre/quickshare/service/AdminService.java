@@ -2,8 +2,10 @@ package com.finalpre.quickshare.service;
 
 import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
 import com.finalpre.quickshare.dto.AdminCreateUserRequest;
+import com.finalpre.quickshare.dto.AdminPaymentProviderRequest;
 import com.finalpre.quickshare.dto.AdminPlanRequest;
 import com.finalpre.quickshare.entity.Plan;
+import com.finalpre.quickshare.vo.AdminPaymentProviderVO;
 import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminFileVO;
 import com.finalpre.quickshare.vo.AdminOverviewVO;
@@ -41,4 +43,12 @@ public interface AdminService {
     Plan updatePlan(Long planId, AdminPlanRequest request);
 
     void deletePlan(Long planId);
+
+    List<AdminPaymentProviderVO> getPaymentProviders();
+
+    AdminPaymentProviderVO createPaymentProvider(AdminPaymentProviderRequest request);
+
+    AdminPaymentProviderVO updatePaymentProvider(Long providerId, AdminPaymentProviderRequest request);
+
+    void deletePaymentProvider(Long providerId);
 }

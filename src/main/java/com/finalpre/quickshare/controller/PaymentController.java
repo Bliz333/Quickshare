@@ -30,6 +30,7 @@ public class PaymentController {
             HttpServletRequest httpRequest) {
         Long userId = requireUserId(authentication);
         Long planId = Long.parseLong(request.get("planId").toString());
+        Long providerId = request.containsKey("providerId") ? Long.parseLong(request.get("providerId").toString()) : null;
         String payType = (String) request.getOrDefault("payType", "alipay");
 
         // Build return URL from request origin
@@ -37,7 +38,7 @@ public class PaymentController {
                 ? request.get("returnUrl").toString()
                 : buildBaseUrl(httpRequest) + "/";
 
-        String redirectUrl = paymentService.createOrder(userId, planId, payType, returnUrl);
+        String redirectUrl = paymentService.createOrder(userId, planId, providerId, payType, returnUrl);
 
         Map<String, String> result = new HashMap<>();
         result.put("redirectUrl", redirectUrl);

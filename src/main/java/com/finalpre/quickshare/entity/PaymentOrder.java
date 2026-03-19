@@ -22,6 +22,7 @@ public class PaymentOrder {
     private BigDecimal amount;
     /** pending / paid / expired / refunded */
     private String status;
+    private Long providerId;
     private String payType;
     private String tradeNo;
     private LocalDateTime notifyTime;

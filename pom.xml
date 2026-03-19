@@ -117,6 +117,16 @@
             <version>2.25.16</version>
         </dependency>
 
+        <!-- Flyway database migration -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

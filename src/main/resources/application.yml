@@ -5,6 +5,12 @@ spring:
     password: ${DB_PASSWORD:change_me}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}

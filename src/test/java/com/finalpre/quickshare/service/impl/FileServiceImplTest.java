@@ -314,6 +314,7 @@ class FileServiceImplTest {
 
         when(shareLinkMapper.selectOne(any())).thenReturn(shareLink);
         when(fileInfoMapper.selectById(9L)).thenReturn(fileInfo);
+        when(shareLinkMapper.incrementDownloadCount(1L)).thenReturn(1);
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         fileService.downloadFile("ABCD1234", "1234", response);
@@ -323,10 +324,28 @@ class FileServiceImplTest {
         assertThat(response.getContentType()).isEqualTo("application/octet-stream");
         assertThat(response.getHeader("Content-Disposition")).contains("demo.txt");
 
-        ArgumentCaptor<ShareLink> captor = ArgumentCaptor.forClass(ShareLink.class);
-        verify(shareLinkMapper).updateById(captor.capture());
-        assertThat(captor.getValue().getDownloadCount()).isEqualTo(1);
-        assertThat(captor.getValue().getShareCode()).isEqualTo("ABCD1234");
+        verify(shareLinkMapper).incrementDownloadCount(1L);
+    }
+
+    @Test
+    void downloadFileShouldRejectWhenAtomicIncrementFails() {
+        ShareLink shareLink = buildShareLink("ABCD1234", "1234");
+        shareLink.setMaxDownload(1);
+        shareLink.setDownloadCount(0); // fast-fail check passes
+
+        FileInfo fileInfo = new FileInfo();
+        fileInfo.setId(9L);
+        fileInfo.setDeleted(0);
+        fileInfo.setOriginalName("demo.txt");
+
+        when(shareLinkMapper.selectOne(any())).thenReturn(shareLink);
+        when(fileInfoMapper.selectById(9L)).thenReturn(fileInfo);
+        when(shareLinkMapper.incrementDownloadCount(1L)).thenReturn(0); // concurrent limit reached
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        assertThatThrownBy(() -> fileService.downloadFile("ABCD1234", "1234", response))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("下载次数已达上限");
     }
 
     private ShareLink buildShareLink(String shareCode, String extractCode) {

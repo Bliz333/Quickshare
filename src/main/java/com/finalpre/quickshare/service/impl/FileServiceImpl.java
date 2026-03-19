@@ -135,8 +135,7 @@ public class FileServiceImpl implements FileService {
             throw new AccessDeniedException("无权分享此文件");
         }
 
-        // 生成分享码和提取码
-        String shareCode = RandomUtil.randomString(8);
+        // 生成提取码
         String extractCode = request.getExtractCode();
         if (extractCode == null || extractCode.isEmpty()) {
             extractCode = RandomUtil.randomNumbers(4);
@@ -148,10 +147,10 @@ public class FileServiceImpl implements FileService {
             expireTime = LocalDateTime.now().plusHours(request.getExpireHours());
         }
 
-        // 创建分享链接
+        // 生成分享码（带重试避免唯一约束冲突）
+        String shareCode = null;
         ShareLink shareLink = new ShareLink();
         shareLink.setFileId(request.getFileId());
-        shareLink.setShareCode(shareCode);
         shareLink.setExtractCode(extractCode);
         shareLink.setExpireTime(expireTime);
         shareLink.setMaxDownload(request.getMaxDownload() != null ? request.getMaxDownload() : -1);
@@ -159,7 +158,19 @@ public class FileServiceImpl implements FileService {
         shareLink.setCreateTime(LocalDateTime.now());
         shareLink.setStatus(1);
 
-        shareLinkMapper.insert(shareLink);
+        for (int attempt = 0; attempt < 5; attempt++) {
+            shareCode = RandomUtil.randomString(8);
+            shareLink.setShareCode(shareCode);
+            try {
+                shareLinkMapper.insert(shareLink);
+                break;
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                if (attempt == 4) {
+                    throw new RuntimeException("分享码生成失败，请重试");
+                }
+                shareLink.setId(null); // reset for next insert attempt
+            }
+        }
 
         // 返回VO
         ShareLinkVO vo = new ShareLinkVO();
@@ -198,14 +209,9 @@ public class FileServiceImpl implements FileService {
             throw new IllegalArgumentException("分享链接已过期");
         }
 
-        // 检查下载次数
+        // 检查下载次数（快速检查，实际下载时由原子 SQL 保证并发安全）
         if (shareLink.getMaxDownload() > 0 && shareLink.getDownloadCount() >= shareLink.getMaxDownload()) {
             throw new IllegalArgumentException("下载次数已达上限");
-        }
-
-        // 检查状态
-        if (shareLink.getStatus() == 0) {
-            throw new IllegalArgumentException("分享链接已失效");
         }
 
         // 获取文件信息
@@ -228,13 +234,18 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public void downloadFile(String shareCode, String extractCode, HttpServletResponse response) {
-        // 验证分享信息
+        // Validate share info (checks expiration, extract code, status, file exists)
         ShareLinkVO shareInfo = getShareInfo(shareCode, extractCode);
 
-        // 查询分享链接
+        // Atomic download count increment + limit check
         QueryWrapper<ShareLink> wrapper = new QueryWrapper<>();
         wrapper.eq("share_code", shareCode);
         ShareLink shareLink = shareLinkMapper.selectOne(wrapper);
+
+        int updated = shareLinkMapper.incrementDownloadCount(shareLink.getId());
+        if (updated == 0) {
+            throw new IllegalArgumentException("下载次数已达上限");
+        }
 
         // 获取文件信息
         FileInfo fileInfo = fileInfoMapper.selectById(shareLink.getFileId());
@@ -262,10 +273,6 @@ public class FileServiceImpl implements FileService {
                 }
                 os.flush();
             }
-
-            // 更新下载次数
-            shareLink.setDownloadCount(shareLink.getDownloadCount() + 1);
-            shareLinkMapper.updateById(shareLink);
 
         } catch (IOException e) {
             throw new RuntimeException("文件下载失败: " + e.getMessage(), e);

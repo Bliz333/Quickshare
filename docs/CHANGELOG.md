@@ -2,6 +2,19 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-19 (ShareLink 并发安全加固)
+
+- 本轮主题：ShareLink 唯一性和下载计数并发安全
+- 核心变更：
+  - shareCode 生成加 5 次重试，碰到 DuplicateKeyException 自动重新生成
+  - `ShareLinkMapper.incrementDownloadCount()` 原子 SQL 替代 read-modify-write
+  - 原子 UPDATE 同时检查 `status=1` 和 `download_count < max_download`
+  - 消除并发下载时的丢失更新和超限下载竞态
+  - `getShareInfo` 保留快速检查用于查询场景早期拒绝
+- 验证结果：
+  - `mvn test`：154 测试全通过（+1 原子下载计数测试）
+- 下一步：StorageService 抽象层、文件夹深层目录回归
+
 ## 2026-03-19 (公开分享页预览对齐)
 
 - 本轮主题：公开分享页支持 PDF.js 预览（含 Office 转 PDF）

@@ -1,5 +1,13 @@
 # QuickShare 项目状态（2026-03-19）
 
+## 2026-03-19 ShareLink 并发安全加固完成
+- shareCode 生成改为带重试逻辑（最多 5 次），碰到唯一约束冲突自动重新生成
+- 下载计数改为原子 SQL `UPDATE ... SET download_count = download_count + 1 WHERE ... AND (max_download = -1 OR download_count < max_download)`
+- 消除了并发下载时的丢失更新问题和超限下载竞态
+- `getShareInfo` 中保留快速检查（用于查询场景的早期拒绝），实际下载由原子 SQL 保证
+- 移除了重复的 status 检查
+- 后端 154 测试全通过（+1 原子下载计数测试）
+
 ## 2026-03-19 公开分享页预览对齐完成
 - 新增 `GET /api/preview/{shareCode}?extractCode=` 公开分享预览端点，支持 Office 文档 LibreOffice 转 PDF
 - 分享信息 VO 新增 `fileType` 字段，供前端判断是否可预览
@@ -102,8 +110,8 @@
 - 历史交接入口：`docs/archive/2026-03-18-session-handoff.md`
 - Docker smoke test 已全部通过（隐藏后台入口、Office 预览、注册页动态配置、匿名上传/分享全链路）。
 - SMTP 后台化、邮件模板体系、管理员公告邮件和敏感配置加密存储均已完成。
-- PDF.js 公开分享页预览已对齐完成。
-- 下一步：ShareLink 唯一性和下载计数并发安全 → 文件夹深层目录回归。
+- PDF.js 公开分享页预览和 ShareLink 并发安全加固均已完成。
+- 下一步：StorageService 抽象层（本地 + S3）→ 文件夹深层目录回归。
 
 ## 主要缺陷与风险
 - 配置安全：现已去除明文密钥，需按环境变量/本地 profile 正确注入，否则无法连接外部资源。

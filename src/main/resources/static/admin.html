@@ -963,6 +963,60 @@
                 </button>
             </div>
         </section>
+
+        <section class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="mb-5">
+                <h2 class="text-xl font-semibold" data-i18n="adminSmtpTitle">SMTP 邮件配置</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminSmtpSubtitle">配置 SMTP 服务器以支持邮箱验证码发送。</p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpHost" data-i18n="adminSmtpHost">SMTP 主机</label>
+                        <input id="smtpHost" type="text" class="settings-field" placeholder="smtp.gmail.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpPort" data-i18n="adminSmtpPort">SMTP 端口</label>
+                        <input id="smtpPort" type="number" min="1" max="65535" class="settings-field" placeholder="587">
+                    </div>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpUsername" data-i18n="adminSmtpUsername">用户名</label>
+                        <input id="smtpUsername" type="text" class="settings-field" placeholder="your-email@gmail.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpPassword" data-i18n="adminSmtpPassword">密码</label>
+                        <input id="smtpPassword" type="password" class="settings-field" placeholder="留空则保持当前密码">
+                        <p id="smtpPasswordHint" class="text-xs text-text-sub mt-1"></p>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpSenderAddress" data-i18n="adminSmtpSenderAddress">发件人地址</label>
+                        <input id="smtpSenderAddress" type="text" class="settings-field" placeholder="留空则使用用户名">
+                    </div>
+                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40 self-end">
+                        <input id="smtpStarttlsEnabled" type="checkbox" class="settings-checkbox" checked>
+                        <span data-i18n="adminSmtpStarttls">启用 STARTTLS</span>
+                    </label>
+                </div>
+
+                <div class="flex flex-wrap gap-3">
+                    <button type="button" class="action-btn" onclick="saveSmtpSettings(this)">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span data-i18n="adminSaveSettings">保存配置</span>
+                    </button>
+                    <button type="button" class="action-btn action-btn-secondary" onclick="sendSmtpTestEmail(this)">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span data-i18n="adminSmtpTestSend">发送测试邮件</span>
+                    </button>
+                </div>
+            </div>
+        </section>
         </div>
     </section>
 </div>

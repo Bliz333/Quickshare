@@ -10,6 +10,7 @@ import com.finalpre.quickshare.service.FilePreviewPolicy;
 import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.mapper.SystemSettingMapper;
 import com.finalpre.quickshare.service.CorsPolicy;
+import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.RateLimitRule;
 import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
@@ -33,6 +34,7 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
     private static final String FILE_UPLOAD_POLICY_KEY = "file-upload.policy";
     private static final String FILE_PREVIEW_POLICY_KEY = "file-preview.policy";
     private static final String CORS_POLICY_KEY = "cors.policy";
+    private static final String SMTP_POLICY_KEY = "smtp.policy";
 
     private final Map<String, String> cache = new ConcurrentHashMap<>();
 
@@ -146,6 +148,20 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
         }
 
         upsert(CORS_POLICY_KEY, policy, "admin managed cors policy");
+    }
+
+    @Override
+    public Optional<SmtpPolicy> getSmtpPolicy() {
+        return readValue(SMTP_POLICY_KEY, SmtpPolicy.class);
+    }
+
+    @Override
+    public void saveSmtpPolicy(SmtpPolicy policy) {
+        if (policy == null) {
+            throw new IllegalArgumentException("SMTP 配置不能为空");
+        }
+
+        upsert(SMTP_POLICY_KEY, policy, "admin managed smtp policy");
     }
 
     private String buildRateLimitKey(RateLimitScene scene) {

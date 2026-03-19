@@ -29,4 +29,8 @@ public interface SystemSettingOverrideService {
     Optional<CorsPolicy> getCorsPolicy();
 
     void saveCorsPolicy(CorsPolicy policy);
+
+    Optional<SmtpPolicy> getSmtpPolicy();
+
+    void saveSmtpPolicy(SmtpPolicy policy);
 }

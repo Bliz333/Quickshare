@@ -2,6 +2,22 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-19 (SMTP 后台化)
+
+- 本轮主题：SMTP 邮件配置接入管理员后台
+- 核心变更：
+  - 新增 `SmtpPolicy` / `SmtpPolicyService`，SMTP 配置改为"配置默认值 + system_setting 覆盖值"
+  - `EmailServiceImpl` 改为按运行时策略动态创建 `JavaMailSender`
+  - 管理员后台新增 SMTP 设置表单（主机、端口、用户名、密码、发件人、STARTTLS）
+  - 密码不回显明文，更新时留空保持现有密码
+  - 新增"发送测试邮件"功能（`POST /api/admin/settings/smtp/test`）
+  - 中英文 i18n 已补齐
+- 验证结果：
+  - `mvn test`：137 测试全通过（+6 SMTP 策略测试）
+  - `node --check admin.js` / `lang-switch.js`：语法通过
+  - Docker smoke test：SMTP 读/写/保留密码/验证/测试邮件端点全部正常
+- 下一步：邮件模板体系、管理员公告邮件
+
 ## 2026-03-19 (Docker Smoke Test)
 
 - 详细记录：`docs/archive/2026-03-19-docker-smoke-test.md`

@@ -14,6 +14,7 @@ const adminState = {
     fileUploadPolicy: null,
     filePreviewPolicy: null,
     corsPolicy: null,
+    smtpPolicy: null,
     isRedirecting: false
 };
 
@@ -675,13 +676,14 @@ function renderPreviewPolicyForm() {
 
 async function refreshPolicySettings(showSuccess = false, silentFailure = false) {
     try {
-        const [rateLimits, adminConsoleAccess, registrationSettings, fileUploadPolicy, filePreviewPolicy, corsPolicy] = await Promise.all([
+        const [rateLimits, adminConsoleAccess, registrationSettings, fileUploadPolicy, filePreviewPolicy, corsPolicy, smtpPolicy] = await Promise.all([
             adminRequest('/admin/settings/rate-limits'),
             adminRequest('/admin/settings/admin-console'),
             adminRequest('/admin/settings/registration'),
             adminRequest('/admin/settings/file-upload'),
             adminRequest('/admin/settings/file-preview'),
-            adminRequest('/admin/settings/cors')
+            adminRequest('/admin/settings/cors'),
+            adminRequest('/admin/settings/smtp')
         ]);
 
         adminState.rateLimits = rateLimits || [];
@@ -690,12 +692,14 @@ async function refreshPolicySettings(showSuccess = false, silentFailure = false)
         adminState.fileUploadPolicy = fileUploadPolicy || null;
         adminState.filePreviewPolicy = filePreviewPolicy || null;
         adminState.corsPolicy = corsPolicy || null;
+        adminState.smtpPolicy = smtpPolicy || null;
         renderRateLimitPolicies();
         renderAdminConsoleAccessForm();
         renderRegistrationSettingsForm();
         renderUploadPolicyForm();
         renderPreviewPolicyForm();
         renderCorsPolicyForm();
+        renderSmtpPolicyForm();
 
         if (showSuccess && typeof showToast === 'function') {
             showToast(t('adminRefreshSuccess'), 'success');
@@ -960,6 +964,82 @@ async function saveCorsPolicySettings(button) {
     } catch (error) {
         if (!adminState.isRedirecting) {
             showToast(error.message || t('adminPolicySaveFailed'), 'error');
+        }
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function renderSmtpPolicyForm() {
+    const policy = adminState.smtpPolicy;
+    if (!policy) return;
+
+    const hostEl = document.getElementById('smtpHost');
+    const portEl = document.getElementById('smtpPort');
+    const usernameEl = document.getElementById('smtpUsername');
+    const passwordEl = document.getElementById('smtpPassword');
+    const senderEl = document.getElementById('smtpSenderAddress');
+    const starttlsEl = document.getElementById('smtpStarttlsEnabled');
+    const hintEl = document.getElementById('smtpPasswordHint');
+
+    if (hostEl) hostEl.value = policy.host || '';
+    if (portEl) portEl.value = policy.port || 587;
+    if (usernameEl) usernameEl.value = policy.username || '';
+    if (passwordEl) passwordEl.value = '';
+    if (senderEl) senderEl.value = policy.senderAddress || '';
+    if (starttlsEl) starttlsEl.checked = policy.starttlsEnabled !== false;
+    if (hintEl) hintEl.textContent = policy.hasPassword
+        ? t('adminSmtpPasswordSet')
+        : t('adminSmtpPasswordNotSet');
+}
+
+async function saveSmtpSettings(button) {
+    const host = document.getElementById('smtpHost')?.value.trim();
+    const port = Number(document.getElementById('smtpPort')?.value);
+    const username = document.getElementById('smtpUsername')?.value.trim() || '';
+    const passwordRaw = document.getElementById('smtpPassword')?.value;
+    const senderAddress = document.getElementById('smtpSenderAddress')?.value.trim() || '';
+    const starttlsEnabled = !!document.getElementById('smtpStarttlsEnabled')?.checked;
+
+    if (!host || !Number.isFinite(port) || port <= 0 || port > 65535) {
+        showToast(t('adminSmtpInvalid'), 'error');
+        return;
+    }
+
+    const body = { host, port, username, starttlsEnabled, senderAddress };
+    if (passwordRaw) body.password = passwordRaw;
+
+    button.disabled = true;
+    try {
+        await adminRequest('/admin/settings/smtp', {
+            method: 'PUT',
+            body: JSON.stringify(body)
+        });
+        showToast(t('adminPolicySaved'), 'success');
+        await refreshPolicySettings(false, false);
+    } catch (error) {
+        if (!adminState.isRedirecting) {
+            showToast(error.message || t('adminPolicySaveFailed'), 'error');
+        }
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function sendSmtpTestEmail(button) {
+    const toEmail = prompt(t('adminSmtpTestPrompt'));
+    if (!toEmail || !toEmail.includes('@')) return;
+
+    button.disabled = true;
+    try {
+        await adminRequest('/admin/settings/smtp/test', {
+            method: 'POST',
+            body: JSON.stringify({ toEmail })
+        });
+        showToast(t('adminSmtpTestSuccess'), 'success');
+    } catch (error) {
+        if (!adminState.isRedirecting) {
+            showToast(error.message || t('adminSmtpTestFailed'), 'error');
         }
     } finally {
         button.disabled = false;

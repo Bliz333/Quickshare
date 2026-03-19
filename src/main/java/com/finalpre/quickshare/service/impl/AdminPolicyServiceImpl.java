@@ -7,6 +7,7 @@ import com.finalpre.quickshare.dto.AdminFilePreviewPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
 import com.finalpre.quickshare.service.AdminConsoleAccessPolicy;
 import com.finalpre.quickshare.service.AdminConsoleAccessService;
 import com.finalpre.quickshare.service.AdminPolicyService;
@@ -20,6 +21,8 @@ import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
 import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.service.RateLimitPolicyService;
 import com.finalpre.quickshare.service.RateLimitRule;
+import com.finalpre.quickshare.service.SmtpPolicy;
+import com.finalpre.quickshare.service.SmtpPolicyService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import com.finalpre.quickshare.vo.AdminConsoleAccessVO;
 import com.finalpre.quickshare.vo.AdminCorsPolicyVO;
@@ -27,6 +30,7 @@ import com.finalpre.quickshare.vo.AdminFilePreviewPolicyVO;
 import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
 import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
+import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -52,6 +56,12 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
 
     @Autowired
     private RegistrationSettingsService registrationSettingsService;
+
+    @Autowired
+    private SmtpPolicyService smtpPolicyService;
+
+    @Autowired
+    private EmailServiceImpl emailServiceImpl;
 
     @Autowired
     private SystemSettingOverrideService systemSettingOverrideService;
@@ -257,6 +267,58 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
                 maxAgeSeconds
         );
         systemSettingOverrideService.saveCorsPolicy(policy);
+    }
+
+    @Override
+    public AdminSmtpPolicyVO getSmtpPolicy() {
+        SmtpPolicy policy = smtpPolicyService.getPolicy();
+        AdminSmtpPolicyVO vo = new AdminSmtpPolicyVO();
+        vo.setHost(policy.host());
+        vo.setPort(policy.port());
+        vo.setUsername(policy.username());
+        vo.setHasPassword(policy.password() != null && !policy.password().isBlank());
+        vo.setStarttlsEnabled(policy.starttlsEnabled());
+        vo.setSenderAddress(policy.senderAddress());
+        return vo;
+    }
+
+    @Override
+    public void updateSmtpPolicy(AdminSmtpPolicyUpdateRequest request) {
+        if (request == null || request.getHost() == null || request.getHost().isBlank()) {
+            throw new IllegalArgumentException("SMTP 主机地址不能为空");
+        }
+        if (request.getPort() == null || request.getPort() <= 0 || request.getPort() > 65535) {
+            throw new IllegalArgumentException("SMTP 端口号必须在 1-65535 之间");
+        }
+
+        // If password is null, keep existing password
+        String password = request.getPassword();
+        if (password == null) {
+            SmtpPolicy existing = smtpPolicyService.getPolicy();
+            password = existing.password();
+        }
+
+        String senderAddress = normalizeOptionalValue(request.getSenderAddress());
+        if (senderAddress == null) {
+            senderAddress = request.getUsername();
+        }
+
+        systemSettingOverrideService.saveSmtpPolicy(new SmtpPolicy(
+                request.getHost().trim(),
+                request.getPort(),
+                request.getUsername() != null ? request.getUsername().trim() : "",
+                password != null ? password : "",
+                Boolean.TRUE.equals(request.getStarttlsEnabled()),
+                senderAddress
+        ));
+    }
+
+    @Override
+    public void sendTestEmail(String toEmail) {
+        if (toEmail == null || toEmail.isBlank()) {
+            throw new IllegalArgumentException("收件人邮箱不能为空");
+        }
+        emailServiceImpl.sendTestEmail(toEmail.trim());
     }
 
     private AdminRateLimitPolicyVO toRateLimitVO(RateLimitScene scene, RateLimitRule rule) {

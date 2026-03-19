@@ -8,6 +8,8 @@ import com.finalpre.quickshare.dto.AdminFilePreviewPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminSmtpTestRequest;
 import com.finalpre.quickshare.dto.AdminUserRoleUpdateRequest;
 import com.finalpre.quickshare.vo.AdminConsoleAccessVO;
 import com.finalpre.quickshare.service.AdminPolicyService;
@@ -19,6 +21,7 @@ import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
 import com.finalpre.quickshare.vo.AdminOverviewVO;
 import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
+import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
 import com.finalpre.quickshare.vo.AdminShareVO;
 import com.finalpre.quickshare.vo.UserVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -168,6 +171,23 @@ public class AdminController {
     @PutMapping("/settings/file-preview")
     public Result<Void> updateFilePreviewPolicy(@RequestBody AdminFilePreviewPolicyUpdateRequest request) {
         adminPolicyService.updateFilePreviewPolicy(request);
+        return Result.success();
+    }
+
+    @GetMapping("/settings/smtp")
+    public Result<AdminSmtpPolicyVO> getSmtpPolicy() {
+        return Result.success(adminPolicyService.getSmtpPolicy());
+    }
+
+    @PutMapping("/settings/smtp")
+    public Result<Void> updateSmtpPolicy(@RequestBody AdminSmtpPolicyUpdateRequest request) {
+        adminPolicyService.updateSmtpPolicy(request);
+        return Result.success();
+    }
+
+    @PostMapping("/settings/smtp/test")
+    public Result<Void> sendTestEmail(@RequestBody AdminSmtpTestRequest request) {
+        adminPolicyService.sendTestEmail(request.getToEmail());
         return Result.success();
     }
 }

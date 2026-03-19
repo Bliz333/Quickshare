@@ -7,6 +7,7 @@ import com.finalpre.quickshare.dto.AdminFilePreviewPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
 import com.finalpre.quickshare.service.AdminConsoleAccessPolicy;
 import com.finalpre.quickshare.service.AdminConsoleAccessService;
 import com.finalpre.quickshare.service.CorsPolicy;
@@ -19,11 +20,14 @@ import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.service.CorsPolicyService;
 import com.finalpre.quickshare.service.RateLimitPolicyService;
 import com.finalpre.quickshare.service.RateLimitRule;
+import com.finalpre.quickshare.service.SmtpPolicy;
+import com.finalpre.quickshare.service.SmtpPolicyService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import com.finalpre.quickshare.vo.AdminFilePreviewPolicyVO;
 import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
 import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
+import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -58,6 +62,12 @@ class AdminPolicyServiceImplTest {
 
     @Mock
     private RegistrationSettingsService registrationSettingsService;
+
+    @Mock
+    private SmtpPolicyService smtpPolicyService;
+
+    @Mock
+    private EmailServiceImpl emailServiceImpl;
 
     @Mock
     private SystemSettingOverrideService systemSettingOverrideService;
@@ -236,6 +246,94 @@ class AdminPolicyServiceImplTest {
         assertThatThrownBy(() -> adminPolicyService.updateCorsPolicy(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("通配来源不支持携带凭证");
+    }
+
+    @Test
+    void getSmtpPolicyShouldMaskPassword() {
+        when(smtpPolicyService.getPolicy()).thenReturn(new SmtpPolicy(
+                "smtp.gmail.com", 587, "user@gmail.com", "secret123", true, "user@gmail.com"
+        ));
+
+        AdminSmtpPolicyVO vo = adminPolicyService.getSmtpPolicy();
+
+        assertThat(vo.getHost()).isEqualTo("smtp.gmail.com");
+        assertThat(vo.getPort()).isEqualTo(587);
+        assertThat(vo.getUsername()).isEqualTo("user@gmail.com");
+        assertThat(vo.isHasPassword()).isTrue();
+        assertThat(vo.isStarttlsEnabled()).isTrue();
+        assertThat(vo.getSenderAddress()).isEqualTo("user@gmail.com");
+    }
+
+    @Test
+    void getSmtpPolicyShouldShowNoPasswordWhenEmpty() {
+        when(smtpPolicyService.getPolicy()).thenReturn(new SmtpPolicy(
+                "smtp.gmail.com", 587, "user@gmail.com", "", true, "user@gmail.com"
+        ));
+
+        AdminSmtpPolicyVO vo = adminPolicyService.getSmtpPolicy();
+        assertThat(vo.isHasPassword()).isFalse();
+    }
+
+    @Test
+    void updateSmtpPolicyShouldPersistOverride() {
+        AdminSmtpPolicyUpdateRequest request = new AdminSmtpPolicyUpdateRequest();
+        request.setHost("smtp.example.com");
+        request.setPort(465);
+        request.setUsername("admin@example.com");
+        request.setPassword("newpass");
+        request.setStarttlsEnabled(true);
+        request.setSenderAddress("noreply@example.com");
+
+        adminPolicyService.updateSmtpPolicy(request);
+
+        ArgumentCaptor<SmtpPolicy> captor = ArgumentCaptor.forClass(SmtpPolicy.class);
+        verify(systemSettingOverrideService).saveSmtpPolicy(captor.capture());
+        assertThat(captor.getValue().host()).isEqualTo("smtp.example.com");
+        assertThat(captor.getValue().port()).isEqualTo(465);
+        assertThat(captor.getValue().password()).isEqualTo("newpass");
+        assertThat(captor.getValue().senderAddress()).isEqualTo("noreply@example.com");
+    }
+
+    @Test
+    void updateSmtpPolicyShouldKeepExistingPasswordWhenNull() {
+        when(smtpPolicyService.getPolicy()).thenReturn(new SmtpPolicy(
+                "smtp.gmail.com", 587, "user@gmail.com", "oldpass", true, "user@gmail.com"
+        ));
+
+        AdminSmtpPolicyUpdateRequest request = new AdminSmtpPolicyUpdateRequest();
+        request.setHost("smtp.gmail.com");
+        request.setPort(587);
+        request.setUsername("user@gmail.com");
+        request.setPassword(null); // no new password
+        request.setStarttlsEnabled(true);
+
+        adminPolicyService.updateSmtpPolicy(request);
+
+        ArgumentCaptor<SmtpPolicy> captor = ArgumentCaptor.forClass(SmtpPolicy.class);
+        verify(systemSettingOverrideService).saveSmtpPolicy(captor.capture());
+        assertThat(captor.getValue().password()).isEqualTo("oldpass");
+    }
+
+    @Test
+    void updateSmtpPolicyShouldRejectEmptyHost() {
+        AdminSmtpPolicyUpdateRequest request = new AdminSmtpPolicyUpdateRequest();
+        request.setHost("");
+        request.setPort(587);
+
+        assertThatThrownBy(() -> adminPolicyService.updateSmtpPolicy(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("SMTP 主机地址不能为空");
+    }
+
+    @Test
+    void updateSmtpPolicyShouldRejectInvalidPort() {
+        AdminSmtpPolicyUpdateRequest request = new AdminSmtpPolicyUpdateRequest();
+        request.setHost("smtp.example.com");
+        request.setPort(0);
+
+        assertThatThrownBy(() -> adminPolicyService.updateSmtpPolicy(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("SMTP 端口号必须在 1-65535 之间");
     }
 
     @Test

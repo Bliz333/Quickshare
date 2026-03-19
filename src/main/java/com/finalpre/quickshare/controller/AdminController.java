@@ -9,6 +9,8 @@ import com.finalpre.quickshare.dto.AdminFileUploadPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
+import com.finalpre.quickshare.dto.AdminPlanRequest;
+import com.finalpre.quickshare.entity.Plan;
 import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminStoragePolicyUpdateRequest;
@@ -212,6 +214,29 @@ public class AdminController {
     @PostMapping("/announcement")
     public Result<AdminAnnouncementResultVO> sendAnnouncement(@RequestBody AdminAnnouncementRequest request) {
         return Result.success(adminService.sendAnnouncement(request));
+    }
+
+    // --- Plan Management ---
+
+    @GetMapping("/plans")
+    public Result<List<Plan>> getPlans() {
+        return Result.success(adminService.getPlans());
+    }
+
+    @PostMapping("/plans")
+    public Result<Plan> createPlan(@RequestBody AdminPlanRequest request) {
+        return Result.success(adminService.createPlan(request));
+    }
+
+    @PutMapping("/plans/{planId}")
+    public Result<Plan> updatePlan(@PathVariable Long planId, @RequestBody AdminPlanRequest request) {
+        return Result.success(adminService.updatePlan(planId, request));
+    }
+
+    @DeleteMapping("/plans/{planId}")
+    public Result<Void> deletePlan(@PathVariable Long planId) {
+        adminService.deletePlan(planId);
+        return Result.success();
     }
 
     @GetMapping("/settings/storage")

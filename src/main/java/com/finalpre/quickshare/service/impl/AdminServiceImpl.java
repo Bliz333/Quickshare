@@ -5,6 +5,9 @@ import com.finalpre.quickshare.common.ResourceNotFoundException;
 import com.finalpre.quickshare.common.UserRole;
 import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
 import com.finalpre.quickshare.dto.AdminCreateUserRequest;
+import com.finalpre.quickshare.dto.AdminPlanRequest;
+import com.finalpre.quickshare.entity.Plan;
+import com.finalpre.quickshare.mapper.PlanMapper;
 import com.finalpre.quickshare.entity.FileInfo;
 import com.finalpre.quickshare.entity.ShareLink;
 import com.finalpre.quickshare.entity.User;
@@ -60,6 +63,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private StorageService storageService;
+
+    @Autowired
+    private PlanMapper planMapper;
 
     @Override
     public AdminOverviewVO getOverview() {
@@ -233,6 +239,63 @@ public class AdminServiceImpl implements AdminService {
 
         shareLinkMapper.delete(new QueryWrapper<ShareLink>().eq("file_id", fileInfo.getId()));
         fileInfoMapper.deleteById(fileInfo.getId());
+    }
+
+    @Override
+    public List<Plan> getPlans() {
+        return planMapper.selectList(new QueryWrapper<Plan>().orderByAsc("sort_order").orderByDesc("create_time"));
+    }
+
+    @Override
+    public Plan createPlan(AdminPlanRequest request) {
+        validatePlanRequest(request);
+        Plan plan = new Plan();
+        applyPlanFields(plan, request);
+        plan.setCreateTime(LocalDateTime.now());
+        planMapper.insert(plan);
+        return plan;
+    }
+
+    @Override
+    public Plan updatePlan(Long planId, AdminPlanRequest request) {
+        Plan plan = planMapper.selectById(planId);
+        if (plan == null) throw new ResourceNotFoundException("套餐不存在");
+        validatePlanRequest(request);
+        applyPlanFields(plan, request);
+        planMapper.updateById(plan);
+        return plan;
+    }
+
+    @Override
+    public void deletePlan(Long planId) {
+        Plan plan = planMapper.selectById(planId);
+        if (plan == null) throw new ResourceNotFoundException("套餐不存在");
+        planMapper.deleteById(planId);
+    }
+
+    private void validatePlanRequest(AdminPlanRequest request) {
+        if (request == null || request.getName() == null || request.getName().isBlank()) {
+            throw new IllegalArgumentException("套餐名称不能为空");
+        }
+        if (request.getType() == null || !List.of("storage", "downloads", "vip").contains(request.getType())) {
+            throw new IllegalArgumentException("套餐类型必须是 storage / downloads / vip");
+        }
+        if (request.getPrice() == null || request.getPrice().signum() < 0) {
+            throw new IllegalArgumentException("价格不能为负数");
+        }
+        if (request.getValue() == null || request.getValue() < 0) {
+            throw new IllegalArgumentException("套餐值不能为负数");
+        }
+    }
+
+    private void applyPlanFields(Plan plan, AdminPlanRequest request) {
+        plan.setName(request.getName().trim());
+        plan.setDescription(request.getDescription());
+        plan.setType(request.getType());
+        plan.setValue(request.getValue());
+        plan.setPrice(request.getPrice());
+        plan.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+        plan.setStatus(request.getStatus() != null ? request.getStatus() : 1);
     }
 
     private void deletePhysicalFile(FileInfo fileInfo) {

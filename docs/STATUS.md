@@ -1,5 +1,14 @@
 # QuickShare 项目状态（2026-03-19）
 
+## 2026-03-19 StorageService 抽象层 + S3 兼容存储完成
+- 引入 `StorageService` 接口，统一文件存储操作（store/retrieve/delete/exists/getSize/getLocalPath）
+- `LocalStorageService`：本地文件系统实现（默认），向后兼容旧的全路径数据
+- `S3CompatibleStorageService`：S3 兼容实现，支持 AWS S3、MinIO、Cloudflare R2 等
+- `FileServiceImpl`、`FileController`、`AdminServiceImpl` 全部重构为通过 StorageService 操作文件
+- S3 模式下 Office 预览和缩略图通过 `getLocalPath()` 自动下载到临时文件处理
+- 通过 `STORAGE_TYPE=local|s3` 环境变量切换存储后端
+- 后端 154 测试全通过，所有测试已更新为 mock StorageService
+
 ## 2026-03-19 ShareLink 并发安全加固完成
 - shareCode 生成改为带重试逻辑（最多 5 次），碰到唯一约束冲突自动重新生成
 - 下载计数改为原子 SQL `UPDATE ... SET download_count = download_count + 1 WHERE ... AND (max_download = -1 OR download_count < max_download)`

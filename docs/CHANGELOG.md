@@ -2,6 +2,21 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-19 (StorageService 抽象层 + S3 兼容存储)
+
+- 本轮主题：文件存储抽象层，支持本地和 S3 兼容存储
+- 核心变更：
+  - 新增 `StorageService` 接口（store/retrieve/delete/exists/getSize/getLocalPath）
+  - `LocalStorageService`：本地文件系统实现，`@ConditionalOnProperty(storage.type=local)`
+  - `S3CompatibleStorageService`：AWS SDK v2，支持 S3/MinIO/R2 等，path-style access 可配
+  - `FileServiceImpl` / `FileController` / `AdminServiceImpl` 全部通过 StorageService 操作文件
+  - S3 模式 `getLocalPath()` 下载到临时文件供 LibreOffice/Thumbnails 使用
+  - `.env.example` / `application.yml` / `compose.yaml` 已补 S3 配置项
+- 验证结果：
+  - `mvn test`：154 测试全通过
+  - 所有文件操作测试已改为 mock StorageService
+- 下一步：Docker smoke test 验证 S3 模式（可选 MinIO 容器联调）
+
 ## 2026-03-19 (ShareLink 并发安全加固)
 
 - 本轮主题：ShareLink 唯一性和下载计数并发安全

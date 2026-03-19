@@ -2,6 +2,21 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-19 (敏感配置加密存储)
+
+- 本轮主题：system_setting 表敏感配置 AES-GCM 加密存储
+- 核心变更：
+  - 新增 `SettingEncryptor` 接口和 `AesSettingEncryptor` 实现（AES-256-GCM + 随机 IV）
+  - 加密密钥通过 `SETTING_ENCRYPT_KEY` 环境变量注入，SHA-256 派生
+  - `SystemSettingOverrideServiceImpl` 对 `smtp.policy` 和 `registration.settings` 自动加密/解密
+  - 加密值 `ENC:` 前缀标识，明文旧数据自动透传（向后兼容）
+  - 无密钥时降级为明文存储 + 启动警告
+  - `.env.example` 和 `compose.yaml` 已补 `SETTING_ENCRYPT_KEY`
+- 验证结果：
+  - `mvn test`：153 测试全通过（+6 加密测试）
+  - Docker smoke test：DB 中 SMTP/注册设置为 `ENC:` 密文，CORS 为明文，API 读取正常
+- 下一步：PDF.js 公开分享页对齐、更多分享/预览收口
+
 ## 2026-03-19 (管理员公告邮件)
 
 - 本轮主题：管理员可向全部或指定用户发送公告邮件

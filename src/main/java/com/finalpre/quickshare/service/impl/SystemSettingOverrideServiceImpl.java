@@ -14,6 +14,7 @@ import com.finalpre.quickshare.service.EmailTemplate;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.RateLimitRule;
 import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
+import com.finalpre.quickshare.service.SettingEncryptor;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -38,6 +40,12 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
     private static final String SMTP_POLICY_KEY = "smtp.policy";
     private static final String EMAIL_TEMPLATE_KEY_PREFIX = "email-template.";
 
+    /** Keys whose config_value contains secrets and must be encrypted at rest. */
+    private static final Set<String> SENSITIVE_KEYS = Set.of(
+            SMTP_POLICY_KEY,
+            REGISTRATION_SETTINGS_KEY
+    );
+
     private final Map<String, String> cache = new ConcurrentHashMap<>();
 
     @Autowired
@@ -46,13 +54,27 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private SettingEncryptor settingEncryptor;
+
     @PostConstruct
     public void loadOverrides() {
         try {
             List<SystemSetting> settings = systemSettingMapper.selectList(null);
             for (SystemSetting setting : settings) {
                 if (setting.getConfigKey() != null && setting.getConfigValue() != null) {
-                    cache.put(setting.getConfigKey(), setting.getConfigValue());
+                    String value = setting.getConfigValue();
+                    // Decrypt sensitive keys on load
+                    if (isSensitive(setting.getConfigKey()) && settingEncryptor.isEncrypted(value)) {
+                        String decrypted = settingEncryptor.decrypt(value);
+                        if (decrypted != null) {
+                            value = decrypted;
+                        } else {
+                            log.warn("Failed to decrypt setting {}, skipping", setting.getConfigKey());
+                            continue;
+                        }
+                    }
+                    cache.put(setting.getConfigKey(), value);
                 }
             }
         } catch (Exception ex) {
@@ -203,6 +225,10 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
     private void upsert(String key, Object value, String description) {
         try {
             String rawValue = objectMapper.writeValueAsString(value);
+
+            // Encrypt sensitive values before DB storage
+            String dbValue = isSensitive(key) ? settingEncryptor.encrypt(rawValue) : rawValue;
+
             SystemSetting existing = systemSettingMapper.selectOne(new QueryWrapper<SystemSetting>()
                     .eq("config_key", key)
                     .last("LIMIT 1"));
@@ -210,18 +236,23 @@ public class SystemSettingOverrideServiceImpl implements SystemSettingOverrideSe
             if (existing == null) {
                 SystemSetting setting = new SystemSetting();
                 setting.setConfigKey(key);
-                setting.setConfigValue(rawValue);
+                setting.setConfigValue(dbValue);
                 setting.setDescription(description);
                 systemSettingMapper.insert(setting);
             } else {
-                existing.setConfigValue(rawValue);
+                existing.setConfigValue(dbValue);
                 existing.setDescription(description);
                 systemSettingMapper.updateById(existing);
             }
 
+            // Cache holds plaintext for runtime use
             cache.put(key, rawValue);
         } catch (JsonProcessingException ex) {
             throw new IllegalArgumentException("策略序列化失败", ex);
         }
+    }
+
+    private boolean isSensitive(String key) {
+        return key != null && SENSITIVE_KEYS.contains(key);
     }
 }

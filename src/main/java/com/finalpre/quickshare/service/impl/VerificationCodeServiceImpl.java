@@ -1,11 +1,13 @@
 package com.finalpre.quickshare.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
+import com.finalpre.quickshare.common.FeatureDisabledException;
 import com.finalpre.quickshare.service.EmailService;
+import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
+import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.service.VerificationCodeService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -25,11 +27,8 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     @Autowired
     private StringRedisTemplate redisTemplate;
 
-    @Value("${recaptcha.secret-key}")
-    private String recaptchaSecretKey;
-
-    @Value("${recaptcha.enabled:true}")
-    private boolean recaptchaEnabled;
+    @Autowired
+    private RegistrationSettingsService registrationSettingsService;
 
     private static final String CODE_PREFIX = "email:code:";
     private static final int CODE_EXPIRE_MINUTES = 5;   // 验证码有效期5分钟
@@ -38,16 +37,21 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     public String generateAndSendCode(String email, String recaptchaToken) {
         log.info("[验证码发送] 请求邮箱：{}", email);
 
-        if (recaptchaEnabled) {
+        RegistrationSettingsPolicy registrationSettings = registrationSettingsService.getPolicy();
+        if (!registrationSettings.emailVerificationEnabled()) {
+            throw new FeatureDisabledException("当前未启用邮箱验证码");
+        }
+
+        if (registrationSettings.recaptchaEnabled()) {
             if (recaptchaToken == null || recaptchaToken.isBlank()) {
-                throw new RuntimeException("缺少人机验证，请重试");
+                throw new IllegalArgumentException("缺少人机验证，请重试");
             }
-            if (!verifyRecaptcha(recaptchaToken)) {
+            if (!verifyRecaptcha(recaptchaToken, registrationSettings)) {
                 log.warn("[验证码发送] reCAPTCHA 验证失败：{}", email);
-                throw new RuntimeException("人机验证失败，请重试");
+                throw new IllegalArgumentException("人机验证失败，请重试");
             }
         } else {
-            log.info("[验证码发送] 已关闭 reCAPTCHA 校验（配置项 recaptcha.enabled=false）");
+            log.info("[验证码发送] 已关闭 reCAPTCHA 校验");
         }
 
         // 2️⃣ 检查发送频率（60 秒内禁止重复发送）
@@ -55,7 +59,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         if (redisTemplate.hasKey(key)) {
             Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
             if (ttl != null && ttl > 240) { // 剩余>240s 表示刚发过
-                throw new RuntimeException("验证码已发送，请稍后再试");
+                throw new IllegalArgumentException("验证码已发送，请稍后再试");
             }
         }
 
@@ -105,17 +109,17 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     /**
      * 正确的 reCAPTCHA 校验逻辑 (表单方式)
      */
-    private boolean verifyRecaptcha(String token) {
+    private boolean verifyRecaptcha(String token, RegistrationSettingsPolicy registrationSettings) {
         try {
-            if (recaptchaSecretKey == null || recaptchaSecretKey.isBlank()) {
+            if (registrationSettings == null || registrationSettings.recaptchaSecretKey() == null || registrationSettings.recaptchaSecretKey().isBlank()) {
                 log.warn("[reCAPTCHA] 未配置 secret key");
                 return false;
             }
             RestTemplate restTemplate = new RestTemplate();
-            String url = "https://www.google.com/recaptcha/api/siteverify";
+            String url = registrationSettings.recaptchaVerifyUrl();
 
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-            params.add("secret", recaptchaSecretKey);
+            params.add("secret", registrationSettings.recaptchaSecretKey());
             params.add("response", token);
 
             Map<String, Object> response = restTemplate.postForObject(url, params, Map.class);

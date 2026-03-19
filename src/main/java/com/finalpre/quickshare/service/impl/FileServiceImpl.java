@@ -4,6 +4,7 @@ import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.finalpre.quickshare.common.ResourceNotFoundException;
 import com.finalpre.quickshare.config.FileConfig;
 import com.finalpre.quickshare.dto.ShareRequestDTO;
 import com.finalpre.quickshare.entity.FileInfo;
@@ -11,10 +12,13 @@ import com.finalpre.quickshare.entity.ShareLink;
 import com.finalpre.quickshare.mapper.FileInfoMapper;
 import com.finalpre.quickshare.mapper.ShareLinkMapper;
 import com.finalpre.quickshare.service.FileService;
+import com.finalpre.quickshare.service.FileUploadPolicy;
+import com.finalpre.quickshare.service.FileUploadPolicyService;
 import com.finalpre.quickshare.vo.FileInfoVO;
 import com.finalpre.quickshare.vo.ShareLinkVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,6 +43,9 @@ public class FileServiceImpl implements FileService {
     @Autowired
     private FileConfig fileConfig;
 
+    @Autowired
+    private FileUploadPolicyService fileUploadPolicyService;
+
     @Override
     public FileInfoVO uploadFile(MultipartFile file, Long userId, Long folderId) {
         try {
@@ -47,20 +54,21 @@ public class FileServiceImpl implements FileService {
 
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null || originalFilename.trim().isEmpty()) {
-                throw new RuntimeException("文件名不能为空");
+                throw new IllegalArgumentException("文件名不能为空");
             }
             String safeOriginalName = Paths.get(originalFilename).getFileName().toString();
             int dotIndex = safeOriginalName.lastIndexOf('.');
             String extension = dotIndex > 0 ? safeOriginalName.substring(dotIndex + 1).toLowerCase() : "";
 
-            List<String> allowedTypes = fileConfig.getAllowedTypes();
+            FileUploadPolicy fileUploadPolicy = fileUploadPolicyService.getPolicy();
+            List<String> allowedTypes = fileUploadPolicy.allowedExtensions();
             if (!allowedTypes.isEmpty() && (extension.isEmpty() || !allowedTypes.contains(extension))) {
-                throw new RuntimeException("不支持的文件类型");
+                throw new IllegalArgumentException("不支持的文件类型");
             }
 
-            long maxSize = fileConfig.getMaxFileSize();
+            long maxSize = fileUploadPolicy.maxFileSizeBytes();
             if (maxSize > 0 && file.getSize() > maxSize) {
-                throw new RuntimeException("文件大小超过限制");
+                throw new IllegalArgumentException("文件大小超过限制");
             }
 
             String fileName = IdUtil.simpleUUID() + (extension.isEmpty() ? "" : "." + extension);
@@ -101,7 +109,7 @@ public class FileServiceImpl implements FileService {
             return convertToVO(fileInfo);
 
         } catch (IOException e) {
-            throw new RuntimeException("文件上传失败: " + e.getMessage());
+            throw new RuntimeException("文件上传失败: " + e.getMessage(), e);
         }
     }
 
@@ -109,13 +117,13 @@ public class FileServiceImpl implements FileService {
     public ShareLinkVO createShareLink(ShareRequestDTO request, Long userId) {
         // 检查文件是否存在
         FileInfo fileInfo = fileInfoMapper.selectById(request.getFileId());
-        if (fileInfo == null) {
-            throw new RuntimeException("文件不存在");
+        if (fileInfo == null || (fileInfo.getDeleted() != null && fileInfo.getDeleted() == 1)) {
+            throw new ResourceNotFoundException("文件不存在");
         }
 
         // 验证文件所有权
         if (!fileInfo.getUserId().equals(userId)) {
-            throw new RuntimeException("无权分享此文件");
+            throw new AccessDeniedException("无权分享此文件");
         }
 
         // 生成分享码和提取码
@@ -164,37 +172,37 @@ public class FileServiceImpl implements FileService {
         ShareLink shareLink = shareLinkMapper.selectOne(wrapper);
 
         if (shareLink == null) {
-            throw new RuntimeException("分享链接不存在");
+            throw new ResourceNotFoundException("分享链接不存在");
         }
 
         if (shareLink.getStatus() == null || shareLink.getStatus() == 0) {
-            throw new RuntimeException("分享链接已失效");
+            throw new IllegalArgumentException("分享链接已失效");
         }
 
         // 验证提取码
         if (!shareLink.getExtractCode().equals(extractCode)) {
-            throw new RuntimeException("提取码错误");
+            throw new IllegalArgumentException("提取码错误");
         }
 
         // 检查是否过期
         if (shareLink.getExpireTime() != null && LocalDateTime.now().isAfter(shareLink.getExpireTime())) {
-            throw new RuntimeException("分享链接已过期");
+            throw new IllegalArgumentException("分享链接已过期");
         }
 
         // 检查下载次数
         if (shareLink.getMaxDownload() > 0 && shareLink.getDownloadCount() >= shareLink.getMaxDownload()) {
-            throw new RuntimeException("下载次数已达上限");
+            throw new IllegalArgumentException("下载次数已达上限");
         }
 
         // 检查状态
         if (shareLink.getStatus() == 0) {
-            throw new RuntimeException("分享链接已失效");
+            throw new IllegalArgumentException("分享链接已失效");
         }
 
         // 获取文件信息
         FileInfo fileInfo = fileInfoMapper.selectById(shareLink.getFileId());
         if (fileInfo == null || (fileInfo.getDeleted() != null && fileInfo.getDeleted() == 1)) {
-            throw new RuntimeException("文件不存在或已删除");
+            throw new ResourceNotFoundException("文件不存在或已删除");
         }
 
         // 返回VO
@@ -225,7 +233,7 @@ public class FileServiceImpl implements FileService {
             // 读取文件
             File file = new File(fileInfo.getFilePath());
             if (!file.exists()) {
-                throw new RuntimeException("文件不存在");
+                throw new ResourceNotFoundException("文件不存在");
             }
 
             // 设置响应头
@@ -250,7 +258,7 @@ public class FileServiceImpl implements FileService {
             shareLinkMapper.updateById(shareLink);
 
         } catch (IOException e) {
-            throw new RuntimeException("文件下载失败: " + e.getMessage());
+            throw new RuntimeException("文件下载失败: " + e.getMessage(), e);
         }
     }
 
@@ -283,12 +291,12 @@ public class FileServiceImpl implements FileService {
         FileInfo fileInfo = fileInfoMapper.selectById(fileId);
 
         if (fileInfo == null) {
-            throw new RuntimeException("文件不存在");
+            throw new ResourceNotFoundException("文件不存在");
         }
 
         // 验证是否是文件所有者
         if (!fileInfo.getUserId().equals(userId)) {
-            throw new RuntimeException("无权删除此文件");
+            throw new AccessDeniedException("无权删除此文件");
         }
 
         deletePhysicalFile(fileInfo);
@@ -302,16 +310,16 @@ public class FileServiceImpl implements FileService {
     public void renameFile(Long fileId, String newName, Long userId) {
         FileInfo fileInfo = fileInfoMapper.selectById(fileId);
         if (fileInfo == null) {
-            throw new RuntimeException("文件不存在");
+            throw new ResourceNotFoundException("文件不存在");
         }
         if (!fileInfo.getUserId().equals(userId)) {
-            throw new RuntimeException("无权修改此文件");
+            throw new AccessDeniedException("无权修改此文件");
         }
         if (fileInfo.getDeleted() != null && fileInfo.getDeleted() == 1) {
-            throw new RuntimeException("文件不存在");
+            throw new ResourceNotFoundException("文件不存在");
         }
         if (Integer.valueOf(1).equals(fileInfo.getIsFolder())) {
-            throw new RuntimeException("该对象不是文件");
+            throw new IllegalArgumentException("该对象不是文件");
         }
 
         String normalizedName = normalizeItemName(newName, "文件名");
@@ -329,16 +337,16 @@ public class FileServiceImpl implements FileService {
         FileInfo fileInfo = fileInfoMapper.selectById(fileId);
 
         if (fileInfo == null) {
-            throw new RuntimeException("文件不存在");
+            throw new ResourceNotFoundException("文件不存在");
         }
 
         if (fileInfo.getDeleted() != null && fileInfo.getDeleted() == 1) {
-            throw new RuntimeException("文件不存在");
+            throw new ResourceNotFoundException("文件不存在");
         }
 
         // 验证权限
         if (!fileInfo.getUserId().equals(userId)) {
-            throw new RuntimeException("无权访问此文件");
+            throw new AccessDeniedException("无权访问此文件");
         }
 
         return convertToVO(fileInfo);
@@ -408,17 +416,17 @@ public class FileServiceImpl implements FileService {
         FileInfo folder = fileInfoMapper.selectById(folderId);
 
         if (folder == null) {
-            throw new RuntimeException("文件夹不存在");
+            throw new ResourceNotFoundException("文件夹不存在");
         }
 
         // 验证是否是文件夹所有者
         if (!folder.getUserId().equals(userId)) {
-            throw new RuntimeException("无权删除此文件夹");
+            throw new AccessDeniedException("无权删除此文件夹");
         }
 
         // 验证是否是文件夹
         if (folder.getIsFolder() != 1) {
-            throw new RuntimeException("该对象不是文件夹");
+            throw new IllegalArgumentException("该对象不是文件夹");
         }
 
         // 删除文件夹下的所有文件
@@ -447,16 +455,16 @@ public class FileServiceImpl implements FileService {
     public void renameFolder(Long folderId, String newName, Long userId) {
         FileInfo folder = fileInfoMapper.selectById(folderId);
         if (folder == null) {
-            throw new RuntimeException("文件夹不存在");
+            throw new ResourceNotFoundException("文件夹不存在");
         }
         if (!folder.getUserId().equals(userId)) {
-            throw new RuntimeException("无权修改此文件夹");
+            throw new AccessDeniedException("无权修改此文件夹");
         }
         if (folder.getDeleted() != null && folder.getDeleted() == 1) {
-            throw new RuntimeException("文件夹不存在");
+            throw new ResourceNotFoundException("文件夹不存在");
         }
         if (folder.getIsFolder() != 1) {
-            throw new RuntimeException("该对象不是文件夹");
+            throw new IllegalArgumentException("该对象不是文件夹");
         }
 
         String normalizedName = normalizeItemName(newName, "文件夹名");
@@ -473,7 +481,7 @@ public class FileServiceImpl implements FileService {
 
     private String normalizeItemName(String rawName, String label) {
         if (rawName == null || rawName.trim().isEmpty()) {
-            throw new RuntimeException(label + "不能为空");
+            throw new IllegalArgumentException(label + "不能为空");
         }
         return rawName.trim();
     }
@@ -489,7 +497,7 @@ public class FileServiceImpl implements FileService {
         }
 
         if (fileInfoMapper.selectCount(wrapper) > 0) {
-            throw new RuntimeException("该目录下已存在同名文件或文件夹");
+            throw new IllegalArgumentException("该目录下已存在同名文件或文件夹");
         }
     }
 
@@ -500,13 +508,13 @@ public class FileServiceImpl implements FileService {
 
         FileInfo folder = fileInfoMapper.selectById(folderId);
         if (folder == null || (folder.getDeleted() != null && folder.getDeleted() == 1)) {
-            throw new RuntimeException("目标文件夹不存在");
+            throw new ResourceNotFoundException("目标文件夹不存在");
         }
         if (!userId.equals(folder.getUserId())) {
-            throw new RuntimeException("无权上传到该文件夹");
+            throw new AccessDeniedException("无权上传到该文件夹");
         }
         if (!Integer.valueOf(1).equals(folder.getIsFolder())) {
-            throw new RuntimeException("目标路径不是文件夹");
+            throw new IllegalArgumentException("目标路径不是文件夹");
         }
     }
 

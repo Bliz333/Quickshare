@@ -2,6 +2,7 @@ package com.finalpre.quickshare.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.unit.DataSize;
 
 import java.io.File;
 import java.util.Arrays;
@@ -20,6 +21,9 @@ public class FileConfig {
 
     @Value("${file.max-size:-1}")
     private long maxFileSize;
+
+    @Value("${spring.servlet.multipart.max-file-size:10GB}")
+    private String servletMaxFileSize;
 
     public String getUploadDir() {
         File dir = new File(uploadDir);
@@ -42,5 +46,17 @@ public class FileConfig {
 
     public long getMaxFileSize() {
         return maxFileSize;
+    }
+
+    public long getServletMaxFileSizeBytes() {
+        if (servletMaxFileSize == null || servletMaxFileSize.isBlank()) {
+            return -1L;
+        }
+
+        try {
+            return DataSize.parse(servletMaxFileSize).toBytes();
+        } catch (IllegalArgumentException ex) {
+            return -1L;
+        }
     }
 }

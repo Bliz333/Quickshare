@@ -6,11 +6,12 @@ spring:
     password: change_me
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  redis:
-    host: localhost
-    port: 6379
-    password:
-    database: 0
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
 
   servlet:
     multipart:
@@ -49,5 +50,49 @@ recaptcha:
   verify-url: https://www.google.com/recaptcha/api/siteverify
 
 app:
+  admin-console:
+    slug: quickshare-admin
+  registration:
+    email-verification-enabled: false
   cors:
     allowed-origins: http://localhost:3000,http://localhost:8080
+    allow-credentials: false
+    max-age-seconds: 3600
+  file-preview:
+    enabled: true
+    image-enabled: true
+    video-enabled: true
+    audio-enabled: true
+    pdf-enabled: true
+    text-enabled: true
+    office-enabled: true
+    allowed-extensions:
+  office-preview:
+    enabled: true
+    command: soffice
+    timeout-seconds: 120
+    cache-dir:
+  bootstrap-admin:
+    enabled: false
+    username:
+    password:
+    email:
+    nickname:
+    reset-password-on-startup: false
+  rate-limit:
+    guest-upload:
+      enabled: true
+      max-requests: 10
+      window-seconds: 600
+    public-download:
+      enabled: true
+      max-requests: 30
+      window-seconds: 600
+    public-share-info:
+      enabled: true
+      max-requests: 60
+      window-seconds: 600
+    public-share-extract-code-error:
+      enabled: true
+      max-requests: 5
+      window-seconds: 600

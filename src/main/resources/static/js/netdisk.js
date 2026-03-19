@@ -11,6 +11,7 @@ let files = [];
 let folders = [];
 let folderPath = [];
 let isMobile = window.innerWidth <= 768;
+let filePreviewPolicy = createDefaultFilePreviewPolicy();
 
 // 文件类型映射
 const FILE_TYPE_MAP = {
@@ -21,6 +22,156 @@ const FILE_TYPE_MAP = {
     'zip': 'archive', 'rar': 'archive', '7z': 'archive', 'tar': 'archive'
 };
 
+const TEXT_PREVIEW_EXTENSIONS = new Set([
+    'txt', 'md', 'markdown', 'csv', 'log', 'json', 'xml', 'yaml', 'yml',
+    'properties', 'ini', 'conf', 'sql', 'sh', 'bat', 'java', 'js', 'ts',
+    'tsx', 'jsx', 'css', 'html', 'htm'
+]);
+const TEXT_PREVIEW_MIME_TYPES = new Set([
+    'application/json', 'application/xml', 'application/javascript', 'application/x-javascript',
+    'application/yaml', 'application/x-yaml', 'application/sql'
+]);
+const OFFICE_PREVIEW_EXTENSIONS = new Set(['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp']);
+const OFFICE_PREVIEW_MIME_TYPES = new Set([
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.oasis.opendocument.spreadsheet',
+    'application/vnd.oasis.opendocument.presentation'
+]);
+
+function createDefaultFilePreviewPolicy() {
+    return {
+        enabled: true,
+        imageEnabled: true,
+        videoEnabled: true,
+        audioEnabled: true,
+        pdfEnabled: true,
+        textEnabled: true,
+        officeEnabled: true,
+        allowedExtensions: []
+    };
+}
+
+function normalizePreviewExtension(fileName) {
+    const rawName = String(fileName || '').trim().toLowerCase();
+    const dotIndex = rawName.lastIndexOf('.');
+    if (dotIndex < 0 || dotIndex === rawName.length - 1) return '';
+    return rawName.slice(dotIndex + 1);
+}
+
+function normalizePreviewContentType(contentType) {
+    const value = String(contentType || '').trim().toLowerCase();
+    if (!value) return '';
+    const semicolonIndex = value.indexOf(';');
+    return semicolonIndex >= 0 ? value.slice(0, semicolonIndex).trim() : value;
+}
+
+function getPreviewAllowedExtensions() {
+    return Array.isArray(filePreviewPolicy?.allowedExtensions)
+        ? filePreviewPolicy.allowedExtensions.map(item => String(item || '').trim().toLowerCase()).filter(Boolean)
+        : [];
+}
+
+function getFilePreviewKind(file) {
+    const fileName = file.originalName || file.fileName || file.name || '';
+    const extension = normalizePreviewExtension(fileName);
+    const contentType = normalizePreviewContentType(file.fileType || file.type || '');
+
+    if (contentType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
+        return 'image';
+    }
+    if (contentType.startsWith('video/')) {
+        return 'video';
+    }
+    if (contentType.startsWith('audio/')) {
+        return 'audio';
+    }
+    if (contentType === 'application/pdf' || extension === 'pdf') {
+        return 'pdf';
+    }
+    if (contentType.startsWith('text/') || TEXT_PREVIEW_MIME_TYPES.has(contentType) || TEXT_PREVIEW_EXTENSIONS.has(extension)) {
+        return 'text';
+    }
+    if (OFFICE_PREVIEW_MIME_TYPES.has(contentType) || OFFICE_PREVIEW_EXTENSIONS.has(extension)) {
+        return 'office';
+    }
+    return null;
+}
+
+function getFilePreviewDecision(file) {
+    const kind = getFilePreviewKind(file);
+    if (!kind) {
+        return { allowed: false, kind: null, reason: 'unsupported' };
+    }
+
+    if (!filePreviewPolicy || filePreviewPolicy.enabled === false) {
+        return { allowed: false, kind, reason: 'policy' };
+    }
+
+    const kindEnabled = {
+        image: filePreviewPolicy.imageEnabled !== false,
+        video: filePreviewPolicy.videoEnabled !== false,
+        audio: filePreviewPolicy.audioEnabled !== false,
+        pdf: filePreviewPolicy.pdfEnabled !== false,
+        text: filePreviewPolicy.textEnabled !== false,
+        office: filePreviewPolicy.officeEnabled !== false
+    };
+    if (!kindEnabled[kind]) {
+        return { allowed: false, kind, reason: 'policy' };
+    }
+
+    const allowedExtensions = getPreviewAllowedExtensions();
+    if (allowedExtensions.length > 0) {
+        const extension = normalizePreviewExtension(file.originalName || file.fileName || file.name || '');
+        if (!extension || !allowedExtensions.includes(extension)) {
+            return { allowed: false, kind, reason: 'policy' };
+        }
+    }
+
+    return { allowed: true, kind, reason: null };
+}
+
+async function loadPreviewPolicy() {
+    const token = localStorage.getItem('token');
+    if (!token || token === 'test-token-12345') {
+        filePreviewPolicy = createDefaultFilePreviewPolicy();
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/settings/file-preview`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+
+        if (result.code === 401) {
+            alert(t('loginExpired'));
+            localStorage.clear();
+            window.location.href = 'login.html';
+            return;
+        }
+
+        if (result.code === 200 && result.data) {
+            filePreviewPolicy = {
+                ...createDefaultFilePreviewPolicy(),
+                ...result.data,
+                allowedExtensions: Array.isArray(result.data.allowedExtensions) ? result.data.allowedExtensions : []
+            };
+            return;
+        }
+    } catch (error) {
+        console.warn('加载预览策略失败，回退到默认前端判断:', error);
+    }
+
+    filePreviewPolicy = createDefaultFilePreviewPolicy();
+}
+
 // ================== 侧边栏 ==================
 function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
@@ -28,32 +179,78 @@ function toggleSidebar() {
     sidebar.classList.toggle('active');
     overlay.classList.toggle('active');
 }
+
+function updateAdminConsoleEntry(user) {
+    const isAdmin = window.QuickShareSession && typeof window.QuickShareSession.hasAdminRole === 'function'
+        ? window.QuickShareSession.hasAdminRole(user)
+        : !!user && typeof user.role === 'string' && user.role.toUpperCase() === 'ADMIN';
+    document.querySelectorAll('[data-admin-only]').forEach(element => {
+        element.classList.toggle('hidden', !isAdmin);
+    });
+}
+
 // ================== 登录验证 ==================
-function checkLogin() {
+function getStoredNetdiskUser() {
+    if (window.QuickShareSession && typeof window.QuickShareSession.getStoredUser === 'function') {
+        return window.QuickShareSession.getStoredUser();
+    }
+
+    try {
+        return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch (error) {
+        return {};
+    }
+}
+
+function updateCurrentUserDisplay(user) {
+    const nameEl = document.getElementById('userName');
+    if (nameEl) {
+        nameEl.textContent = user.nickname || user.username;
+    }
+    updateAdminConsoleEntry(user);
+}
+
+async function checkLogin() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('share')) return true;
 
     const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
+    const user = getStoredNetdiskUser();
 
-    if (!token || !userStr) return false;
-
-    try {
-        const user = JSON.parse(userStr);
-        if (!user.username) return false;
-
-        const nameEl = document.getElementById('userName');
-        if (nameEl) nameEl.textContent = user.nickname || user.username;
-        return true;
-    } catch (e) {
+    if (!token || !user.username) {
+        updateAdminConsoleEntry(null);
         return false;
     }
+
+    updateCurrentUserDisplay(user);
+    updateAdminConsoleEntry(null);
+
+    if (window.QuickShareSession && typeof window.QuickShareSession.fetchProfile === 'function') {
+        try {
+            const freshUser = await window.QuickShareSession.fetchProfile();
+            if (!freshUser || !freshUser.username) {
+                updateAdminConsoleEntry(null);
+                return false;
+            }
+
+            updateCurrentUserDisplay(freshUser);
+            return true;
+        } catch (error) {
+            console.warn('Failed to sync current profile on netdisk page:', error);
+        }
+    }
+
+    return true;
 }
 
 function handleLogout() {
     if (confirm(t('logoutConfirm'))) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        if (window.QuickShareSession && typeof window.QuickShareSession.clear === 'function') {
+            window.QuickShareSession.clear();
+        } else {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+        }
         window.location.href = 'index.html';
     }
 }
@@ -103,7 +300,7 @@ function getFileType(fileName) {
 }
 
 function getUserStorageKey() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = getStoredNetdiskUser();
     const userId = user.id || user.username || 'default';
     return `uploadedFiles_${userId}_${window.location.host}`;
 }
@@ -524,13 +721,15 @@ function escapeHtml(text) {
 }
 
 // ================== 页面初始化 ==================
-function initNetdisk() {
+async function initNetdisk() {
     // 检查登录
-    if (!checkLogin()) {
+    if (!await checkLogin()) {
         alert(t('loginRequired'));
         window.location.href = 'login.html';
         return;
     }
+
+    await loadPreviewPolicy();
 
     // 加载文件
     loadFiles();
@@ -645,3 +844,5 @@ window.addEventListener('load', initNetdisk);
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closePreview();
 });
+
+window.getFilePreviewDecision = getFilePreviewDecision;

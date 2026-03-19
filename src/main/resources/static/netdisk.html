@@ -267,6 +267,11 @@
             <span data-i18n="newFolderBtn">新建文件夹</span>
         </button>
 
+        <button id="adminSidebarEntry" data-admin-only onclick="openAdminConsole()" class="hidden w-full mb-3 bg-card border border-border hover:border-brand-500 text-text-sub hover:text-brand-500 py-2 px-4 rounded-lg text-sm font-medium transition-colors">
+            <i class="fa-solid fa-shield-halved mr-2"></i>
+            <span data-i18n="adminConsole">管理后台</span>
+        </button>
+
         <div class="flex items-center gap-3 pt-2 cursor-pointer hover:opacity-80">
             <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="User" class="w-8 h-8 rounded-full bg-card p-0.5 border border-border">
             <div class="flex-1 min-w-0">
@@ -304,6 +309,10 @@
         <div class="flex items-center gap-2 md:gap-4 text-text-sub shrink-0 ml-2">
             <button class="hidden md:block p-2 hover:bg-brand-50 rounded-lg transition-colors" onclick="location.href='index.html'" title="分享首页">
                 <i class="fa-solid fa-share-nodes"></i>
+            </button>
+            <button id="adminHeaderEntry" data-admin-only class="hidden md:flex items-center gap-2 px-3 py-2 hover:bg-brand-50 rounded-lg transition-colors text-sm font-medium" onclick="openAdminConsole()" title="管理后台">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span class="hidden lg:inline" data-i18n="adminConsole">管理后台</span>
             </button>
             <div class="relative">
                 <button class="p-2 hover:bg-brand-50 rounded-lg transition-colors w-8 h-8 flex flex-col items-center justify-center" onclick="toggleTransferPanel()" id="transferBtn" title="文件传输">
@@ -391,6 +400,7 @@
 
 <!-- JS 文件 -->
 <script src="js/config.js"></script>
+<script src="js/session.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/lang-switch.js"></script>
 <script src="js/netdisk.js"></script>

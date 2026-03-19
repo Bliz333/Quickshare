@@ -1,34 +1,69 @@
 package com.finalpre.quickshare.controller;
 
+import com.finalpre.quickshare.common.FeatureDisabledException;
 import com.finalpre.quickshare.common.Result;
+import com.finalpre.quickshare.common.ResourceNotFoundException;
 import com.finalpre.quickshare.dto.ShareRequestDTO;
 import com.finalpre.quickshare.dto.FolderRequest;
+import com.finalpre.quickshare.service.FilePreviewPolicy;
+import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileService;
+import com.finalpre.quickshare.service.FileUploadPolicyService;
+import com.finalpre.quickshare.service.OfficePreviewService;
+import com.finalpre.quickshare.service.PreviewResource;
+import com.finalpre.quickshare.service.RequestRateLimitService;
 import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.FileInfoVO;
+import com.finalpre.quickshare.vo.FilePreviewPolicyVO;
 import com.finalpre.quickshare.vo.ShareLinkVO;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-import net.coobird.thumbnailator.Thumbnails;
-
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.*;
+import net.coobird.thumbnailator.Thumbnails;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin
 public class FileController {
 
+    private static final Long GUEST_USER_ID = 0L;
+
     @Autowired
-    private FileService fileService;  // ✅ 只保留这个
+    private FileService fileService;
 
     @Autowired
     private JwtUtil jwtUtil;
 
-    // 不要有 FileInfoMapper！！！
+    @Autowired
+    private RequestRateLimitService requestRateLimitService;
+
+    @Autowired
+    private FileUploadPolicyService fileUploadPolicyService;
+
+    @Autowired
+    private FilePreviewPolicyService filePreviewPolicyService;
+
+    @Autowired
+    private OfficePreviewService officePreviewService;
 
     /**
      * 上传文件
@@ -37,14 +72,26 @@ public class FileController {
     public Result<FileInfoVO> uploadFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "folderId", required = false) Long folderId,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            Long userId = getUserIdFromHeader(authHeader);
-            FileInfoVO vo = fileService.uploadFile(file, userId, folderId);
-            return Result.success(vo);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
+            HttpServletRequest request,
+            Authentication authentication) {
+        Long authenticatedUserId = extractAuthenticatedUserId(authentication);
+        boolean guestUpload = authenticatedUserId == null;
+        if (guestUpload && !fileUploadPolicyService.getPolicy().guestUploadEnabled()) {
+            throw new FeatureDisabledException("匿名上传已关闭");
         }
+        if (guestUpload && folderId != null && folderId != 0L) {
+            throw new IllegalArgumentException("匿名上传不支持指定文件夹");
+        }
+        if (guestUpload) {
+            requestRateLimitService.checkGuestUploadAllowed(resolveClientIp(request));
+        }
+
+        Long effectiveUserId = guestUpload ? GUEST_USER_ID : authenticatedUserId;
+        FileInfoVO vo = fileService.uploadFile(file, effectiveUserId, guestUpload ? null : folderId);
+        if (guestUpload && vo.getId() != null) {
+            vo.setGuestUploadToken(jwtUtil.generateGuestUploadToken(vo.getId()));
+        }
+        return Result.success(vo);
     }
 
     /**
@@ -53,15 +100,11 @@ public class FileController {
     @GetMapping("/files")
     public Result<List<FileInfoVO>> getUserFiles(
             @RequestParam(required = false) Long folderId,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            Long userId = getUserIdFromHeader(authHeader);
-            Long targetFolderId = folderId == null ? 0L : folderId;
-            List<FileInfoVO> fileList = fileService.getFilesByFolder(targetFolderId, userId);
-            return Result.success(fileList);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
+            Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        Long targetFolderId = folderId == null ? 0L : folderId;
+        List<FileInfoVO> fileList = fileService.getFilesByFolder(targetFolderId, userId);
+        return Result.success(fileList);
     }
 
     /**
@@ -70,31 +113,22 @@ public class FileController {
     @DeleteMapping("/files/{fileId}")
     public Result<Void> deleteFile(
             @PathVariable Long fileId,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            Long userId = getUserIdFromHeader(authHeader);
-            fileService.deleteFile(fileId, userId);
-            return Result.success(null);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error("删除失败: " + e.getMessage());
-        }
+            Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        fileService.deleteFile(fileId, userId);
+        return Result.success(null);
     }
+
     /**
      * 删除文件夹
      */
     @DeleteMapping("/folders/{folderId}")
     public Result<Void> deleteFolder(
             @PathVariable Long folderId,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            Long userId = getUserIdFromHeader(authHeader);
-            fileService.deleteFolder(folderId, userId);
-            return Result.success(null);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error("删除文件夹失败: " + e.getMessage());
-        }
+            Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        fileService.deleteFolder(folderId, userId);
+        return Result.success(null);
     }
 
     /**
@@ -104,123 +138,55 @@ public class FileController {
     public Result<Void> renameFile(
             @PathVariable Long fileId,
             @RequestBody java.util.Map<String, String> request,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            Long userId = getUserIdFromHeader(authHeader);
-            String newName = request.get("newName");
-
-            if (newName == null || newName.trim().isEmpty()) {
-                return Result.error("文件名不能为空");
-            }
-
-            fileService.renameFile(fileId, newName, userId);
-            return Result.success(null);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error("重命名失败: " + e.getMessage());
+            Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        String newName = request.get("newName");
+        if (newName == null || newName.trim().isEmpty()) {
+            throw new IllegalArgumentException("文件名不能为空");
         }
+
+        fileService.renameFile(fileId, newName, userId);
+        return Result.success(null);
     }
 
     /**
-     * 预览/下载文件（支持 header 或 URL 参数传 token）
+     * 预览文件（支持 header 或 URL 参数传 token）
      */
     @GetMapping("/files/{fileId}/preview")
     public void previewFile(@PathVariable Long fileId,
-                            @RequestHeader(required = false, value = "Authorization") String authHeader,
-                            @RequestParam(required = false) String token,
-                            @RequestParam(value = "max_size", required = false) Integer maxSize, // [新增] 接收尺寸参数
-                            HttpServletResponse response) {
-        try {
-            // --- 1. 鉴权逻辑 (保持不变) ---
-            String actualToken = null;
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                actualToken = authHeader.substring(7);
-            } else if (token != null && !token.isEmpty()) {
-                actualToken = token;
-            }
+                            @RequestParam(value = "max_size", required = false) Integer maxSize,
+                            Authentication authentication,
+                            HttpServletResponse response) throws IOException {
+        Long userId = requireUserId(authentication);
+        streamOwnedFile(fileId, userId, response, true, maxSize);
+    }
 
-            if (actualToken == null) {
-                response.setStatus(401);
-                return;
-            }
+    /**
+     * 下载当前用户文件（支持 header 或 URL 参数传 token）
+     */
+    @GetMapping("/files/{fileId}/download")
+    public void downloadOwnedFile(@PathVariable Long fileId,
+                                  Authentication authentication,
+                                  HttpServletResponse response) throws IOException {
+        Long userId = requireUserId(authentication);
+        streamOwnedFile(fileId, userId, response, false, null);
+    }
 
-            if (!jwtUtil.validateToken(actualToken)) {
-                response.setStatus(401);
-                return;
-            }
+    @GetMapping("/settings/file-preview")
+    public Result<FilePreviewPolicyVO> getFilePreviewPolicy(Authentication authentication) {
+        requireUserId(authentication);
 
-            Long userId = jwtUtil.getUserIdFromToken(actualToken);
-
-            // --- 2. 获取文件信息 (保持不变) ---
-            FileInfoVO fileVO = fileService.getFileById(fileId, userId);
-            File file = new File(fileVO.getFilePath());
-            if (!file.exists()) {
-                response.setStatus(404);
-                return;
-            }
-
-            // --- 3. 设置基础响应头 ---
-            String contentType = fileVO.getFileType();
-            if (contentType == null || contentType.isEmpty()) {
-                contentType = "application/octet-stream";
-            }
-            response.setContentType(contentType);
-
-            // 设置缓存 (这对预览体验很重要)
-            response.setHeader("Cache-Control", "private, max-age=3600");
-
-            // 设置 Content-Disposition (文件名处理)
-            String disposition = "attachment";
-            if (contentType.startsWith("image/") || contentType.startsWith("video/") || contentType.equals("application/pdf")) {
-                disposition = "inline";
-            }
-            response.setHeader("Content-Disposition", disposition + "; filename=\"" +
-                    new String(fileVO.getOriginalName().getBytes("UTF-8"), "ISO-8859-1") + "\"");
-
-            // --- 4. [核心修改] 判断是压缩输出还是原图输出 ---
-
-            boolean isImage = contentType.startsWith("image/");
-
-            // 如果是图片，且前端请求了压缩 (maxSize > 0)
-            if (isImage && maxSize != null && maxSize > 0) {
-                // === 分支 A: 压缩图片 ===
-                try {
-                    // 使用 Thumbnailator 压缩并直接写入响应流
-                    // size(w, h): 限制长宽，自动保持比例
-                    // outputQuality(0.8f): 压缩质量 80%，肉眼几乎看不出区别但体积减小很多
-                    Thumbnails.of(file)
-                            .size(maxSize, maxSize)
-                            .outputQuality(0.8f)
-                            .toOutputStream(response.getOutputStream());
-                    return; // 压缩输出完直接结束
-                } catch (Exception e) {
-                    // 如果压缩失败（比如特殊格式图片），降级到下面的原图输出
-                    e.printStackTrace();
-                }
-            }
-
-            // === 分支 B: 输出原文件 (视频、PDF、非压缩图片) ===
-
-            // 只有原文件模式才能预知大小，设置 Content-Length
-            response.setContentLengthLong(fileVO.getFileSize());
-
-            try (InputStream is = new FileInputStream(file);
-                 OutputStream os = response.getOutputStream()) {
-                byte[] buffer = new byte[8192];
-                int length;
-                while ((length = is.read(buffer)) > 0) {
-                    os.write(buffer, 0, length);
-                }
-                os.flush();
-            }
-
-        } catch (RuntimeException e) {
-            e.printStackTrace();
-            response.setStatus(403);
-        } catch (Exception e) {
-            e.printStackTrace();
-            response.setStatus(500);
-        }
+        FilePreviewPolicy policy = filePreviewPolicyService.getPolicy();
+        FilePreviewPolicyVO vo = new FilePreviewPolicyVO();
+        vo.setEnabled(policy.enabled());
+        vo.setImageEnabled(policy.imageEnabled());
+        vo.setVideoEnabled(policy.videoEnabled());
+        vo.setAudioEnabled(policy.audioEnabled());
+        vo.setPdfEnabled(policy.pdfEnabled());
+        vo.setTextEnabled(policy.textEnabled());
+        vo.setOfficeEnabled(policy.officeEnabled());
+        vo.setAllowedExtensions(policy.allowedExtensions());
+        return Result.success(vo);
     }
 
     /**
@@ -229,14 +195,10 @@ public class FileController {
     @PostMapping("/share")
     public Result<ShareLinkVO> createShare(
             @RequestBody ShareRequestDTO request,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            Long userId = getUserIdFromHeader(authHeader);
-            ShareLinkVO vo = fileService.createShareLink(request, userId);
-            return Result.success(vo);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
+            Authentication authentication) {
+        Long userId = resolveShareUserId(authentication, request);
+        ShareLinkVO vo = fileService.createShareLink(request, userId);
+        return Result.success(vo);
     }
 
     /**
@@ -245,12 +207,25 @@ public class FileController {
     @GetMapping("/share/{shareCode}")
     public Result<ShareLinkVO> getShareInfo(
             @PathVariable String shareCode,
-            @RequestParam String extractCode) {
+            @RequestParam(required = false) String extractCode,
+            HttpServletRequest request) {
+        String clientIp = resolveClientIp(request);
+        requestRateLimitService.checkPublicShareInfoAllowed(clientIp);
+        if (extractCode == null || extractCode.isBlank()) {
+            throw new IllegalArgumentException("提取码错误");
+        }
+
+        requestRateLimitService.checkPublicShareExtractCodeFailureAllowed(clientIp, shareCode);
+
         try {
             ShareLinkVO vo = fileService.getShareInfo(shareCode, extractCode);
+            requestRateLimitService.resetPublicShareExtractCodeFailures(clientIp, shareCode);
             return Result.success(vo);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
+        } catch (IllegalArgumentException ex) {
+            if ("提取码错误".equals(ex.getMessage())) {
+                requestRateLimitService.recordPublicShareExtractCodeFailure(clientIp, shareCode);
+            }
+            throw ex;
         }
     }
 
@@ -261,12 +236,10 @@ public class FileController {
     public void downloadFile(
             @PathVariable String shareCode,
             @RequestParam String extractCode,
+            HttpServletRequest request,
             HttpServletResponse response) {
-        try {
-            fileService.downloadFile(shareCode, extractCode, response);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        requestRateLimitService.checkPublicDownloadAllowed(resolveClientIp(request));
+        fileService.downloadFile(shareCode, extractCode, response);
     }
 
     /**
@@ -278,49 +251,15 @@ public class FileController {
     }
 
     /**
-     * 从 Authorization header 中提取用户 ID
-     */
-    private Long getUserIdFromHeader(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new RuntimeException("未提供有效的认证信息");
-        }
-
-        String token = authHeader.substring(7);
-
-        if (!jwtUtil.validateToken(token)) {
-            throw new RuntimeException("Token 无效或已过期");
-        }
-
-        return jwtUtil.getUserIdFromToken(token);
-    }
-
-    /**
      * 创建文件夹
      */
     @PostMapping("/folders")
     public Result<FileInfoVO> createFolder(
             @RequestBody FolderRequest request,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            // 添加日志
-            System.out.println("===== 创建文件夹请求 =====");
-            System.out.println("文件夹名称: " + request.getName());
-            System.out.println("父文件夹ID: " + request.getParentId());
-            System.out.println("========================");
-
-            Long userId = getUserIdFromHeader(authHeader);
-
-            FileInfoVO folder = fileService.createFolder(
-                    request.getName(),
-                    request.getParentId(),
-                    userId
-            );
-
-            return Result.success(folder);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error("创建文件夹失败: " + e.getMessage());
-        }
+            Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        FileInfoVO folder = fileService.createFolder(request.getName(), request.getParentId(), userId);
+        return Result.success(folder);
     }
 
     /**
@@ -329,21 +268,15 @@ public class FileController {
      */
     @GetMapping("/folders")
     public Result<List<FileInfoVO>> getFolderContent(
-            @RequestParam(required = false, defaultValue = "0") Long parentId, // 前端传来的文件夹ID
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            Long userId = getUserIdFromHeader(authHeader);
+            @RequestParam(required = false, defaultValue = "0") Long parentId,
+            Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        List<FileInfoVO> fileList = fileService.getFilesByFolder(parentId, userId)
+                .stream()
+                .filter(item -> Integer.valueOf(1).equals(item.getIsFolder()))
+                .toList();
 
-            List<FileInfoVO> fileList = fileService.getFilesByFolder(parentId, userId)
-                    .stream()
-                    .filter(item -> Integer.valueOf(1).equals(item.getIsFolder()))
-                    .toList();
-
-            return Result.success(fileList);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error("获取文件列表失败: " + e.getMessage());
-        }
+        return Result.success(fileList);
     }
 
     /**
@@ -353,20 +286,129 @@ public class FileController {
     public Result<Void> renameFolder(
             @PathVariable Long folderId,
             @RequestBody java.util.Map<String, String> request,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            Long userId = getUserIdFromHeader(authHeader);
-            String newName = request.get("newName");
-
-            if (newName == null || newName.trim().isEmpty()) {
-                return Result.error("文件夹名不能为空");
-            }
-
-            fileService.renameFolder(folderId, newName.trim(), userId);
-            return Result.success(null);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error("重命名文件夹失败: " + e.getMessage());
+            Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        String newName = request.get("newName");
+        if (newName == null || newName.trim().isEmpty()) {
+            throw new IllegalArgumentException("文件夹名不能为空");
         }
+
+        fileService.renameFolder(folderId, newName.trim(), userId);
+        return Result.success(null);
+    }
+
+    private Long requireUserId(Authentication authentication) {
+        Long userId = extractAuthenticatedUserId(authentication);
+        if (userId == null) {
+            throw new AuthenticationCredentialsNotFoundException("未授权或登录已失效");
+        }
+        return userId;
+    }
+
+    private Long resolveShareUserId(Authentication authentication, ShareRequestDTO request) {
+        Long userId = extractAuthenticatedUserId(authentication);
+        if (userId != null) {
+            return userId;
+        }
+
+        if (request == null || request.getFileId() == null) {
+            throw new IllegalArgumentException("文件ID不能为空");
+        }
+        if (request.getGuestUploadToken() == null || request.getGuestUploadToken().isBlank()) {
+            throw new IllegalArgumentException("缺少匿名分享凭证");
+        }
+        if (!jwtUtil.validateGuestUploadToken(request.getGuestUploadToken(), request.getFileId())) {
+            throw new IllegalArgumentException("匿名分享凭证无效或已过期");
+        }
+        return GUEST_USER_ID;
+    }
+
+    private Long extractAuthenticatedUserId(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Long userId)) {
+            return null;
+        }
+        return userId;
+    }
+
+    private void streamOwnedFile(Long fileId,
+                                 Long userId,
+                                 HttpServletResponse response,
+                                 boolean preview,
+                                 Integer maxSize) throws IOException {
+        FileInfoVO fileVO = fileService.getFileById(fileId, userId);
+        File file = new File(fileVO.getFilePath());
+        if (!file.exists()) {
+            throw new ResourceNotFoundException("文件不存在");
+        }
+
+        String contentType = fileVO.getFileType();
+        if (contentType == null || contentType.isEmpty()) {
+            contentType = "application/octet-stream";
+        }
+        if (preview && !filePreviewPolicyService.isPreviewAllowed(fileVO.getOriginalName(), contentType)) {
+            throw new FeatureDisabledException("当前文件类型不允许预览");
+        }
+
+        String responseFileName = fileVO.getOriginalName();
+        long contentLength = fileVO.getFileSize() == null ? file.length() : fileVO.getFileSize();
+        if (preview && officePreviewService.supports(fileVO.getOriginalName(), contentType)) {
+            PreviewResource previewResource = officePreviewService.preparePreview(fileVO);
+            file = previewResource.file().toFile();
+            contentType = previewResource.contentType();
+            responseFileName = previewResource.fileName();
+            contentLength = previewResource.contentLength();
+        }
+
+        response.setContentType(contentType);
+        response.setHeader("Cache-Control", "private, max-age=3600");
+        response.setHeader("Content-Disposition", (preview ? "inline" : "attachment") + "; filename=\"" +
+                new String(responseFileName.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1) + "\"");
+
+        boolean isImage = contentType.startsWith("image/");
+        if (preview && isImage && maxSize != null && maxSize > 0) {
+            try {
+                Thumbnails.of(file)
+                        .size(maxSize, maxSize)
+                        .outputQuality(0.8f)
+                        .toOutputStream(response.getOutputStream());
+                return;
+            } catch (Exception ignored) {
+                // 压缩失败时回退到原文件流。
+            }
+        }
+
+        response.setContentLengthLong(contentLength);
+
+        try (InputStream is = new FileInputStream(file);
+             OutputStream os = response.getOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = is.read(buffer)) > 0) {
+                os.write(buffer, 0, length);
+            }
+            os.flush();
+        }
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        if (request == null) {
+            return "unknown";
+        }
+
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+
+        String remoteAddr = request.getRemoteAddr();
+        if (remoteAddr == null || remoteAddr.isBlank()) {
+            return "unknown";
+        }
+        return remoteAddr.trim();
     }
 }

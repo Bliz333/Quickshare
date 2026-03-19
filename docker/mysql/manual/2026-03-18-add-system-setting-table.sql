@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS `system_setting` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `config_key` VARCHAR(128) NOT NULL,
+  `config_value` TEXT NOT NULL,
+  `description` VARCHAR(255) DEFAULT NULL,
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_system_setting_config_key` (`config_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,0 +1,82 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: quickshare:local
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8080
+      DB_URL: jdbc:mysql://mysql:3306/quickshare?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_DATABASE: 0
+      FILE_UPLOAD_DIR: /opt/quickshare/uploads
+      OFFICE_PREVIEW_COMMAND: ${OFFICE_PREVIEW_COMMAND:-soffice}
+      OFFICE_PREVIEW_CACHE_DIR: ${OFFICE_PREVIEW_CACHE_DIR:-/opt/quickshare/uploads/.preview-cache}
+      BOOTSTRAP_ADMIN_ENABLED: ${BOOTSTRAP_ADMIN_ENABLED:-true}
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-ChangeMeAdmin123!}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
+      BOOTSTRAP_ADMIN_NICKNAME: ${BOOTSTRAP_ADMIN_NICKNAME:-QuickShare Admin}
+      BOOTSTRAP_ADMIN_RESET_PASSWORD_ON_STARTUP: ${BOOTSTRAP_ADMIN_RESET_PASSWORD_ON_STARTUP:-false}
+      ADMIN_CONSOLE_SLUG: ${ADMIN_CONSOLE_SLUG:-quickshare-admin}
+      REGISTRATION_EMAIL_VERIFICATION_ENABLED: ${REGISTRATION_EMAIL_VERIFICATION_ENABLED:-false}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - quickshare-uploads:/opt/quickshare/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: quickshare
+      MYSQL_USER: ${DB_USERNAME:-quickshare}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-change_me}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_change_me}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT_PUBLIC:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  mysql-data:
+  redis-data:
+  quickshare-uploads:

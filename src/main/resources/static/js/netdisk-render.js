@@ -32,6 +32,20 @@ function getOriginalUrl(file) {
     return `${API_BASE}/files/${file.id}/preview?token=${encodeURIComponent(token)}`;
 }
 
+function getDownloadUrl(file) {
+    const token = localStorage.getItem('token');
+    return `${API_BASE}/files/${file.id}/download?token=${encodeURIComponent(token)}`;
+}
+
+function getPdfViewerUrl(file, kind) {
+    const viewerUrl = new URL('pdf-viewer.html', window.location.href);
+    viewerUrl.searchParams.set('file', getOriginalUrl(file));
+    viewerUrl.searchParams.set('download', getDownloadUrl(file));
+    viewerUrl.searchParams.set('name', file.originalName || file.fileName || 'preview.pdf');
+    viewerUrl.searchParams.set('kind', kind || 'pdf');
+    return viewerUrl.toString();
+}
+
 // ================== 文件图标配置 ==================
 const FILE_ICONS = {
     image: { icon: 'fa-regular fa-image', color: 'text-green-500', bg: 'bg-green-500/10' },
@@ -290,8 +304,29 @@ async function previewFile(index) {
     container.innerHTML = '';
     const type = file.fileType || file.type || '';
     const fileName = file.originalName || file.fileName;
+    const previewDecision = typeof window.getFilePreviewDecision === 'function'
+        ? window.getFilePreviewDecision(file)
+        : { allowed: false, kind: null, reason: 'unsupported' };
 
-    if (type.startsWith('image/') || isImageFile(file)) {
+    if (!previewDecision.allowed) {
+        const icon = getFileIcon(file);
+        const message = previewDecision.reason === 'policy' ? t('previewDisabledByPolicy') : t('cannotPreview');
+        container.innerHTML = `
+        <div class="preview-unsupported">
+            <div class="w-20 h-20 rounded-2xl ${icon.bg} flex items-center justify-center ${icon.color} mx-auto mb-4">
+                <i class="${icon.icon} text-4xl"></i>
+            </div>
+            <h3 class="text-lg font-medium mb-2">${message}</h3>
+            <p class="text-gray-400 mb-4">${fileName}</p>
+            <button class="bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-6 rounded-lg transition-colors" onclick="event.stopPropagation(); downloadFile(${index})">
+                <i class="fa-solid fa-download mr-2"></i>${t('downloadBtn')}
+            </button>
+        </div>`;
+        modal.classList.add('active');
+        return;
+    }
+
+    if (previewDecision.kind === 'image') {
         // 图片预览：720p webp + 查看原图按钮
         const previewUrl = getPreviewUrl(file);
         const originalUrl = getOriginalUrl(file);
@@ -311,13 +346,28 @@ async function previewFile(index) {
                 <span>${t('downloadBtn')}</span>
             </button>
         </div>`;
-    } else if (type.startsWith('video/')) {
+    } else if (previewDecision.kind === 'video') {
         const originalUrl = getOriginalUrl(file);
         container.innerHTML = `<video class="preview-video" controls autoplay style="max-width: 90vw; max-height: 85vh;"><source src="${originalUrl}"></video>`;
-    } else if (type === 'application/pdf') {
+    } else if (previewDecision.kind === 'audio') {
         const originalUrl = getOriginalUrl(file);
-        container.innerHTML = `<iframe src="${originalUrl}" class="preview-pdf" style="width:90vw;height:90vh;border:none;border-radius:12px;"></iframe>`;
-    } else if (type === 'text/plain' || fileName.endsWith('.txt')) {
+        container.innerHTML = `
+        <div class="flex flex-col items-center gap-6 px-6 py-8">
+            <div class="w-24 h-24 rounded-[28px] bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                <i class="fa-solid fa-music text-4xl"></i>
+            </div>
+            <div class="text-center">
+                <h3 class="text-lg font-medium text-text-main">${escapeHtml(fileName)}</h3>
+                <p class="text-sm text-text-sub mt-2">${formatFileSize(file.fileSize || file.size || 0)}</p>
+            </div>
+            <audio controls autoplay style="width:min(720px,90vw);">
+                <source src="${originalUrl}">
+            </audio>
+        </div>`;
+    } else if (previewDecision.kind === 'pdf') {
+        const viewerUrl = getPdfViewerUrl(file, 'pdf');
+        container.innerHTML = `<iframe src="${viewerUrl}" class="preview-pdf" style="width:90vw;height:90vh;border:none;border-radius:12px;background:transparent;"></iframe>`;
+    } else if (previewDecision.kind === 'text') {
         const originalUrl = getOriginalUrl(file);
         try {
             const res = await fetch(originalUrl, {
@@ -329,6 +379,9 @@ async function previewFile(index) {
             alert(t('readFailed'));
             return;
         }
+    } else if (previewDecision.kind === 'office') {
+        const viewerUrl = getPdfViewerUrl(file, 'office');
+        container.innerHTML = `<iframe src="${viewerUrl}" class="preview-pdf" style="width:90vw;height:90vh;border:none;border-radius:12px;background:transparent;"></iframe>`;
     } else {
         // 不支持预览的文件类型
         const icon = getFileIcon(file);

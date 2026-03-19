@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <base href="/">
+    <title data-i18n="adminPageTitle">管理员后台 - QuickShare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        (function() {
+            const saved = localStorage.getItem('quickshare-theme');
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+
+    <style>
+        :root {
+            --primary: #0ea5e9;
+            --primary-light: #38bdf8;
+            --primary-dark: #0284c7;
+            --accent: #14b8a6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --bg-light: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --glass-bg: rgba(255, 255, 255, 0.82);
+            --glass-border: rgba(255, 255, 255, 0.58);
+            --shadow-panel: 0 24px 60px rgba(15, 23, 42, 0.08);
+        }
+
+        .dark-mode {
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --accent: #22d3ee;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --bg-light: #020617;
+            --bg-card: #0f172a;
+            --border-color: #1e293b;
+            --glass-bg: rgba(15, 23, 42, 0.82);
+            --glass-border: rgba(148, 163, 184, 0.14);
+            --shadow-panel: 0 24px 60px rgba(2, 6, 23, 0.45);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 32%),
+                radial-gradient(circle at bottom right, rgba(20, 184, 166, 0.14), transparent 32%),
+                var(--bg-light);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .bg-glow {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+            opacity: 0.45;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 999px;
+            filter: blur(120px);
+            animation: float 24s ease-in-out infinite alternate;
+        }
+
+        .blob-1 {
+            top: -12%;
+            left: -10%;
+            width: 36rem;
+            height: 36rem;
+            background: rgba(56, 189, 248, 0.34);
+        }
+
+        .blob-2 {
+            right: -12%;
+            bottom: -10%;
+            width: 34rem;
+            height: 34rem;
+            background: rgba(20, 184, 166, 0.25);
+            animation-delay: -6s;
+        }
+
+        .blob-3 {
+            top: 42%;
+            left: 48%;
+            width: 24rem;
+            height: 24rem;
+            background: rgba(99, 102, 241, 0.18);
+            animation-delay: -12s;
+        }
+
+        @keyframes float {
+            from {
+                transform: translate3d(0, 0, 0) rotate(0deg);
+            }
+            to {
+                transform: translate3d(40px, 30px, 0) rotate(12deg);
+            }
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(18px);
+            box-shadow: var(--shadow-panel);
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(14, 165, 233, 0.12);
+            color: var(--primary-dark);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .dark-mode .eyebrow {
+            color: var(--primary-light);
+            background: rgba(99, 102, 241, 0.18);
+        }
+
+        .toolbar-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.5);
+            color: var(--text-main);
+            font-size: 0.92rem;
+            font-weight: 600;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .dark-mode .toolbar-btn {
+            background: rgba(15, 23, 42, 0.58);
+        }
+
+        .toolbar-btn:hover {
+            transform: translateY(-1px);
+            border-color: var(--primary);
+            background: rgba(14, 165, 233, 0.12);
+        }
+
+        .toolbar-btn.primary {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 16px 32px rgba(14, 165, 233, 0.22);
+        }
+
+        .dark-mode .toolbar-btn.primary {
+            box-shadow: 0 16px 32px rgba(99, 102, 241, 0.28);
+        }
+
+        .toolbar-btn.danger:hover,
+        .action-btn.danger:hover {
+            border-color: rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.12);
+        }
+
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.45);
+            border: 1px solid var(--glass-border);
+        }
+
+        .dark-mode .user-badge {
+            background: rgba(15, 23, 42, 0.55);
+        }
+
+        .user-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            box-shadow: 0 12px 24px rgba(14, 165, 233, 0.2);
+        }
+
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid var(--glass-border);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
+                var(--glass-bg);
+        }
+
+        .dark-mode .stat-card {
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+                var(--glass-bg);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            inset: auto -42px -42px auto;
+            width: 120px;
+            height: 120px;
+            border-radius: 999px;
+            background: rgba(14, 165, 233, 0.12);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            box-shadow: 0 12px 24px rgba(14, 165, 233, 0.18);
+        }
+
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 999px;
+            background: rgba(14, 165, 233, 0.12);
+            color: var(--primary-dark);
+            font-weight: 700;
+            font-size: 0.82rem;
+        }
+
+        .dark-mode .count-badge {
+            color: var(--primary-light);
+            background: rgba(99, 102, 241, 0.16);
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            background: rgba(248, 250, 252, 0.75);
+        }
+
+        .dark-mode .table-wrap {
+            background: rgba(2, 6, 23, 0.4);
+        }
+
+        .admin-table {
+            width: 100%;
+            min-width: 880px;
+            border-collapse: collapse;
+        }
+
+        .admin-table th,
+        .admin-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .admin-table th {
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-sub);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .dark-mode .admin-table th {
+            background: rgba(15, 23, 42, 0.58);
+        }
+
+        .admin-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mono {
+            font-family: 'SFMono-Regular', 'Consolas', monospace;
+            font-size: 0.84rem;
+        }
+
+        .status-chip,
+        .role-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .status-active,
+        .role-admin {
+            background: rgba(16, 185, 129, 0.14);
+            color: var(--success);
+        }
+
+        .status-disabled,
+        .role-user {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--danger);
+        }
+
+        .status-expired {
+            background: rgba(245, 158, 11, 0.14);
+            color: var(--warning);
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 36px;
+            padding: 0 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.5);
+            color: var(--text-main);
+            font-size: 0.82rem;
+            font-weight: 600;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .dark-mode .action-btn {
+            background: rgba(15, 23, 42, 0.54);
+        }
+
+        .action-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            border-color: var(--primary);
+            background: rgba(14, 165, 233, 0.1);
+        }
+
+        .action-btn:disabled,
+        .toolbar-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .panel-note {
+            border-radius: 20px;
+            border: 1px dashed rgba(14, 165, 233, 0.28);
+            background: rgba(14, 165, 233, 0.06);
+        }
+
+        .dark-mode .panel-note {
+            background: rgba(99, 102, 241, 0.08);
+            border-color: rgba(129, 140, 248, 0.3);
+        }
+
+        .empty-row {
+            padding: 30px 16px;
+            text-align: center;
+            color: var(--text-sub);
+        }
+
+        .settings-field {
+            width: 100%;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.58);
+            color: var(--text-main);
+            border-radius: 18px;
+            padding: 12px 14px;
+            font-size: 0.92rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .dark-mode .settings-field {
+            background: rgba(15, 23, 42, 0.58);
+        }
+
+        .settings-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14);
+        }
+
+        .dark-mode .settings-field:focus {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+        }
+
+        .settings-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1200;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            min-width: 260px;
+            max-width: 360px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            color: var(--text-main);
+            backdrop-filter: blur(16px);
+            box-shadow: var(--shadow-panel);
+            opacity: 0;
+            transform: translateY(-8px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success i {
+            color: var(--success);
+        }
+
+        .toast.error i {
+            color: var(--danger);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.22);
+            backdrop-filter: blur(8px);
+        }
+
+        .loading-panel {
+            width: min(320px, calc(100vw - 32px));
+            padding: 24px;
+            border-radius: 24px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 56px;
+            height: 56px;
+            border-radius: 999px;
+            border: 4px solid rgba(255, 255, 255, 0.18);
+            border-top-color: var(--primary);
+            margin: 0 auto 16px;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .toolbar-btn {
+                width: 100%;
+            }
+
+            .toast-container {
+                left: 16px;
+                right: 16px;
+                top: 16px;
+            }
+
+            .toast {
+                min-width: 0;
+                max-width: none;
+                width: 100%;
+            }
+        }
+    </style>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'var(--primary)',
+                        accent: 'var(--accent)',
+                        page: 'var(--bg-light)',
+                        card: 'var(--bg-card)',
+                        border: 'var(--border-color)',
+                        text: {
+                            main: 'var(--text-main)',
+                            sub: 'var(--text-sub)'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="min-h-screen bg-page text-text-main">
+<div class="bg-glow">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="loading-panel glass-card">
+        <div class="loading-spinner"></div>
+        <p class="text-sm text-text-sub" data-i18n="adminLoading">正在加载管理台数据...</p>
+    </div>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 relative z-10">
+    <header class="glass-card rounded-[28px] p-5 md:p-7 mb-6">
+        <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div class="space-y-4">
+                <div class="eyebrow">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span data-i18n="adminConsole">管理员后台</span>
+                </div>
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-semibold tracking-tight" data-i18n="adminTitle">管理员控制台</h1>
+                    <p class="text-text-sub text-sm md:text-base mt-3 max-w-2xl" data-i18n="adminSubtitle">查看全局概览，管理用户、文件与分享；后续策略项也会在这里接管。</p>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3 xl:items-end">
+                <div class="user-badge">
+                    <div class="user-avatar" id="adminAvatar">A</div>
+                    <div>
+                        <p class="text-sm font-semibold text-text-main" id="adminUserName">-</p>
+                        <p class="text-xs text-text-sub" id="adminUserMeta">ADMIN</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" class="toolbar-btn" onclick="goToNetdisk()">
+                        <i class="fa-solid fa-hard-drive"></i>
+                        <span data-i18n="adminBackToNetdisk">返回网盘</span>
+                    </button>
+                    <button type="button" class="toolbar-btn primary" onclick="refreshAdminData(true)">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span data-i18n="adminRefresh">刷新数据</span>
+                    </button>
+                    <button type="button" class="toolbar-btn" id="darkModeToggle" onclick="toggleTheme()" title="切换主题">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                    <button type="button" class="toolbar-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
+                    <button type="button" class="toolbar-btn danger" onclick="handleAdminLogout()">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span data-i18n="logout">退出</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-6" id="overviewCards"></section>
+
+    <section class="grid gap-6 xl:grid-cols-[2fr,1fr] mb-6">
+        <div class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="flex items-center justify-between gap-3 mb-5">
+                <div>
+                    <h2 class="text-xl font-semibold" data-i18n="adminUsers">用户管理</h2>
+                    <p class="text-sm text-text-sub mt-1" data-i18n="adminUsersSubtitle">管理员拥有最高权限，可直接新增、删除用户并调整角色。</p>
+                </div>
+                <span class="count-badge" id="usersCountBadge">0</span>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5 mb-5">
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserUsername" data-i18n="usernameLabel">用户名</label>
+                    <input id="newUserUsername" type="text" class="settings-field" data-i18n="regUsernamePlaceholder" placeholder="请输入用户名">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserNickname" data-i18n="nicknameLabel">昵称</label>
+                    <input id="newUserNickname" type="text" class="settings-field" data-i18n="nicknamePlaceholder" placeholder="显示名称">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserEmail" data-i18n="emailLabel">邮箱</label>
+                    <input id="newUserEmail" type="email" class="settings-field" data-i18n="emailPlaceholder" placeholder="your@email.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserPassword" data-i18n="adminUserPassword">初始密码</label>
+                    <input id="newUserPassword" type="password" class="settings-field" placeholder="至少6位">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserRole" data-i18n="adminRole">角色</label>
+                    <select id="newUserRole" class="settings-field">
+                        <option value="USER" data-i18n="adminRoleUser">普通用户</option>
+                        <option value="ADMIN" data-i18n="adminRoleAdmin">管理员</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+                <p class="text-xs text-text-sub" data-i18n="adminCreateUserHint">这里创建的是平台用户账号，创建后可直接登录，不依赖注册页面。</p>
+                <button type="button" class="action-btn" onclick="createAdminUser(this)">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span data-i18n="adminCreateUser">新增用户</span>
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table class="admin-table">
+                    <thead>
+                    <tr>
+                        <th data-i18n="usernameLabel">用户名</th>
+                        <th data-i18n="nicknameLabel">昵称</th>
+                        <th data-i18n="emailLabel">邮箱</th>
+                        <th data-i18n="adminCreatedTime">创建时间</th>
+                        <th data-i18n="adminRole">角色</th>
+                        <th data-i18n="actions">操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                    <tr>
+                        <td colspan="6" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <aside class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center shadow-lg shadow-sky-500/20">
+                    <i class="fa-solid fa-sliders"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-semibold" data-i18n="adminPolicyRuntimeTitle">策略运行说明</h2>
+                    <p class="text-sm text-text-sub mt-1" data-i18n="adminPolicyRuntimeText">频控、上传限制和 CORS 策略已支持后台调整，修改后会直接作用到当前 provider 输出。</p>
+                </div>
+            </div>
+
+            <div class="panel-note rounded-[22px] p-4 text-sm text-text-sub">
+                <p data-i18n="adminPolicyRuntimeHint">当前覆盖值会写入 `system_setting` 表，未配置的项继续回退到配置文件默认值。</p>
+            </div>
+        </aside>
+    </section>
+
+    <section class="glass-card rounded-[28px] p-5 md:p-6 mb-6">
+        <div class="flex items-center justify-between gap-3 mb-5">
+            <div>
+                <h2 class="text-xl font-semibold" data-i18n="adminFiles">文件管理</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminFilesSubtitle">可强制删除任意文件或文件夹，删除后会同步清理关联分享。</p>
+            </div>
+            <span class="count-badge" id="filesCountBadge">0</span>
+        </div>
+        <div class="table-wrap">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th data-i18n="fileName">文件名</th>
+                    <th data-i18n="adminOwner">归属用户</th>
+                    <th data-i18n="adminFileType">类型</th>
+                    <th data-i18n="size">大小</th>
+                    <th data-i18n="adminUploadTime">上传时间</th>
+                    <th data-i18n="actions">操作</th>
+                </tr>
+                </thead>
+                <tbody id="filesTableBody">
+                <tr>
+                    <td colspan="6" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="glass-card rounded-[28px] p-5 md:p-6">
+        <div class="flex items-center justify-between gap-3 mb-5">
+            <div>
+                <h2 class="text-xl font-semibold" data-i18n="adminShares">分享管理</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminSharesSubtitle">可直接失效任意分享，后续这里会继续接入公开入口策略项。</p>
+            </div>
+            <span class="count-badge" id="sharesCountBadge">0</span>
+        </div>
+        <div class="table-wrap">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th data-i18n="adminShareCode">分享码</th>
+                    <th data-i18n="fileName">文件名</th>
+                    <th data-i18n="adminOwner">归属用户</th>
+                    <th data-i18n="extractCode">提取码</th>
+                    <th data-i18n="expireTime">过期时间</th>
+                    <th data-i18n="adminDownloads">下载情况</th>
+                    <th data-i18n="adminShareStatus">状态</th>
+                    <th data-i18n="actions">操作</th>
+                </tr>
+                </thead>
+                <tbody id="sharesTableBody">
+                <tr>
+                    <td colspan="8" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="grid gap-6 xl:grid-cols-[1.2fr,1fr] mt-6">
+        <section class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="flex items-center justify-between gap-3 mb-5">
+                <div>
+                    <h2 class="text-xl font-semibold" data-i18n="adminRateLimitTitle">频控策略</h2>
+                    <p class="text-sm text-text-sub mt-1" data-i18n="adminRateLimitSubtitle">当前四个公开入口相关频控都可以在这里直接调整。</p>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="admin-table">
+                    <thead>
+                    <tr>
+                        <th data-i18n="adminRateLimitScene">场景</th>
+                        <th data-i18n="adminEnabled">启用</th>
+                        <th data-i18n="adminMaxRequests">最大次数</th>
+                        <th data-i18n="adminWindowSeconds">窗口秒数</th>
+                        <th data-i18n="actions">操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="rateLimitTableBody">
+                    <tr>
+                        <td colspan="5" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="space-y-6">
+        <section class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="mb-5">
+                <h2 class="text-xl font-semibold" data-i18n="adminConsoleAccessTitle">后台入口</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminConsoleAccessSubtitle">管理后台不再挂在公开固定页面，只通过隐藏路径进入。</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="adminConsoleSlug" data-i18n="adminConsoleSlug">入口路径标识</label>
+                    <input id="adminConsoleSlug" type="text" class="settings-field" placeholder="quickshare-admin" oninput="updateAdminConsolePathPreview()">
+                </div>
+                <div class="panel-note rounded-[18px] px-4 py-3 text-sm text-text-sub">
+                    <div class="font-medium text-text-main mb-1" data-i18n="adminConsolePathPreview">当前访问路径</div>
+                    <div id="adminConsolePathPreviewValue" class="mono break-all">/console/quickshare-admin</div>
+                </div>
+                <p class="text-xs text-text-sub" data-i18n="adminConsoleAccessHint">保存后管理后台会立刻切到新路径，旧入口会失效。</p>
+                <button type="button" class="action-btn" onclick="saveAdminConsoleAccess(this)">
+                    <i class="fa-solid fa-route"></i>
+                    <span data-i18n="adminSaveSettings">保存配置</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="mb-5">
+                <h2 class="text-xl font-semibold" data-i18n="adminRegistrationTitle">注册与验证</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminRegistrationSubtitle">本地测试环境可以直接在这里关闭邮箱验证码和人机验证。</p>
+            </div>
+
+            <div class="space-y-4">
+                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                    <input id="registrationEmailVerificationEnabled" type="checkbox" class="settings-checkbox">
+                    <span data-i18n="adminEmailVerificationEnabled">启用邮箱验证码注册</span>
+                </label>
+
+                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                    <input id="registrationRecaptchaEnabled" type="checkbox" class="settings-checkbox">
+                    <span data-i18n="adminRecaptchaEnabled">启用人机验证</span>
+                </label>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="registrationRecaptchaSiteKey" data-i18n="adminRecaptchaSiteKey">reCAPTCHA Site Key</label>
+                    <input id="registrationRecaptchaSiteKey" type="text" class="settings-field" placeholder="6Lc...">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="registrationRecaptchaSecretKey" data-i18n="adminRecaptchaSecretKey">reCAPTCHA Secret Key</label>
+                    <input id="registrationRecaptchaSecretKey" type="password" class="settings-field" placeholder="6Lc...">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="registrationRecaptchaVerifyUrl" data-i18n="adminRecaptchaVerifyUrl">校验地址</label>
+                    <input id="registrationRecaptchaVerifyUrl" type="text" class="settings-field" placeholder="https://www.google.com/recaptcha/api/siteverify">
+                </div>
+
+                <p class="text-xs text-text-sub" data-i18n="adminRegistrationHint">关闭邮箱验证码后，注册页会直接放行邮箱和验证码步骤；关闭人机验证后，不再加载 Google 验证组件。</p>
+                <button type="button" class="action-btn" onclick="saveRegistrationSettings(this)">
+                    <i class="fa-solid fa-user-lock"></i>
+                    <span data-i18n="adminSaveSettings">保存配置</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="mb-5">
+                <h2 class="text-xl font-semibold" data-i18n="adminUploadPolicyTitle">上传策略</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminUploadPolicySubtitle">按需调整服务层上传大小限制和扩展名白名单。</p>
+            </div>
+
+            <div class="space-y-4">
+                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                    <input id="guestUploadEnabled" type="checkbox" class="settings-checkbox">
+                    <span data-i18n="adminGuestUploadEnabled">允许匿名上传</span>
+                </label>
+
+                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                    <input id="uploadSizeLimitEnabled" type="checkbox" class="settings-checkbox" onchange="toggleUploadSizeLimit()">
+                    <span data-i18n="adminUploadSizeLimitEnabled">启用额外大小限制</span>
+                </label>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="uploadMaxFileSizeMb" data-i18n="adminUploadMaxFileSizeMb">最大上传大小（MB）</label>
+                    <input id="uploadMaxFileSizeMb" type="number" min="1" step="0.1" class="settings-field" placeholder="100">
+                    <p id="uploadPolicyHint" class="text-xs text-text-sub mt-2"></p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="uploadAllowedExtensions" data-i18n="adminAllowedExtensions">允许扩展名</label>
+                    <textarea id="uploadAllowedExtensions" rows="4" class="settings-field" placeholder="pdf,docx,jpg,png"></textarea>
+                    <p class="text-xs text-text-sub mt-2" data-i18n="adminUploadExtensionsHint">留空表示允许全部扩展名，支持逗号或换行分隔。</p>
+                </div>
+
+                <button type="button" class="action-btn" onclick="saveUploadPolicySettings(this)">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span data-i18n="adminSaveSettings">保存配置</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="mb-5">
+                <h2 class="text-xl font-semibold" data-i18n="adminPreviewPolicyTitle">预览策略</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminPreviewPolicySubtitle">按文件族控制预览能力，并支持用扩展名进一步收窄范围。</p>
+            </div>
+
+            <div class="space-y-4">
+                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                    <input id="previewEnabled" type="checkbox" class="settings-checkbox">
+                    <span data-i18n="adminPreviewEnabled">启用文件预览</span>
+                </label>
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                        <input id="previewImageEnabled" type="checkbox" class="settings-checkbox">
+                        <span data-i18n="adminPreviewImageEnabled">图片</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                        <input id="previewVideoEnabled" type="checkbox" class="settings-checkbox">
+                        <span data-i18n="adminPreviewVideoEnabled">视频</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                        <input id="previewAudioEnabled" type="checkbox" class="settings-checkbox">
+                        <span data-i18n="adminPreviewAudioEnabled">音频</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                        <input id="previewPdfEnabled" type="checkbox" class="settings-checkbox">
+                        <span data-i18n="adminPreviewPdfEnabled">PDF</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                        <input id="previewTextEnabled" type="checkbox" class="settings-checkbox">
+                        <span data-i18n="adminPreviewTextEnabled">纯文本 / 代码 / 配置</span>
+                    </label>
+                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                        <input id="previewOfficeEnabled" type="checkbox" class="settings-checkbox">
+                        <span data-i18n="adminPreviewOfficeEnabled">Office 文档（Word / Excel / PPT）</span>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="previewAllowedExtensions" data-i18n="adminPreviewAllowedExtensions">允许预览的扩展名</label>
+                    <textarea id="previewAllowedExtensions" rows="4" class="settings-field" placeholder="pdf,docx,xlsx,pptx,txt,png,mp4,mp3"></textarea>
+                    <p class="text-xs text-text-sub mt-2" data-i18n="adminPreviewExtensionsHint">留空表示按上方文件族开关放行；填写后会额外按扩展名收窄。</p>
+                    <p id="previewPolicyHint" class="text-xs text-text-sub mt-2"></p>
+                </div>
+
+                <button type="button" class="action-btn" onclick="savePreviewPolicySettings(this)">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span data-i18n="adminSaveSettings">保存配置</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="mb-5">
+                <h2 class="text-xl font-semibold" data-i18n="adminCorsTitle">CORS 策略</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminCorsSubtitle">按需调整来源白名单、方法、请求头和缓存时间。</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="corsAllowedOrigins" data-i18n="adminAllowedOrigins">允许来源</label>
+                    <textarea id="corsAllowedOrigins" rows="5" class="settings-field" placeholder="http://localhost:3000&#10;https://app.example.com"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="corsAllowedMethods" data-i18n="adminAllowedMethods">允许方法</label>
+                    <input id="corsAllowedMethods" type="text" class="settings-field" placeholder="GET,POST,PUT,DELETE,OPTIONS">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" for="corsAllowedHeaders" data-i18n="adminAllowedHeaders">允许请求头</label>
+                    <input id="corsAllowedHeaders" type="text" class="settings-field" placeholder="Authorization,Content-Type">
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
+                        <input id="corsAllowCredentials" type="checkbox" class="settings-checkbox">
+                        <span data-i18n="adminAllowCredentials">允许携带凭证</span>
+                    </label>
+
+                    <div>
+                        <label class="block text-sm font-medium text-text-sub mb-2" for="corsMaxAgeSeconds" data-i18n="adminMaxAgeSeconds">缓存秒数</label>
+                        <input id="corsMaxAgeSeconds" type="number" min="1" class="settings-field" placeholder="3600">
+                    </div>
+                </div>
+
+                <button type="button" class="action-btn" onclick="saveCorsPolicySettings(this)">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span data-i18n="adminSaveSettings">保存配置</span>
+                </button>
+            </div>
+        </section>
+        </div>
+    </section>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/session.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/lang-switch.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

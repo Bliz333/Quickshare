@@ -7,4 +7,5 @@ import com.finalpre.quickshare.vo.UserVO;
 public interface UserService {
     UserVO register(RegisterDTO dto);
     UserVO login(LoginDTO dto);
+    UserVO getProfile(Long userId);
 }

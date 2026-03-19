@@ -1,28 +1,33 @@
 package com.finalpre.quickshare.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.finalpre.quickshare.service.CorsPolicy;
+import com.finalpre.quickshare.service.CorsPolicyService;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-import java.util.Arrays;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
-public class WebConfig implements WebMvcConfigurer {
+public class WebConfig {
 
-    @Value("${app.cors.allowed-origins:*}")
-    private String allowedOrigins;
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(CorsPolicyService corsPolicyService) {
+        return request -> {
+            CorsPolicy policy = corsPolicyService.getPolicy();
+            CorsConfiguration configuration = new CorsConfiguration();
+            configuration.setAllowedMethods(policy.allowedMethods());
+            configuration.setAllowedHeaders(policy.allowedHeaders());
+            configuration.setAllowCredentials(policy.allowCredentials());
+            configuration.setMaxAge(policy.maxAgeSeconds());
 
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        String[] origins = "*".equals(allowedOrigins) ? new String[]{"*"} :
-                Arrays.stream(allowedOrigins.split(",")).map(String::trim).toArray(String[]::new);
+            if (policy.allowedOrigins().contains("*")) {
+                configuration.addAllowedOriginPattern("*");
+                configuration.setAllowCredentials(false);
+            } else {
+                configuration.setAllowedOrigins(policy.allowedOrigins());
+            }
 
-        registry.addMapping("/**")
-                .allowedOrigins(origins)
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(!Arrays.asList(origins).contains("*"))
-                .maxAge(3600);
+            return configuration;
+        };
     }
 }

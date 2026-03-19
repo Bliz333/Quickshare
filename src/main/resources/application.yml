@@ -5,11 +5,12 @@ spring:
     password: ${DB_PASSWORD:change_me}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:}
-    database: ${REDIS_DB:0}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:0}
 
   servlet:
     multipart:
@@ -58,5 +59,49 @@ jwt:
   expiration: ${JWT_EXPIRATION_MS:86400000}  # 24h
 
 app:
+  admin-console:
+    slug: ${ADMIN_CONSOLE_SLUG:quickshare-admin}
+  registration:
+    email-verification-enabled: ${REGISTRATION_EMAIL_VERIFICATION_ENABLED:true}
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+    allow-credentials: ${CORS_ALLOW_CREDENTIALS:false}
+    max-age-seconds: ${CORS_MAX_AGE_SECONDS:3600}
+  file-preview:
+    enabled: ${FILE_PREVIEW_ENABLED:true}
+    image-enabled: ${FILE_PREVIEW_IMAGE_ENABLED:true}
+    video-enabled: ${FILE_PREVIEW_VIDEO_ENABLED:true}
+    audio-enabled: ${FILE_PREVIEW_AUDIO_ENABLED:true}
+    pdf-enabled: ${FILE_PREVIEW_PDF_ENABLED:true}
+    text-enabled: ${FILE_PREVIEW_TEXT_ENABLED:true}
+    office-enabled: ${FILE_PREVIEW_OFFICE_ENABLED:true}
+    allowed-extensions: ${FILE_PREVIEW_ALLOWED_EXTENSIONS:}
+  office-preview:
+    enabled: ${OFFICE_PREVIEW_ENABLED:true}
+    command: ${OFFICE_PREVIEW_COMMAND:soffice}
+    timeout-seconds: ${OFFICE_PREVIEW_TIMEOUT_SECONDS:120}
+    cache-dir: ${OFFICE_PREVIEW_CACHE_DIR:}
+  bootstrap-admin:
+    enabled: ${BOOTSTRAP_ADMIN_ENABLED:false}
+    username: ${BOOTSTRAP_ADMIN_USERNAME:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    nickname: ${BOOTSTRAP_ADMIN_NICKNAME:}
+    reset-password-on-startup: ${BOOTSTRAP_ADMIN_RESET_PASSWORD_ON_STARTUP:false}
+  rate-limit:
+    guest-upload:
+      enabled: ${GUEST_UPLOAD_RATE_LIMIT_ENABLED:true}
+      max-requests: ${GUEST_UPLOAD_RATE_LIMIT_MAX_REQUESTS:10}
+      window-seconds: ${GUEST_UPLOAD_RATE_LIMIT_WINDOW_SECONDS:600}
+    public-download:
+      enabled: ${PUBLIC_DOWNLOAD_RATE_LIMIT_ENABLED:true}
+      max-requests: ${PUBLIC_DOWNLOAD_RATE_LIMIT_MAX_REQUESTS:30}
+      window-seconds: ${PUBLIC_DOWNLOAD_RATE_LIMIT_WINDOW_SECONDS:600}
+    public-share-info:
+      enabled: ${PUBLIC_SHARE_INFO_RATE_LIMIT_ENABLED:true}
+      max-requests: ${PUBLIC_SHARE_INFO_RATE_LIMIT_MAX_REQUESTS:60}
+      window-seconds: ${PUBLIC_SHARE_INFO_RATE_LIMIT_WINDOW_SECONDS:600}
+    public-share-extract-code-error:
+      enabled: ${PUBLIC_SHARE_EXTRACT_CODE_ERROR_RATE_LIMIT_ENABLED:true}
+      max-requests: ${PUBLIC_SHARE_EXTRACT_CODE_ERROR_RATE_LIMIT_MAX_REQUESTS:5}
+      window-seconds: ${PUBLIC_SHARE_EXTRACT_CODE_ERROR_RATE_LIMIT_WINDOW_SECONDS:600}

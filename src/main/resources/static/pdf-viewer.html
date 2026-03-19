@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pdfViewerPageTitle">QuickShare PDF 预览</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js"></script>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('quickshare-theme');
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+    <style>
+        :root {
+            --bg-page: #f8fafc;
+            --bg-card: rgba(255, 255, 255, 0.92);
+            --bg-muted: rgba(226, 232, 240, 0.7);
+            --border-color: rgba(148, 163, 184, 0.24);
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --accent: #0ea5e9;
+            --accent-soft: rgba(14, 165, 233, 0.12);
+            --danger: #dc2626;
+            --shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
+        }
+
+        .dark-mode {
+            --bg-page: #020617;
+            --bg-card: rgba(15, 23, 42, 0.88);
+            --bg-muted: rgba(30, 41, 59, 0.82);
+            --border-color: rgba(148, 163, 184, 0.18);
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --accent: #38bdf8;
+            --accent-soft: rgba(56, 189, 248, 0.16);
+            --danger: #f87171;
+            --shadow: 0 24px 60px rgba(2, 6, 23, 0.5);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 40%),
+                radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.14), transparent 35%),
+                var(--bg-page);
+            color: var(--text-main);
+        }
+
+        .viewer-shell {
+            width: 100%;
+            height: 100%;
+            padding: 18px;
+        }
+
+        .viewer-panel {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 22px;
+            backdrop-filter: blur(16px);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .viewer-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .viewer-meta {
+            min-width: 0;
+        }
+
+        .viewer-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .viewer-subtitle {
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: var(--text-sub);
+        }
+
+        .viewer-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .viewer-pill,
+        .viewer-btn,
+        .viewer-ghost {
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-muted);
+            color: var(--text-main);
+            font: inherit;
+        }
+
+        .viewer-pill {
+            padding: 8px 12px;
+            font-size: 0.84rem;
+            color: var(--text-sub);
+        }
+
+        .viewer-btn,
+        .viewer-ghost {
+            height: 40px;
+            min-width: 40px;
+            padding: 0 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .viewer-btn:hover,
+        .viewer-ghost:hover {
+            transform: translateY(-1px);
+            border-color: rgba(14, 165, 233, 0.42);
+        }
+
+        .viewer-btn:disabled,
+        .viewer-ghost:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .viewer-btn.primary {
+            background: var(--accent-soft);
+            border-color: rgba(14, 165, 233, 0.32);
+            color: var(--accent);
+        }
+
+        .viewer-status {
+            margin: 0 20px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            background: var(--bg-muted);
+            font-size: 0.86rem;
+            color: var(--text-sub);
+        }
+
+        .viewer-canvas-area {
+            position: relative;
+            overflow: auto;
+            padding: 8px 20px 20px;
+        }
+
+        .viewer-canvas-shell {
+            min-height: 100%;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 10px 0 20px;
+        }
+
+        .viewer-canvas-card {
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+            padding: 14px;
+        }
+
+        .dark-mode .viewer-canvas-card {
+            background: rgba(241, 245, 249, 0.98);
+        }
+
+        #pdfCanvas {
+            display: block;
+            max-width: 100%;
+            border-radius: 10px;
+        }
+
+        .viewer-error {
+            min-height: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .viewer-error.active {
+            display: flex;
+        }
+
+        .viewer-error-card {
+            max-width: 520px;
+            padding: 28px;
+            border-radius: 22px;
+            background: var(--bg-card);
+            border: 1px solid rgba(220, 38, 38, 0.18);
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        .viewer-error-icon {
+            width: 68px;
+            height: 68px;
+            margin: 0 auto 16px;
+            border-radius: 20px;
+            background: rgba(220, 38, 38, 0.12);
+            color: var(--danger);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+        }
+
+        .viewer-error-title {
+            margin: 0 0 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .viewer-error-text {
+            margin: 0;
+            color: var(--text-sub);
+            line-height: 1.6;
+        }
+
+        .viewer-error-actions {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 720px) {
+            .viewer-shell {
+                padding: 10px;
+            }
+
+            .viewer-panel {
+                grid-template-rows: auto auto 1fr;
+                border-radius: 18px;
+            }
+
+            .viewer-toolbar {
+                padding: 16px 16px 0;
+            }
+
+            .viewer-status {
+                margin: 0 16px;
+            }
+
+            .viewer-canvas-area {
+                padding: 6px 16px 16px;
+            }
+
+            .viewer-btn,
+            .viewer-ghost {
+                padding: 0 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="viewer-shell">
+    <div class="viewer-panel">
+        <div class="viewer-toolbar">
+            <div class="viewer-meta">
+                <h1 id="viewerTitle" class="viewer-title">PDF Preview</h1>
+                <div id="viewerSourceHint" class="viewer-subtitle"></div>
+            </div>
+            <div class="viewer-actions">
+                <span id="viewerPageInfo" class="viewer-pill">- / -</span>
+                <span id="viewerZoomInfo" class="viewer-pill">100%</span>
+                <button id="zoomOutBtn" class="viewer-ghost" type="button" aria-label="Zoom out">
+                    <i class="fa-solid fa-magnifying-glass-minus"></i>
+                </button>
+                <button id="zoomInBtn" class="viewer-ghost" type="button" aria-label="Zoom in">
+                    <i class="fa-solid fa-magnifying-glass-plus"></i>
+                </button>
+                <button id="prevPageBtn" class="viewer-ghost" type="button" aria-label="Previous page">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button id="nextPageBtn" class="viewer-ghost" type="button" aria-label="Next page">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+                <a id="downloadBtn" class="viewer-btn primary" href="#" target="_blank" rel="noopener">
+                    <i class="fa-solid fa-download"></i>
+                    <span data-i18n="pdfViewerDownload">下载原文件</span>
+                </a>
+            </div>
+        </div>
+
+        <div id="viewerStatus" class="viewer-status" data-i18n="pdfViewerLoading">正在加载 PDF 预览...</div>
+
+        <div class="viewer-canvas-area">
+            <div id="viewerCanvasShell" class="viewer-canvas-shell">
+                <div class="viewer-canvas-card">
+                    <canvas id="pdfCanvas"></canvas>
+                </div>
+            </div>
+
+            <div id="viewerError" class="viewer-error">
+                <div class="viewer-error-card">
+                    <div class="viewer-error-icon">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h2 class="viewer-error-title" data-i18n="pdfViewerLoadFailed">PDF 预览加载失败</h2>
+                    <p id="viewerErrorText" class="viewer-error-text"></p>
+                    <div class="viewer-error-actions">
+                        <a id="errorDownloadBtn" class="viewer-btn primary" href="#" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-download"></i>
+                            <span data-i18n="pdfViewerDownload">下载原文件</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/lang-switch.js"></script>
+<script src="js/pdf-viewer.js"></script>
+</body>
+</html>

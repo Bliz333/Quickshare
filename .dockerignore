@@ -1,0 +1,16 @@
+.git
+.gitignore
+.idea
+.vscode
+target
+build
+dist
+node_modules
+*.iml
+*.ipr
+*.iws
+.DS_Store
+LatexTemple
+ProjectLatex
+QuickShare_ProjectLatex
+effective-pom.xml

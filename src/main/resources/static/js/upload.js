@@ -152,6 +152,7 @@ async function uploadAndShare() {
             // 创建分享
             const sharePayload = {
                 fileId: upData.data.id,
+                guestUploadToken: upData.data.guestUploadToken || null,
                 extractCode: document.getElementById('extractCode').value || null,
                 expireHours: parseInt(document.getElementById('expireHours').value) || null,
                 maxDownload: parseInt(document.getElementById('maxDownload').value) || null

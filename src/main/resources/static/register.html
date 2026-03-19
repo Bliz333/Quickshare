@@ -433,7 +433,7 @@
         </div>
 
         <!-- 邮箱 -->
-        <div class="form-group">
+        <div class="form-group" id="emailGroup">
             <label data-i18n="emailLabel"><i class="fa-regular fa-envelope"></i>邮箱 *</label>
             <div class="email-row">
                 <div class="input-wrapper">
@@ -447,7 +447,7 @@
         </div>
 
         <!-- 验证码 -->
-        <div class="form-group">
+        <div class="form-group" id="verificationCodeGroup">
             <label data-i18n="verificationCodeLabel"><i class="fa-solid fa-shield-halved"></i>验证码 *</label>
             <div class="input-wrapper">
                 <input type="text" id="verificationCode" class="form-control" data-i18n="verificationCodePlaceholder" placeholder="6位数字验证码" required maxlength="6">
@@ -489,52 +489,5 @@
 <script src="js/lang-switch.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/register.js"></script>
-
-<!-- reCAPTCHA 初始化 -->
-<script>
-    // reCAPTCHA 站点密钥
-    const RECAPTCHA_SITE_KEY = '6LcIlu4rAAAAADoE2u7yXzWLMs_goEQeT-vTWqga';
-
-    // reCAPTCHA 加载完成后的回调
-    function onRecaptchaLoad() {
-        renderRecaptcha();
-    }
-
-    // 渲染 reCAPTCHA
-    function renderRecaptcha() {
-        const container = document.getElementById('captchaContainer');
-        if (!container) return;
-
-        // 清空容器
-        container.innerHTML = '';
-
-        // 根据当前主题选择 reCAPTCHA 主题
-        const isDark = document.documentElement.classList.contains('dark-mode');
-
-        // 创建 reCAPTCHA div
-        const recaptchaDiv = document.createElement('div');
-        recaptchaDiv.id = 'recaptcha-widget';
-        container.appendChild(recaptchaDiv);
-
-        // 渲染 reCAPTCHA
-        if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
-            grecaptcha.render('recaptcha-widget', {
-                sitekey: RECAPTCHA_SITE_KEY,
-                theme: isDark ? 'dark' : 'light'
-            });
-        }
-    }
-
-    // 监听主题切换，重新渲染 reCAPTCHA
-    const originalToggleTheme = window.toggleTheme;
-    window.toggleTheme = function() {
-        originalToggleTheme();
-        // 延迟重新渲染，等待主题切换完成
-        setTimeout(renderRecaptcha, 100);
-    };
-</script>
-
-<!-- 加载 reCAPTCHA（使用 onload 回调） -->
-<script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
 </body>
 </html>

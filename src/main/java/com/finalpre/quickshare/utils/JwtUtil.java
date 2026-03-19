@@ -1,5 +1,6 @@
 package com.finalpre.quickshare.utils;
 
+import com.finalpre.quickshare.common.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -14,7 +15,12 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private static final String DEFAULT_ROLE = "USER";
+    private static final String DEFAULT_ROLE = UserRole.USER.name();
+    private static final String CLAIM_USERNAME = "username";
+    private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_PURPOSE = "purpose";
+    private static final String PURPOSE_GUEST_UPLOAD = "guest-upload";
+    private static final long GUEST_UPLOAD_TOKEN_TTL_MS = 15 * 60 * 1000L;
 
     @Value("${jwt.secret}")
     private String secretString;
@@ -34,10 +40,28 @@ public class JwtUtil {
     public String generateToken(Long userId, String username, String role) {
         return Jwts.builder()
                 .setSubject(userId.toString())
-                .claim("username", username)
-                .claim("role", role == null || role.isEmpty() ? DEFAULT_ROLE : role)
+                .claim(CLAIM_USERNAME, username)
+                .claim(CLAIM_ROLE, UserRole.normalize(role))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
+                .signWith(getSecretKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String generateGuestUploadToken(Long fileId) {
+        if (fileId == null) {
+            throw new IllegalArgumentException("文件ID不能为空");
+        }
+
+        long ttl = expirationTime > 0
+                ? Math.min(expirationTime, GUEST_UPLOAD_TOKEN_TTL_MS)
+                : GUEST_UPLOAD_TOKEN_TTL_MS;
+
+        return Jwts.builder()
+                .setSubject(fileId.toString())
+                .claim(CLAIM_PURPOSE, PURPOSE_GUEST_UPLOAD)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + ttl))
                 .signWith(getSecretKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -57,11 +81,52 @@ public class JwtUtil {
 
     public String getRoleFromToken(String token) {
         Claims claims = parseToken(token);
-        Object role = claims.get("role");
-        if (role == null) {
-            return DEFAULT_ROLE;
+        Object role = claims.get(CLAIM_ROLE);
+        return UserRole.normalize(role == null ? null : role.toString());
+    }
+
+    public boolean validateAccessToken(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
         }
-        return role.toString();
+
+        try {
+            Claims claims = parseToken(token);
+            Object purpose = claims.get(CLAIM_PURPOSE);
+            Object username = claims.get(CLAIM_USERNAME);
+            return purpose == null && username != null && !username.toString().isBlank();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean isGuestUploadToken(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+
+        try {
+            Claims claims = parseToken(token);
+            Object purpose = claims.get(CLAIM_PURPOSE);
+            return PURPOSE_GUEST_UPLOAD.equals(purpose);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean validateGuestUploadToken(String token, Long fileId) {
+        if (token == null || token.isBlank() || fileId == null) {
+            return false;
+        }
+
+        try {
+            Claims claims = parseToken(token);
+            Object purpose = claims.get(CLAIM_PURPOSE);
+            return PURPOSE_GUEST_UPLOAD.equals(purpose)
+                    && fileId.toString().equals(claims.getSubject());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public boolean validateToken(String token) {

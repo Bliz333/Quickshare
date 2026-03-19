@@ -16,6 +16,7 @@ public class FileInfoVO {
     private Integer isFolder;      // 0=文件，1=文件夹
     private Long parentId;         // 父文件夹ID
     private Long folderId;         // 兼容前端旧字段，值与 parentId 一致
+    private String guestUploadToken; // 匿名上传后用于立即创建分享链接的临时凭证
     private Integer fileCount;     // 文件夹内文件数量（可选）
     private LocalDateTime createTime;  // 创建时间
 }

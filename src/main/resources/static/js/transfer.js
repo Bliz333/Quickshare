@@ -321,7 +321,7 @@ async function downloadFile(index) {
     }
 
     const fileName = file.originalName || file.fileName || 'download';
-    const url = `${API_BASE}/files/${file.id}/preview?token=${encodeURIComponent(token)}`;
+    const url = `${API_BASE}/files/${file.id}/download?token=${encodeURIComponent(token)}`;
 
     const taskId = 'dl_' + Date.now();
     const controller = new AbortController();

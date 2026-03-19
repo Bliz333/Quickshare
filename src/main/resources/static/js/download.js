@@ -74,18 +74,12 @@ async function getShareInfo() {
     }
 
     try {
-        let url = `${API_BASE}/share/${sCode}`;
-        if (eCode) {
-            url += `?extractCode=${eCode}`;
-        }
+        const url = `${API_BASE}/share/${sCode}?extractCode=${encodeURIComponent(eCode)}`;
 
         const res = await fetch(url);
         const data = await res.json();
 
         if (data.code !== 200) {
-            if (data.code === 403) {
-                throw new Error(lang === 'zh' ? '提取码错误或必填' : 'Invalid or required extract code');
-            }
             throw new Error(data.message || (lang === 'zh' ? '获取失败' : 'Failed to get info'));
         }
 

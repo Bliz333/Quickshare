@@ -40,3 +40,6 @@ build/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+### Local env ###
+.env

@@ -1,6 +1,7 @@
 package com.finalpre.quickshare.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.finalpre.quickshare.common.UserRole;
 import com.finalpre.quickshare.dto.LoginDTO;
 import com.finalpre.quickshare.dto.RegisterDTO;
 import com.finalpre.quickshare.entity.User;
@@ -10,7 +11,7 @@ import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.UserVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -26,15 +27,13 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private static final String DEFAULT_ROLE = "USER";
-
     @Override
     public UserVO register(RegisterDTO dto) {
         // 检查用户名是否存在
         QueryWrapper<User> wrapper = new QueryWrapper<>();
         wrapper.eq("username", dto.getUsername());
         if (userMapper.selectCount(wrapper) > 0) {
-            throw new RuntimeException("用户名已存在");
+            throw new IllegalArgumentException("用户名已存在");
         }
 
         // 创建用户
@@ -43,17 +42,18 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setEmail(dto.getEmail());
         user.setNickname(dto.getNickname() != null ? dto.getNickname() : dto.getUsername());
+        user.setRole(UserRole.USER.name());
 
         userMapper.insert(user);
 
         // 生成 token
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), DEFAULT_ROLE);
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
 
         // 返回 VO
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
         vo.setToken(token);
-        vo.setRole(DEFAULT_ROLE);
+        vo.setRole(user.getRole());
 
         return vo;
     }
@@ -66,23 +66,39 @@ public class UserServiceImpl implements UserService {
         User user = userMapper.selectOne(wrapper);
 
         if (user == null) {
-            throw new RuntimeException("用户名或密码错误");
+            throw new IllegalArgumentException("用户名或密码错误");
         }
 
         // 验证密码
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            throw new RuntimeException("用户名或密码错误");
+            throw new IllegalArgumentException("用户名或密码错误");
         }
 
+        String role = UserRole.normalize(user.getRole());
+
         // 生成 token
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), DEFAULT_ROLE);
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), role);
 
         // 返回 VO
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
         vo.setToken(token);
-        vo.setRole(DEFAULT_ROLE);
+        vo.setRole(role);
 
+        return vo;
+    }
+
+    @Override
+    public UserVO getProfile(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new AuthenticationCredentialsNotFoundException("未授权或登录已失效");
+        }
+
+        UserVO vo = new UserVO();
+        BeanUtils.copyProperties(user, vo);
+        vo.setRole(UserRole.normalize(user.getRole()));
+        vo.setToken(null);
         return vo;
     }
 }

@@ -3,17 +3,21 @@ package com.finalpre.quickshare.controller;
 import com.finalpre.quickshare.common.Result;
 import com.finalpre.quickshare.dto.LoginDTO;
 import com.finalpre.quickshare.dto.RegisterDTO;
+import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.service.UserService;
 import com.finalpre.quickshare.service.VerificationCodeService;
+import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
 import com.finalpre.quickshare.vo.UserVO;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin
 public class AuthController {
 
     @Autowired
@@ -22,24 +26,23 @@ public class AuthController {
     @Autowired
     private VerificationCodeService verificationCodeService;
 
+    @Autowired
+    private RegistrationSettingsService registrationSettingsService;
+
     /**
      * 发送邮箱验证码
      */
     @PostMapping("/send-code")
     public Result<String> sendVerificationCode(@RequestBody Map<String, String> request) {
-        try {
-            String email = request.get("email");
-            String recaptchaToken = request.get("recaptchaToken");
+        String email = request.get("email");
+        String recaptchaToken = request.get("recaptchaToken");
 
-            if (email == null || email.isEmpty()) {
-                return Result.error("邮箱不能为空");
-            }
-
-            String message = verificationCodeService.generateAndSendCode(email, recaptchaToken);
-            return Result.success(message);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
+        if (email == null || email.isEmpty()) {
+            throw new IllegalArgumentException("邮箱不能为空");
         }
+
+        String message = verificationCodeService.generateAndSendCode(email, recaptchaToken);
+        return Result.success(message);
     }
 
     /**
@@ -47,23 +50,22 @@ public class AuthController {
      */
     @PostMapping("/register")
     public Result<UserVO> register(@RequestBody RegisterDTO dto) {
-        try {
-            // 验证邮箱验证码
-            if (dto.getEmail() != null && !dto.getEmail().isEmpty()) {
-                if (dto.getVerificationCode() == null || dto.getVerificationCode().isEmpty()) {
-                    return Result.error("请输入验证码");
-                }
-
-                if (!verificationCodeService.verifyCode(dto.getEmail(), dto.getVerificationCode())) {
-                    return Result.error("验证码错误或已过期");
-                }
+        RegistrationSettingsPolicy registrationSettings = registrationSettingsService.getPolicy();
+        if (registrationSettings.emailVerificationEnabled()) {
+            if (dto.getEmail() == null || dto.getEmail().isBlank()) {
+                throw new IllegalArgumentException("请填写邮箱");
+            }
+            if (dto.getVerificationCode() == null || dto.getVerificationCode().isEmpty()) {
+                throw new IllegalArgumentException("请输入验证码");
             }
 
-            UserVO vo = userService.register(dto);
-            return Result.success(vo);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
+            if (!verificationCodeService.verifyCode(dto.getEmail(), dto.getVerificationCode())) {
+                throw new IllegalArgumentException("验证码错误或已过期");
+            }
         }
+
+        UserVO vo = userService.register(dto);
+        return Result.success(vo);
     }
 
     /**
@@ -71,12 +73,8 @@ public class AuthController {
      */
     @PostMapping("/login")
     public Result<UserVO> login(@RequestBody LoginDTO dto) {
-        try {
-            UserVO vo = userService.login(dto);
-            return Result.success(vo);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
+        UserVO vo = userService.login(dto);
+        return Result.success(vo);
     }
 
 }

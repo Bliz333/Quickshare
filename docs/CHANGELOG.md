@@ -2,7 +2,183 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-19 (Docker Smoke Test)
+
+- 详细记录：`docs/archive/2026-03-19-docker-smoke-test.md`
+- 本轮主题：在 WSL2 + Docker Compose 环境完成全功能 smoke test
+- 测试覆盖：
+  - 管理员登录、JWT 鉴权、角色同步
+  - 隐藏后台入口路由（正确/错误 slug、直接访问拦截）
+  - 全部管理员策略端点（频控/CORS/上传/预览/注册/控制台）
+  - LibreOffice headless 转 PDF 预览（DOCX、XLSX）
+  - 匿名上传/分享/公开下载全链路
+  - 提取码校验、频控拒绝
+  - 动态 slug 切换、邮箱验证开关切换、匿名上传开关切换
+  - 注册/网盘/PDF查看器静态页面加载
+- 结果：全部通过
+- 当前建议下一步：
+  - 把 SMTP 配置接入管理员后台
+  - 继续邮件模板/公告体系
+  - 评估 secret 类配置加密方案
+
+## 2026-03-19
+
+- 详细记录：`docs/archive/2026-03-19-admin-console-and-registration-controls.md`
+- 本轮主题：管理员后台补齐用户新增/删除，后台入口改为隐藏路径，并把注册验证设置接入管理员面板
+- 核心变更：
+  - 管理员后台新增创建用户、删除用户能力，后端补了“不能删除当前登录管理员 / 不能删掉最后一个管理员”的保护
+  - 管理员后台不再依赖公开 `admin.html`，改为 `/console/{slug}` 隐藏入口，并支持从后台和 `compose/.env` 两侧管理
+  - 注册相关运行时设置已后台化，邮箱验证码和 reCAPTCHA 现在都可从管理台开关
+  - 注册页改为读取公开运行时设置接口，关闭验证码或 reCAPTCHA 时不再加载对应表单步骤或 Google 脚本
+  - `compose.yaml` 和 `.env.example` 已新增 `ADMIN_CONSOLE_SLUG`、`REGISTRATION_EMAIL_VERIFICATION_ENABLED` 默认值，方便本地测试直接起栈
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminServiceImplTest,AdminControllerTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminPolicyServiceImplTest,AdminControllerTest,AdminConsoleControllerTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminPolicyServiceImplTest,AdminControllerTest,AdminConsoleControllerTest,RegistrationSettingsServiceImplTest,PublicSettingsControllerTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+  - `node --check src/main/resources/static/js/admin.js`
+  - `node --check src/main/resources/static/js/session.js`
+  - `node --check src/main/resources/static/js/auth.js`
+  - `node --check src/main/resources/static/js/register.js`
+  - `node --check src/main/resources/static/js/lang-switch.js`
+  - `ruby -e "require 'yaml'; YAML.load_file('compose.yaml'); puts 'compose.yaml OK'"`
+- 当前建议下一步：
+  - 在真实 Docker 环境补一轮管理后台隐藏入口、Office 预览和注册页动态配置的 smoke test
+  - 继续把 SMTP、邮件模板、公告通知接入管理员后台
+  - 评估后台保存 secret 类配置时的加密或外部托管方案
+
 ## 2026-03-18
+
+- 详细记录：`docs/archive/2026-03-18-docker-libreoffice-admin-bootstrap.md`
+- 本轮主题：Docker 单文件部署补齐 LibreOffice，并支持启动期直接生成管理员账号
+- 核心变更：
+  - `Dockerfile` 运行时镜像已内置 LibreOffice headless 与中文字体，满足 Office 转 PDF 预览依赖
+  - `compose.yaml` 继续保持单文件部署，同时接入 `OFFICE_PREVIEW_*` 和 `BOOTSTRAP_ADMIN_*` 环境变量
+  - 新增 `AdminBootstrapRunner`，部署启动后可直接创建或提升首个 `ADMIN` 账号
+  - `.env.example` 已提供默认 `admin / ChangeMeAdmin123!` 示例，起栈后可直接登录后台
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminBootstrapRunnerTest test`
+  - `ruby -e "require 'yaml'; YAML.load_file('compose.yaml'); puts 'compose.yaml OK'"`
+- 当前建议下一步：
+  - 在真实具备 Docker 的环境补一次 `docker compose up --build -d` smoke test
+  - 对外部署前改掉默认管理员密码与 JWT/CORS 占位值
+
+- 详细记录：`docs/archive/2026-03-18-office-preview-libreoffice-pdfjs.md`
+- 本轮主题：Office 预览改为 LibreOffice headless 转 PDF + PDF.js 查看器
+- 核心变更：
+  - 后端新增 `LibreOfficeOfficePreviewService`，将 Office 文档按需转成 PDF，并缓存转换结果
+  - `/api/files/{fileId}/preview` 在 Office 文件上不再回原始文档流，而是返回转换后的 PDF；转换失败统一返回 `503`
+  - 新增同源 `pdf-viewer.html` + `pdf-viewer.js`，网盘中的 PDF / Office 预览统一切到 PDF.js 查看器
+  - 新增 `OFFICE_PREVIEW_*` 配置项与 `.env.example` 提示，部署时可显式配置 `soffice` 命令与超时
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=FileControllerTest,LibreOfficeOfficePreviewServiceTest test`
+  - `node --check src/main/resources/static/js/pdf-viewer.js`
+  - `node --check src/main/resources/static/js/netdisk-render.js`
+  - `node --check src/main/resources/static/js/lang-switch.js`
+- 当前建议下一步：
+  - 在真实安装了 LibreOffice 的环境补一次 smoke test
+  - 决定是否把同一套 PDF.js 查看器继续接到公开分享页
+
+- 详细记录：`docs/archive/2026-03-18-admin-preview-policy-controls.md`
+- 本轮主题：预览策略接入管理员后台，并拆分用户下载链路
+- 核心变更：
+  - 新增 `FilePreviewPolicyService`，把预览策略从控制器硬编码判断收口到“配置默认值 + 数据库存储覆盖值”
+  - 管理员后台新增“预览策略”表单，可直接控制图片 / 视频 / 音频 / PDF / 文本 / Office 文档族预览开关，以及扩展名收窄
+  - 新增 `/api/files/{fileId}/download`，将用户自有文件下载与预览语义拆开，避免预览策略误伤正常下载
+  - 网盘前端已先读取当前预览策略，再决定是否尝试预览；Office 文档当前先走浏览器内嵌 fallback
+- 验证结果：
+  - `node --check src/main/resources/static/js/admin.js`
+  - `node --check src/main/resources/static/js/lang-switch.js`
+  - `node --check src/main/resources/static/js/netdisk.js`
+  - `node --check src/main/resources/static/js/netdisk-render.js`
+  - `node --check src/main/resources/static/js/transfer.js`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminControllerTest,AdminPolicyServiceImplTest,FileControllerTest,FilePreviewPolicyServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 继续补更稳定的 Office / 文档预览实现
+  - 再细化 MIME / 内嵌 / 缩略图等预览策略项
+
+- 详细记录：`docs/archive/2026-03-18-admin-guest-upload-toggle.md`
+- 本轮主题：匿名上传开关接入管理员后台
+- 核心变更：
+  - 上传策略新增 `guestUploadEnabled`，管理员可直接控制是否允许未登录用户走首页匿名上传
+  - `POST /api/upload` 在匿名上传关闭时会返回明确 `403` 业务语义“匿名上传已关闭”
+  - 新增 `FeatureDisabledException`，为后续预览开关等功能关闭语义复用
+  - 已把 SMTP 后台化、邮件模板/公告、Turnstile/reCAPTCHA 提供器切换加入后续工作流记录
+- 验证结果：
+  - `node --check src/main/resources/static/js/admin.js`
+  - `node --check src/main/resources/static/js/lang-switch.js`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminControllerTest,AdminPolicyServiceImplTest,FileUploadPolicyServiceImplTest,FileControllerTest,FileServiceImplTest test`
+- 当前建议下一步：
+  - 继续补更细的上传 / 预览策略后台项
+  - 之后进入 SMTP 配置后台化与邮件模板体系
+
+- 详细记录：`docs/archive/2026-03-18-admin-upload-policy-controls.md`
+- 本轮主题：上传策略接入管理员后台
+- 核心变更：
+  - 新增 `FileUploadPolicyService`，上传大小限制与扩展名白名单改为走“配置默认值 + 数据库存储覆盖值”
+  - 管理员接口新增上传策略读取 / 更新能力，沿用 `system_setting` 持久化
+  - 管理员页面新增“上传策略”表单，可直接调整服务层大小限制与允许扩展名列表
+  - 管理台会显示当前 multipart 服务硬上限，避免后台配置超过运行时真实能力
+- 验证结果：
+  - `node --check src/main/resources/static/js/admin.js`
+  - `node --check src/main/resources/static/js/lang-switch.js`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminControllerTest,AdminPolicyServiceImplTest,FileUploadPolicyServiceImplTest,FileServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 继续把更多上传相关安全项接入后台配置
+  - 后续再补文档预览与后台开关，不打断当前策略后台化主线
+
+- 详细记录：`docs/archive/2026-03-18-admin-role-sync-hardening.md`
+- 本轮主题：管理员角色同步与登录态收口
+- 核心变更：
+  - `JwtAuthenticationFilter` 不再直接信任 JWT 中的 `role` claim，而是按 `userId` 实时读取数据库当前角色建立权限
+  - 新增 `/api/profile`，供前端同步当前登录用户资料与角色
+  - 首页 / 网盘 / 管理页统一改为默认隐藏管理员入口，只有服务端确认当前仍是 `ADMIN` 才展示
+  - 游客上传临时 token 已与正常登录 access token 显式区分，避免被误当成登录态
+- 验证结果：
+  - `node --check src/main/resources/static/js/session.js`
+  - `node --check src/main/resources/static/js/auth.js`
+  - `node --check src/main/resources/static/js/netdisk.js`
+  - `node --check src/main/resources/static/js/admin.js`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminControllerTest,FileControllerTest,ProfileControllerTest,UserServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 继续把更多可调安全策略项接入后台配置
+  - 后续再补文档预览与后台开关，不要先打断当前策略后台化主线
+
+- 详细记录：`docs/archive/2026-03-18-admin-policy-runtime-overrides.md`
+- 本轮主题：频控 / CORS 策略接入管理员后台
+- 核心变更：
+  - 新增 `system_setting` 表和手工迁移脚本，用于保存管理员策略覆盖值
+  - 频控与 CORS provider 均改为“配置文件默认值 + 数据库存储覆盖值”的读取模式
+  - 新增管理员策略接口，支持读取 / 更新频控规则和 CORS 配置
+  - 管理员页面已新增频控策略与 CORS 配置表单，保存后立即刷新当前策略状态
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminControllerTest,AdminPolicyServiceImplTest,RateLimitPolicyServiceImplTest,CorsPolicyServiceImplTest test`
+  - `node --check src/main/resources/static/js/admin.js`
+  - `node --check src/main/resources/static/js/lang-switch.js`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 继续把更多可调安全策略项接入 `system_setting`
+  - 为后台策略表单补更细的提示和浏览器级回归
+
+- 详细记录：`docs/archive/2026-03-18-admin-console-ui-bootstrap.md`
+- 本轮主题：最小管理员后台页面接通
+- 核心变更：
+  - 新增 `admin.html` 与 `js/admin.js`，对接概览、用户、文件、分享四组管理员接口
+  - 首页登录态和网盘页均补管理员入口，并按 `user.role === 'ADMIN'` 显隐
+  - 管理员页面已支持改用户角色、强制删除文件 / 文件夹、失效分享
+  - 语言包补齐管理员后台中英文本，并在页面中预留“限流 / CORS 策略接管”区块
+- 验证结果：
+  - `node --check src/main/resources/static/js/admin.js`
+  - `node --check src/main/resources/static/js/auth.js`
+  - `node --check src/main/resources/static/js/netdisk.js`
+  - `node --check src/main/resources/static/js/lang-switch.js`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 开始为管理员面板补频控策略和 CORS 策略的读取 / 保存接口
+  - 继续沿用现有 provider 抽象，不要把配置逻辑重新写回执行链
 
 - 详细记录：`docs/archive/2026-03-18-stage2-session-log.md`
 - 本轮主题：阶段 2 文件/文件夹闭环收口与前后端契约对齐
@@ -21,3 +197,150 @@
 - 当前建议下一步：
   - 继续收口深层目录回归、逻辑删除一致性和前端缓存边界
   - 回到阶段 1，统一异常处理与鉴权回归测试
+
+- 详细记录：`docs/archive/2026-03-18-stage1-exception-auth-followup.md`
+- 本轮主题：阶段 1 异常处理统一与文件接口鉴权回归
+- 核心变更：
+  - 将 `GlobalExceptionHandler` 改为返回统一 JSON + 正确 HTTP 状态码
+  - 为资源不存在场景新增 `ResourceNotFoundException`，文件服务按 400/403/404 语义拆分异常
+  - 移除 `FileController` 和 `AuthController` 的分散 `try/catch`，改为直接依赖全局异常处理
+  - `FileController` 不再手工解析 JWT，统一从 Spring Security 认证上下文读取当前用户
+  - 将 `FileControllerTest` 改为 `WebMvcTest`，走真实安全过滤链覆盖缺失 token、无效 token、URL token 和越权场景
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=FileControllerTest,FileServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 继续补分享/预览路径的异常语义与回归测试
+  - 收紧 CORS 白名单并开始角色权限（`ADMIN`）设计
+
+- 详细记录：`docs/archive/2026-03-18-docker-deployment-smoke-test.md`
+- 本轮主题：Docker 打包补齐与服务器联调通过
+- 核心变更：
+  - 新增 `Dockerfile`、`compose.yaml`、`.dockerignore` 和 `.env.example`
+  - 新增 `docker/mysql/init/001-schema.sql`，补齐首次启动所需建表脚本
+  - 更新 `README.md`，增加 Docker Compose 启动说明和部署注意事项
+  - 将服务器联调基线收敛为可复用的容器化方案
+- 验证结果：
+  - `mvn -q -Dmaven.test.skip=true package`
+  - `ruby -e "require 'yaml'; YAML.load_file('compose.yaml'); puts 'compose.yaml OK'"`
+  - 服务器侧已完成 `docker compose` 联调并确认当前版本可正常验证（基于用户反馈）
+- 当前建议下一步：
+  - 继续补分享/预览/下载路径的回归测试
+  - 继续收紧生产配置并按部署环境限制 CORS、JWT 和邮件参数
+
+- 本轮补充：匿名共享链路鉴权修正
+- 核心变更：
+  - 放开首页使用的 `/api/upload` 与 `/api/share`，使未登录用户也可完成“上传后立即分享”
+  - 匿名上传文件改为返回一次性临时分享凭证，匿名创建分享时必须携带，避免简单放开接口后可凭 `fileId` 越权复用
+  - 保持网盘列表、预览、删除、重命名、文件夹操作仍需登录，不回退到旧的默认用户逻辑
+  - 前端首页上传脚本已对齐新的匿名分享凭证字段
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=FileControllerTest,FileServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dmaven.test.skip=true package`
+- 当前建议下一步：
+  - 继续补分享/预览/下载路径的异常与鉴权回归，尤其是匿名分享凭证过期/无效场景
+  - 开始为匿名上传与下载增加频控、大小策略和清理机制
+
+- 详细记录：`docs/archive/2026-03-18-share-preview-download-regression.md`
+- 本轮主题：分享 / 预览 / 下载回归补充与访客下载语义收口
+- 核心变更：
+  - 为 `share / preview / download` 补齐 WebMvc 回归，覆盖 400/401/404 和 URL `token` 场景
+  - 为 `FileServiceImpl` 补齐分享过期、提取码、下载上限、删除文件和下载计数回归
+  - 修复逻辑删除文件仍可创建分享的问题
+  - 访客下载页改为始终传递 `extractCode`，后端缺参时统一返回“提取码错误”
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=FileControllerTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=FileServiceImplTest test`
+  - `node --check src/main/resources/static/js/download.js`
+- 当前建议下一步：
+  - 为匿名上传与下载增加最小频控与配额
+  - 继续收口分享码唯一性、下载计数并发安全与前端访客下载体验
+
+- 详细记录：`docs/archive/2026-03-18-guest-rate-limit-baseline.md`
+- 本轮主题：匿名上传 / 下载频控最小基线
+- 核心变更：
+  - 新增基于 Redis 的 `RequestRateLimitService`，按客户端 IP 限制匿名上传和公开下载
+  - 全局异常新增 429 映射，频控超限会返回明确业务文案
+  - `FileController` 接入 `X-Forwarded-For / X-Real-IP / remoteAddr` 客户端地址解析
+  - 新增 `app.rate-limit.*` 配置，默认匿名上传 10 次 / 10 分钟、公开下载 30 次 / 10 分钟
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=FileControllerTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=RequestRateLimitServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 将公开分享信息查询也纳入频控
+  - 继续收口下载失败交互、分享码唯一性和下载计数并发安全
+
+- 详细记录：`docs/archive/2026-03-18-public-share-info-rate-limit-followup.md`
+- 本轮主题：公开分享查询频控补充与限流策略提供器抽象
+- 核心变更：
+  - 将 `GET /api/share/{shareCode}` 纳入频控，补齐三个公开入口的应用层限流
+  - 新增 `RateLimitPolicyService` / `RateLimitRule` / `RateLimitProperties`，把限流阈值来源从执行链中抽离
+  - 当前仍使用配置文件提供策略，但已为后续管理员面板接管动态调控预留扩展点
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=FileControllerTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=RequestRateLimitServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 为管理员面板预留频控策略读写接口与表结构草案
+  - 继续补提取码错误次数限制和下载失败交互
+
+- 交接补充：`docs/archive/2026-03-18-session-handoff.md`
+- 说明：
+  - 当前可从该交接文档直接恢复上下文，不必重新梳理阶段判断与最近几轮安全加固
+  - 已明确记录当前主阶段、稳定基线、下一步第一优先任务，以及未来管理员面板接管频控的切入点
+
+- 详细记录：`docs/archive/2026-03-18-extract-code-attempt-limit.md`
+- 本轮主题：公开分享提取码错误次数限制
+- 核心变更：
+  - 为 `GET /api/share/{shareCode}` 增加 `IP + shareCode` 维度的提取码错误次数限制，默认 5 次 / 600 秒
+  - 错误次数超限时返回 HTTP `429` 与明确业务文案“提取码尝试次数过多，请稍后再试”
+  - 提取码校验成功后清理该维度错误计数，并补齐配置项与控制器 / 服务层回归
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=FileControllerTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=RequestRateLimitServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 开始角色权限与 CORS 白名单设计
+  - 评估把提取码错误次数策略接入管理员面板可调项
+
+- 详细记录：`docs/archive/2026-03-18-cors-policy-hardening.md`
+- 本轮主题：CORS 白名单收紧与策略来源抽象
+- 核心变更：
+  - 去掉 `AuthController`、`FileController` 上宽松的 `@CrossOrigin`，避免控制器层默认放开所有来源
+  - 新增 `CorsPolicyService` / `CorsProperties` / `CorsPolicy`，让 CORS 白名单和行为从配置读取但不再写死在过滤链
+  - `WebConfig` 改为提供动态 `CorsConfigurationSource`，后续管理员面板可直接接管策略来源
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=FileControllerTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 开始 `User.role` 落库与角色权限基础收口
+  - 继续为管理员面板设计首批可接管的安全策略项
+
+- 详细记录：`docs/archive/2026-03-18-user-role-foundation.md`
+- 本轮主题：用户角色基础落库
+- 核心变更：
+  - 新增 `UserRole` 枚举，统一 `USER` / `ADMIN` 角色规范化逻辑
+  - `user` 表新增 `role` 字段，注册 / 登录 / JWT 改为走真实角色来源，不再只写死 `USER`
+  - 补了已有库的手工迁移脚本 `docker/mysql/manual/2026-03-18-add-user-role.sql`
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=UserServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 开始第一批管理员接口的 `ADMIN` 权限边界
+  - 在角色基础稳定后，让后台接管限流 / CORS 策略来源
+
+- 详细记录：`docs/archive/2026-03-18-admin-api-bootstrap.md`
+- 本轮主题：管理员接口第一批基线
+- 核心变更：
+  - 新增 `AdminController` / `AdminService`，统一用 `@PreAuthorize("hasRole('ADMIN')")` 保护整组管理员接口
+  - 当前后台角色只保留 `USER` / `ADMIN` 两层，管理员默认拥有最高权限，不再继续拆分更细角色
+  - 补齐概览、用户列表、改角色、文件列表与强制删除、分享列表与失效分享等第一批接口
+- 验证结果：
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminControllerTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminServiceImplTest test`
+  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 当前建议下一步：
+  - 开始最小管理员页面，对接现有管理员读取接口
+  - 再把限流 / CORS 策略来源接到后台页面

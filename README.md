@@ -13,7 +13,7 @@
 
 </div>
 
-> 项目当前状态、已知问题与近期路线请参阅 `docs/STATUS.md`（2025-02-20 更新）。
+> 项目当前状态、已知问题与近期路线请参阅 `docs/STATUS.md`（2026-03-18 更新）。
 
 ## Table of Contents
 
@@ -21,6 +21,7 @@
 - [Technology Stack](#technology-stack)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
+- [Docker Deployment](#docker-deployment)
 - [Detailed Installation](#detailed-installation)
   - [Database Setup](#database-setup)
   - [Redis Setup](#redis-setup)
@@ -83,6 +84,7 @@ Ensure you have the following installed:
 - **Maven 3.6+** ([Download](https://maven.apache.org/download.cgi))
 - **MySQL 8.0+** ([Download](https://dev.mysql.com/downloads/mysql/))
 - **Redis 6.0+** ([Download](https://redis.io/download))
+- **LibreOffice / soffice** (optional, but required for stable Office preview)
 - **Git** ([Download](https://git-scm.com/))
 
 ## Quick Start
@@ -102,6 +104,9 @@ EXIT;
 # 3. Configure credentials via environment variables (preferred) or copy
 #    src/main/resources/application-local.example.yml to application-local.yml
 #    and fill in DB/Redis/JWT/Mail settings
+#
+#    If you want Word/Excel/PPT preview, also ensure LibreOffice is installed
+#    and OFFICE_PREVIEW_COMMAND points to a working soffice binary
 
 # 4. Run the application
 mvn spring-boot:run
@@ -109,6 +114,38 @@ mvn spring-boot:run
 # 5. Access the application
 # Open your browser and go to: http://localhost:8080
 ```
+
+## Docker Deployment
+
+For server-side testing with Docker Compose:
+
+```bash
+# 1. Prepare environment variables
+cp .env.example .env
+
+# 2. Adjust at least DB/JWT/CORS settings in .env
+
+# 3. Build and start the stack
+docker compose up --build -d
+
+# 4. Check application logs
+docker compose logs -f app
+
+# 5. Stop the stack
+docker compose down
+```
+
+Notes:
+
+- `compose.yaml` starts three services: `app`, `mysql`, and `redis`.
+- The MySQL schema is initialized from `docker/mysql/init/001-schema.sql` on first startup.
+- Uploaded files are persisted in the `quickshare-uploads` volume.
+- `RECAPTCHA_ENABLED=false` by default in `.env.example` so the stack can be tested without Google reCAPTCHA keys.
+- If `MAIL_*` is left empty, the application still starts, but email verification flows will fail when invoked.
+- Office preview requires a working `soffice` binary. Set `OFFICE_PREVIEW_COMMAND` if LibreOffice is not on `PATH`.
+- The default `.env.example` also bootstraps an `ADMIN` account on first startup: `admin / ChangeMeAdmin123!`.
+- For public deployment, replace `CORS_ALLOWED_ORIGINS=*` and `JWT_SECRET` with real values.
+- Before exposing the service publicly, change `BOOTSTRAP_ADMIN_PASSWORD`, or disable bootstrap after the first admin account is created.
 
 ## Detailed Installation
 
@@ -130,7 +167,7 @@ EXIT;
 
 #### Database Schema
 
-The application automatically creates tables using MyBatis Plus. Key entities:
+The application does not auto-create MySQL tables. Import the schema manually or use the bundled initialization script at `docker/mysql/init/001-schema.sql`. Key entities:
 
 - `user` - User accounts and authentication
 - `file_info` - File metadata and organization

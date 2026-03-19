@@ -2,42 +2,148 @@
  * register.js - 注册页面逻辑
  */
 
-// 验证码倒计时
 let countdown = 0;
+let registrationSettings = {
+    emailVerificationEnabled: true,
+    recaptchaEnabled: false,
+    recaptchaSiteKey: ''
+};
+let recaptchaScriptLoaded = false;
+let recaptchaRenderQueued = false;
 
-/**
- * 获取 reCAPTCHA 响应
- * @returns {string|null}
- */
+async function loadRegistrationSettings() {
+    try {
+        const response = await fetch(`${API_BASE}/public/registration-settings`);
+        const result = await response.json();
+        if (response.ok && result?.code === 200 && result.data) {
+            registrationSettings = {
+                ...registrationSettings,
+                ...result.data
+            };
+        }
+    } catch (error) {
+        console.warn('Failed to load registration settings:', error);
+    }
+
+    applyRegistrationSettings();
+}
+
+function applyRegistrationSettings() {
+    const emailInput = document.getElementById('email');
+    const verificationCodeInput = document.getElementById('verificationCode');
+    const verificationCodeGroup = document.getElementById('verificationCodeGroup');
+    const sendCodeBtn = document.getElementById('sendCodeBtn');
+    const captchaContainer = document.getElementById('captchaContainer');
+
+    const emailVerificationEnabled = !!registrationSettings.emailVerificationEnabled;
+    if (emailInput) {
+        emailInput.required = emailVerificationEnabled;
+    }
+    if (verificationCodeInput) {
+        verificationCodeInput.required = emailVerificationEnabled;
+        if (!emailVerificationEnabled) {
+            verificationCodeInput.value = '';
+        }
+    }
+    if (verificationCodeGroup) {
+        verificationCodeGroup.classList.toggle('hidden', !emailVerificationEnabled);
+    }
+    if (sendCodeBtn) {
+        sendCodeBtn.classList.toggle('hidden', !emailVerificationEnabled);
+        sendCodeBtn.disabled = !emailVerificationEnabled;
+        if (!emailVerificationEnabled) {
+            sendCodeBtn.textContent = t('sendCodeBtn');
+        }
+    }
+
+    const recaptchaEnabled = !!registrationSettings.recaptchaEnabled && !!registrationSettings.recaptchaSiteKey;
+    if (captchaContainer) {
+        captchaContainer.classList.toggle('hidden', !recaptchaEnabled);
+        if (!recaptchaEnabled) {
+            captchaContainer.innerHTML = '';
+        }
+    }
+
+    if (recaptchaEnabled) {
+        loadRecaptchaScript();
+    }
+}
+
+function loadRecaptchaScript() {
+    if (recaptchaScriptLoaded) {
+        renderRecaptcha();
+        return;
+    }
+
+    if (document.querySelector('script[data-recaptcha-script="true"]')) {
+        recaptchaRenderQueued = true;
+        return;
+    }
+
+    recaptchaRenderQueued = true;
+    const script = document.createElement('script');
+    script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.dataset.recaptchaScript = 'true';
+    script.onload = () => {
+        recaptchaScriptLoaded = true;
+        renderRecaptcha();
+    };
+    document.head.appendChild(script);
+}
+
+function renderRecaptcha() {
+    if (!registrationSettings.recaptchaEnabled || !registrationSettings.recaptchaSiteKey) {
+        return;
+    }
+
+    const container = document.getElementById('captchaContainer');
+    if (!container || typeof grecaptcha === 'undefined' || typeof grecaptcha.render !== 'function') {
+        return;
+    }
+
+    container.innerHTML = '';
+    const recaptchaDiv = document.createElement('div');
+    recaptchaDiv.id = 'recaptcha-widget';
+    container.appendChild(recaptchaDiv);
+
+    const isDark = document.documentElement.classList.contains('dark-mode');
+    grecaptcha.render('recaptcha-widget', {
+        sitekey: registrationSettings.recaptchaSiteKey,
+        theme: isDark ? 'dark' : 'light'
+    });
+    recaptchaRenderQueued = false;
+}
+
 function getRecaptchaResponse() {
+    if (!registrationSettings.recaptchaEnabled) return null;
     if (typeof grecaptcha === 'undefined') return null;
 
     try {
-        // 尝试获取响应
         return grecaptcha.getResponse();
-    } catch (e) {
-        console.warn('reCAPTCHA getResponse error:', e);
+    } catch (error) {
+        console.warn('reCAPTCHA getResponse error:', error);
         return null;
     }
 }
 
-/**
- * 重置 reCAPTCHA
- */
 function resetRecaptcha() {
-    if (typeof grecaptcha !== 'undefined' && typeof renderRecaptcha === 'function') {
+    if (registrationSettings.recaptchaEnabled && typeof grecaptcha !== 'undefined' && typeof renderRecaptcha === 'function') {
         try {
             renderRecaptcha();
-        } catch (e) {
-            console.warn('reCAPTCHA reset error:', e);
+        } catch (error) {
+            console.warn('reCAPTCHA reset error:', error);
         }
     }
 }
 
-/**
- * 发送邮箱验证码
- */
 async function sendVerificationCode() {
+    if (!registrationSettings.emailVerificationEnabled) {
+        showToast(t('sendCodeFailed'), 'error');
+        return;
+    }
+
     const email = document.getElementById('email').value.trim();
 
     if (!email) {
@@ -47,9 +153,8 @@ async function sendVerificationCode() {
 
     if (countdown > 0) return;
 
-    // 检查 reCAPTCHA
     const recaptchaResponse = getRecaptchaResponse();
-    if (!recaptchaResponse) {
+    if (registrationSettings.recaptchaEnabled && !recaptchaResponse) {
         showToast(t('captchaRequired'), 'error');
         return;
     }
@@ -87,10 +192,6 @@ async function sendVerificationCode() {
     }
 }
 
-/**
- * 开始倒计时
- * @param {HTMLElement} btn
- */
 function startCountdown(btn) {
     countdown = 60;
 
@@ -106,10 +207,6 @@ function startCountdown(btn) {
     }, 1000);
 }
 
-/**
- * 处理注册表单提交
- * @param {Event} event
- */
 async function handleRegister(event) {
     event.preventDefault();
 
@@ -136,8 +233,8 @@ async function handleRegister(event) {
     const payload = {
         username: document.getElementById('username').value.trim(),
         password: password,
-        email: document.getElementById('email').value.trim(),
-        verificationCode: document.getElementById('verificationCode').value.trim(),
+        email: document.getElementById('email').value.trim() || null,
+        verificationCode: document.getElementById('verificationCode').value.trim() || null,
         nickname: document.getElementById('nickname').value.trim() || null
     };
 
@@ -171,9 +268,6 @@ async function handleRegister(event) {
     }
 }
 
-/**
- * 检查是否已登录
- */
 function checkAlreadyLoggedIn() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -183,5 +277,17 @@ function checkAlreadyLoggedIn() {
     }
 }
 
-// 页面加载时检查登录状态
-window.addEventListener('load', checkAlreadyLoggedIn);
+window.addEventListener('load', async () => {
+    checkAlreadyLoggedIn();
+    await loadRegistrationSettings();
+
+    const originalToggleTheme = window.toggleTheme;
+    if (typeof originalToggleTheme === 'function') {
+        window.toggleTheme = function() {
+            originalToggleTheme();
+            if (registrationSettings.recaptchaEnabled) {
+                setTimeout(renderRecaptcha, 100);
+            }
+        };
+    }
+});

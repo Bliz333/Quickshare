@@ -1,5 +1,8 @@
 package com.finalpre.quickshare.config;
 
+import com.finalpre.quickshare.common.UserRole;
+import com.finalpre.quickshare.entity.User;
+import com.finalpre.quickshare.mapper.UserMapper;
 import com.finalpre.quickshare.utils.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,9 +22,11 @@ import java.util.Collections;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UserMapper userMapper;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserMapper userMapper) {
         this.jwtUtil = jwtUtil;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -39,13 +44,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        if (token == null || !jwtUtil.validateToken(token)) {
+        if (token == null || !jwtUtil.validateAccessToken(token)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         Long userId = jwtUtil.getUserIdFromToken(token);
-        String role = jwtUtil.getRoleFromToken(token);
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String role = UserRole.normalize(user.getRole());
 
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 userId,

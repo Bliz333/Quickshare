@@ -30,19 +30,32 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/public/**",
                                 "/api/health",
+                                "/api/upload",
+                                "/api/share",
                                 "/api/share/**",
                                 "/api/download/**",
                                 "/error"
                         ).permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/admin.html").denyAll()
                         // 前端静态资源
                         .requestMatchers(
-                                "/", "/*.html",
+                                "/",
+                                "/index.html",
+                                "/login.html",
+                                "/register.html",
+                                "/netdisk.html",
+                                "/pdf-viewer.html",
+                                "/drive.html",
+                                "/test.html",
+                                "/console/**",
                                 "/js/**", "/css/**", "/img/**", "/images/**",
                                 "/favicon.ico"
                         ).permitAll()

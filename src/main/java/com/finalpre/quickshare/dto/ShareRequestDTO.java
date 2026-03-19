@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class ShareRequestDTO {
     private Long fileId;
+    private String guestUploadToken;  // 匿名上传后的临时分享凭证
     private String extractCode;  // 提取码,可选
     private Integer expireHours;  // 过期时间(小时),null表示永久
     private Integer maxDownload;  // 最大下载次数,-1表示不限制

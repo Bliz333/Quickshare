@@ -162,12 +162,13 @@ class FileServiceImplTest {
 
         fileService.deleteFile(5L, 7L);
 
+        verify(shareLinkMapper).delete(any());
         verify(storageService).delete("to-delete.txt");
         verify(fileInfoMapper).deleteById(5L);
     }
 
     @Test
-    void deleteFolderShouldRemoveNestedPhysicalFiles() throws Exception {
+    void deleteFolderShouldRemoveNestedShareLinksAndFiles() throws Exception {
         FileInfo folder = new FileInfo();
         folder.setId(10L);
         folder.setUserId(7L);
@@ -180,10 +181,12 @@ class FileServiceImplTest {
         childFile.setFilePath("child.txt");
 
         when(fileInfoMapper.selectById(10L)).thenReturn(folder);
-        when(fileInfoMapper.selectList(any())).thenReturn(List.of(childFile));
+        when(fileInfoMapper.selectList(any())).thenReturn(List.of(childFile), List.of());
 
         fileService.deleteFolder(10L, 7L);
 
+        // Verify share links cleaned up for child files
+        verify(shareLinkMapper).delete(any());
         verify(storageService).delete("child.txt");
         verify(fileInfoMapper).deleteById(11L);
         verify(fileInfoMapper).deleteById(10L);

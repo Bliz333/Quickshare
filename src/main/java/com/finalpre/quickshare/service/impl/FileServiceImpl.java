@@ -387,6 +387,8 @@ public class FileServiceImpl implements FileService {
             throw new AccessDeniedException("无权删除此文件");
         }
 
+        // 清理分享链接
+        shareLinkMapper.delete(new QueryWrapper<ShareLink>().eq("file_id", fileId));
         deletePhysicalFile(fileInfo);
         fileInfoMapper.deleteById(fileId);
     }
@@ -447,6 +449,7 @@ public class FileServiceImpl implements FileService {
     public FileInfoVO createFolder(String folderName, Long parentId, Long userId) {
         String normalizedFolderName = normalizeItemName(folderName, "文件夹名");
         Long normalizedParentId = normalizeParentId(parentId);
+        validateTargetFolder(normalizedParentId, userId);
         ensureNameAvailable(userId, normalizedParentId, normalizedFolderName, null);
 
         FileInfo folder = new FileInfo();
@@ -495,44 +498,47 @@ public class FileServiceImpl implements FileService {
                 .collect(Collectors.toList());
     }
 
+    private static final int MAX_FOLDER_DEPTH = 50;
+
     /**
      * 删除文件夹
      */
     @Override
     public void deleteFolder(Long folderId, Long userId) {
-        // 查询文件夹
         FileInfo folder = fileInfoMapper.selectById(folderId);
 
         if (folder == null) {
             throw new ResourceNotFoundException("文件夹不存在");
         }
-
-        // 验证是否是文件夹所有者
         if (!folder.getUserId().equals(userId)) {
             throw new AccessDeniedException("无权删除此文件夹");
         }
-
-        // 验证是否是文件夹
         if (folder.getIsFolder() != 1) {
             throw new IllegalArgumentException("该对象不是文件夹");
         }
 
-        // 删除文件夹下的所有文件
+        deleteFolderRecursive(folderId, userId, 0);
+    }
+
+    private void deleteFolderRecursive(Long folderId, Long userId, int depth) {
+        if (depth > MAX_FOLDER_DEPTH) {
+            throw new IllegalStateException("文件夹层级过深，无法删除");
+        }
+
         QueryWrapper<FileInfo> wrapper = new QueryWrapper<>();
         wrapper.eq("parent_id", folderId);
         List<FileInfo> children = fileInfoMapper.selectList(wrapper);
 
         for (FileInfo child : children) {
             if (child.getIsFolder() == 1) {
-                // 递归删除子文件夹
-                deleteFolder(child.getId(), userId);
+                deleteFolderRecursive(child.getId(), userId, depth + 1);
             } else {
+                shareLinkMapper.delete(new QueryWrapper<ShareLink>().eq("file_id", child.getId()));
                 deletePhysicalFile(child);
                 fileInfoMapper.deleteById(child.getId());
             }
         }
 
-        // 删除文件夹本身
         fileInfoMapper.deleteById(folderId);
     }
 

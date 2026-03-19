@@ -309,7 +309,9 @@ function saveFiles() {
     localStorage.setItem(getUserStorageKey(), JSON.stringify({ files, folders }));
 }
 
+let _loadFilesSeq = 0;
 async function loadFiles() {
+    const seq = ++_loadFilesSeq;
     const token = localStorage.getItem('token');
     if (!token || token === 'test-token-12345') {
         files = [];
@@ -355,6 +357,8 @@ async function loadFiles() {
             window.location.href = 'login.html';
             return;
         }
+
+        if (seq !== _loadFilesSeq) return; // Stale response, discard
 
         if (result.code === 200 && result.data) {
             let allData = result.data;
@@ -540,6 +544,12 @@ async function deleteFolder(folderId, folderName) {
         const result = await res.json();
         if (result.code === 200) {
             alert('✅ ' + t('deleteSuccess'));
+            // If currently inside the deleted folder or a subfolder, navigate to root
+            if (currentFolder === folderId || folderPath.some(f => f.id === folderId)) {
+                currentFolder = null;
+                folderPath = [];
+                currentCategory = 'all';
+            }
             loadFiles();
         } else {
             alert('❌ ' + t('deleteFailed') + ': ' + (result.message || '未知错误'));

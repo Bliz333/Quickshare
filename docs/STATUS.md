@@ -1,5 +1,17 @@
 # QuickShare 项目状态（2026-03-19）
 
+## 2026-03-19 阶段 4 易支付接入完成
+- 套餐体系：storage/downloads/vip 三种类型，管理员 CRUD
+- 多支付商户：payment_provider 表支持多个易支付商户，管理员可添加/编辑/删除
+- 订单系统：创建订单→易支付跳转→异步回调验签→标记已支付→发放配额
+- 用户配额：storageLimit/Used、downloadLimit/Used、vipExpireTime，上传检查+删除释放
+- 定时任务：月度下载计数重置（每月1日）+ 过期订单清理（每10分钟）
+- 订单管理：管理员查看所有订单/手动标记支付/退款，用户查看自己的订单历史
+- 安全加固：回调金额校验、PID 校验、签名验证、幂等处理
+- 公开套餐 API：GET /api/public/plans
+- Flyway V2（plan + order + user quota）+ V3（payment_provider）
+- 153 测试全通过
+
 ## 2026-03-19 可运维性：Flyway + CI + 日志 + 健康检查
 - Flyway 数据库迁移：V1 完整建表，baseline-on-migrate 兼容已有数据库，后续变更用 V2+
 - GitHub Actions CI：Java 17 + Maven 缓存 + 测试 + JS 语法检查 + 打包

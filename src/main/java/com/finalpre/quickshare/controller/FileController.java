@@ -259,13 +259,7 @@ public class FileController {
         fileService.previewShareFile(shareCode, extractCode, response);
     }
 
-    /**
-     * 健康检查
-     */
-    @GetMapping("/health")
-    public Result<String> health() {
-        return Result.success("QuickShare is running!");
-    }
+    // Health check moved to HealthController
 
     /**
      * 创建文件夹

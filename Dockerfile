@@ -31,7 +31,7 @@ RUN apt-get update \
         fonts-dejavu-core \
         fontconfig \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /opt/quickshare/uploads /opt/quickshare/uploads/.preview-cache
+    && mkdir -p /opt/quickshare/uploads /opt/quickshare/uploads/.preview-cache /opt/quickshare/logs
 
 COPY --from=build /build/target/*.jar /app/app.jar
 

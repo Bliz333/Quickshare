@@ -243,6 +243,19 @@ public class FileController {
     }
 
     /**
+     * 预览分享文件（不需要认证，支持 Office 转 PDF）
+     */
+    @GetMapping("/preview/{shareCode}")
+    public void previewShareFile(
+            @PathVariable String shareCode,
+            @RequestParam String extractCode,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        requestRateLimitService.checkPublicDownloadAllowed(resolveClientIp(request));
+        fileService.previewShareFile(shareCode, extractCode, response);
+    }
+
+    /**
      * 健康检查
      */
     @GetMapping("/health")

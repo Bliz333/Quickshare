@@ -11,4 +11,5 @@ public class ShareLinkVO {
     private LocalDateTime expireTime;
     private Integer maxDownload;
     private String fileName;
+    private String fileType;
 }

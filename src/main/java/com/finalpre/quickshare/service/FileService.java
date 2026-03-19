@@ -31,6 +31,11 @@ public interface FileService {
     void downloadFile(String shareCode, String extractCode, HttpServletResponse response);
 
     /**
+     * Preview shared file (inline disposition, supports Office conversion)
+     */
+    void previewShareFile(String shareCode, String extractCode, HttpServletResponse response);
+
+    /**
      * 获取用户的所有文件
      */
     List<FileInfoVO> getUserFiles(Long userId);

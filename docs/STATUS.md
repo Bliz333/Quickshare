@@ -1,5 +1,12 @@
 # QuickShare 项目状态（2026-03-19）
 
+## 2026-03-19 公开分享页预览对齐完成
+- 新增 `GET /api/preview/{shareCode}?extractCode=` 公开分享预览端点，支持 Office 文档 LibreOffice 转 PDF
+- 分享信息 VO 新增 `fileType` 字段，供前端判断是否可预览
+- 公开分享页新增"在线预览"按钮，PDF/Office 文件走 PDF.js 查看器，图片/文本直接内嵌
+- SecurityConfig 已放行 `/api/preview/**` 路径
+- 后端 153 测试全通过，JS 语法检查通过，Docker smoke test 确认 DOCX 转 PDF 预览成功
+
 ## 2026-03-19 敏感配置加密存储完成
 - `system_setting` 表中的敏感配置（SMTP 密码、reCAPTCHA secret key）现在使用 AES-GCM 加密存储
 - 加密密钥通过 `SETTING_ENCRYPT_KEY` 环境变量注入，支持 SHA-256 密钥派生
@@ -95,7 +102,8 @@
 - 历史交接入口：`docs/archive/2026-03-18-session-handoff.md`
 - Docker smoke test 已全部通过（隐藏后台入口、Office 预览、注册页动态配置、匿名上传/分享全链路）。
 - SMTP 后台化、邮件模板体系、管理员公告邮件和敏感配置加密存储均已完成。
-- 下一步：PDF.js 对齐公开分享页 → 分享/预览更多收口。
+- PDF.js 公开分享页预览已对齐完成。
+- 下一步：ShareLink 唯一性和下载计数并发安全 → 文件夹深层目录回归。
 
 ## 主要缺陷与风险
 - 配置安全：现已去除明文密钥，需按环境变量/本地 profile 正确注入，否则无法连接外部资源。

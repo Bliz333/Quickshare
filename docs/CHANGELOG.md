@@ -2,6 +2,22 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-19 (公开分享页预览对齐)
+
+- 本轮主题：公开分享页支持 PDF.js 预览（含 Office 转 PDF）
+- 核心变更：
+  - 新增 `GET /api/preview/{shareCode}?extractCode=` 公开预览端点
+  - `FileService.previewShareFile()` 复用 OfficePreviewService 的 LibreOffice 转 PDF
+  - `ShareLinkVO` 新增 `fileType` 字段
+  - 公开分享页新增"在线预览"按钮，PDF/Office 走 PDF.js 查看器
+  - `download.js` 按文件类型判断是否显示预览按钮
+  - `SecurityConfig` 放行 `/api/preview/**`
+- 验证结果：
+  - `mvn test`：153 测试全通过
+  - `node --check download.js` / `lang-switch.js`：通过
+  - Docker smoke test：DOCX 公开预览成功转为 PDF，错误提取码返回 400
+- 下一步：ShareLink 唯一性、下载计数并发安全
+
 ## 2026-03-19 (敏感配置加密存储)
 
 - 本轮主题：system_setting 表敏感配置 AES-GCM 加密存储

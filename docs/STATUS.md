@@ -1,5 +1,14 @@
 # QuickShare 项目状态（2026-03-19）
 
+## 2026-03-19 存储配置接入管理面板完成
+- 管理员后台新增"存储配置"面板，可在线切换 local/S3 存储后端
+- 使用 `DelegatingStorageService` 委托模式，配置修改后立即生效无需重启
+- S3 client 懒初始化，配置变更时自动刷新连接
+- 新增"测试连接"功能，验证 S3 endpoint/bucket 连通性
+- Secret key 掩码显示，留空保持现有值；存储策略加密存储在 system_setting
+- 移除了 `@ConditionalOnProperty` 的两个旧 StorageService 实现，统一由 DelegatingStorageService 处理
+- 后端 154 测试全通过，JS 语法检查通过，Docker smoke test 通过
+
 ## 2026-03-19 S3 MinIO Smoke Test 通过
 - 在 Docker Compose 环境中用 MinIO 容器完成 S3 兼容存储全链路验证
 - 文本文件上传/下载/预览、DOCX 上传后 LibreOffice 转 PDF 预览（S3→临时文件→转换→响应）

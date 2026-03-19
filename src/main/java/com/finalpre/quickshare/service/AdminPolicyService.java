@@ -8,6 +8,7 @@ import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminStoragePolicyUpdateRequest;
 import com.finalpre.quickshare.vo.AdminConsoleAccessVO;
 import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
 import com.finalpre.quickshare.vo.AdminCorsPolicyVO;
@@ -16,6 +17,7 @@ import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
 import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
+import com.finalpre.quickshare.vo.AdminStoragePolicyVO;
 
 import java.util.List;
 
@@ -54,4 +56,10 @@ public interface AdminPolicyService {
     List<AdminEmailTemplateVO> getEmailTemplates();
 
     void updateEmailTemplate(String templateType, AdminEmailTemplateUpdateRequest request);
+
+    AdminStoragePolicyVO getStoragePolicy();
+
+    void updateStoragePolicy(AdminStoragePolicyUpdateRequest request);
+
+    String testStorageConnection();
 }

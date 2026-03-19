@@ -966,6 +966,66 @@
 
         <section class="glass-card rounded-[28px] p-5 md:p-6">
             <div class="mb-5">
+                <h2 class="text-xl font-semibold" data-i18n="adminStorageTitle">Storage Configuration</h2>
+                <p class="text-sm text-text-sub mt-1" data-i18n="adminStorageSubtitle">Configure file storage backend. Supports local filesystem and S3-compatible services (AWS S3, MinIO, Cloudflare R2).</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-sub mb-2" data-i18n="adminStorageType">Storage Type</label>
+                    <select id="storageType" class="settings-field" onchange="toggleS3Fields()">
+                        <option value="local">Local Filesystem</option>
+                        <option value="s3">S3 Compatible (S3 / MinIO / R2)</option>
+                    </select>
+                </div>
+                <div id="s3Fields" style="display:none;" class="space-y-4 border border-border rounded-[18px] p-4">
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3Endpoint" data-i18n="adminS3Endpoint">Endpoint URL</label>
+                            <input id="s3Endpoint" type="text" class="settings-field" placeholder="https://play.min.io">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3Bucket" data-i18n="adminS3Bucket">Bucket</label>
+                            <input id="s3Bucket" type="text" class="settings-field" placeholder="quickshare">
+                        </div>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3AccessKey" data-i18n="adminS3AccessKey">Access Key</label>
+                            <input id="s3AccessKey" type="text" class="settings-field">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3SecretKey" data-i18n="adminS3SecretKey">Secret Key</label>
+                            <input id="s3SecretKey" type="password" class="settings-field" placeholder="Leave empty to keep current">
+                            <p id="s3SecretKeyHint" class="text-xs text-text-sub mt-1"></p>
+                        </div>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3Region" data-i18n="adminS3Region">Region</label>
+                            <input id="s3Region" type="text" class="settings-field" placeholder="auto">
+                        </div>
+                        <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40 self-end">
+                            <input id="s3PathStyleAccess" type="checkbox" class="settings-checkbox" checked>
+                            <span data-i18n="adminS3PathStyle">Path-Style Access</span>
+                        </label>
+                    </div>
+                    <p id="storageConnectionStatus" class="text-sm"></p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <button type="button" class="action-btn" onclick="saveStoragePolicy(this)">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span data-i18n="adminSaveSettings">Save Settings</span>
+                    </button>
+                    <button type="button" class="action-btn action-btn-secondary" onclick="testStorageConnection(this)">
+                        <i class="fa-solid fa-plug"></i>
+                        <span data-i18n="adminStorageTestConnection">Test Connection</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass-card rounded-[28px] p-5 md:p-6">
+            <div class="mb-5">
                 <h2 class="text-xl font-semibold" data-i18n="adminEmailTemplatesTitle">Email Templates</h2>
                 <p class="text-sm text-text-sub mt-1" data-i18n="adminEmailTemplatesSubtitle">Customize email content for each language. Use {variables} as placeholders.</p>
             </div>

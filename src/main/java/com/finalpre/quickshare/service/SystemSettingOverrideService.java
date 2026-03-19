@@ -37,4 +37,8 @@ public interface SystemSettingOverrideService {
     Optional<EmailTemplate> getEmailTemplate(String templateType);
 
     void saveEmailTemplate(String templateType, EmailTemplate template);
+
+    Optional<StoragePolicy> getStoragePolicy();
+
+    void saveStoragePolicy(StoragePolicy policy);
 }

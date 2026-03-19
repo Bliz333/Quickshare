@@ -2,6 +2,20 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-19 (存储配置接入管理面板)
+
+- 本轮主题：管理面板实时切换存储后端（local/S3），无需重启
+- 核心变更：
+  - `DelegatingStorageService` 替代 `@ConditionalOnProperty` 模式，按当前策略委托
+  - `StoragePolicy` + `StoragePolicyService` + system_setting 覆盖值
+  - S3 client 懒初始化 + config fingerprint 自动刷新
+  - 管理面板存储配置表单（类型选择、S3 端点/桶/密钥/区域/路径风格）
+  - "测试连接"按钮验证 S3 连通性
+  - Secret key 加密存储 + 掩码回显
+- 验证结果：
+  - `mvn test`：154 全通过
+  - Docker smoke test：local→S3→local 切换、连接测试、上传全部正常
+
 ## 2026-03-19 (StorageService 抽象层 + S3 兼容存储)
 
 - 本轮主题：文件存储抽象层，支持本地和 S3 兼容存储

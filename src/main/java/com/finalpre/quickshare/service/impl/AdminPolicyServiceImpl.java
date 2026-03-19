@@ -9,6 +9,7 @@ import com.finalpre.quickshare.dto.AdminRegistrationSettingsUpdateRequest;
 import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminStoragePolicyUpdateRequest;
 import com.finalpre.quickshare.service.AdminConsoleAccessPolicy;
 import com.finalpre.quickshare.service.AdminConsoleAccessService;
 import com.finalpre.quickshare.service.AdminPolicyService;
@@ -26,6 +27,8 @@ import com.finalpre.quickshare.service.EmailTemplate;
 import com.finalpre.quickshare.service.EmailTemplateService;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.SmtpPolicyService;
+import com.finalpre.quickshare.service.StoragePolicy;
+import com.finalpre.quickshare.service.StoragePolicyService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import com.finalpre.quickshare.vo.AdminConsoleAccessVO;
 import com.finalpre.quickshare.vo.AdminCorsPolicyVO;
@@ -35,6 +38,7 @@ import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
 import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
+import com.finalpre.quickshare.vo.AdminStoragePolicyVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -65,6 +69,12 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
 
     @Autowired
     private SmtpPolicyService smtpPolicyService;
+
+    @Autowired
+    private StoragePolicyService storagePolicyService;
+
+    @Autowired
+    private DelegatingStorageService delegatingStorageService;
 
     @Autowired
     private EmailTemplateService emailTemplateService;
@@ -361,6 +371,67 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
         }
 
         emailTemplateService.saveTemplate(templateType, new EmailTemplate(locales));
+    }
+
+    @Override
+    public AdminStoragePolicyVO getStoragePolicy() {
+        StoragePolicy policy = storagePolicyService.getPolicy();
+        AdminStoragePolicyVO vo = new AdminStoragePolicyVO();
+        vo.setType(policy.type());
+        vo.setS3Endpoint(policy.s3Endpoint());
+        vo.setS3AccessKey(policy.s3AccessKey());
+        vo.setS3HasSecretKey(policy.s3SecretKey() != null && !policy.s3SecretKey().isBlank());
+        vo.setS3Bucket(policy.s3Bucket());
+        vo.setS3Region(policy.s3Region());
+        vo.setS3PathStyleAccess(policy.s3PathStyleAccess());
+
+        if (policy.isS3() && policy.hasS3Config()) {
+            String err = delegatingStorageService.testS3Connection(policy);
+            vo.setConnectionStatus(err == null ? "connected" : "error: " + err);
+        } else if (policy.isS3()) {
+            vo.setConnectionStatus("not_configured");
+        } else {
+            vo.setConnectionStatus("local");
+        }
+        return vo;
+    }
+
+    @Override
+    public void updateStoragePolicy(AdminStoragePolicyUpdateRequest request) {
+        if (request == null || request.getType() == null || request.getType().isBlank()) {
+            throw new IllegalArgumentException("存储类型不能为空");
+        }
+        String type = request.getType().trim().toLowerCase();
+        if (!"local".equals(type) && !"s3".equals(type)) {
+            throw new IllegalArgumentException("存储类型必须是 local 或 s3");
+        }
+
+        // Keep existing secret if null
+        String secretKey = request.getS3SecretKey();
+        if (secretKey == null && "s3".equals(type)) {
+            StoragePolicy existing = storagePolicyService.getPolicy();
+            secretKey = existing.s3SecretKey();
+        }
+
+        systemSettingOverrideService.saveStoragePolicy(new StoragePolicy(
+                type,
+                request.getS3Endpoint() != null ? request.getS3Endpoint().trim() : "",
+                request.getS3AccessKey() != null ? request.getS3AccessKey().trim() : "",
+                secretKey != null ? secretKey : "",
+                request.getS3Bucket() != null ? request.getS3Bucket().trim() : "",
+                request.getS3Region() != null ? request.getS3Region().trim() : "auto",
+                Boolean.TRUE.equals(request.getS3PathStyleAccess())
+        ));
+    }
+
+    @Override
+    public String testStorageConnection() {
+        StoragePolicy policy = storagePolicyService.getPolicy();
+        if (!policy.isS3() || !policy.hasS3Config()) {
+            return "local";
+        }
+        String err = delegatingStorageService.testS3Connection(policy);
+        return err == null ? "connected" : "error: " + err;
     }
 
     private AdminEmailTemplateVO toEmailTemplateVO(String templateType, String description, String variables) {

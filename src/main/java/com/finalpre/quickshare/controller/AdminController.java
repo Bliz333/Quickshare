@@ -11,6 +11,7 @@ import com.finalpre.quickshare.dto.AdminRateLimitPolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
 import com.finalpre.quickshare.dto.AdminEmailTemplateUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpPolicyUpdateRequest;
+import com.finalpre.quickshare.dto.AdminStoragePolicyUpdateRequest;
 import com.finalpre.quickshare.dto.AdminSmtpTestRequest;
 import com.finalpre.quickshare.dto.AdminUserRoleUpdateRequest;
 import com.finalpre.quickshare.vo.AdminConsoleAccessVO;
@@ -26,6 +27,7 @@ import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
 import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
+import com.finalpre.quickshare.vo.AdminStoragePolicyVO;
 import com.finalpre.quickshare.vo.AdminShareVO;
 import com.finalpre.quickshare.vo.UserVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -210,5 +212,21 @@ public class AdminController {
     @PostMapping("/announcement")
     public Result<AdminAnnouncementResultVO> sendAnnouncement(@RequestBody AdminAnnouncementRequest request) {
         return Result.success(adminService.sendAnnouncement(request));
+    }
+
+    @GetMapping("/settings/storage")
+    public Result<AdminStoragePolicyVO> getStoragePolicy() {
+        return Result.success(adminPolicyService.getStoragePolicy());
+    }
+
+    @PutMapping("/settings/storage")
+    public Result<Void> updateStoragePolicy(@RequestBody AdminStoragePolicyUpdateRequest request) {
+        adminPolicyService.updateStoragePolicy(request);
+        return Result.success();
+    }
+
+    @PostMapping("/settings/storage/test")
+    public Result<String> testStorageConnection() {
+        return Result.success(adminPolicyService.testStorageConnection());
     }
 }

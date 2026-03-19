@@ -16,6 +16,7 @@ const adminState = {
     corsPolicy: null,
     smtpPolicy: null,
     emailTemplates: [],
+    storagePolicy: null,
     isRedirecting: false
 };
 
@@ -677,7 +678,7 @@ function renderPreviewPolicyForm() {
 
 async function refreshPolicySettings(showSuccess = false, silentFailure = false) {
     try {
-        const [rateLimits, adminConsoleAccess, registrationSettings, fileUploadPolicy, filePreviewPolicy, corsPolicy, smtpPolicy, emailTemplates] = await Promise.all([
+        const [rateLimits, adminConsoleAccess, registrationSettings, fileUploadPolicy, filePreviewPolicy, corsPolicy, smtpPolicy, emailTemplates, storagePolicy] = await Promise.all([
             adminRequest('/admin/settings/rate-limits'),
             adminRequest('/admin/settings/admin-console'),
             adminRequest('/admin/settings/registration'),
@@ -685,7 +686,8 @@ async function refreshPolicySettings(showSuccess = false, silentFailure = false)
             adminRequest('/admin/settings/file-preview'),
             adminRequest('/admin/settings/cors'),
             adminRequest('/admin/settings/smtp'),
-            adminRequest('/admin/settings/email-templates')
+            adminRequest('/admin/settings/email-templates'),
+            adminRequest('/admin/settings/storage')
         ]);
 
         adminState.rateLimits = rateLimits || [];
@@ -696,12 +698,14 @@ async function refreshPolicySettings(showSuccess = false, silentFailure = false)
         adminState.corsPolicy = corsPolicy || null;
         adminState.smtpPolicy = smtpPolicy || null;
         adminState.emailTemplates = emailTemplates || [];
+        adminState.storagePolicy = storagePolicy || null;
         renderRateLimitPolicies();
         renderAdminConsoleAccessForm();
         renderRegistrationSettingsForm();
         renderUploadPolicyForm();
         renderPreviewPolicyForm();
         renderCorsPolicyForm();
+        renderStoragePolicyForm();
         renderEmailTemplates();
         renderSmtpPolicyForm();
 
@@ -968,6 +972,108 @@ async function saveCorsPolicySettings(button) {
     } catch (error) {
         if (!adminState.isRedirecting) {
             showToast(error.message || t('adminPolicySaveFailed'), 'error');
+        }
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function toggleS3Fields() {
+    const type = document.getElementById('storageType')?.value;
+    const s3Fields = document.getElementById('s3Fields');
+    if (s3Fields) s3Fields.style.display = type === 's3' ? '' : 'none';
+}
+
+function renderStoragePolicyForm() {
+    const policy = adminState.storagePolicy;
+    if (!policy) return;
+
+    const typeEl = document.getElementById('storageType');
+    if (typeEl) typeEl.value = policy.type || 'local';
+
+    const endpointEl = document.getElementById('s3Endpoint');
+    const bucketEl = document.getElementById('s3Bucket');
+    const accessKeyEl = document.getElementById('s3AccessKey');
+    const secretKeyEl = document.getElementById('s3SecretKey');
+    const regionEl = document.getElementById('s3Region');
+    const pathStyleEl = document.getElementById('s3PathStyleAccess');
+    const hintEl = document.getElementById('s3SecretKeyHint');
+    const statusEl = document.getElementById('storageConnectionStatus');
+
+    if (endpointEl) endpointEl.value = policy.s3Endpoint || '';
+    if (bucketEl) bucketEl.value = policy.s3Bucket || '';
+    if (accessKeyEl) accessKeyEl.value = policy.s3AccessKey || '';
+    if (secretKeyEl) secretKeyEl.value = '';
+    if (regionEl) regionEl.value = policy.s3Region || 'auto';
+    if (pathStyleEl) pathStyleEl.checked = policy.s3PathStyleAccess !== false;
+    if (hintEl) hintEl.textContent = policy.s3HasSecretKey
+        ? t('adminS3SecretKeySet')
+        : t('adminS3SecretKeyNotSet');
+
+    if (statusEl) {
+        if (policy.connectionStatus === 'connected') {
+            statusEl.textContent = t('adminStorageConnected');
+            statusEl.className = 'text-sm text-green-600';
+        } else if (policy.connectionStatus === 'local') {
+            statusEl.textContent = '';
+        } else if (policy.connectionStatus === 'not_configured') {
+            statusEl.textContent = t('adminStorageNotConfigured');
+            statusEl.className = 'text-sm text-yellow-600';
+        } else {
+            statusEl.textContent = policy.connectionStatus;
+            statusEl.className = 'text-sm text-red-600';
+        }
+    }
+
+    toggleS3Fields();
+}
+
+async function saveStoragePolicy(button) {
+    const type = document.getElementById('storageType')?.value || 'local';
+    const body = { type };
+
+    if (type === 's3') {
+        body.s3Endpoint = document.getElementById('s3Endpoint')?.value.trim() || '';
+        body.s3Bucket = document.getElementById('s3Bucket')?.value.trim() || '';
+        body.s3AccessKey = document.getElementById('s3AccessKey')?.value.trim() || '';
+        body.s3Region = document.getElementById('s3Region')?.value.trim() || 'auto';
+        body.s3PathStyleAccess = !!document.getElementById('s3PathStyleAccess')?.checked;
+        const secretRaw = document.getElementById('s3SecretKey')?.value;
+        if (secretRaw) body.s3SecretKey = secretRaw;
+    }
+
+    button.disabled = true;
+    try {
+        await adminRequest('/admin/settings/storage', {
+            method: 'PUT',
+            body: JSON.stringify(body)
+        });
+        showToast(t('adminPolicySaved'), 'success');
+        await refreshPolicySettings(false, false);
+    } catch (error) {
+        if (!adminState.isRedirecting) {
+            showToast(error.message || t('adminPolicySaveFailed'), 'error');
+        }
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function testStorageConnection(button) {
+    button.disabled = true;
+    try {
+        const result = await adminRequest('/admin/settings/storage/test', { method: 'POST' });
+        if (result === 'connected') {
+            showToast(t('adminStorageTestSuccess'), 'success');
+        } else if (result === 'local') {
+            showToast(t('adminStorageTestLocal'), 'success');
+        } else {
+            showToast(result, 'error');
+        }
+        await refreshPolicySettings(false, false);
+    } catch (error) {
+        if (!adminState.isRedirecting) {
+            showToast(error.message || t('adminStorageTestFailed'), 'error');
         }
     } finally {
         button.disabled = false;

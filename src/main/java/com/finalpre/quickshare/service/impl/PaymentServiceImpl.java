@@ -150,10 +150,34 @@ public class PaymentServiceImpl implements PaymentService {
             return false;
         }
 
+        // Verify PID matches
+        String notifyPid = params.get("pid");
+        if (notifyPid != null && !notifyPid.equals(provider.getPid())) {
+            log.warn("Epay notify PID mismatch for order {}. expected={}, received={}",
+                    orderNo, provider.getPid(), notifyPid);
+            return false;
+        }
+
         String tradeStatus = params.get("trade_status");
         if (!"TRADE_SUCCESS".equals(tradeStatus)) {
             log.info("Epay notify non-success status for order {}: {}", orderNo, tradeStatus);
             return true;
+        }
+
+        // Verify amount matches
+        String notifyMoney = params.get("money");
+        if (notifyMoney != null) {
+            try {
+                java.math.BigDecimal notifyAmount = new java.math.BigDecimal(notifyMoney);
+                if (notifyAmount.compareTo(order.getAmount()) != 0) {
+                    log.error("SECURITY: Epay notify amount mismatch for order {}! expected={}, received={}",
+                            orderNo, order.getAmount(), notifyAmount);
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                log.warn("Epay notify invalid money format for order {}: {}", orderNo, notifyMoney);
+                return false;
+            }
         }
 
         if ("paid".equals(order.getStatus())) {

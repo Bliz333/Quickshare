@@ -36,9 +36,27 @@ CREATE TABLE IF NOT EXISTS `payment_order` (
   KEY `idx_order_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- User quota (extends user table)
-ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `storage_limit` BIGINT NOT NULL DEFAULT 1073741824 COMMENT 'Storage limit in bytes (default 1GB)';
-ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `storage_used` BIGINT NOT NULL DEFAULT 0 COMMENT 'Storage used in bytes';
-ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `download_limit` INT NOT NULL DEFAULT -1 COMMENT 'Download limit per month (-1=unlimited)';
-ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `download_used` INT NOT NULL DEFAULT 0 COMMENT 'Downloads used this month';
-ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `vip_expire_time` DATETIME DEFAULT NULL COMMENT 'VIP expiration time';
+-- User quota columns (safe: procedure drops itself after use)
+DROP PROCEDURE IF EXISTS add_user_quota_columns;
+DELIMITER //
+CREATE PROCEDURE add_user_quota_columns()
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='user' AND COLUMN_NAME='storage_limit') THEN
+        ALTER TABLE `user` ADD COLUMN `storage_limit` BIGINT NOT NULL DEFAULT 1073741824 COMMENT 'Storage limit in bytes (default 1GB)';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='user' AND COLUMN_NAME='storage_used') THEN
+        ALTER TABLE `user` ADD COLUMN `storage_used` BIGINT NOT NULL DEFAULT 0 COMMENT 'Storage used in bytes';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='user' AND COLUMN_NAME='download_limit') THEN
+        ALTER TABLE `user` ADD COLUMN `download_limit` INT NOT NULL DEFAULT -1 COMMENT 'Download limit per month (-1=unlimited)';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='user' AND COLUMN_NAME='download_used') THEN
+        ALTER TABLE `user` ADD COLUMN `download_used` INT NOT NULL DEFAULT 0 COMMENT 'Downloads used this month';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='user' AND COLUMN_NAME='vip_expire_time') THEN
+        ALTER TABLE `user` ADD COLUMN `vip_expire_time` DATETIME DEFAULT NULL COMMENT 'VIP expiration time';
+    END IF;
+END //
+DELIMITER ;
+CALL add_user_quota_columns();
+DROP PROCEDURE IF EXISTS add_user_quota_columns;

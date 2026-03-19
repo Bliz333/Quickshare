@@ -1,9 +1,12 @@
 package com.finalpre.quickshare.controller;
 
 import com.finalpre.quickshare.common.Result;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.finalpre.quickshare.entity.PaymentOrder;
+import com.finalpre.quickshare.mapper.PaymentOrderMapper;
 import com.finalpre.quickshare.service.PaymentService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -19,6 +22,9 @@ public class PaymentController {
 
     @Autowired
     private PaymentService paymentService;
+
+    @Autowired
+    private PaymentOrderMapper paymentOrderMapper;
 
     /**
      * Create payment order and return epay redirect URL.
@@ -64,6 +70,19 @@ public class PaymentController {
     /**
      * Query order status.
      */
+    /**
+     * User's own order history.
+     */
+    @GetMapping("/orders")
+    public Result<List<PaymentOrder>> getMyOrders(Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        List<PaymentOrder> orders = paymentOrderMapper.selectList(
+                new QueryWrapper<PaymentOrder>()
+                        .eq("user_id", userId)
+                        .orderByDesc("create_time"));
+        return Result.success(orders);
+    }
+
     @GetMapping("/order/{orderNo}")
     public Result<PaymentOrder> getOrder(@PathVariable String orderNo, Authentication authentication) {
         Long userId = requireUserId(authentication);

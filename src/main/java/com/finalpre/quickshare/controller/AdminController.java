@@ -30,6 +30,7 @@ import com.finalpre.quickshare.vo.AdminOverviewVO;
 import com.finalpre.quickshare.vo.AdminRegistrationSettingsVO;
 import com.finalpre.quickshare.vo.AdminRateLimitPolicyVO;
 import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
+import com.finalpre.quickshare.vo.AdminOrderVO;
 import com.finalpre.quickshare.vo.AdminEmailTemplateVO;
 // AdminEpayPolicyVO replaced by AdminPaymentProviderVO
 import com.finalpre.quickshare.vo.AdminSmtpPolicyVO;
@@ -264,6 +265,25 @@ public class AdminController {
     @DeleteMapping("/payment-providers/{providerId}")
     public Result<Void> deletePaymentProvider(@PathVariable Long providerId) {
         adminService.deletePaymentProvider(providerId);
+        return Result.success();
+    }
+
+    // --- Order Management ---
+
+    @GetMapping("/orders")
+    public Result<List<AdminOrderVO>> getOrders() {
+        return Result.success(adminService.getOrders());
+    }
+
+    @PutMapping("/orders/{orderId}/mark-paid")
+    public Result<Void> markOrderPaid(@PathVariable Long orderId) {
+        adminService.markOrderPaid(orderId);
+        return Result.success();
+    }
+
+    @PutMapping("/orders/{orderId}/mark-refunded")
+    public Result<Void> markOrderRefunded(@PathVariable Long orderId) {
+        adminService.markOrderRefunded(orderId);
         return Result.success();
     }
 

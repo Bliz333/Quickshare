@@ -5,6 +5,7 @@ import com.finalpre.quickshare.dto.AdminCreateUserRequest;
 import com.finalpre.quickshare.dto.AdminPaymentProviderRequest;
 import com.finalpre.quickshare.dto.AdminPlanRequest;
 import com.finalpre.quickshare.entity.Plan;
+import com.finalpre.quickshare.vo.AdminOrderVO;
 import com.finalpre.quickshare.vo.AdminPaymentProviderVO;
 import com.finalpre.quickshare.vo.AdminAnnouncementResultVO;
 import com.finalpre.quickshare.vo.AdminFileVO;
@@ -51,4 +52,10 @@ public interface AdminService {
     AdminPaymentProviderVO updatePaymentProvider(Long providerId, AdminPaymentProviderRequest request);
 
     void deletePaymentProvider(Long providerId);
+
+    List<AdminOrderVO> getOrders();
+
+    void markOrderPaid(Long orderId);
+
+    void markOrderRefunded(Long orderId);
 }

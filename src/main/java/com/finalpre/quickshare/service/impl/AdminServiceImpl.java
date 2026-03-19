@@ -7,10 +7,14 @@ import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
 import com.finalpre.quickshare.dto.AdminCreateUserRequest;
 import com.finalpre.quickshare.dto.AdminPaymentProviderRequest;
 import com.finalpre.quickshare.dto.AdminPlanRequest;
+import com.finalpre.quickshare.entity.PaymentOrder;
 import com.finalpre.quickshare.entity.PaymentProvider;
 import com.finalpre.quickshare.entity.Plan;
+import com.finalpre.quickshare.mapper.PaymentOrderMapper;
 import com.finalpre.quickshare.mapper.PaymentProviderMapper;
 import com.finalpre.quickshare.mapper.PlanMapper;
+import com.finalpre.quickshare.service.QuotaService;
+import com.finalpre.quickshare.vo.AdminOrderVO;
 import com.finalpre.quickshare.vo.AdminPaymentProviderVO;
 import com.finalpre.quickshare.entity.FileInfo;
 import com.finalpre.quickshare.entity.ShareLink;
@@ -73,6 +77,12 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private PaymentProviderMapper paymentProviderMapper;
+
+    @Autowired
+    private PaymentOrderMapper paymentOrderMapper;
+
+    @Autowired
+    private QuotaService quotaService;
 
     @Override
     public AdminOverviewVO getOverview() {
@@ -351,6 +361,71 @@ public class AdminServiceImpl implements AdminService {
         vo.setSortOrder(provider.getSortOrder());
         vo.setCreateTime(provider.getCreateTime());
         return vo;
+    }
+
+    @Override
+    public List<AdminOrderVO> getOrders() {
+        List<PaymentOrder> orders = paymentOrderMapper.selectList(
+                new QueryWrapper<PaymentOrder>().orderByDesc("create_time"));
+
+        // Load user and provider names
+        Map<Long, User> userMap = loadUsersByIds(
+                orders.stream().map(PaymentOrder::getUserId).collect(Collectors.toSet()));
+        Map<Long, PaymentProvider> providerMap = new java.util.HashMap<>();
+        orders.stream().map(PaymentOrder::getProviderId).filter(java.util.Objects::nonNull)
+                .distinct().forEach(pid -> {
+                    PaymentProvider p = paymentProviderMapper.selectById(pid);
+                    if (p != null) providerMap.put(pid, p);
+                });
+
+        return orders.stream().map(order -> {
+            AdminOrderVO vo = new AdminOrderVO();
+            vo.setId(order.getId());
+            vo.setOrderNo(order.getOrderNo());
+            vo.setUserId(order.getUserId());
+            User user = userMap.get(order.getUserId());
+            vo.setUsername(user != null ? user.getUsername() : null);
+            vo.setPlanId(order.getPlanId());
+            vo.setPlanName(order.getPlanName());
+            vo.setPlanType(order.getPlanType());
+            vo.setAmount(order.getAmount());
+            vo.setStatus(order.getStatus());
+            vo.setPayType(order.getPayType());
+            vo.setTradeNo(order.getTradeNo());
+            vo.setProviderId(order.getProviderId());
+            PaymentProvider prov = order.getProviderId() != null ? providerMap.get(order.getProviderId()) : null;
+            vo.setProviderName(prov != null ? prov.getName() : null);
+            vo.setNotifyTime(order.getNotifyTime());
+            vo.setCreateTime(order.getCreateTime());
+            return vo;
+        }).toList();
+    }
+
+    @Override
+    public void markOrderPaid(Long orderId) {
+        PaymentOrder order = paymentOrderMapper.selectById(orderId);
+        if (order == null) throw new ResourceNotFoundException("订单不存在");
+        if ("paid".equals(order.getStatus())) throw new IllegalArgumentException("订单已支付");
+
+        order.setStatus("paid");
+        order.setNotifyTime(LocalDateTime.now());
+        paymentOrderMapper.updateById(order);
+
+        try {
+            quotaService.grantQuota(order);
+        } catch (Exception e) {
+            log.error("Failed to grant quota for manually paid order {}", order.getOrderNo(), e);
+        }
+        log.info("Order manually marked as paid. orderNo={}", order.getOrderNo());
+    }
+
+    @Override
+    public void markOrderRefunded(Long orderId) {
+        PaymentOrder order = paymentOrderMapper.selectById(orderId);
+        if (order == null) throw new ResourceNotFoundException("订单不存在");
+        order.setStatus("refunded");
+        paymentOrderMapper.updateById(order);
+        log.info("Order marked as refunded. orderNo={}", order.getOrderNo());
     }
 
     private void validatePlanRequest(AdminPlanRequest request) {

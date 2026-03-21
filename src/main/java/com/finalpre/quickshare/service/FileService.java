@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
+import java.nio.file.Path;
 
 public interface FileService {
 
@@ -46,6 +47,11 @@ public interface FileService {
     void deleteFile(Long fileId, Long userId);
 
     /**
+     * 移动文件
+     */
+    void moveFile(Long fileId, Long targetFolderId, Long userId);
+
+    /**
      * 重命名文件
      */
     void renameFile(Long fileId, String newName, Long userId);
@@ -66,13 +72,29 @@ public interface FileService {
      * @param userId 用户ID
      */
     List<FileInfoVO> getFilesByFolder(Long parentId, Long userId);
+
+    /**
+     * 获取用户的所有文件夹
+     */
+    List<FileInfoVO> getAllFolders(Long userId);
+
     /**
      * 删除文件夹
      */
     void deleteFolder(Long folderId, Long userId);
 
     /**
+     * 移动文件夹
+     */
+    void moveFolder(Long folderId, Long targetFolderId, Long userId);
+
+    /**
      * 重命名文件夹
      */
     void renameFolder(Long folderId, String newName, Long userId);
+
+    /**
+     * 将本地临时文件导入当前用户网盘
+     */
+    FileInfoVO importLocalFile(Path sourcePath, String originalName, String contentType, Long userId, Long folderId);
 }

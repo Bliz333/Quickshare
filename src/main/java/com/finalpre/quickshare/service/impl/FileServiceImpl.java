@@ -69,11 +69,6 @@ public class FileServiceImpl implements FileService {
             Long targetFolderId = normalizeParentId(folderId);
             validateTargetFolder(targetFolderId, userId);
 
-            // Check storage quota for authenticated users
-            if (userId != null) {
-                quotaService.checkStorageQuota(userId, file.getSize());
-            }
-
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null || originalFilename.trim().isEmpty()) {
                 throw new IllegalArgumentException("文件名不能为空");
@@ -93,23 +88,36 @@ public class FileServiceImpl implements FileService {
                 throw new IllegalArgumentException("文件大小超过限制");
             }
 
-            String fileName = IdUtil.simpleUUID() + (extension.isEmpty() ? "" : "." + extension);
-
-            // 保存文件到存储后端
-            String storageKey;
-            try (InputStream inputStream = file.getInputStream()) {
-                storageKey = storageService.store(fileName, inputStream, file.getSize());
+            String md5;
+            try (InputStream md5Stream = file.getInputStream()) {
+                md5 = DigestUtil.md5Hex(md5Stream);
             }
 
-            // 计算MD5
-            String md5;
-            try (InputStream md5Stream = storageService.retrieve(storageKey)) {
-                md5 = DigestUtil.md5Hex(md5Stream);
+            FileInfo sameLogicalFile = findSameLogicalFile(userId, targetFolderId, safeOriginalName, md5, file.getSize());
+            if (sameLogicalFile != null) {
+                return convertToVO(sameLogicalFile);
+            }
+
+            // Check storage quota only when a new logical file will be created
+            if (userId != null) {
+                quotaService.checkStorageQuota(userId, file.getSize());
             }
 
             String contentType = file.getContentType();
             if (contentType == null || contentType.isEmpty()) {
                 contentType = "application/octet-stream";
+            }
+
+            FileInfo reusableStorageFile = findReusableStorageFile(md5, file.getSize());
+            String fileName = reusableStorageFile != null && reusableStorageFile.getFileName() != null && !reusableStorageFile.getFileName().isBlank()
+                    ? reusableStorageFile.getFileName()
+                    : IdUtil.simpleUUID() + (extension.isEmpty() ? "" : "." + extension);
+            String storageKey = reusableStorageFile != null ? reusableStorageFile.getFilePath() : null;
+
+            if (storageKey == null || storageKey.isBlank() || !storageService.exists(storageKey)) {
+                try (InputStream inputStream = file.getInputStream()) {
+                    storageKey = storageService.store(fileName, inputStream, file.getSize());
+                }
             }
 
             // 保存文件信息到数据库
@@ -136,6 +144,76 @@ public class FileServiceImpl implements FileService {
 
         } catch (IOException e) {
             throw new RuntimeException("文件上传失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public FileInfoVO importLocalFile(Path sourcePath, String originalName, String contentType, Long userId, Long folderId) {
+        if (sourcePath == null || !Files.exists(sourcePath) || !Files.isRegularFile(sourcePath)) {
+            throw new ResourceNotFoundException("临时文件不存在");
+        }
+
+        try {
+            Long targetFolderId = normalizeParentId(folderId);
+            validateTargetFolder(targetFolderId, userId);
+
+            String safeOriginalName = Paths.get(originalName == null ? sourcePath.getFileName().toString() : originalName)
+                    .getFileName()
+                    .toString();
+            if (safeOriginalName.trim().isEmpty()) {
+                throw new IllegalArgumentException("文件名不能为空");
+            }
+
+            int dotIndex = safeOriginalName.lastIndexOf('.');
+            String extension = dotIndex > 0 ? safeOriginalName.substring(dotIndex + 1).toLowerCase() : "";
+            String normalizedContentType = contentType == null || contentType.isBlank()
+                    ? Files.probeContentType(sourcePath)
+                    : contentType;
+            if (normalizedContentType == null || normalizedContentType.isBlank()) {
+                normalizedContentType = "application/octet-stream";
+            }
+
+            long size = Files.size(sourcePath);
+            try (InputStream md5Stream = Files.newInputStream(sourcePath)) {
+                String md5 = DigestUtil.md5Hex(md5Stream);
+
+                FileInfo sameLogicalFile = findSameLogicalFile(userId, targetFolderId, safeOriginalName, md5, size);
+                if (sameLogicalFile != null) {
+                    return convertToVO(sameLogicalFile);
+                }
+
+                quotaService.checkStorageQuota(userId, size);
+
+                FileInfo reusableStorageFile = findReusableStorageFile(md5, size);
+                String fileName = reusableStorageFile != null && reusableStorageFile.getFileName() != null && !reusableStorageFile.getFileName().isBlank()
+                        ? reusableStorageFile.getFileName()
+                        : IdUtil.simpleUUID() + (extension.isEmpty() ? "" : "." + extension);
+                String storageKey = reusableStorageFile != null ? reusableStorageFile.getFilePath() : null;
+
+                if (storageKey == null || storageKey.isBlank() || !storageService.exists(storageKey)) {
+                    try (InputStream inputStream = Files.newInputStream(sourcePath)) {
+                        storageKey = storageService.store(fileName, inputStream, size);
+                    }
+                }
+
+                FileInfo fileInfo = new FileInfo();
+                fileInfo.setFileName(fileName);
+                fileInfo.setOriginalName(safeOriginalName);
+                fileInfo.setFilePath(storageKey);
+                fileInfo.setFileSize(size);
+                fileInfo.setFileType(normalizedContentType);
+                fileInfo.setMd5(md5);
+                fileInfo.setUploadTime(LocalDateTime.now());
+                fileInfo.setUserId(userId);
+                fileInfo.setIsFolder(0);
+                fileInfo.setParentId(targetFolderId);
+
+                fileInfoMapper.insert(fileInfo);
+                quotaService.recordStorageUsed(userId, size);
+                return convertToVO(fileInfo);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("导入网盘失败: " + e.getMessage(), e);
         }
     }
 
@@ -412,6 +490,30 @@ public class FileServiceImpl implements FileService {
         }
     }
 
+    @Override
+    public void moveFile(Long fileId, Long targetFolderId, Long userId) {
+        FileInfo fileInfo = fileInfoMapper.selectById(fileId);
+        if (fileInfo == null || Integer.valueOf(1).equals(fileInfo.getDeleted())) {
+            throw new ResourceNotFoundException("文件不存在");
+        }
+        if (!fileInfo.getUserId().equals(userId)) {
+            throw new AccessDeniedException("无权移动此文件");
+        }
+        if (Integer.valueOf(1).equals(fileInfo.getIsFolder())) {
+            throw new IllegalArgumentException("该对象不是文件");
+        }
+
+        Long normalizedTargetFolderId = normalizeParentId(targetFolderId);
+        validateTargetFolder(normalizedTargetFolderId, userId);
+        if (normalizedTargetFolderId.equals(normalizeParentId(fileInfo.getParentId()))) {
+            return;
+        }
+
+        ensureNameAvailable(userId, normalizedTargetFolderId, fileInfo.getOriginalName(), fileId);
+        fileInfo.setParentId(normalizedTargetFolderId);
+        fileInfoMapper.updateById(fileInfo);
+    }
+
     /**
      * 重命名文件
      */
@@ -517,6 +619,20 @@ public class FileServiceImpl implements FileService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<FileInfoVO> getAllFolders(Long userId) {
+        QueryWrapper<FileInfo> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", userId)
+                .eq("is_folder", 1)
+                .eq("deleted", 0)
+                .orderByAsc("parent_id")
+                .orderByAsc("upload_time");
+
+        return fileInfoMapper.selectList(queryWrapper).stream()
+                .map(this::convertToVO)
+                .collect(Collectors.toList());
+    }
+
     private static final int MAX_FOLDER_DEPTH = 50;
 
     /**
@@ -555,10 +671,41 @@ public class FileServiceImpl implements FileService {
                 shareLinkMapper.delete(new QueryWrapper<ShareLink>().eq("file_id", child.getId()));
                 deletePhysicalFile(child);
                 fileInfoMapper.deleteById(child.getId());
+                if (child.getFileSize() != null && child.getFileSize() > 0) {
+                    quotaService.releaseStorage(userId, child.getFileSize());
+                }
             }
         }
 
         fileInfoMapper.deleteById(folderId);
+    }
+
+    @Override
+    public void moveFolder(Long folderId, Long targetFolderId, Long userId) {
+        FileInfo folder = fileInfoMapper.selectById(folderId);
+        if (folder == null || Integer.valueOf(1).equals(folder.getDeleted())) {
+            throw new ResourceNotFoundException("文件夹不存在");
+        }
+        if (!folder.getUserId().equals(userId)) {
+            throw new AccessDeniedException("无权移动此文件夹");
+        }
+        if (!Integer.valueOf(1).equals(folder.getIsFolder())) {
+            throw new IllegalArgumentException("该对象不是文件夹");
+        }
+
+        Long normalizedTargetFolderId = normalizeParentId(targetFolderId);
+        if (folderId.equals(normalizedTargetFolderId)) {
+            throw new IllegalArgumentException("不能将文件夹移动到自身");
+        }
+        validateTargetFolder(normalizedTargetFolderId, userId);
+        ensureFolderMoveTarget(folderId, normalizedTargetFolderId);
+        if (normalizedTargetFolderId.equals(normalizeParentId(folder.getParentId()))) {
+            return;
+        }
+
+        ensureNameAvailable(userId, normalizedTargetFolderId, folder.getOriginalName(), folderId);
+        folder.setParentId(normalizedTargetFolderId);
+        fileInfoMapper.updateById(folder);
     }
 
     /**
@@ -631,12 +778,77 @@ public class FileServiceImpl implements FileService {
         }
     }
 
+    private void ensureFolderMoveTarget(Long folderId, Long targetFolderId) {
+        Long cursor = normalizeParentId(targetFolderId);
+        int depth = 0;
+        while (cursor != null && cursor != 0L) {
+            if (folderId.equals(cursor)) {
+                throw new IllegalArgumentException("不能将文件夹移动到自身或其子文件夹中");
+            }
+
+            FileInfo current = fileInfoMapper.selectById(cursor);
+            if (current == null || Integer.valueOf(1).equals(current.getDeleted())) {
+                throw new ResourceNotFoundException("目标文件夹不存在");
+            }
+
+            cursor = normalizeParentId(current.getParentId());
+            depth++;
+            if (depth > MAX_FOLDER_DEPTH) {
+                throw new IllegalStateException("文件夹层级过深，无法移动");
+            }
+        }
+    }
+
+    private FileInfo findSameLogicalFile(Long userId, Long folderId, String originalName, String md5, Long fileSize) {
+        FileInfo candidate = fileInfoMapper.selectOne(new QueryWrapper<FileInfo>()
+                .eq("user_id", userId)
+                .eq("parent_id", normalizeParentId(folderId))
+                .eq("original_name", originalName)
+                .eq("md5", md5)
+                .eq("file_size", fileSize)
+                .eq("is_folder", 0)
+                .eq("deleted", 0)
+                .last("LIMIT 1"));
+        if (candidate == null) {
+            return null;
+        }
+        String storageKey = candidate.getFilePath();
+        if (storageKey == null || storageKey.isBlank() || !storageService.exists(storageKey)) {
+            return null;
+        }
+        return candidate;
+    }
+
+    private FileInfo findReusableStorageFile(String md5, Long fileSize) {
+        List<FileInfo> candidates = fileInfoMapper.selectList(new QueryWrapper<FileInfo>()
+                .eq("md5", md5)
+                .eq("file_size", fileSize)
+                .eq("is_folder", 0)
+                .eq("deleted", 0)
+                .orderByDesc("upload_time"));
+
+        for (FileInfo candidate : candidates) {
+            String storageKey = candidate.getFilePath();
+            if (storageKey != null && !storageKey.isBlank() && storageService.exists(storageKey)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
     private void deletePhysicalFile(FileInfo fileInfo) {
         if (fileInfo == null || Integer.valueOf(1).equals(fileInfo.getIsFolder())) {
             return;
         }
         String storageKey = fileInfo.getFilePath();
         if (storageKey == null || storageKey.isBlank()) {
+            return;
+        }
+        long references = fileInfoMapper.selectCount(new QueryWrapper<FileInfo>()
+                .eq("file_path", storageKey)
+                .eq("deleted", 0)
+                .ne("id", fileInfo.getId()));
+        if (references > 0) {
             return;
         }
 

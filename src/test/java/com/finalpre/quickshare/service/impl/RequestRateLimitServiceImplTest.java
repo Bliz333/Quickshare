@@ -58,6 +58,17 @@ class RequestRateLimitServiceImplTest {
     }
 
     @Test
+    void checkBasicUserUploadAllowedShouldThrowWhenLimitExceeded() {
+        when(rateLimitPolicyService.getBasicUserUploadRule()).thenReturn(new RateLimitRule(true, 20L, 3600L));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.increment(anyString())).thenReturn(21L);
+
+        assertThatThrownBy(() -> requestRateLimitService.checkBasicUserUploadAllowed(7L, "203.0.113.9"))
+                .isInstanceOf(RateLimitExceededException.class)
+                .hasMessage("当前免费账号上传过于频繁，请稍后再试或升级套餐");
+    }
+
+    @Test
     void checkPublicDownloadAllowedShouldThrowWhenLimitExceeded() {
         when(rateLimitPolicyService.getPublicDownloadRule()).thenReturn(new RateLimitRule(true, 30L, 600L));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -128,6 +139,17 @@ class RequestRateLimitServiceImplTest {
 
         assertThatCode(() -> requestRateLimitService.checkGuestUploadAllowed("203.0.113.9"))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void checkBasicUserUploadAllowedShouldSetExpiryOnFirstRequest() {
+        when(rateLimitPolicyService.getBasicUserUploadRule()).thenReturn(new RateLimitRule(true, 20L, 3600L));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.increment(anyString())).thenReturn(1L);
+
+        requestRateLimitService.checkBasicUserUploadAllowed(7L, "203.0.113.9");
+
+        verify(redisTemplate).expire(startsWith("rate-limit:basic-user-upload:user:7:ip:203.0.113.9"), eq(3600L), eq(TimeUnit.SECONDS));
     }
 
     @Test

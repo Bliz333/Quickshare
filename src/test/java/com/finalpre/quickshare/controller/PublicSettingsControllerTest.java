@@ -37,6 +37,7 @@ class PublicSettingsControllerTest {
         when(registrationSettingsService.getPolicy()).thenReturn(new RegistrationSettingsPolicy(
                 false,
                 false,
+                "recaptcha",
                 "",
                 "",
                 "https://www.google.com/recaptcha/api/siteverify"

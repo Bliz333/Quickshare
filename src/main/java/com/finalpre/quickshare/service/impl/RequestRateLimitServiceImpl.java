@@ -37,6 +37,18 @@ public class RequestRateLimitServiceImpl implements RequestRateLimitService {
     }
 
     @Override
+    public void checkBasicUserUploadAllowed(Long userId, String clientIp) {
+        RateLimitRule rule = rateLimitPolicyService.getBasicUserUploadRule();
+        String principalKey = "user:" + (userId == null ? "unknown" : userId) + ":ip:" + normalizeClientIp(clientIp);
+        checkLimit(
+                "basic-user-upload",
+                principalKey,
+                rule,
+                "当前免费账号上传过于频繁，请稍后再试或升级套餐"
+        );
+    }
+
+    @Override
     public void checkPublicDownloadAllowed(String clientIp) {
         RateLimitRule rule = rateLimitPolicyService.getPublicDownloadRule();
         checkLimit(

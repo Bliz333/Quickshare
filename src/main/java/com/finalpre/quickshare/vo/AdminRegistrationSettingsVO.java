@@ -9,6 +9,9 @@ public class AdminRegistrationSettingsVO {
 
     private Boolean recaptchaEnabled;
 
+    /** "recaptcha" or "turnstile" */
+    private String captchaProvider;
+
     private String recaptchaSiteKey;
 
     private String recaptchaSecretKey;

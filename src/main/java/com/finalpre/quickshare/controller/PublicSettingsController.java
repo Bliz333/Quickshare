@@ -23,6 +23,7 @@ public class PublicSettingsController {
         PublicRegistrationSettingsVO vo = new PublicRegistrationSettingsVO();
         vo.setEmailVerificationEnabled(policy.emailVerificationEnabled());
         vo.setRecaptchaEnabled(policy.recaptchaEnabled());
+        vo.setCaptchaProvider(policy.captchaProvider());
         vo.setRecaptchaSiteKey(policy.recaptchaSiteKey());
         return Result.success(vo);
     }

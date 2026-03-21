@@ -4,11 +4,17 @@ import com.finalpre.quickshare.common.ResourceNotFoundException;
 import com.finalpre.quickshare.dto.AdminAnnouncementRequest;
 import com.finalpre.quickshare.dto.AdminCreateUserRequest;
 import com.finalpre.quickshare.entity.FileInfo;
+import com.finalpre.quickshare.entity.PaymentOrder;
 import com.finalpre.quickshare.entity.ShareLink;
 import com.finalpre.quickshare.entity.User;
 import com.finalpre.quickshare.mapper.FileInfoMapper;
+import com.finalpre.quickshare.mapper.PaymentOrderMapper;
+import com.finalpre.quickshare.mapper.PaymentProviderMapper;
+import com.finalpre.quickshare.mapper.PlanMapper;
 import com.finalpre.quickshare.mapper.ShareLinkMapper;
 import com.finalpre.quickshare.mapper.UserMapper;
+import com.finalpre.quickshare.service.NotificationService;
+import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.SmtpPolicyService;
 import com.finalpre.quickshare.service.StorageService;
@@ -65,6 +71,21 @@ class AdminServiceImplTest {
 
     @Mock
     private StorageService storageService;
+
+    @Mock
+    private PlanMapper planMapper;
+
+    @Mock
+    private PaymentProviderMapper paymentProviderMapper;
+
+    @Mock
+    private PaymentOrderMapper paymentOrderMapper;
+
+    @Mock
+    private QuotaService quotaService;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private AdminServiceImpl adminService;
@@ -276,9 +297,12 @@ class AdminServiceImplTest {
 
         AdminAnnouncementResultVO result = adminService.sendAnnouncement(request);
 
-        assertThat(result.getTotalRecipients()).isEqualTo(2);
+        assertThat(result.getTotalRecipients()).isEqualTo(3);
+        assertThat(result.getDeliverableCount()).isEqualTo(2);
+        assertThat(result.getSkippedCount()).isEqualTo(1);
         assertThat(result.getSuccessCount()).isEqualTo(2);
         assertThat(result.getFailCount()).isEqualTo(0);
+        verify(notificationService).recordGlobalNotification("Test Announcement", "Hello everyone!", null);
         verify(emailServiceImpl, times(2)).sendRawEmail(any(), eq("Test Announcement"), eq("Hello everyone!"));
     }
 
@@ -304,6 +328,27 @@ class AdminServiceImplTest {
     }
 
     @Test
+    void sendAnnouncementShouldRecordPersonalNotificationsForTargetUsers() {
+        when(smtpPolicyService.getPolicy()).thenReturn(
+                new SmtpPolicy("smtp.test.com", 587, "admin@test.com", "pass", true, "admin@test.com"));
+
+        User u1 = new User(); u1.setId(7L); u1.setEmail("u1@test.com");
+        User u2 = new User(); u2.setId(9L); u2.setEmail("u2@test.com");
+        when(userMapper.selectList(any())).thenReturn(List.of(u1, u2));
+        doNothing().when(emailServiceImpl).sendRawEmail(any(), any(), any());
+
+        AdminAnnouncementRequest request = new AdminAnnouncementRequest();
+        request.setSubject("Personal");
+        request.setBody("Only for you");
+        request.setUserIds(List.of(7L, 9L));
+
+        adminService.sendAnnouncement(request);
+
+        verify(notificationService).recordPersonalNotifications(List.of(7L, 9L), "Personal", "Only for you", null);
+        verify(notificationService, never()).recordGlobalNotification(any(), any(), any());
+    }
+
+    @Test
     void sendAnnouncementShouldRejectEmptySubject() {
         AdminAnnouncementRequest request = new AdminAnnouncementRequest();
         request.setSubject("");
@@ -325,5 +370,57 @@ class AdminServiceImplTest {
 
         assertThatThrownBy(() -> adminService.sendAnnouncement(request))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void markOrderPaidShouldRejectRefundedOrder() {
+        PaymentOrder order = new PaymentOrder();
+        order.setId(11L);
+        order.setOrderNo("QS-REFUNDED");
+        order.setStatus("refunded");
+
+        when(paymentOrderMapper.selectById(11L)).thenReturn(order);
+
+        assertThatThrownBy(() -> adminService.markOrderPaid(11L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("已退款订单不能再标记为已支付");
+
+        verify(quotaService, never()).grantQuota(any());
+        verify(paymentOrderMapper, never()).updateById(any(PaymentOrder.class));
+    }
+
+    @Test
+    void markOrderRefundedShouldRevokeQuotaForPaidOrder() {
+        PaymentOrder order = new PaymentOrder();
+        order.setId(12L);
+        order.setOrderNo("QS-PAID");
+        order.setStatus("paid");
+
+        when(paymentOrderMapper.selectById(12L)).thenReturn(order);
+
+        adminService.markOrderRefunded(12L);
+
+        verify(quotaService).revokeQuota(order);
+
+        ArgumentCaptor<PaymentOrder> captor = ArgumentCaptor.forClass(PaymentOrder.class);
+        verify(paymentOrderMapper).updateById(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo("refunded");
+    }
+
+    @Test
+    void markOrderRefundedShouldRejectPendingOrder() {
+        PaymentOrder order = new PaymentOrder();
+        order.setId(13L);
+        order.setOrderNo("QS-PENDING");
+        order.setStatus("pending");
+
+        when(paymentOrderMapper.selectById(13L)).thenReturn(order);
+
+        assertThatThrownBy(() -> adminService.markOrderRefunded(13L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("只有已支付订单才能退款");
+
+        verify(quotaService, never()).revokeQuota(any());
+        verify(paymentOrderMapper, never()).updateById(any(PaymentOrder.class));
     }
 }

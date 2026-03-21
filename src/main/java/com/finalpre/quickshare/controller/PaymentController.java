@@ -63,8 +63,13 @@ public class PaymentController {
         });
 
         log.info("Epay notify received. params={}", params);
-        boolean success = paymentService.handleNotify(params);
-        return success ? "success" : "fail";
+        try {
+            boolean success = paymentService.handleNotify(params);
+            return success ? "success" : "fail";
+        } catch (Exception e) {
+            log.error("Failed to process payment notify. params={}", params, e);
+            return "fail";
+        }
     }
 
     /**

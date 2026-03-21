@@ -23,6 +23,11 @@ public class RateLimitPolicyServiceImpl implements RateLimitPolicyService {
     }
 
     @Override
+    public RateLimitRule getBasicUserUploadRule() {
+        return resolveRule(RateLimitScene.BASIC_USER_UPLOAD, rateLimitProperties.getBasicUserUpload());
+    }
+
+    @Override
     public RateLimitRule getPublicShareInfoRule() {
         return resolveRule(RateLimitScene.PUBLIC_SHARE_INFO, rateLimitProperties.getPublicShareInfo());
     }

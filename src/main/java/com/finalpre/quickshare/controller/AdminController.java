@@ -287,6 +287,12 @@ public class AdminController {
         return Result.success();
     }
 
+    @DeleteMapping("/orders/{orderId}")
+    public Result<Void> deleteOrder(@PathVariable Long orderId) {
+        adminService.deleteOrder(orderId);
+        return Result.success();
+    }
+
     @GetMapping("/settings/storage")
     public Result<AdminStoragePolicyVO> getStoragePolicy() {
         return Result.success(adminPolicyService.getStoragePolicy());

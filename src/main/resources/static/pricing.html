@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/">
+    <title data-i18n="pricingPageTitle">套餐购买 - QuickShare</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        (function() {
+            const saved = localStorage.getItem('quickshare-theme');
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+    <style>
+        :root {
+            --primary: #0ea5e9; --primary-light: #38bdf8; --primary-dark: #0284c7;
+            --accent: #14b8a6; --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --text-main: #0f172a; --text-sub: #64748b;
+            --bg-light: #f8fafc; --bg-card: #ffffff; --border-color: #e2e8f0;
+            --glass-bg: rgba(255,255,255,0.82); --glass-border: rgba(255,255,255,0.58);
+            --shadow-panel: 0 24px 60px rgba(15,23,42,0.08);
+        }
+        .dark-mode {
+            --primary: #6366f1; --primary-light: #818cf8; --primary-dark: #4f46e5;
+            --accent: #22d3ee; --success: #34d399; --warning: #fbbf24; --danger: #f87171;
+            --text-main: #f1f5f9; --text-sub: #94a3b8;
+            --bg-light: #020617; --bg-card: #0f172a; --border-color: #1e293b;
+            --glass-bg: rgba(15,23,42,0.82); --glass-border: rgba(148,163,184,0.14);
+            --shadow-panel: 0 24px 60px rgba(2,6,23,0.45);
+        }
+        body { font-family:'Outfit',sans-serif; background: radial-gradient(circle at top left,rgba(56,189,248,0.18),transparent 32%), radial-gradient(circle at bottom right,rgba(20,184,166,0.14),transparent 32%), var(--bg-light); color:var(--text-main); min-height:100vh; }
+        .glass-card { background:var(--glass-bg); border:1px solid var(--glass-border); backdrop-filter:blur(18px); border-radius:28px; box-shadow:var(--shadow-panel); }
+        .plan-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .plan-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(14,165,233,0.15); }
+        .plan-icon { width:56px; height:56px; border-radius:18px; display:flex; align-items:center; justify-content:center; color:white; font-size:1.4rem; }
+        .plan-icon.storage { background: linear-gradient(135deg, #0ea5e9, #06b6d4); }
+        .plan-icon.downloads { background: linear-gradient(135deg, #10b981, #14b8a6); }
+        .plan-icon.vip { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+        .buy-btn { display:inline-flex; align-items:center; gap:8px; padding:10px 24px; border-radius:14px; border:none; background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; font-weight:600; font-size:0.9rem; cursor:pointer; transition:opacity 0.2s; }
+        .buy-btn:hover { opacity:0.9; }
+        .buy-btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .toolbar-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:14px; border:1px solid var(--border-color); background:var(--glass-bg); color:var(--text-main); font-size:0.82rem; font-weight:500; cursor:pointer; transition:all 0.2s; }
+        .toolbar-btn:hover { border-color:var(--primary); color:var(--primary); }
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:100; }
+        .modal-content { background:var(--bg-card); border:1px solid var(--border-color); border-radius:24px; padding:32px; max-width:400px; width:90%; }
+        .pay-option { display:flex; align-items:center; gap:12px; padding:12px 16px; border:2px solid var(--border-color); border-radius:14px; cursor:pointer; transition:all 0.2s; margin-bottom:8px; }
+        .pay-option:hover, .pay-option.selected { border-color:var(--primary); background:rgba(14,165,233,0.06); }
+        .section-stack { display:grid; gap:28px; margin-top:36px; }
+        .section-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; }
+        .section-title { font-size:1.35rem; font-weight:650; margin:0; }
+        .section-subtitle { color:var(--text-sub); font-size:0.9rem; line-height:1.7; margin-top:6px; }
+        .status-pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-size:0.78rem; font-weight:600; }
+        .status-pill.pending { background:rgba(245,158,11,0.14); color:var(--warning); }
+        .status-pill.paid { background:rgba(16,185,129,0.14); color:var(--success); }
+        .status-pill.expired { background:rgba(239,68,68,0.12); color:var(--danger); }
+        .status-pill.refunded { background:rgba(100,116,139,0.14); color:var(--text-sub); }
+        .order-list { display:grid; gap:14px; }
+        .order-card { padding:20px; border-radius:22px; border:1px solid var(--border-color); background:rgba(255,255,255,0.46); }
+        .dark-mode .order-card { background:rgba(15,23,42,0.48); }
+        .order-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+        .order-card-title { font-size:1rem; font-weight:600; margin:0; }
+        .order-card-sub { color:var(--text-sub); font-size:0.82rem; margin-top:6px; }
+        .order-meta-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:18px; }
+        .order-meta { padding:12px 14px; border-radius:16px; border:1px solid var(--border-color); background:rgba(255,255,255,0.42); }
+        .dark-mode .order-meta { background:rgba(15,23,42,0.36); }
+        .order-meta-label { color:var(--text-sub); font-size:0.76rem; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px; }
+        .order-meta-value { font-size:0.92rem; font-weight:600; word-break:break-word; }
+        .order-actions { display:flex; gap:10px; flex-wrap:wrap; }
+        .notice-card { padding:18px 20px; border-radius:22px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.42); color:var(--text-sub); font-size:0.88rem; line-height:1.7; }
+        .dark-mode .notice-card { background:rgba(15,23,42,0.42); }
+        .notice-card strong { color:var(--text-main); }
+        .notice-provider { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+        .method-badges { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+        .method-badge { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; border:1px solid var(--border-color); background:rgba(255,255,255,0.58); color:var(--text-main); font-size:0.82rem; font-weight:600; }
+        .dark-mode .method-badge { background:rgba(15,23,42,0.44); }
+        .empty-panel { padding:28px; border-radius:22px; border:1px dashed var(--border-color); color:var(--text-sub); text-align:center; line-height:1.8; }
+        .toast-container { position:fixed; top:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+        .toast { padding:12px 20px; border-radius:14px; font-size:0.88rem; font-weight:500; animation:slideIn 0.3s ease; }
+        .toast.success { background:#10b981; color:white; }
+        .toast.error { background:#ef4444; color:white; }
+        @keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+        @media (max-width: 768px) {
+            .section-header { flex-direction:column; }
+            .order-card-top { flex-direction:column; }
+        }
+    </style>
+</head>
+<body>
+<div class="toast-container" id="toastContainer"></div>
+
+<div style="max-width:1200px; margin:0 auto; padding:24px;">
+    <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:40px; gap:16px; flex-wrap:wrap;">
+        <div>
+            <h1 style="font-size:2rem; font-weight:700;" data-i18n="pricingHeading">选择套餐</h1>
+            <p style="color:var(--text-sub); margin-top:8px;" data-i18n="pricingSubtitle">升级您的存储空间、下载次数或 VIP 权益</p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="toolbar-btn" onclick="window.location.href='netdisk.html'">
+                <i class="fa-solid fa-hard-drive"></i>
+                <span data-i18n="pricingBackToNetdisk">返回网盘</span>
+            </button>
+            <button class="toolbar-btn" id="darkModeToggle" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+            <button class="toolbar-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
+        </div>
+    </header>
+
+    <div id="plansGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:24px;">
+        <p style="color:var(--text-sub); grid-column:1/-1; text-align:center; padding:60px 0;" data-i18n="pricingNoPlans">暂无可用套餐</p>
+    </div>
+
+    <div class="section-stack">
+        <section class="glass-card" id="paymentOptionsSection" style="padding:24px;">
+            <div class="section-header" style="margin-bottom:0;">
+                <div>
+                    <h2 class="section-title" data-i18n="pricingPaymentMethodsTitle">支付方式</h2>
+                    <p class="section-subtitle" data-i18n="pricingPaymentMethodsSubtitle">当前默认商户支持的支付方式会展示在这里，下单时会按同一组能力校验。</p>
+                </div>
+            </div>
+            <div id="paymentOptionsNotice" class="notice-card" style="margin-top:18px;">
+                <span data-i18n="pricingPaymentMethodsLoading">正在加载支付方式...</span>
+            </div>
+        </section>
+
+        <section class="glass-card" id="order-history" style="padding:24px;">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title" data-i18n="pricingOrdersTitle">我的订单</h2>
+                    <p class="section-subtitle" data-i18n="pricingOrdersSubtitle">查看套餐购买记录、当前状态，以及待支付订单的状态页入口。</p>
+                </div>
+                <button class="toolbar-btn" id="ordersRefreshBtn" onclick="refreshOrders(this)">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span data-i18n="pricingOrdersRefresh">刷新订单</span>
+                </button>
+            </div>
+            <div id="ordersList" class="order-list">
+                <div class="empty-panel" data-i18n="pricingOrdersLoading">正在加载订单...</div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<div id="payModal" class="modal-overlay" style="display:none;"></div>
+
+<script src="js/config.js"></script>
+<script src="js/session.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/lang-switch.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/pricing.js"></script>
+</body>
+</html>

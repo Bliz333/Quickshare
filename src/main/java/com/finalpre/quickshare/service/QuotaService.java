@@ -8,6 +8,9 @@ public interface QuotaService {
     /** Grant quota to user based on completed payment order. */
     void grantQuota(PaymentOrder order);
 
+    /** Revoke quota previously granted by a completed payment order. */
+    void revokeQuota(PaymentOrder order);
+
     /** Check if user has enough storage for a file of given size. Throws if exceeded. */
     void checkStorageQuota(Long userId, long fileSizeBytes);
 
@@ -25,4 +28,7 @@ public interface QuotaService {
 
     /** Check if user is VIP. */
     boolean isVip(Long userId);
+
+    /** Check if user is still on the default free tier. */
+    boolean isDefaultFreeTier(Long userId);
 }

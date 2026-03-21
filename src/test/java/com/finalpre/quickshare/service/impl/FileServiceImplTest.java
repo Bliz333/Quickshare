@@ -104,7 +104,6 @@ class FileServiceImplTest {
 
         when(fileUploadPolicyService.getPolicy()).thenReturn(new FileUploadPolicy(true, -1L, List.of()));
         when(storageService.store(any(), any(), anyLong())).thenAnswer(inv -> inv.getArgument(0));
-        when(storageService.retrieve(any())).thenReturn(new java.io.ByteArrayInputStream("hello".getBytes()));
         when(fileInfoMapper.selectById(12L)).thenReturn(folder);
         doAnswer(invocation -> {
             FileInfo saved = invocation.getArgument(0);

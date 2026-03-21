@@ -236,7 +236,9 @@ async function previewFile(index) {
     const token = localStorage.getItem('token');
 
     if (!token) {
-        alert(t('loginRequired'));
+        await showAppAlert(t('loginRequired'), {
+            icon: 'fa-right-to-bracket'
+        });
         return;
     }
 
@@ -271,7 +273,10 @@ async function previewFile(index) {
             const text = await res.text();
             container.innerHTML = `<div class="preview-text">${escapeHtml(text)}</div>`;
         } catch (e) {
-            alert(t('readFailed'));
+            await showAppAlert(t('readFailed'), {
+                tone: 'danger',
+                icon: 'fa-file-circle-xmark'
+            });
             return;
         }
     } else {

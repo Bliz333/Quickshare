@@ -9,7 +9,8 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.rate-limit")
 public class RateLimitProperties {
 
-    private Rule guestUpload = createRule(10, 600);
+    private Rule guestUpload = createRule(2, 3600);
+    private Rule basicUserUpload = createRule(20, 3600);
     private Rule publicShareInfo = createRule(60, 600);
     private Rule publicDownload = createRule(30, 600);
     private Rule publicShareExtractCodeError = createRule(5, 600);

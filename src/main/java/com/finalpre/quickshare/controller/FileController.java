@@ -3,14 +3,16 @@ package com.finalpre.quickshare.controller;
 import com.finalpre.quickshare.common.FeatureDisabledException;
 import com.finalpre.quickshare.common.Result;
 import com.finalpre.quickshare.common.ResourceNotFoundException;
-import com.finalpre.quickshare.dto.ShareRequestDTO;
 import com.finalpre.quickshare.dto.FolderRequest;
+import com.finalpre.quickshare.dto.MoveRequest;
+import com.finalpre.quickshare.dto.ShareRequestDTO;
 import com.finalpre.quickshare.service.FilePreviewPolicy;
 import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileService;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
 import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.PreviewResource;
+import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.RequestRateLimitService;
 import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.utils.JwtUtil;
@@ -21,6 +23,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -47,6 +50,10 @@ import java.util.List;
 public class FileController {
 
     private static final Long GUEST_USER_ID = 0L;
+    private static final long DEFAULT_GUEST_UPLOAD_MAX_SIZE_BYTES = 2L * 1024L * 1024L * 1024L;
+
+    @Value("${app.upload.guest-max-size-bytes:2147483648}")
+    private long guestUploadMaxSizeBytes = DEFAULT_GUEST_UPLOAD_MAX_SIZE_BYTES;
 
     @Autowired
     private FileService fileService;
@@ -69,6 +76,9 @@ public class FileController {
     @Autowired
     private StorageService storageService;
 
+    @Autowired
+    private QuotaService quotaService;
+
     /**
      * 上传文件
      */
@@ -88,6 +98,11 @@ public class FileController {
         }
         if (guestUpload) {
             requestRateLimitService.checkGuestUploadAllowed(resolveClientIp(request));
+            if (guestUploadMaxSizeBytes > 0 && file.getSize() > guestUploadMaxSizeBytes) {
+                throw new IllegalArgumentException("匿名上传文件不能超过 2GB");
+            }
+        } else if (quotaService.isDefaultFreeTier(authenticatedUserId)) {
+            requestRateLimitService.checkBasicUserUploadAllowed(authenticatedUserId, resolveClientIp(request));
         }
 
         Long effectiveUserId = guestUpload ? GUEST_USER_ID : authenticatedUserId;
@@ -124,6 +139,19 @@ public class FileController {
     }
 
     /**
+     * 移动文件
+     */
+    @PutMapping("/files/{fileId}/move")
+    public Result<Void> moveFile(
+            @PathVariable Long fileId,
+            @RequestBody MoveRequest request,
+            Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        fileService.moveFile(fileId, request == null ? null : request.getTargetFolderId(), userId);
+        return Result.success(null);
+    }
+
+    /**
      * 删除文件夹
      */
     @DeleteMapping("/folders/{folderId}")
@@ -132,6 +160,19 @@ public class FileController {
             Authentication authentication) {
         Long userId = requireUserId(authentication);
         fileService.deleteFolder(folderId, userId);
+        return Result.success(null);
+    }
+
+    /**
+     * 移动文件夹
+     */
+    @PutMapping("/folders/{folderId}/move")
+    public Result<Void> moveFolder(
+            @PathVariable Long folderId,
+            @RequestBody MoveRequest request,
+            Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        fileService.moveFolder(folderId, request == null ? null : request.getTargetFolderId(), userId);
         return Result.success(null);
     }
 
@@ -241,9 +282,17 @@ public class FileController {
             @PathVariable String shareCode,
             @RequestParam String extractCode,
             HttpServletRequest request,
+            Authentication authentication,
             HttpServletResponse response) {
         requestRateLimitService.checkPublicDownloadAllowed(resolveClientIp(request));
+        Long userId = extractAuthenticatedUserId(authentication);
+        if (userId != null) {
+            quotaService.checkDownloadQuota(userId);
+        }
         fileService.downloadFile(shareCode, extractCode, response);
+        if (userId != null) {
+            quotaService.recordDownload(userId);
+        }
     }
 
     /**
@@ -288,6 +337,12 @@ public class FileController {
                 .toList();
 
         return Result.success(fileList);
+    }
+
+    @GetMapping("/folders/all")
+    public Result<List<FileInfoVO>> getAllFolders(Authentication authentication) {
+        Long userId = requireUserId(authentication);
+        return Result.success(fileService.getAllFolders(userId));
     }
 
     /**
@@ -351,6 +406,9 @@ public class FileController {
         if (!storageService.exists(storageKey)) {
             throw new ResourceNotFoundException("文件不存在");
         }
+        if (!preview) {
+            quotaService.checkDownloadQuota(userId);
+        }
 
         String contentType = fileVO.getFileType();
         if (contentType == null || contentType.isEmpty()) {
@@ -403,6 +461,9 @@ public class FileController {
                 os.write(buffer, 0, length);
             }
             os.flush();
+        }
+        if (!preview) {
+            quotaService.recordDownload(userId);
         }
     }
 

@@ -16,6 +16,7 @@ import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileService;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
 import com.finalpre.quickshare.service.OfficePreviewService;
+import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.RequestRateLimitService;
 import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.service.PreviewResource;
@@ -60,7 +61,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(value = FileController.class, properties = {
         "app.cors.allowed-origins=http://allowed.example",
         "app.cors.allow-credentials=false",
-        "app.cors.max-age-seconds=3600"
+        "app.cors.max-age-seconds=3600",
+        "app.upload.guest-max-size-bytes=2"
 })
 @Import({
         SecurityConfig.class,
@@ -99,6 +101,9 @@ class FileControllerTest {
 
     @MockBean
     private StorageService storageService;
+
+    @MockBean
+    private QuotaService quotaService;
 
     @MockBean
     private SystemSettingOverrideService systemSettingOverrideService;
@@ -290,6 +295,9 @@ class FileControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("attachment")))
                 .andExpect(content().string("hello download"));
+
+        verify(quotaService).checkDownloadQuota(7L);
+        verify(quotaService).recordDownload(7L);
     }
 
     @Test
@@ -331,6 +339,7 @@ class FileControllerTest {
 
         when(fileUploadPolicyService.getPolicy()).thenReturn(new FileUploadPolicy(true, -1L, List.of()));
         mockValidToken("token", 7L);
+        when(quotaService.isDefaultFreeTier(7L)).thenReturn(false);
         when(fileService.uploadFile(any(), eq(7L), eq(12L))).thenReturn(uploaded);
 
         mockMvc.perform(multipart("/api/upload")
@@ -346,6 +355,25 @@ class FileControllerTest {
     }
 
     @Test
+    void uploadShouldApplyRateLimitForDefaultFreeTierUser() throws Exception {
+        when(fileUploadPolicyService.getPolicy()).thenReturn(new FileUploadPolicy(true, -1L, List.of()));
+        mockValidToken("token", 7L);
+        when(quotaService.isDefaultFreeTier(7L)).thenReturn(true);
+        doThrow(new RateLimitExceededException("当前免费账号上传过于频繁，请稍后再试或升级套餐"))
+                .when(requestRateLimitService).checkBasicUserUploadAllowed(7L, "203.0.113.9");
+
+        mockMvc.perform(multipart("/api/upload")
+                        .file("file", "demo".getBytes())
+                        .header("Authorization", "Bearer token")
+                        .header("X-Forwarded-For", "203.0.113.9"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value(429))
+                .andExpect(jsonPath("$.message").value("当前免费账号上传过于频繁，请稍后再试或升级套餐"));
+
+        verifyNoInteractions(fileService);
+    }
+
+    @Test
     void uploadShouldAllowGuestWithoutToken() throws Exception {
         FileInfoVO uploaded = new FileInfoVO();
         uploaded.setId(9L);
@@ -355,7 +383,7 @@ class FileControllerTest {
         when(jwtUtil.generateGuestUploadToken(9L)).thenReturn("guest-token");
 
         mockMvc.perform(multipart("/api/upload")
-                        .file("file", "demo".getBytes()))
+                        .file("file", "ok".getBytes()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").value(9))
@@ -363,6 +391,19 @@ class FileControllerTest {
 
         verify(fileService).uploadFile(any(), eq(0L), isNull());
         verify(jwtUtil).generateGuestUploadToken(9L);
+    }
+
+    @Test
+    void uploadShouldRejectGuestFileOverConfiguredLimit() throws Exception {
+        when(fileUploadPolicyService.getPolicy()).thenReturn(new FileUploadPolicy(true, -1L, List.of()));
+
+        mockMvc.perform(multipart("/api/upload")
+                        .file("file", "demo".getBytes()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("匿名上传文件不能超过 2GB"));
+
+        verifyNoInteractions(fileService);
     }
 
     @Test
@@ -557,6 +598,30 @@ class FileControllerTest {
                 .andExpect(jsonPath("$.message").value("下载请求过于频繁，请稍后再试"));
 
         verifyNoInteractions(fileService);
+    }
+
+    @Test
+    void downloadShouldCheckAndRecordQuotaWhenAuthenticated() throws Exception {
+        mockValidToken("token", 7L);
+
+        mockMvc.perform(get("/api/download/ABCD1234")
+                        .param("extractCode", "1234")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isOk());
+
+        verify(quotaService).checkDownloadQuota(7L);
+        verify(fileService).downloadFile(eq("ABCD1234"), eq("1234"), any());
+        verify(quotaService).recordDownload(7L);
+    }
+
+    @Test
+    void downloadShouldSkipQuotaWhenAnonymous() throws Exception {
+        mockMvc.perform(get("/api/download/ABCD1234")
+                        .param("extractCode", "1234"))
+                .andExpect(status().isOk());
+
+        verify(fileService).downloadFile(eq("ABCD1234"), eq("1234"), any());
+        verifyNoInteractions(quotaService);
     }
 
     @Test

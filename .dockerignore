@@ -2,7 +2,6 @@
 .gitignore
 .idea
 .vscode
-target
 build
 dist
 node_modules

@@ -54,7 +54,7 @@
 
 - `.env.example` 现在已带默认启动管理员示例：
   - 用户名：`admin`
-  - 密码：`ChangeMeAdmin123!`
+  - 密码：在私有 `.env` 中显式设置，不再建议在公开仓库内保留默认管理员密码示例
 - 因此按当前仓库默认流程：
   - `cp .env.example .env`
   - `docker compose up --build -d`

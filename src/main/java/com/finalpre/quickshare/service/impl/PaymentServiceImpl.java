@@ -15,16 +15,24 @@ import com.finalpre.quickshare.service.QuotaService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
 @Slf4j
 @Service
 public class PaymentServiceImpl implements PaymentService {
+
+    private static final String STATUS_PENDING = "pending";
+    private static final String STATUS_PAID = "paid";
+    private static final String STATUS_EXPIRED = "expired";
+    private static final String STATUS_REFUNDED = "refunded";
 
     @Autowired
     private PaymentOrderMapper orderMapper;
@@ -40,25 +48,16 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public String createOrder(Long userId, Long planId, Long providerId, String payType, String returnUrl) {
-        // Resolve provider
-        PaymentProvider provider;
-        if (providerId != null) {
-            provider = providerMapper.selectById(providerId);
-            if (provider == null || provider.getEnabled() != 1) {
-                throw new ResourceNotFoundException("支付商户不存在或已禁用");
-            }
-        } else {
-            // Use first enabled provider
-            provider = providerMapper.selectOne(new QueryWrapper<PaymentProvider>()
-                    .eq("enabled", 1).orderByAsc("sort_order").last("LIMIT 1"));
-            if (provider == null) {
-                throw new IllegalStateException("暂无可用支付商户，请联系管理员");
-            }
-        }
+        PaymentProvider provider = resolveProvider(providerId);
 
         Plan plan = planMapper.selectById(planId);
         if (plan == null || plan.getStatus() != 1) {
             throw new ResourceNotFoundException("套餐不存在或已下架");
+        }
+
+        String normalizedPayType = normalizePayType(payType);
+        if (!supportsPayType(provider, normalizedPayType)) {
+            throw new IllegalArgumentException("当前支付商户不支持该支付方式");
         }
 
         // Create order
@@ -71,9 +70,9 @@ public class PaymentServiceImpl implements PaymentService {
         order.setPlanType(plan.getType());
         order.setPlanValue(plan.getValue());
         order.setAmount(plan.getPrice());
-        order.setStatus("pending");
+        order.setStatus(STATUS_PENDING);
         order.setProviderId(provider.getId());
-        order.setPayType(payType);
+        order.setPayType(normalizedPayType);
         order.setCreateTime(LocalDateTime.now());
         orderMapper.insert(order);
 
@@ -82,7 +81,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         TreeMap<String, String> params = new TreeMap<>();
         params.put("pid", provider.getPid());
-        params.put("type", payType);
+        params.put("type", normalizedPayType);
         params.put("out_trade_no", orderNo);
         params.put("notify_url", notifyUrl);
         params.put("return_url", returnUrl);
@@ -110,6 +109,7 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    @Transactional
     public boolean handleNotify(Map<String, String> params) {
         String orderNo = params.get("out_trade_no");
         if (orderNo == null || orderNo.isBlank()) {
@@ -180,13 +180,22 @@ public class PaymentServiceImpl implements PaymentService {
             }
         }
 
-        if ("paid".equals(order.getStatus())) {
+        String currentStatus = normalizeOrderStatus(order.getStatus());
+        if (STATUS_PAID.equals(currentStatus)) {
             log.info("Order already paid, ignoring duplicate notify. orderNo={}", orderNo);
             return true;
         }
+        if (STATUS_REFUNDED.equals(currentStatus)) {
+            log.warn("Ignore payment success notify for refunded order. orderNo={}", orderNo);
+            return true;
+        }
+        if (!STATUS_PENDING.equals(currentStatus) && !STATUS_EXPIRED.equals(currentStatus)) {
+            log.warn("Ignore payment success notify for order {} with unsupported status {}", orderNo, currentStatus);
+            return false;
+        }
 
         // Mark as paid
-        order.setStatus("paid");
+        order.setStatus(STATUS_PAID);
         order.setTradeNo(params.get("trade_no"));
         order.setNotifyTime(LocalDateTime.now());
         orderMapper.updateById(order);
@@ -194,12 +203,7 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("Payment confirmed. orderNo={}, tradeNo={}, amount={}, provider={}",
                 orderNo, params.get("trade_no"), order.getAmount(), provider.getName());
 
-        // Grant user quota
-        try {
-            quotaService.grantQuota(order);
-        } catch (Exception e) {
-            log.error("Failed to grant quota for order {}. Manual intervention needed.", orderNo, e);
-        }
+        quotaService.grantQuota(order);
 
         return true;
     }
@@ -228,5 +232,49 @@ public class PaymentServiceImpl implements PaymentService {
         } catch (Exception e) {
             return returnUrl.replaceAll("/[^/]*$", "/api/payment/notify");
         }
+    }
+
+    private PaymentProvider resolveProvider(Long providerId) {
+        PaymentProvider provider;
+        if (providerId != null) {
+            provider = providerMapper.selectById(providerId);
+            if (provider == null || provider.getEnabled() != 1) {
+                throw new ResourceNotFoundException("支付商户不存在或已禁用");
+            }
+            return provider;
+        }
+
+        provider = providerMapper.selectOne(new QueryWrapper<PaymentProvider>()
+                .eq("enabled", 1)
+                .orderByAsc("sort_order")
+                .last("LIMIT 1"));
+        if (provider == null) {
+            throw new IllegalStateException("暂无可用支付商户，请联系管理员");
+        }
+        return provider;
+    }
+
+    private String normalizePayType(String payType) {
+        String normalized = payType == null ? "" : payType.trim().toLowerCase(Locale.ROOT);
+        return normalized.isBlank() ? "alipay" : normalized;
+    }
+
+    private boolean supportsPayType(PaymentProvider provider, String payType) {
+        if (provider == null || payType == null || payType.isBlank()) {
+            return false;
+        }
+
+        String configuredPayTypes = provider.getPayTypes();
+        if (configuredPayTypes == null || configuredPayTypes.isBlank()) {
+            return "alipay".equals(payType);
+        }
+
+        return Arrays.stream(configuredPayTypes.split(","))
+                .map(value -> value == null ? "" : value.trim().toLowerCase(Locale.ROOT))
+                .anyMatch(payType::equals);
+    }
+
+    private String normalizeOrderStatus(String status) {
+        return status == null ? STATUS_PENDING : status.trim().toLowerCase(Locale.ROOT);
     }
 }

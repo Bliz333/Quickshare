@@ -24,29 +24,29 @@ function getStoredAuthUser() {
     }
 }
 
-function renderLoggedInState(user, allowAdminEntry) {
+function renderLoggedInState(user) {
     const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
     const logoutText = lang === 'zh' ? '退出' : 'Logout';
     const netdiskText = lang === 'zh' ? '网盘主页' : 'My Netdisk';
-    const adminText = typeof t === 'function' ? t('adminConsole') : (lang === 'zh' ? '管理后台' : 'Admin Console');
+    const upgradeText = lang === 'zh' ? '升级套餐' : 'Upgrade';
+    const quickDropText = lang === 'zh' ? '设备快传' : 'QuickDrop';
     const authButtons = document.getElementById('authButtons');
 
     if (!authButtons) {
         return;
     }
 
-    const adminButton = allowAdminEntry ? `
-            <button onclick="openAdminConsole()" class="btn-auth btn-login" style="padding: 8px 20px;">
-                <i class="fa-solid fa-shield-halved"></i> ${adminText}
-            </button>
-    ` : '';
-
     authButtons.innerHTML = `
         <div style="display:flex; align-items:center; gap:15px; flex-wrap: wrap; justify-content: center;">
             <button onclick="location.href='netdisk.html'" class="btn-auth btn-register" style="padding: 8px 20px;">
                 <i class="fa-solid fa-hard-drive"></i> ${netdiskText}
             </button>
-            ${adminButton}
+            <button onclick="location.href='pricing.html'" class="btn-auth btn-login" style="padding: 8px 20px;">
+                <i class="fa-solid fa-tags"></i> ${upgradeText}
+            </button>
+            <button onclick="location.href='quickdrop.html'" class="btn-auth btn-login" style="padding: 8px 20px;">
+                <i class="fa-solid fa-wifi"></i> ${quickDropText}
+            </button>
             <div style="display:flex; align-items:center; gap:8px; background: rgba(255, 255, 255, 0.05); padding: 6px 12px; border-radius: 50px; border: 1px solid var(--glass-border);">
                 <div style="width:30px; height:30px; background: linear-gradient(45deg, #6d28d9, #06b6d4); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size: 0.9rem;">
                     ${user.nickname ? user.nickname[0].toUpperCase() : user.username[0].toUpperCase()}
@@ -65,7 +65,7 @@ async function checkLoginState() {
     const user = getStoredAuthUser();
 
     if (token && user.username) {
-        renderLoggedInState(user, false);
+        renderLoggedInState(user);
 
         if (window.QuickShareSession && typeof window.QuickShareSession.fetchProfile === 'function') {
             try {
@@ -74,12 +74,12 @@ async function checkLoginState() {
                     window.location.reload();
                     return;
                 }
-                renderLoggedInState(freshUser, hasAdminRole(freshUser));
+                renderLoggedInState(freshUser);
             } catch (error) {
                 console.warn('Failed to sync current profile on home page:', error);
             }
         } else {
-            renderLoggedInState(user, hasAdminRole(user));
+            renderLoggedInState(user);
         }
     }
 }
@@ -87,17 +87,26 @@ async function checkLoginState() {
 /**
  * 处理用户退出登录
  */
-function handleLogout() {
+async function handleLogout() {
     const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
-    if (confirm(lang === 'zh' ? '确定要退出登录吗?' : 'Logout?')) {
-        if (window.QuickShareSession && typeof window.QuickShareSession.clear === 'function') {
-            window.QuickShareSession.clear();
-        } else {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-        }
-        location.reload();
+    const confirmed = await showAppConfirm(lang === 'zh' ? '确定要退出登录吗?' : 'Logout?', {
+        title: lang === 'zh' ? '退出登录' : 'Log Out',
+        tone: 'danger',
+        icon: 'fa-right-from-bracket',
+        confirmText: lang === 'zh' ? '退出' : 'Log out'
+    });
+
+    if (!confirmed) {
+        return;
     }
+
+    if (window.QuickShareSession && typeof window.QuickShareSession.clear === 'function') {
+        window.QuickShareSession.clear();
+    } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    }
+    location.reload();
 }
 
 async function openAdminConsole() {

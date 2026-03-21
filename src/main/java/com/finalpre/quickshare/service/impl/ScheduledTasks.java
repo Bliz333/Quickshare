@@ -23,6 +23,9 @@ public class ScheduledTasks {
     @Autowired
     private PaymentOrderMapper orderMapper;
 
+    @Autowired
+    private com.finalpre.quickshare.service.QuickDropService quickDropService;
+
     /**
      * Reset monthly download counters on the 1st of each month at 00:05.
      */
@@ -49,6 +52,14 @@ public class ScheduledTasks {
                         .lt("create_time", cutoff));
         if (updated > 0) {
             log.info("Expired {} pending orders older than 30 minutes", updated);
+        }
+    }
+
+    @Scheduled(fixedRate = 3600000)
+    public void cleanupExpiredQuickDropTransfers() {
+        int deleted = quickDropService.cleanupExpiredTransfers();
+        if (deleted > 0) {
+            log.info("Cleaned up {} expired QuickDrop transfers", deleted);
         }
     }
 }

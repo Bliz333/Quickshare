@@ -47,7 +47,7 @@ recaptcha:
 
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
     map-underscore-to-camel-case: true
   global-config:
     db-config:
@@ -107,8 +107,12 @@ app:
   rate-limit:
     guest-upload:
       enabled: ${GUEST_UPLOAD_RATE_LIMIT_ENABLED:true}
-      max-requests: ${GUEST_UPLOAD_RATE_LIMIT_MAX_REQUESTS:10}
-      window-seconds: ${GUEST_UPLOAD_RATE_LIMIT_WINDOW_SECONDS:600}
+      max-requests: ${GUEST_UPLOAD_RATE_LIMIT_MAX_REQUESTS:2}
+      window-seconds: ${GUEST_UPLOAD_RATE_LIMIT_WINDOW_SECONDS:3600}
+    basic-user-upload:
+      enabled: ${BASIC_USER_UPLOAD_RATE_LIMIT_ENABLED:true}
+      max-requests: ${BASIC_USER_UPLOAD_RATE_LIMIT_MAX_REQUESTS:20}
+      window-seconds: ${BASIC_USER_UPLOAD_RATE_LIMIT_WINDOW_SECONDS:3600}
     public-download:
       enabled: ${PUBLIC_DOWNLOAD_RATE_LIMIT_ENABLED:true}
       max-requests: ${PUBLIC_DOWNLOAD_RATE_LIMIT_MAX_REQUESTS:30}
@@ -121,3 +125,15 @@ app:
       enabled: ${PUBLIC_SHARE_EXTRACT_CODE_ERROR_RATE_LIMIT_ENABLED:true}
       max-requests: ${PUBLIC_SHARE_EXTRACT_CODE_ERROR_RATE_LIMIT_MAX_REQUESTS:5}
       window-seconds: ${PUBLIC_SHARE_EXTRACT_CODE_ERROR_RATE_LIMIT_WINDOW_SECONDS:600}
+  quickdrop:
+    presence-timeout-seconds: ${QUICKDROP_PRESENCE_TIMEOUT_SECONDS:45}
+    transfer-ttl-hours: ${QUICKDROP_TRANSFER_TTL_HOURS:72}
+    chunk-size-bytes: ${QUICKDROP_CHUNK_SIZE_BYTES:2097152}
+    direct-transfer-enabled: ${QUICKDROP_DIRECT_TRANSFER_ENABLED:true}
+    stun-urls: ${QUICKDROP_STUN_URLS:stun:stun.l.google.com:19302}
+    turn-urls: ${QUICKDROP_TURN_URLS:}
+    turn-url: ${QUICKDROP_TURN_URL:}
+    turn-username: ${QUICKDROP_TURN_USERNAME:}
+    turn-password: ${QUICKDROP_TURN_PASSWORD:}
+  upload:
+    guest-max-size-bytes: ${GUEST_UPLOAD_MAX_SIZE_BYTES:2147483648}

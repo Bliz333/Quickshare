@@ -25,7 +25,15 @@ public class FileConfig {
     @Value("${spring.servlet.multipart.max-file-size:10GB}")
     private String servletMaxFileSize;
 
+    public String getConfiguredUploadDir() {
+        return uploadDir;
+    }
+
     public String getUploadDir() {
+        if (uploadDir == null || uploadDir.isBlank()) {
+            return uploadDir;
+        }
+
         File dir = new File(uploadDir);
         if (!dir.exists()) {
             dir.mkdirs();

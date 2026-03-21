@@ -50,6 +50,7 @@ class RegistrationSettingsServiceImplTest {
         when(systemSettingOverrideService.getRegistrationSettingsPolicy()).thenReturn(Optional.of(new RegistrationSettingsPolicy(
                 false,
                 true,
+                "recaptcha",
                 "site-key",
                 "secret-key",
                 "https://www.google.com/recaptcha/api/siteverify"

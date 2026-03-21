@@ -8,7 +8,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <!-- 防止主题闪烁：在 head 中立即检测并应用主题 -->
     <script>
@@ -112,6 +111,16 @@
             justify-content: center;
         }
 
+        .top-btn.top-btn-icon {
+            width: 40px;
+            padding: 8px;
+            position: relative;
+        }
+
+        .top-btn.top-btn-icon i {
+            font-size: 1rem;
+        }
+
         .top-btn:hover {
             background: var(--primary);
             color: white;
@@ -132,14 +141,40 @@
             box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
         }
 
-        /* 主题切换按钮特殊样式 */
-        #darkModeToggle {
-            width: 40px;
-            padding: 8px;
+        .notification-btn.has-unread {
+            color: var(--primary-dark);
+            border-color: rgba(14, 165, 233, 0.32);
+            box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.12);
         }
 
+        .dark-mode .notification-btn.has-unread {
+            color: var(--primary-light);
+            border-color: rgba(129, 140, 248, 0.38);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.16);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: #f97316;
+            border: 2px solid var(--bg-light);
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        /* 主题切换按钮特殊样式 */
         #darkModeToggle i {
-            font-size: 1rem;
             transition: transform 0.3s;
         }
 
@@ -165,6 +200,302 @@
 
         .dark-mode .btn-register { box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); }
         .dark-mode .btn-register:hover { box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4); }
+
+        .home-notice-panel {
+            position: fixed;
+            top: 74px;
+            right: 20px;
+            width: min(420px, calc(100vw - 32px));
+            max-height: min(72vh, 620px);
+            padding: 22px;
+            border-radius: 22px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.84);
+            box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+            backdrop-filter: blur(18px);
+            z-index: 180;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-10px) scale(0.98);
+            transition: opacity 0.22s ease, transform 0.22s ease;
+            overflow: hidden;
+        }
+
+        .home-notice-panel.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+
+        .dark-mode .home-notice-panel {
+            background: rgba(15, 23, 42, 0.9);
+            box-shadow: 0 28px 90px rgba(2, 6, 23, 0.5);
+        }
+
+        .home-notice-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .home-notice-header-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .home-notice-header-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .home-notice-header h3 {
+            font-size: 1.05rem;
+            color: var(--text-main);
+            margin-bottom: 6px;
+        }
+
+        .home-notice-header p,
+        .home-notice-login-hint,
+        .home-notice-empty {
+            color: var(--text-sub);
+            font-size: 0.88rem;
+            line-height: 1.7;
+        }
+
+        .home-notice-close {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--text-sub);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .home-notice-close:hover {
+            color: var(--text-main);
+            border-color: var(--primary);
+            background: rgba(14, 165, 233, 0.12);
+        }
+
+        .dark-mode .home-notice-close {
+            background: rgba(15, 23, 42, 0.72);
+        }
+
+        .home-notice-action {
+            min-height: 38px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--text-sub);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .home-notice-action:hover {
+            color: var(--text-main);
+            border-color: var(--primary);
+            background: rgba(14, 165, 233, 0.12);
+        }
+
+        .home-notice-action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .dark-mode .home-notice-action {
+            background: rgba(15, 23, 42, 0.72);
+        }
+
+        .home-notice-tabs {
+            display: inline-flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .home-notice-tab {
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-sub);
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .home-notice-tab.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .home-notice-list {
+            display: grid;
+            gap: 12px;
+            max-height: min(44vh, 360px);
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .home-notice-footer {
+            margin-top: 12px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .home-notice-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .home-notice-item h3 {
+            font-size: 0.98rem;
+            color: var(--text-main);
+            margin-bottom: 10px;
+        }
+
+        .home-notice-item p {
+            color: var(--text-sub);
+            font-size: 0.9rem;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+
+        .home-notice-body.collapsed {
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .home-notice-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.75rem;
+            color: var(--text-sub);
+        }
+
+        .home-notice-meta-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .home-notice-scope {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 72px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .home-notice-scope.all {
+            color: #075985;
+            background: rgba(14, 165, 233, 0.12);
+        }
+
+        .home-notice-scope.personal {
+            color: #166534;
+            background: rgba(16, 185, 129, 0.14);
+        }
+
+        .home-notice-item.read {
+            opacity: 0.76;
+        }
+
+        .home-notice-item.read h3 {
+            color: var(--text-sub);
+        }
+
+        .home-notice-mark-read {
+            border: none;
+            background: transparent;
+            color: var(--primary-dark);
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .home-notice-mark-read:hover {
+            color: var(--primary);
+        }
+
+        .dark-mode .home-notice-mark-read {
+            color: var(--primary-light);
+        }
+
+        .home-notice-read-state {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .home-notice-toggle-body {
+            margin-top: 10px;
+            border: none;
+            background: transparent;
+            color: var(--primary-dark);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .home-notice-toggle-body:hover {
+            color: var(--primary);
+        }
+
+        .dark-mode .home-notice-toggle-body {
+            color: var(--primary-light);
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
 
         /* Main Card */
         .card {
@@ -333,7 +664,59 @@
             .copy-btn { padding: 4px 10px; font-size: 0.7rem; }
             .auth-group { flex-direction: column; gap: 8px; }
             .btn-auth { width: 100%; }
-            .top-buttons { top: 15px; right: 15px; gap: 8px; }
+            .top-buttons {
+                top: 12px;
+                right: 12px;
+                gap: 6px;
+                padding: 6px;
+                border: 1px solid var(--border-color);
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.62);
+                box-shadow: var(--shadow-subtle);
+                backdrop-filter: blur(16px);
+            }
+            .dark-mode .top-buttons {
+                background: rgba(15, 23, 42, 0.68);
+            }
+            .top-btn {
+                min-width: 38px;
+                height: 38px;
+                padding: 0 12px;
+            }
+            .top-btn.top-btn-icon {
+                width: 38px;
+                padding: 0;
+            }
+            #langBtn {
+                min-width: 44px;
+                padding: 0 12px;
+            }
+            .home-notice-panel {
+                top: 66px;
+                right: 15px;
+                width: min(420px, calc(100vw - 30px));
+                max-height: 72vh;
+                padding: 18px;
+            }
+            .home-notice-header {
+                gap: 12px;
+            }
+            .home-notice-header-actions {
+                gap: 6px;
+            }
+            .home-notice-action {
+                min-height: 36px;
+                padding: 0 12px;
+                font-size: 0.74rem;
+            }
+            .notification-badge {
+                top: -3px;
+                right: -3px;
+                min-width: 17px;
+                height: 17px;
+                padding: 0 4px;
+                font-size: 0.6rem;
+            }
         }
     </style>
 </head>
@@ -347,13 +730,50 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- 顶部按钮组：主题切换 + 语言切换 -->
+<!-- 顶部按钮组：通知 + 套餐 + 主题 + 语言 -->
 <div class="top-buttons">
-    <button class="top-btn" id="darkModeToggle" onclick="toggleTheme()" title="切换主题">
+    <button class="top-btn top-btn-icon notification-btn" id="homeNotificationButton" type="button" aria-haspopup="dialog" aria-expanded="false" title="通知中心">
+        <i class="fa-regular fa-bell"></i>
+        <span class="sr-only" data-i18n="homeNoticeButton">通知中心</span>
+        <span id="homeNotificationBadge" class="notification-badge" style="display:none;"></span>
+    </button>
+    <button class="top-btn top-btn-icon" onclick="location.href='pricing.html'" title="套餐">
+        <i class="fa-solid fa-tags"></i>
+    </button>
+    <button class="top-btn top-btn-icon" id="darkModeToggle" onclick="toggleTheme()" title="切换主题">
         <i class="fa-solid fa-moon"></i>
     </button>
     <button class="top-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
 </div>
+
+<section id="homeNotificationsPanel" class="home-notice-panel" aria-hidden="true">
+    <div class="home-notice-header">
+        <div class="home-notice-header-copy">
+            <h3 data-i18n="homeNoticeTitle">通知中心</h3>
+            <p data-i18n="homeNoticeSubtitle">查看平台公告和与你相关的历史通知。</p>
+        </div>
+        <div class="home-notice-header-actions">
+            <button id="homeNoticeMarkAllBtn" class="home-notice-action" type="button">
+                <i class="fa-solid fa-check-double"></i>
+                <span data-i18n="homeNoticeMarkAllRead">全部已读</span>
+            </button>
+            <button id="homeNoticeCloseBtn" class="home-notice-close" type="button" title="关闭">
+                <i class="fa-solid fa-xmark"></i>
+                <span class="sr-only" data-i18n="close">关闭</span>
+            </button>
+        </div>
+    </div>
+    <div class="home-notice-tabs">
+        <button id="homeNoticeTabAll" class="home-notice-tab active" onclick="switchHomeNotificationTab('all')" data-i18n="homeNoticeTabAll">全部通知</button>
+        <button id="homeNoticeTabPersonal" class="home-notice-tab" onclick="switchHomeNotificationTab('personal')" data-i18n="homeNoticeTabPersonal">我的通知</button>
+    </div>
+    <p id="homeNoticeLoginHint" class="home-notice-login-hint" data-i18n="homeNoticeLoginHint">登录后可查看仅发给你的个人通知。</p>
+    <div id="homeNoticeList" class="home-notice-list"></div>
+    <div id="homeNoticeFooter" class="home-notice-footer" style="display:none;">
+        <button id="homeNoticeMoreBtn" class="home-notice-action" type="button"></button>
+    </div>
+    <p id="homeNoticeEmpty" class="home-notice-empty" style="display:none;"></p>
+</section>
 
 <div class="container">
     <div class="header">
@@ -379,6 +799,16 @@
                     <small>(支持多文件批量上传，最大 10GB)</small>
                 </div>
                 <input type="file" id="fileInput" style="display: none;" multiple onchange="handleFileSelect(event)">
+                <input type="file" id="folderInput" style="display: none;" webkitdirectory directory multiple onchange="handleFileSelect(event)">
+            </div>
+
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:14px;">
+                <button class="btn" type="button" onclick="document.getElementById('fileInput').click()" style="margin:0; width:auto; padding: 12px 18px;" data-i18n="quickDropSelectFiles">
+                    <span>选择文件</span> <i class="fa-solid fa-paperclip"></i>
+                </button>
+                <button class="btn" type="button" onclick="openFolderPicker()" style="margin:0; width:auto; padding: 12px 18px; background: rgba(148, 163, 184, 0.16); color: var(--text-main); box-shadow:none; border:1px solid var(--border-color);" data-i18n="quickDropChooseFolder">
+                    <span>选择文件夹</span> <i class="fa-solid fa-folder-tree"></i>
+                </button>
             </div>
 
             <div class="file-list" id="fileList" style="display: none;">
@@ -452,8 +882,10 @@
 <script src="js/session.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/lang-switch.js"></script>
+<script src="js/modal.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/home-notifications.js"></script>
 <script src="js/qrcode-handler.js"></script>
 <script src="js/upload.js"></script>
 <script src="js/download.js"></script>
@@ -473,7 +905,9 @@
 
     /* ================= 页面加载 ================= */
     window.addEventListener('load', () => {
-        checkLoginState();
+        Promise.resolve(checkLoginState()).finally(() => {
+            initHomeNotifications();
+        });
         initUploadArea();
 
         const { shareCode, extractCode } = parseShareParams();

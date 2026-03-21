@@ -2,6 +2,253 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-21 (MinIO smoke 复核、小里程碑测试纪律与文档同步)
+
+- 详细记录：`docs/archive/2026-03-21-minio-smoke-revalidation-and-doc-sync.md`
+- 详细记录：`docs/archive/2026-03-21-playwright-netdisk-quota-baseline.md`
+- 详细记录：`docs/archive/2026-03-21-milestone-testing-discipline.md`
+- 详细记录：`docs/archive/2026-03-21-home-notification-popover.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-phase1.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-public-share-and-save.md`
+- 详细记录：`docs/archive/2026-03-21-preprod-server-smoke.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-signaling-foundation.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-direct-transfer-mvp.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-same-account-auto-direct-and-relay-fallback.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-mid-transfer-fallback-and-turn-prep.md`
+- 详细记录：`docs/archive/2026-03-21-preprod-turn-enable.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-unified-task-view-and-direct-save.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-task-merge-and-hybrid-row.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-server-task-key.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-server-task-details.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-unified-task-model-and-real-browser-validation.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-pair-task-observability.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-pair-task-page-view.md`
+- 补齐缺失归档：`docs/archive/2026-03-20-playwright-admin-registration-baseline.md`
+- 核心变更：
+  - 重新核对当前运行态后确认，应用现在已经运行在 `S3/MinIO` 模式
+  - 在当前 `S3/MinIO` 运行态下再次执行 `./scripts/quickshare-smoke.sh`
+  - 重新确认登录态下载、匿名公开下载和登录态公开下载都会做内容一致性比对并通过
+  - 移除顶层文档里“MinIO 下载内容一致性仍待修复”的过期结论
+  - 同步补齐 Playwright 管理台注册设置基线的归档文件，消除顶层文档悬空引用
+  - 新增 `tests/e2e/netdisk-quota.spec.js`，把网盘侧栏的配额/VIP 展示和升级入口纳入页面级浏览器自动化
+  - 新增 `scripts/check-js.sh`，把当前前端页面脚本、`playwright.config.js` 和 `tests/e2e/*.js` 的语法检查收口成一个可重复入口
+  - 同步调整 CI 改用 `./mvnw` 与 `./scripts/check-js.sh`，避免流水线继续盯着过期的单文件清单
+  - 重新执行当前小里程碑组合验收：编译、支付/文件/健康相关定向测试、`./scripts/quickshare-smoke.sh`、`netdisk-quota` 与 `pricing-payment` Playwright
+  - 首页通知中心改为右上角铃铛入口 + 弹出层，避免通知面板长期占用首页主体空间
+  - 首页通知中心现在只会在检测到比上次更新的通知时自动弹出；平时保持折叠，点击铃铛再展开
+  - 首页通知铃铛补上未读数量徽标，并把已查看时机收口到关闭通知中心，避免数量提示一闪即消失
+  - 首页通知中心继续补上“单条已读 / 全部已读”前端本地状态，未读数现在会随着逐条处理实时递减
+  - 首页通知列表默认只展示前 4 条，并支持“查看更多”；长正文默认折叠，可按需展开/收起
+  - 移动端右上角按钮组已改为更紧凑的胶囊式布局，通知、套餐、主题、语言入口继续保留但不再那么挤
+  - `tests/e2e/home-notifications.spec.js` 已同步改成“匿名默认折叠、登录态新通知自动弹出、数量徽标显示、单条/全部已读联动、查看更多、长正文展开、移动端入口可用”的页面回归
+  - 新增 QuickDrop 第一阶段 MVP：同账号设备自动发现、服务器中转、分片上传与 chunk 续传、接收箱下载
+  - 新增 `quickdrop.html`、QuickDrop 后端表与 API，并把首页登录态入口接到设备互传页面
+  - 当前 QuickDrop 明确是第一阶段：先做稳定服务器中转，不依赖配对码，也还未接入 WebRTC / STUN / TURN
+  - QuickDrop 继续补上免登录公开分享：新增 `quickdrop-share.html`、公开分享表和公开分享 API
+  - 登录态接收端和公开取件页现在都支持“保存到网盘”，不再只能浏览器下载
+  - QuickDrop 保存到网盘已支持目标文件夹选择，不再固定落根目录
+  - 新增 `tests/e2e/quickdrop.spec.js`，把设备页与公开分享页的最小页面行为纳入浏览器自动化；当前公开取件页登录保存控件的 mock 仍待继续收口
+  - 已在真实 Debian 12 服务器上完成一轮预发布部署烟测，域名 `quickshare.878877.xyz` 返回 `200`，并确认 QuickDrop `sync` 与公开分享创建路径可用
+  - QuickDrop 已补 WebSocket 信令和临时匹配码配对基础，为后续 WebRTC / STUN / TURN 直传做准备
+  - QuickDrop 已继续补到配对后的 `WebRTC DataChannel` 浏览器直传：`quickdrop.html` 和 `quickdrop-share.html` 现在都可在匹配成功后直接传文件
+  - 直传接收端当前会把已收分片保存在浏览器里，重新配对并发送同一个文件时会继续缺失分片，不会整文件重来
+  - 新增 `src/main/resources/static/js/quickdrop-direct.js`，把控制面和数据面的直传协议、浏览器端接收箱、本地下载和删除动作收口成独立模块
+  - QuickDrop 直传开关默认改为开启，并默认下发 STUN；当前仍建议后续补 TURN 和直连失败后的统一回退编排
+  - `tests/e2e/quickdrop.spec.js` 已继续覆盖配对直传的接收与发送页面行为，不再只覆盖同账号中转和公开分享
+  - 新增 `POST /api/quickdrop/direct-sessions`，用于同账号设备免配对发起直连会话
+  - `quickdrop.html` 现在会在选择同账号目标设备后自动发起直连协商，不再要求登录用户手工输入匹配码
+  - 同账号主发送区现已改为“优先浏览器直传，未就绪则自动回退服务器中转”
+  - `tests/e2e/quickdrop.spec.js` 已继续覆盖同账号设备页的自动直连会话请求，以及直连优先 / 中转回退编排
+  - 同账号主发送区现已继续补到“直传中途失败也自动切到服务器中转”，不再只覆盖发送前未就绪回退
+  - `quickdrop-direct.js` 已补发送上下文和“回退中转中”的状态收口，避免直传中断后页面完全失去进度语义
+  - QuickDrop TURN 配置已支持 `QUICKDROP_TURN_URLS` 多地址写法，便于同时下发 `udp/tcp` 两条 TURN 地址；旧的 `QUICKDROP_TURN_URL` 继续兼容
+  - `.env.example` 和 `README.md` 已同步改成以 `QUICKDROP_TURN_URLS` 为主，方便后续接真实 TURN 部署
+  - 预发布服务器 `145.79.143.107` 已安装并启用 `coturn`，QuickDrop `rtc-config` 现已开始下发真实 TURN `udp/tcp` 地址
+  - 预发布机上的应用代码已同步到当前工作树版本，且在恢复历史 MySQL 账号密码后重新启动成功
+  - QuickDrop 同账号页现在会把浏览器直传任务并入主接收箱 / 发送记录，不再只存在于单独的直传卡片里
+  - 主接收箱 / 发送记录已开始显示任务来源 `Direct / Relay`，作为统一任务视图骨架
+  - 直传收到的文件现在可以直接从同账号主接收箱保存到网盘，继续复用当前目标文件夹选择器
+  - `tests/e2e/quickdrop.spec.js` 已继续覆盖“主接收箱合并直传任务并保存到网盘”以及“主发送记录合并直传任务”
+  - QuickDrop 主发送记录现已继续补到“单行混合任务”视图：同一文件若从直传切到中转，将显示为一条 `Direct -> Relay`
+  - 主列表归并现已支持 `taskKey` 优先、直传回退签名兜底，不再只靠最外层数组拼接
+  - 混合任务的删除动作会同时清理对应的中转记录和本地直传记录，避免表面合并但底层遗留
+  - `tests/e2e/quickdrop.spec.js` 已继续覆盖“直传回退中转后主发送记录只显示一条任务”
+  - QuickDrop 中转任务现在已补服务端原生 `taskKey`，统一任务归并不再只靠前端本地映射
+  - 新增 `V8__add_quickdrop_transfer_task_key.sql`，并同步更新 Docker 初始化 schema
+  - 本地 MySQL 环境对 `ADD COLUMN IF NOT EXISTS` 不兼容，已修正迁移 SQL 并清理失败的 `V8` 记录后重新迁移成功
+  - QuickDrop 中转记录现在会继续返回结构化 `task` 详情，包含方向、对端、当前阶段和 relay attempt，不再只有原始 transfer 字段
+  - `quickdrop.html` 同账号页现已消费服务端 `task`，并把本地 direct 记录归一成同一模型后再做 hybrid 合并
+  - 混合任务详情弹窗现已显示 `current stage`、relay/direct attempt 链路和对应记录 ID，不再主要靠前端临时拼字符串推断
+  - `QuickDropServiceImplTest` 与 `tests/e2e/quickdrop.spec.js` 已继续覆盖 relay `task` 输出和 hybrid 详情弹窗
+  - QuickDrop 已继续补服务端统一任务骨架：新增 `quickdrop_task`、`quickdrop_transfer.task_id` 和 `V9__add_quickdrop_task_tables.sql`
+  - same-account 直传状态现在会写回服务端任务：新增 `POST /api/quickdrop/tasks/direct-attempts`
+  - `quickdrop.html` 主列表现已优先消费 `incomingTasks / outgoingTasks`，不再必须先拿 relay/direct 原始数组再前端猜一遍
+  - 任务删除现已补到服务端任务语义：新增 `DELETE /api/quickdrop/tasks/{id}`，direct 记录删除也可同步回写服务端 task attempts
+  - 浏览器端已补 direct 已完成/已转存记录的保留时长清理策略，不再无限制堆积本地 IndexedDB 记录
+  - 新增 `tests/e2e/quickdrop-real.spec.js`，已确认本地真实双页 QuickDrop 传输能落到统一任务列表
+  - 当前真实双页 headless 环境下，最终任务模式仍可能收口到 `Relay`；这已被记录为后续 TURN/直连成功率优化项，而不是继续停留在“是否能真实传输”的未知状态
+  - 公开配对 / 匿名直传现在也已补服务端记录层：新增 `quickdrop_pair_task` 和 `V10__add_quickdrop_pair_task_table.sql`
+  - 新增 `POST /api/public/quickdrop/pair-tasks/direct-attempts` 与对应删除接口，public / anonymous paired direct transfer 不再完全停留在浏览器本地
+  - 新增 `GET /api/public/quickdrop/pair-tasks`，`QuickDropPairingServiceImpl` 已补 `listPairTasks`
+  - `quickdrop-direct.js` 的公开配对任务面板现已优先消费服务端 `pair task`，不再只看浏览器本地 incoming 记录
+  - 页面级 `pair task` 视图现已支持 server-only 任务的详情与删除；若当前浏览器已有接收分片，任务仍会提供下载动作
+  - `QuickDropPairingServiceImplTest` 与 `tests/e2e/quickdrop.spec.js` 已继续覆盖 public pair task 的读投影、server-only task view 和详情展示
+  - 更新 `README.md`、`docs/TESTING.md`、`docs/PLAN.md`、`docs/STATUS.md`，明确“小里程碑也要即时测试并同步文档”的默认规则
+
+## 2026-03-20 (UI 收口、订单系统加固、文件管理增强与文档同步)
+
+- 详细记录：`docs/archive/2026-03-20-ui-polish-file-management-and-docs-sync.md`
+- 详细记录：`docs/archive/2026-03-20-order-system-hardening-and-pricing-sync.md`
+- 详细记录：`docs/archive/2026-03-20-health-storage-metrics.md`
+- 详细记录：`docs/archive/2026-03-20-storage-risk-levels.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-email-templates-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-orders-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-payment-providers-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-plans-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-registration-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-rate-limits-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-smtp-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-storage-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-system-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-admin-upload-preview-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-notification-center-and-announcement-history.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-drag-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-pricing-payment-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-playwright-register-captcha-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-smoke-script-baseline.md`
+- 详细记录：`docs/archive/2026-03-20-storage-risk-automation.md`
+- 详细记录：`docs/archive/2026-03-20-overview-storage-risk.md`
+- 详细记录：`docs/archive/2026-03-20-payment-local-provider-integration.md`
+- 详细记录：`docs/archive/2026-03-20-s3-health-visibility.md`
+- 详细记录：`docs/archive/2026-03-20-free-tier-hardening-and-minio-profile.md`
+- 本轮主题：把交互体验、订单系统行为、文件管理行为和顶层文档全部同步到当前真实状态
+- 核心变更：
+  - 站内统一使用自定义 Modal，替换分享、重命名、删除、退出登录等场景里突兀的浏览器原生弹窗体验
+  - 管理台安全设置文案按 `Google reCAPTCHA` / `Cloudflare Turnstile` 动态切换，`Verify URL` 增加用途说明
+  - 公开注册设置接口增加 `captchaProvider`，注册页可按运行时 provider 在 `Google reCAPTCHA` / `Cloudflare Turnstile` 之间切换
+  - 管理员公告发送结果改为返回 `totalRecipients`、`deliverableCount`、`successCount`、`failCount`、`skippedCount`，无有效收件人时直接返回明确错误
+  - 新增文件/文件夹移动能力：`PUT /api/files/{id}/move`、`PUT /api/folders/{id}/move`、`GET /api/folders/all`
+  - 上传链路支持内容去重、物理存储复用与引用感知删除，避免同内容文件重复占用存储
+  - 管理台安全页频控策略现已纳入 Playwright；四个 scene 的表格渲染、单项保存和接口回读链路已验证
+  - 管理台邮件模板页现已纳入 Playwright；模板编辑、保存、刷新回填和接口回读链路已验证
+  - 公告发送现已同步落为通知记录，首页新增通知中心，可按“全部通知 / 我的通知”查看历史公告
+  - 管理台 SMTP 配置页现已纳入 Playwright；当前环境配置可真实保存，并可从页面触发测试邮件发送
+  - 管理台订单页现已纳入 Playwright；`pending -> paid -> refunded -> deleted` 链路以及配额发放/回滚都已验证
+  - 管理台新增非已支付订单删除能力，便于清理 `pending / expired / refunded` 订单，也让页面回归能完整收口
+  - 管理台套餐页现已纳入 Playwright；新增、编辑、删除链路都已形成真实页面回归
+  - 管理台支付商户页现已纳入 Playwright；新增、编辑、删除链路以及“编辑时保留旧密钥”行为已验证
+  - 管理台系统页现已纳入 Playwright；`CORS` 策略和隐藏后台入口路径可真实保存并通过接口回读校验
+  - 修正管理台 hash 导航在 `<base href="/">` 下会把隐藏后台路径折回根路径的问题，后台入口切换后仍保留 `/console/{slug}`
+  - 网盘内部导航接入浏览器 `history`，浏览器返回键优先返回上一个网盘上下文，而不是直接跳回首页
+  - 首页、登录态区域和网盘侧栏都已接通套餐升级入口，用户侧套餐页、支付结果页和配额展示链路更完整
+  - 订单状态机补强：创建订单校验商户 `payType`，退款时回收配额，重复成功通知不再把退款单改回 `paid`
+  - 新增 `GET /api/public/payment-options`，套餐页按默认商户动态展示支付方式，并在无可用商户时直接禁用购买入口
+  - 套餐页补上“我的订单”区域，接通 `/api/payment/orders` 和订单状态页入口
+  - `downloads` 套餐已接到真实下载链路：登录用户下载自己的文件或登录态访问公开下载链接时，会累计 `downloadUsed`
+  - 当前环境已启用真实默认商户，真实下单会生成商户域名跳转地址，并带上本地 `notify_url` / `return_url`
+  - `scripts/quickshare-smoke.sh` 现已补到临时支付商户和临时套餐的 `create -> notify -> paid -> refund -> rollback -> cleanup`
+  - `tests/e2e/pricing-payment.spec.js` 现已补到真实默认商户跳转参数校验，以及本地签名模拟 `notify` 的完整订单状态机
+  - 明确记录当前存储语义：共享后端 + 用户逻辑配额；应用层不负责自动扩容或为用户规划独立物理空间
+  - 管理台存储页新增运行态可见性，可直接看到当前本地上传目录和磁盘可用空间，便于判断何时切换 S3 或扩容
+  - `GET /api/health` 在本地存储模式下补充上传目录与磁盘容量字段，便于监控直接判断空间余量；同时修正监控读取配置路径时不应自动创建目录的语义
+  - 本地存储运行态进一步补上共享解析器、可用空间百分比和风险级别；当前阈值为剩余空间 `<= 15%` 标记 `warning`、`<= 5%` 标记 `critical`
+  - `GET /api/health` 在 S3 模式下现已补充 `storageConnectionStatus`、`storageBucket`、`storageEndpoint`
+  - MyBatis 日志实现已从 `StdOutImpl` 切到 `Slf4jImpl`，避免支付商户敏感字段直接落到标准输出
+  - 默认免费层已调整为 `20GB` 存储和每月 `500` 次下载；游客上传默认收紧到 `2 次 / 1 小时`，并额外加上 `2GB` 单文件上限
+  - 登录免费用户新增轻量上传频控，避免用免费账号长期高频刷上传
+  - 新库空表时会自动补默认套餐：额外存储、200GB/1TB/2TB/10TB 网盘档位，以及月/年 VIP
+  - `compose` 现已补 `s3` profile，可直接起本地 MinIO 和自动 bucket 初始化
+  - 最新本地 MinIO 联调当时已确认连接、上传、删除都可用；下载内容一致性已在 2026-03-21 的 S3 smoke 复核中确认通过
+  - `scripts/quickshare-smoke.sh` 现已校验本地存储风险字段已返回，并确认管理台接口与健康检查的上传目录、风险级别一致
+  - 管理台总览页新增本地容量风险卡片，避免必须进入存储页才能看到空间风险
+  - `tests/e2e/admin-storage.spec.js` 现已补到总览页风险卡片、存储页风险提示文案，以及页面展示结果与健康检查/管理台接口对齐
+  - 网盘补上选择模式、批量移动/删除和拖拽移动交互，用户侧文件管理继续向高频操作闭环收口
+  - 支付结果页新增待支付状态自动轮询与倒计时提示，减少手动反复刷新
+  - 首页二维码库改为按需加载，套餐页/支付结果页移除未使用脚本，减少非必要首屏负担
+  - 网盘初始化改为 `DOMContentLoaded` 启动，并行请求目录与文件列表，缩短进入页面后的首屏等待
+  - 新增 `docs/TESTING.md`，明确后续在 WSL2 环境下的默认测试与验收流程
+  - 新增 `scripts/quickshare-smoke.sh`，把当前 Docker smoke 验收固化成仓库内脚本，并支持容器内回退执行
+  - `scripts/quickshare-smoke.sh` 已继续补到登录后的文件夹管理闭环：根目录列表、创建文件夹、查看全部文件夹、移动文件夹、递归删除清理
+  - `scripts/quickshare-smoke.sh` 已继续补到上传去重与真实下载：同名重复上传复用逻辑记录，异名同内容复用同一 `filePath`，下载后校验内容与 `downloadUsed` 递增
+  - `scripts/quickshare-smoke.sh` 已继续补到公开分享链路：创建分享、错误提取码校验、匿名公开下载不记账、登录态公开下载记账
+  - `scripts/quickshare-smoke.sh` 已继续补到 API 级批量移动/删除：顺序移动多个文件/文件夹到目标目录，再顺序删除并校验列表清理结果
+  - 新增 Playwright 浏览器自动化基线：`package.json`、`playwright.config.js`、`tests/e2e/netdisk-drag.spec.js`
+  - `tests/e2e/netdisk-drag.spec.js` 已跑通，真实验证网盘页面中的文件/文件夹拖拽移动、选择模式下的批量移动/删除弹窗流程，以及浏览器返回键恢复网盘上下文
+  - 新增 `tests/e2e/admin-registration.spec.js`，把管理台注册设置保存和公开接口同步纳入页面级浏览器自动化
+  - 新增 `tests/e2e/pricing-payment.spec.js`，把套餐页和支付结果页纳入页面级浏览器自动化
+  - `tests/e2e/pricing-payment.spec.js` 已继续补到 `payment-result.html` 的 `pending -> paid` 自动轮询状态切换
+  - `tests/e2e/pricing-payment.spec.js` 已继续补到套餐页支付弹窗和创建订单成功跳转
+  - 新增 `tests/e2e/register-captcha.spec.js`，把注册页验证码 provider 切换纳入页面级浏览器自动化
+  - 顶层文档同步刷新：`README.md`、`docs/TESTING.md`、`docs/STATUS.md`、`docs/PLAN.md`、`docs/CHANGELOG.md`
+- 验证结果：
+  - `bash -n scripts/quickshare-smoke.sh`
+  - `./scripts/quickshare-smoke.sh`
+  - `node --check src/main/resources/static/js/quickdrop-direct.js`
+  - `node --check src/main/resources/static/js/quickdrop-signal.js`
+  - `node --check src/main/resources/static/js/quickdrop.js`
+  - `node --check tests/e2e/quickdrop.spec.js`
+  - `./mvnw -q -Dtest=QuickDropPairingServiceImplTest,QuickDropServiceImplTest test`
+  - `docker compose up --build -d app`
+  - `npx playwright test tests/e2e/quickdrop.spec.js`
+  - `node --check tests/e2e/pricing-payment.spec.js`
+  - `npx playwright test tests/e2e/pricing-payment.spec.js`
+  - `./mvnw -q -Dtest=HealthControllerTest test`
+  - `./mvnw -q -Dtest=RequestRateLimitServiceImplTest,QuotaServiceImplTest,FileControllerTest,PlanBootstrapServiceImplTest,HealthControllerTest test`
+  - `docker compose --profile s3 config`
+  - `docker compose --profile s3 up -d minio minio-init`
+  - `node --check tests/e2e/admin-storage.spec.js`
+  - `npx playwright test tests/e2e/admin-storage.spec.js`
+  - `node --check playwright.config.js`
+  - `node --check tests/e2e/admin-registration.spec.js`
+  - `node --check tests/e2e/netdisk-drag.spec.js`
+  - `node --check tests/e2e/pricing-payment.spec.js`
+  - `node --check tests/e2e/register-captcha.spec.js`
+  - `npm install`
+  - `npx playwright install chromium`
+  - `npx playwright test tests/e2e/admin-registration.spec.js`
+  - `npx playwright test tests/e2e/netdisk-drag.spec.js`
+  - `npx playwright test tests/e2e/pricing-payment.spec.js`
+  - `npx playwright test tests/e2e/register-captcha.spec.js`
+  - `npx playwright test tests/e2e`
+  - `node --check src/main/resources/static/js/admin.js`
+  - `node --check src/main/resources/static/js/netdisk.js`
+  - `node --check src/main/resources/static/js/netdisk-render.js`
+  - `node --check src/main/resources/static/js/lang-switch.js`
+  - `node --check src/main/resources/static/js/qrcode-handler.js`
+  - `node --check src/main/resources/static/js/auth.js`
+  - `node --check src/main/resources/static/js/register.js`
+  - `node --check src/main/resources/static/js/transfer.js`
+  - `node --check src/main/resources/static/js/ui.js`
+  - `node --check src/main/resources/static/js/modal.js`
+  - `node --check src/main/resources/static/js/pricing.js`
+  - `node --check src/main/resources/static/js/upload.js`
+  - `node --check src/main/resources/static/js/payment-result.js`
+  - `./mvnw -q -DskipTests compile`
+  - `./mvnw -q -Dtest=PublicSettingsControllerTest,AdminPolicyServiceImplTest,RegistrationSettingsServiceImplTest test`
+  - `./mvnw -q -Dtest=PlanControllerTest,PaymentServiceImplTest,AdminServiceImplTest test`
+  - `./mvnw -q -Dtest=LocalStorageRuntimeInspectorTest,AdminPolicyServiceImplTest,HealthControllerTest test`
+  - `docker compose up --build -d`
+  - `docker compose ps`
+  - `curl -sS http://127.0.0.1:8080/api/health`
+  - `curl -sS http://127.0.0.1:8080/api/public/plans`
+  - `curl -sS http://127.0.0.1:8080/api/public/payment-options`
+  - `curl -sS http://127.0.0.1:8080/api/public/registration-settings`
+  - `curl -I http://127.0.0.1:8080/pricing.html`
+  - `curl -I http://127.0.0.1:8080/payment-result.html`
+  - `POST /api/auth/login`
+  - `GET /api/profile`
+  - `GET /api/files?folderId=0`
+  - `GET /api/files/{fileId}/download`
+  - `GET /api/admin/settings/storage`
+  - `GET /api/payment/orders`
+  - `GET /api/payment/order/{orderNo}`
+  - WSL2 Docker smoke test：文件移动、文件夹移动、上传去重、公告发送统计、网盘浏览器历史返回均已确认
+  - 当前 Docker 环境未启用支付商户，`GET /api/public/payment-options` 返回 `null`；套餐页现已对这个状态做禁买回退
+  - 真实下载烟测已确认 `downloadUsed` 会在登录用户下载成功后递增
+  - 管理台存储接口已确认返回本地上传目录和磁盘容量字段
+  - 管理台存储接口和健康检查接口都已确认返回可用空间百分比与风险级别
+  - smoke 脚本已确认本地上传目录与风险级别在两个接口之间保持一致
+
 ## 2026-03-19 (文件夹深层目录回归修复)
 
 - 本轮主题：文件夹删除安全、目录验证、前端缓存一致性
@@ -188,7 +435,7 @@
   - `Dockerfile` 运行时镜像已内置 LibreOffice headless 与中文字体，满足 Office 转 PDF 预览依赖
   - `compose.yaml` 继续保持单文件部署，同时接入 `OFFICE_PREVIEW_*` 和 `BOOTSTRAP_ADMIN_*` 环境变量
   - 新增 `AdminBootstrapRunner`，部署启动后可直接创建或提升首个 `ADMIN` 账号
-  - `.env.example` 已提供默认 `admin / ChangeMeAdmin123!` 示例，起栈后可直接登录后台
+  - `.env.example` 现已改成不再内置默认管理员账号密码，公开仓库需显式配置 `BOOTSTRAP_ADMIN_*`
 - 验证结果：
   - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 -Dtest=AdminBootstrapRunnerTest test`
   - `ruby -e "require 'yaml'; YAML.load_file('compose.yaml'); puts 'compose.yaml OK'"`

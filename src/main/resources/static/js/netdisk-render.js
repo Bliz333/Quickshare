@@ -46,6 +46,12 @@ function getPdfViewerUrl(file, kind) {
     return viewerUrl.toString();
 }
 
+function escapeInlineJsString(value) {
+    return String(value || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+}
+
 // ================== 文件图标配置 ==================
 const FILE_ICONS = {
     image: { icon: 'fa-regular fa-image', color: 'text-green-500', bg: 'bg-green-500/10' },
@@ -115,6 +121,7 @@ function renderFiles() {
     }
 
     const allItems = [...displayFolders, ...filteredFiles];
+    updateNetdiskSelectionUI();
 
     // 空状态处理
     if (allItems.length === 0) {
@@ -169,10 +176,22 @@ function renderListView(container, currentFolders, filteredFiles) {
     // 渲染文件夹
     currentFolders.forEach(folder => {
         const folderName = folder.name || '未命名文件夹';
-        const safeName = folderName.replace(/'/g, "\\'");
+        const safeName = escapeInlineJsString(folderName);
+        const isSelected = isNetdiskItemSelected('folder', folder.id);
+        const checkboxClass = selectionModeEnabled ? '' : 'hidden';
         html += `
-        <div class="group grid grid-cols-12 gap-2 md:gap-4 p-3 md:p-4 border-b border-border hover:bg-brand-50/20 items-center transition-colors cursor-pointer tap-highlight-transparent">
-            <div class="col-span-8 md:col-span-6 flex items-center gap-3" onclick="openFolder(${folder.id}, '${safeName}')">
+        <div class="group netdisk-drop-target grid grid-cols-12 gap-2 md:gap-4 p-3 md:p-4 border-b border-border items-center transition-colors cursor-pointer tap-highlight-transparent ${isSelected ? 'bg-brand-50/40' : 'hover:bg-brand-50/20'}"
+             onclick="handleNetdiskFolderPrimaryAction(${folder.id}, '${safeName}', event)"
+             draggable="true"
+             ondragstart="startNetdiskDrag('folder', ${folder.id}, event)"
+             ondragend="endNetdiskDrag()"
+             ondragover="handleNetdiskDragOver(event, ${folder.id})"
+             ondragleave="handleNetdiskDragLeave(event)"
+             ondrop="handleNetdiskDrop(event, ${folder.id})">
+            <div class="col-span-8 md:col-span-6 flex items-center gap-3">
+                <label class="flex h-5 w-5 shrink-0 items-center justify-center ${checkboxClass}" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500" onchange="toggleNetdiskItemSelection('folder', ${folder.id}, event)" ${isSelected ? 'checked' : ''}>
+                </label>
                 <div class="w-10 h-10 shrink-0 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-500">
                     <i class="fa-solid fa-folder text-lg"></i>
                 </div>
@@ -186,6 +205,7 @@ function renderListView(container, currentFolders, filteredFiles) {
             <div class="col-span-4 md:col-span-1 text-right flex justify-end items-center">
                 <div class="flex items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button class="p-2 text-text-sub hover:text-brand-600" title="${t('openBtn')}" onclick="event.stopPropagation(); openFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-folder-open"></i></button>
+                    <button class="p-2 text-text-sub hover:text-brand-600" title="${t('moveBtn')}" onclick="event.stopPropagation(); moveFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
                     <button class="p-2 text-text-sub hover:text-brand-600" title="${t('renameBtn')}" onclick="event.stopPropagation(); renameFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-pen"></i></button>
                     <button class="p-2 text-text-sub hover:text-red-600" title="${t('deleteBtn')}" onclick="event.stopPropagation(); deleteFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-trash"></i></button>
                 </div>
@@ -199,10 +219,19 @@ function renderListView(container, currentFolders, filteredFiles) {
         const fileName = file.originalName || file.fileName || file.name;
         const icon = getFileIcon(file);
         const isImage = isImageFile(file);
+        const isSelected = isNetdiskItemSelected('file', file.id);
+        const checkboxClass = selectionModeEnabled ? '' : 'hidden';
 
         html += `
-        <div class="group grid grid-cols-12 gap-2 md:gap-4 p-3 md:p-4 border-b border-border hover:bg-brand-50/20 items-center transition-colors cursor-pointer tap-highlight-transparent" onclick="previewFile(${originalIndex})">
+        <div class="group grid grid-cols-12 gap-2 md:gap-4 p-3 md:p-4 border-b border-border items-center transition-colors cursor-pointer tap-highlight-transparent ${isSelected ? 'bg-brand-50/40' : 'hover:bg-brand-50/20'}"
+             onclick="handleNetdiskFilePrimaryAction(${originalIndex}, ${file.id}, event)"
+             draggable="true"
+             ondragstart="startNetdiskDrag('file', ${file.id}, event)"
+             ondragend="endNetdiskDrag()">
             <div class="col-span-8 md:col-span-6 flex items-center gap-3">
+                <label class="flex h-5 w-5 shrink-0 items-center justify-center ${checkboxClass}" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500" onchange="toggleNetdiskItemSelection('file', ${file.id}, event)" ${isSelected ? 'checked' : ''}>
+                </label>
                 ${isImage ? `
                 <div class="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-page">
                     <img src="${getThumbnailUrl(file)}" alt="${fileName}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full ${icon.bg} flex items-center justify-center ${icon.color}\\'><i class=\\'${icon.icon} text-lg\\'></i></div>'">
@@ -225,6 +254,7 @@ function renderListView(container, currentFolders, filteredFiles) {
                 <div class="flex items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-card/80 md:bg-transparent rounded-lg">
                     <button class="p-2 text-text-sub hover:text-brand-600" title="${t('shareBtn')}" onclick="event.stopPropagation(); shareFile(${originalIndex})"><i class="fa-solid fa-share-nodes"></i></button>
                     <button class="p-2 text-text-sub hover:text-brand-600" title="${t('downloadBtn')}" onclick="event.stopPropagation(); downloadFile(${originalIndex})"><i class="fa-solid fa-download"></i></button>
+                    <button class="p-2 text-text-sub hover:text-brand-600" title="${t('moveBtn')}" onclick="event.stopPropagation(); moveFile(${originalIndex})"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
                     <button class="p-2 text-text-sub hover:text-brand-600" title="${t('renameBtn')}" onclick="event.stopPropagation(); renameFile(${originalIndex})"><i class="fa-solid fa-pen"></i></button>
                     <button class="p-2 text-text-sub hover:text-red-600" title="${t('deleteBtn')}" onclick="event.stopPropagation(); deleteFile(${originalIndex})"><i class="fa-solid fa-trash"></i></button>
                 </div>
@@ -242,10 +272,23 @@ function renderGridView(container, currentFolders, filteredFiles) {
     // 渲染文件夹
     currentFolders.forEach(folder => {
         const folderName = folder.name || '未命名文件夹';
-        const safeName = folderName.replace(/'/g, "\\'");
+        const safeName = escapeInlineJsString(folderName);
+        const isSelected = isNetdiskItemSelected('folder', folder.id);
+        const checkboxClass = selectionModeEnabled ? '' : 'hidden';
         html += `
-        <div class="group bg-card/80 backdrop-blur-sm border border-border hover:border-brand-500/50 hover:shadow-lg hover:shadow-brand-500/10 rounded-xl p-3 md:p-4 cursor-pointer transition-all relative" onclick="openFolder(${folder.id}, '${safeName}')">
+        <div class="group netdisk-drop-target bg-card/80 backdrop-blur-sm border rounded-xl p-3 md:p-4 cursor-pointer transition-all relative ${isSelected ? 'border-brand-400 bg-brand-50/40 shadow-lg shadow-brand-500/10' : 'border-border hover:border-brand-500/50 hover:shadow-lg hover:shadow-brand-500/10'}"
+             onclick="handleNetdiskFolderPrimaryAction(${folder.id}, '${safeName}', event)"
+             draggable="true"
+             ondragstart="startNetdiskDrag('folder', ${folder.id}, event)"
+             ondragend="endNetdiskDrag()"
+             ondragover="handleNetdiskDragOver(event, ${folder.id})"
+             ondragleave="handleNetdiskDragLeave(event)"
+             ondrop="handleNetdiskDrop(event, ${folder.id})">
+            <label class="absolute top-2 left-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-card/95 shadow-sm border border-border ${checkboxClass}" onclick="event.stopPropagation()">
+                <input type="checkbox" class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500" onchange="toggleNetdiskItemSelection('folder', ${folder.id}, event)" ${isSelected ? 'checked' : ''}>
+            </label>
             <div class="absolute top-2 right-2 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
+                <button class="w-6 h-6 flex items-center justify-center bg-card rounded-full shadow-sm text-text-sub hover:text-brand-600 border border-border" onclick="event.stopPropagation(); moveFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i></button>
                 <button class="w-6 h-6 flex items-center justify-center bg-card rounded-full shadow-sm text-text-sub hover:text-brand-600 border border-border" onclick="event.stopPropagation(); renameFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-pen text-[10px]"></i></button>
                 <button class="w-6 h-6 flex items-center justify-center bg-card rounded-full shadow-sm text-text-sub hover:text-red-600 border border-border" onclick="event.stopPropagation(); deleteFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-trash text-[10px]"></i></button>
             </div>
@@ -263,11 +306,21 @@ function renderGridView(container, currentFolders, filteredFiles) {
         const fileName = file.originalName || file.fileName || file.name;
         const icon = getFileIcon(file);
         const isImage = isImageFile(file);
+        const isSelected = isNetdiskItemSelected('file', file.id);
+        const checkboxClass = selectionModeEnabled ? '' : 'hidden';
 
         html += `
-        <div class="group bg-card/80 backdrop-blur-sm border border-border hover:border-brand-500/50 hover:shadow-lg hover:shadow-brand-500/10 rounded-xl p-3 md:p-4 cursor-pointer transition-all relative" onclick="previewFile(${originalIndex})">
+        <div class="group bg-card/80 backdrop-blur-sm border rounded-xl p-3 md:p-4 cursor-pointer transition-all relative ${isSelected ? 'border-brand-400 bg-brand-50/40 shadow-lg shadow-brand-500/10' : 'border-border hover:border-brand-500/50 hover:shadow-lg hover:shadow-brand-500/10'}"
+             onclick="handleNetdiskFilePrimaryAction(${originalIndex}, ${file.id}, event)"
+             draggable="true"
+             ondragstart="startNetdiskDrag('file', ${file.id}, event)"
+             ondragend="endNetdiskDrag()">
+            <label class="absolute top-2 left-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-card/95 shadow-sm border border-border ${checkboxClass}" onclick="event.stopPropagation()">
+                <input type="checkbox" class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500" onchange="toggleNetdiskItemSelection('file', ${file.id}, event)" ${isSelected ? 'checked' : ''}>
+            </label>
             <div class="absolute top-2 right-2 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
                 <button class="w-6 h-6 flex items-center justify-center bg-card rounded-full shadow-sm text-text-sub hover:text-brand-600 border border-border" onclick="event.stopPropagation(); shareFile(${originalIndex})"><i class="fa-solid fa-share-nodes text-[10px]"></i></button>
+                <button class="w-6 h-6 flex items-center justify-center bg-card rounded-full shadow-sm text-text-sub hover:text-brand-600 border border-border" onclick="event.stopPropagation(); moveFile(${originalIndex})"><i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i></button>
                 <button class="w-6 h-6 flex items-center justify-center bg-card rounded-full shadow-sm text-text-sub hover:text-brand-600 border border-border" onclick="event.stopPropagation(); renameFile(${originalIndex})"><i class="fa-solid fa-pen text-[10px]"></i></button>
                 <button class="w-6 h-6 flex items-center justify-center bg-card rounded-full shadow-sm text-text-sub hover:text-red-600 border border-border" onclick="event.stopPropagation(); deleteFile(${originalIndex})"><i class="fa-solid fa-trash text-[10px]"></i></button>
             </div>
@@ -294,7 +347,9 @@ async function previewFile(index) {
     const token = localStorage.getItem('token');
 
     if (!token) {
-        alert(t('loginRequired'));
+        await showAppAlert(t('loginRequired'), {
+            icon: 'fa-right-to-bracket'
+        });
         return;
     }
 
@@ -376,7 +431,10 @@ async function previewFile(index) {
             const text = await res.text();
             container.innerHTML = `<div class="preview-text">${escapeHtml(text)}</div>`;
         } catch (e) {
-            alert(t('readFailed'));
+            await showAppAlert(t('readFailed'), {
+                tone: 'danger',
+                icon: 'fa-file-circle-xmark'
+            });
             return;
         }
     } else if (previewDecision.kind === 'office') {

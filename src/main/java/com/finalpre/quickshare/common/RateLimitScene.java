@@ -2,6 +2,7 @@ package com.finalpre.quickshare.common;
 
 public enum RateLimitScene {
     GUEST_UPLOAD("guest-upload"),
+    BASIC_USER_UPLOAD("basic-user-upload"),
     PUBLIC_SHARE_INFO("public-share-info"),
     PUBLIC_DOWNLOAD("public-download"),
     PUBLIC_SHARE_EXTRACT_CODE_ERROR("public-share-extract-code-error");

@@ -5,6 +5,18 @@
 // 已选择的文件列表
 let selectedFiles = [];
 
+function getSelectedDisplayName(file) {
+    return file?.webkitRelativePath || file?.name || '';
+}
+
+function normalizeUploadFileName(file) {
+    const displayName = getSelectedDisplayName(file);
+    const normalized = String(displayName || file?.name || '')
+        .replace(/[\\/]+/g, '__')
+        .trim();
+    return normalized || `quickshare-${Date.now()}`;
+}
+
 /**
  * 初始化上传区域的拖拽事件
  */
@@ -44,11 +56,19 @@ function handleFileSelect(event) {
     }
 }
 
+function openFolderPicker() {
+    const input = document.getElementById('folderInput');
+    if (input) {
+        input.click();
+    }
+}
+
 /**
  * 处理选中的文件
  * @param {File[]} files - 文件数组
  */
 function handleFiles(files) {
+    const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
     selectedFiles = [...selectedFiles, ...files];
     displayFileList();
 
@@ -62,7 +82,10 @@ function handleFiles(files) {
         resultBox.classList.remove('show');
     }
 
-    showToast(`Added ${files.length} file(s)`, 'success');
+    showToast(
+        lang === 'zh' ? `已添加 ${files.length} 个文件` : `Added ${files.length} file(s)`,
+        'success'
+    );
 }
 
 /**
@@ -87,7 +110,7 @@ function displayFileList() {
         item.className = 'file-item';
         item.innerHTML = `
             <div class="file-item-info">
-                <strong><i class="fa-regular fa-file"></i> ${file.name}</strong>
+                <strong><i class="fa-regular fa-file"></i> ${getSelectedDisplayName(file)}</strong>
                 <small>${formatFileSize(file.size)}</small>
             </div>
             <button class="remove-file-btn" onclick="removeFile(${index})">
@@ -123,7 +146,7 @@ async function uploadAndShare() {
     const uploadBtn = document.getElementById('uploadBtn');
     const originalBtnContent = uploadBtn.innerHTML;
     uploadBtn.disabled = true;
-    uploadBtn.innerHTML = '<div class="loading-spinner"></div> Processing...';
+    uploadBtn.innerHTML = `<div class="loading-spinner"></div> ${t('processing')}`;
 
     const resultBox = document.getElementById('resultBox');
     resultBox.classList.remove('show');
@@ -136,7 +159,7 @@ async function uploadAndShare() {
         for (const file of selectedFiles) {
             // 上传文件
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', file, normalizeUploadFileName(file));
 
             const upRes = await fetch(`${API_BASE}/upload`, {
                 method: 'POST',
@@ -172,7 +195,7 @@ async function uploadAndShare() {
                 throw new Error(shareData.message || 'Share failed');
             }
 
-            shareLinks.push({ fileName: file.name, ...shareData.data });
+            shareLinks.push({ fileName: getSelectedDisplayName(file), ...shareData.data });
         }
 
         // 显示分享链接
@@ -296,3 +319,5 @@ function clearSelectedFiles() {
     selectedFiles = [];
     displayFileList();
 }
+
+window.openFolderPicker = openFolderPicker;

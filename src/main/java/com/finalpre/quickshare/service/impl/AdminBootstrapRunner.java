@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 @Component
 public class AdminBootstrapRunner implements ApplicationRunner {
 
+    private static final long ADMIN_STORAGE_LIMIT_BYTES = 10L * 1024L * 1024L * 1024L * 1024L;
+    private static final int ADMIN_DOWNLOAD_LIMIT = -1;
+
     private final BootstrapAdminProperties bootstrapAdminProperties;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
@@ -63,6 +66,8 @@ public class AdminBootstrapRunner implements ApplicationRunner {
         user.setEmail(email);
         user.setNickname(nickname != null ? nickname : username);
         user.setRole(UserRole.ADMIN.name());
+        user.setStorageLimit(ADMIN_STORAGE_LIMIT_BYTES);
+        user.setDownloadLimit(ADMIN_DOWNLOAD_LIMIT);
         user.setCreateTime(LocalDateTime.now());
 
         userMapper.insert(user);
@@ -78,6 +83,16 @@ public class AdminBootstrapRunner implements ApplicationRunner {
 
         if (!UserRole.ADMIN.name().equals(UserRole.normalize(user.getRole()))) {
             user.setRole(UserRole.ADMIN.name());
+            changed = true;
+        }
+
+        if (user.getStorageLimit() == null || user.getStorageLimit() < ADMIN_STORAGE_LIMIT_BYTES) {
+            user.setStorageLimit(ADMIN_STORAGE_LIMIT_BYTES);
+            changed = true;
+        }
+
+        if (user.getDownloadLimit() == null || user.getDownloadLimit() != ADMIN_DOWNLOAD_LIMIT) {
+            user.setDownloadLimit(ADMIN_DOWNLOAD_LIMIT);
             changed = true;
         }
 

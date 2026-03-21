@@ -315,7 +315,9 @@ async function downloadFile(index) {
     const token = localStorage.getItem('token');
 
     if (!token) {
-        alert(t('loginRequired'));
+        await showAppAlert(t('loginRequired'), {
+            icon: 'fa-right-to-bracket'
+        });
         window.location.href = 'login.html';
         return;
     }
@@ -352,7 +354,10 @@ async function downloadFile(index) {
 
         if (response.status === 401) {
             TransferManager.updateTask(taskId, { status: 'error' });
-            alert(t('loginExpired'));
+            await showAppAlert(t('loginExpired'), {
+                tone: 'danger',
+                icon: 'fa-user-clock'
+            });
             localStorage.clear();
             window.location.href = 'login.html';
             return;
@@ -421,13 +426,18 @@ async function handleFileUpload(event) {
 
     const token = localStorage.getItem('token');
     if (!token || token === 'test-token-12345') {
-        alert(t('loginRequired'));
+        await showAppAlert(t('loginRequired'), {
+            icon: 'fa-right-to-bracket'
+        });
         window.location.href = 'login.html';
         return;
     }
 
     for (const file of uploadedFiles) {
-        await uploadSingleFile(file, token);
+        const uploaded = await uploadSingleFile(file, token);
+        if (uploaded && typeof loadFiles === 'function') {
+            await loadFiles();
+        }
     }
 
     event.target.value = '';
@@ -505,13 +515,13 @@ async function uploadSingleFile(file, token) {
 
         if (result.code === 200) {
             TransferManager.updateTask(taskId, { status: 'success', progress: 100 });
-            result.data.type = getFileType(result.data.originalName || result.data.fileName);
-            files.push(result.data);
-            saveFiles();
-            renderFiles();
+            return true;
         } else if (result.code === 401) {
             TransferManager.updateTask(taskId, { status: 'error' });
-            alert(t('loginExpired'));
+            await showAppAlert(t('loginExpired'), {
+                tone: 'danger',
+                icon: 'fa-user-clock'
+            });
             localStorage.clear();
             window.location.href = 'login.html';
         } else {
@@ -532,6 +542,8 @@ async function uploadSingleFile(file, token) {
     } finally {
         TransferManager.controllers.delete(taskId);
     }
+
+    return false;
 }
 
 // ================== 收缩动画 ==================

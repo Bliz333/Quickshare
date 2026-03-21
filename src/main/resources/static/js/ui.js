@@ -109,13 +109,21 @@ function copyText(id, btn) {
                 const userAgent = navigator.userAgent.toLowerCase();
                 const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
                 if (isMobile) {
-                    alert(lang === 'zh' ? "请长按已选中的文字进行复制" : "Please long press to copy the selected text");
+                    showAppAlert(lang === 'zh' ? "请长按已选中的文字进行复制" : "Please long press to copy the selected text", {
+                        icon: 'fa-hand-pointer'
+                    });
                 } else {
-                    prompt(lang === 'zh' ? "复制失败，请手动复制以下文本：" : "Copy failed. Please copy manually:", text);
+                    showAppCopyDialog(
+                        lang === 'zh' ? "复制失败，请手动复制以下文本：" : "Copy failed. Please copy manually:",
+                        text
+                    );
                 }
             }, 100);
         } else {
-            prompt(lang === 'zh' ? "请手动复制以下文本：" : "Please copy manually:", text);
+            showAppCopyDialog(
+                lang === 'zh' ? "请手动复制以下文本：" : "Please copy manually:",
+                text
+            );
         }
     };
 

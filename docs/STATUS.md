@@ -1,199 +1,459 @@
-# QuickShare 项目状态（2026-03-19）
+# QuickShare 当前状态（2026-03-21）
 
-## 2026-03-19 阶段 4 易支付接入完成
-- 套餐体系：storage/downloads/vip 三种类型，管理员 CRUD
-- 多支付商户：payment_provider 表支持多个易支付商户，管理员可添加/编辑/删除
-- 订单系统：创建订单→易支付跳转→异步回调验签→标记已支付→发放配额
-- 用户配额：storageLimit/Used、downloadLimit/Used、vipExpireTime，上传检查+删除释放
-- 定时任务：月度下载计数重置（每月1日）+ 过期订单清理（每10分钟）
-- 订单管理：管理员查看所有订单/手动标记支付/退款，用户查看自己的订单历史
-- 安全加固：回调金额校验、PID 校验、签名验证、幂等处理
-- 公开套餐 API：GET /api/public/plans
-- Flyway V2（plan + order + user quota）+ V3（payment_provider）
-- 153 测试全通过
+顶层状态文档从今天开始只保留“当前真实状态”。历史分阶段记录继续保存在 `docs/archive/`，不再把旧里程碑和现状混写在一起。
 
-## 2026-03-19 可运维性：Flyway + CI + 日志 + 健康检查
-- Flyway 数据库迁移：V1 完整建表，baseline-on-migrate 兼容已有数据库，后续变更用 V2+
-- GitHub Actions CI：Java 17 + Maven 缓存 + 测试 + JS 语法检查 + 打包
-- 结构化日志：dev 用简洁格式，prod 用时间戳 + 文件轮转（50MB/30天/1GB 上限）
-- 增强健康检查：`/api/health` 返回 DB、Redis、Storage 组件状态和整体 UP/DEGRADED
-- `QuickshareApplicationTests` 改为仅在 INTEGRATION_TEST=true 时运行，不阻塞 CI
-- 153 测试全通过 + 1 跳过
+## 总体结论
 
-## 2026-03-19 文件夹深层目录回归修复完成
-- 修复 HIGH 级 bug：文件夹递归删除时遗留 ShareLink（安全风险），现在删除文件/文件夹时同步清理所有关联分享链接
-- 递归删除改为 `deleteFolderRecursive` 方法，限制最大递归深度 50 层防止栈溢出
-- `createFolder` 新增 `validateTargetFolder` 校验，确保父目录存在、属于当前用户、且确实是文件夹
-- `deleteFile` 也补上了 share link 清理（之前只有 admin 端有）
-- 前端：删除文件夹后如果用户正在该文件夹或子文件夹内，自动导航回根目录
-- 前端：`loadFiles` 增加请求序号防止并发导航时旧响应覆盖新数据
-- 后端 154 测试全通过，JS 语法检查通过
+- 主线路线图已经完成，项目当前处于维护、体验打磨和回归补强阶段。
+- 代码基线已经覆盖：
+  - 用户注册/登录、匿名上传、分享、网盘目录管理
+  - 管理台、运行时策略、SMTP/邮件模板/公告
+  - 本地存储与 S3 兼容存储
+  - LibreOffice + PDF.js 文档预览
+  - 套餐、订单、配额、易支付接入
+- 2026-03-20 已完成上一轮 UI 收口、文件管理增强和文档同步；当前工作树今天继续补了订单系统加固、用户侧订单历史和支付方式能力展示。
+- 仓库内 smoke 基线已开始落盘，新增 `scripts/quickshare-smoke.sh` 用于把当前 Docker 验收步骤固定成可重复执行的脚本。
 
-## 2026-03-19 存储配置接入管理面板完成
-- 管理员后台新增"存储配置"面板，可在线切换 local/S3 存储后端
-- 使用 `DelegatingStorageService` 委托模式，配置修改后立即生效无需重启
-- S3 client 懒初始化，配置变更时自动刷新连接
-- 新增"测试连接"功能，验证 S3 endpoint/bucket 连通性
-- Secret key 掩码显示，留空保持现有值；存储策略加密存储在 system_setting
-- 移除了 `@ConditionalOnProperty` 的两个旧 StorageService 实现，统一由 DelegatingStorageService 处理
-- 后端 154 测试全通过，JS 语法检查通过，Docker smoke test 通过
+## 今日已完成
 
-## 2026-03-19 S3 MinIO Smoke Test 通过
-- 在 Docker Compose 环境中用 MinIO 容器完成 S3 兼容存储全链路验证
-- 文本文件上传/下载/预览、DOCX 上传后 LibreOffice 转 PDF 预览（S3→临时文件→转换→响应）
-- 匿名上传/分享/公开下载/公开预览全部通过，MinIO bucket 中文件正确存储
-- S3 模式下 `getLocalPath()` 成功下载临时文件供 LibreOffice 和缩略图处理
-- compose.yaml 已补 S3 环境变量透传
+- 统一站内 Modal 交互，替换突兀的浏览器原生弹窗体验。
+- 修复管理台与网盘之间的导航收口问题，并继续保持公开页面不暴露管理入口按钮。
+- 完成文件/文件夹移动能力：
+  - `PUT /api/files/{id}/move`
+  - `PUT /api/folders/{id}/move`
+  - `GET /api/folders/all`
+- 完成上传去重和物理存储复用：
+  - 同目录同名同内容重复上传直接复用已有记录
+  - 同内容不同文件名复用同一物理对象
+  - 删除改为引用感知，避免误删仍被引用的物理文件
+- 网盘内部导航接入浏览器 `history`，浏览器返回键优先返回上一个网盘上下文，而不是直接跳回首页。
+- 管理台安全设置文案按验证码 provider 动态切换；公告发送结果改为明确返回成功/失败/跳过统计。
+- 支付结果页补齐待支付状态自动刷新与倒计时提示，减少用户来回手动刷新。
+- 首页二维码生成改为按需加载，网盘初始化提前到 `DOMContentLoaded` 且目录/文件请求并行发起，继续收口前端首屏等待时间。
+- 首页通知中心已改为右上角铃铛入口 + 弹出层：
+  - 平时默认折叠，不再长期占用首页主体空间
+  - 只有检测到比上次更新的通知时才会自动弹出
+  - 匿名用户和登录用户继续共用“全部通知 / 我的通知”入口逻辑
+  - 铃铛现在会显示未读数量徽标，关闭通知中心后才把当前批次标记为已查看
+  - 通知中心现已支持单条“标为已读”和“全部已读”，未读数会实时递减
+  - 通知列表默认先展示前 4 条，支持“查看更多”；长正文默认折叠，可按需展开
+  - 移动端右上角入口区已压缩成更紧凑的胶囊式布局
+- 公开注册设置接口增加 `captchaProvider`，注册页可按运行时设置在 `Google reCAPTCHA` 和 `Cloudflare Turnstile` 之间切换。
+- 首页顶部、登录态区域和网盘侧栏都已接通套餐升级入口，用户侧套餐页、支付结果页和配额展示链路已经串起来。
+- QuickDrop 当前已形成三条并行能力：
+  - 注册用户可在 `quickdrop.html` 里看到同账号下的其他设备，不再依赖配对码；这条链路现在会先自动尝试同账号浏览器直传，未就绪时再回退服务器中转和 chunk 续传
+  - `quickdrop-share.html` 继续支持免登录公开取件链接，登录用户可把文件保存到自己的网盘，且保存目标文件夹可选
+  - 匹配码链路已补到真正可用的 `WebRTC DataChannel` 浏览器直传，`quickdrop.html` 和 `quickdrop-share.html` 都已接入配对后的直接传输卡片
+  - 直传接收端已把收到的分片持久化到浏览器本地，重新配对并发送同一个文件时会继续缺失分片
+  - QuickDrop 页面现已同时具备 WebSocket 信令、临时匹配码、同账号免配对直连会话、STUN 配置下发和浏览器端直传接收箱
+  - `quickdrop.html` 的主接收箱 / 发送记录现已开始统一显示 `Relay + Direct` 两类任务，浏览器直传不再只躺在单独卡片里
+  - 直传收到的文件现在也可以直接从同账号主接收箱保存到网盘
+  - 同一文件若从直传切到中转，主发送记录现已可以归并成一条 `Direct -> Relay` 混合任务
+  - QuickDrop 中转任务现在已补服务端原生 `taskKey`，统一任务归并不再只靠前端本地映射
+  - QuickDrop 中转 API 现已继续返回结构化 `task` 详情：包含 `direction`、`transferMode`、`currentTransferMode`、对端信息和 relay attempt
+  - 同账号页的任务详情弹窗现已优先消费服务端 `task`，并把本地 direct 记录归一后并入同一条 attempt 链路
+  - QuickDrop 已继续补到真正的服务端统一任务骨架：新增 `quickdrop_task`、relay `taskId` 关联和 `incomingTasks / outgoingTasks` 任务列表
+  - same-account 直传状态现已开始写回服务端任务，不再只存在于浏览器本地 IndexedDB
+  - 同账号页主列表现在优先按服务端任务渲染，任务删除动作也已切到任务语义
+  - 浏览器端 direct 已完成 / 已转存记录现在会按保留时长自动清理，避免本地直传缓存无限堆积
+  - 已新增本地真实双页浏览器回归，确认 same-account QuickDrop 真实传输可落到统一任务列表
+  - public / anonymous paired direct transfer 现在也已补服务端 `pair task` 记录层，不再完全停留在浏览器本地
+  - 公开配对页和配对直传面板现已优先按服务端 `pair task` 渲染页面级任务视图，当前 pair session 的 incoming / outgoing 任务都可见
+  - server-only public pair task 现已支持页内详情与删除；若当前浏览器已有接收分片，任务仍可直接下载
+- 网盘当前工作树已补上选择模式、批量移动/删除和拖拽移动交互，准备继续补真实烟测。
+- 订单状态机补强：
+  - 创建订单时校验默认商户是否支持所选 `payType`
+  - `refunded` 状态不再被重复通知回写为 `paid`
+  - 管理台标记退款会同步回收已发放配额
+- 当前环境已启用真实支付商户：
+  - `GET /api/public/payment-options` 现在返回默认商户 `富通`
+  - 真实下单已确认会生成指向商户域名的跳转地址，并带上本地 `notify_url` / `return_url`
+  - 在本地白名单受限条件下，已通过本地签名模拟 `notify` 跑通 `pending -> paid -> refunded -> 配额回滚`
+- 套餐页接入 `GET /api/public/payment-options` 和用户订单历史：
+  - 页面只展示当前商户支持的支付方式
+  - 已登录用户可直接查看自己的订单列表和订单状态页入口
+  - 当前环境未启用支付商户时，购买按钮会直接禁用，而不是等提交下单时报错
+- `downloads` 套餐已接到真实下载链路：
+  - 登录用户下载自己的文件时会增加 `downloadUsed`
+  - 登录用户访问公开下载链接时也会计入自己的月度下载用量
+  - 匿名公开下载不计入账号套餐额度
+- 管理台存储页已补运行态可见性：
+  - 可直接看到当前后端类型、本地上传目录、目录是否存在、当前可用空间和磁盘总容量
+  - 使用 S3 时继续显示 bucket / endpoint / 连接状态，并明确容量应由对象存储平台侧管理
+- 健康检查接口已补本地存储运行态信息：
+  - `GET /api/health` 在本地存储模式下会返回上传目录、目录是否存在、磁盘总容量和当前可用空间
+  - 监控读取配置路径时不再因为检查动作自动创建上传目录，避免把“路径缺失”状态抹平
+- 健康检查接口已补 S3 运行态信息：
+  - `GET /api/health` 在 S3 模式下会返回 `storageConnectionStatus`、`storageBucket`、`storageEndpoint`
+  - 这样监控侧不再只能看到 `storage:"s3"`，还能直接判断是已连通、未配置还是连接报错
+- 本地存储运行态已补容量风险级别：
+  - 管理台存储页和 `GET /api/health` 现在共用同一套本地存储解析逻辑，不再各自维护磁盘指标语义
+  - 当前阈值为“剩余空间 `<= 15%` 标记 `warning`，`<= 5%` 标记 `critical`”
+  - 管理台存储页已显示风险级别卡片，健康检查接口已返回可用空间百分比和风险级别
+  - 管理台总览页也已直接显示本地容量风险卡片，不需要进入存储页才看到
+- 新增仓库内 smoke 脚本：
+  - 覆盖 `health`、公开套餐/支付方式/注册设置、`pricing.html`、`payment-result.html`
+  - 在存在 bootstrap admin 凭据时继续校验 `login`、`profile`、`/api/admin/settings/storage`、`/api/payment/orders`
+  - 本地存储模式下会额外校验 `storageDiskRiskLevel` / `localDiskRiskLevel` 已返回，且管理台接口与健康检查的上传目录和风险级别一致
+  - 已补到临时支付商户和临时套餐的完整支付状态机：`create -> notify -> paid -> refund -> rollback -> cleanup`
+  - 已补到登录后的文件夹管理闭环：根目录列表、创建文件夹、查看全部文件夹、移动文件夹、递归删除清理
+  - 主机模式下已补到上传去重与真实下载：同名重复上传复用逻辑记录，异名同内容复用物理对象，下载后确认内容一致且 `downloadUsed` 递增
+  - 主机模式下已补到公开分享链路：创建分享、错误提取码返回 `400`、匿名公开下载不记账、登录态公开下载记账
+  - 主机模式下已补到 API 级批量操作：批量移动两个文件和一个文件夹到目标目录，再逐项批量删除并确认列表清理完成
+  - 支持 `SMOKE_MODE=container`，便于在主机端口转发不稳定时改从容器内执行同一套探针
+- 新增 Playwright 浏览器自动化基线：
+  - 已补 `tests/e2e/admin-registration.spec.js`
+  - 已验证管理台注册设置保存、provider 文案切换、公开设置同步，并在测试后恢复原值
+  - 已补 `tests/e2e/home-notifications.spec.js`
+  - 已验证首页通知中心默认折叠为右上角铃铛入口，匿名点击后可查看全部通知，登录后在有更新时会自动弹出并可切换到个人通知分类
+  - 已验证新通知自动弹出时铃铛会显示未读数量，关闭通知中心后徽标消失
+  - 已验证通知中心内单条已读和全部已读会同步更新未读数量与操作按钮状态
+  - 已验证通知中心默认只显示前 4 条，点击“查看更多”后继续展开，长正文可切换展开/收起
+  - 已验证 390px 移动端宽度下右上角按钮组仍保持可见和可点击
+  - 已补 `tests/e2e/admin-smtp.spec.js`
+  - 已验证管理台 SMTP 配置读取、保存和真实测试发送链路；当前环境已存在可用 SMTP 运行态配置
+  - 已补 `tests/e2e/admin-rate-limits.spec.js`
+  - 已验证管理台频控策略表格渲染、单个 scene 保存、接口回读，并在测试后恢复原值
+  - 已补 `tests/e2e/admin-storage.spec.js`
+  - 已验证管理台总览页本地容量风险卡片
+  - 已验证管理台存储页运行态摘要、容量风险卡片、提示文案、类型切换 UI、保存请求和连接测试请求
+  - 已验证页面展示的本地风险级别与 `/api/health`、`/api/admin/settings/storage` 返回一致
+  - 已补 `tests/e2e/admin-system.spec.js`
+  - 已验证管理台系统页 `CORS` 和隐藏后台入口路径保存，且修正页内 hash 导航不再折回根路径
+  - 已补 `tests/e2e/admin-upload-preview.spec.js`
+  - 已验证管理台上传策略和预览策略的保存链路，并在测试后恢复原值
+  - 已补 `tests/e2e/admin-email-templates.spec.js`
+  - 已验证管理台邮件模板编辑、保存、回填和接口回读，并在测试后恢复原值
+  - 已补 `tests/e2e/admin-plans.spec.js`
+  - 已验证管理台套餐页新增、编辑、删除链路，并在测试前后自动清理 `E2E Plan*` 数据
+  - 已补 `tests/e2e/admin-payment-providers.spec.js`
+  - 已验证管理台支付商户页新增、编辑、删除链路，以及编辑时保留旧密钥的页面行为
+  - 已补 `tests/e2e/admin-orders.spec.js`
+  - 已验证管理台订单页 `pending -> paid -> refunded -> deleted` 链路，以及支付发放配额、退款回滚配额和测试后自动清理
+  - 已补 `tests/e2e/netdisk-drag.spec.js`
+  - 真实验证网盘页面中的拖拽文件移动和拖拽文件夹移动
+  - 已补选择模式下的批量移动/删除弹窗流程
+  - 已补浏览器返回键恢复网盘上下文
+  - 已补 `tests/e2e/pricing-payment.spec.js`
+  - 已覆盖 `pricing.html` 和 `payment-result.html` 的当前主要页面状态
+  - 已覆盖 `payment-result.html` 的 `pending -> paid` 自动轮询状态切换
+  - 已验证真实默认商户跳转参数，以及临时测试商户的本地签名 `notify` 完整状态机
+  - 已补 `tests/e2e/netdisk-quota.spec.js`
+  - 已验证 `netdisk.html` 侧栏会按当前 `/api/profile` 正确渲染昵称、VIP 状态、存储/下载配额和升级入口
+  - 已补 `tests/e2e/register-captcha.spec.js`
+  - 已覆盖注册页 `reCAPTCHA` / `Turnstile` provider 切换和关闭验证码时的 UI 收口
+  - 不再只依赖接口级 smoke 推断网盘/交易页面行为正确
 
-## 2026-03-19 StorageService 抽象层 + S3 兼容存储完成
-- 引入 `StorageService` 接口，统一文件存储操作（store/retrieve/delete/exists/getSize/getLocalPath）
-- `LocalStorageService`：本地文件系统实现（默认），向后兼容旧的全路径数据
-- `S3CompatibleStorageService`：S3 兼容实现，支持 AWS S3、MinIO、Cloudflare R2 等
-- `FileServiceImpl`、`FileController`、`AdminServiceImpl` 全部重构为通过 StorageService 操作文件
-- S3 模式下 Office 预览和缩略图通过 `getLocalPath()` 自动下载到临时文件处理
-- 通过 `STORAGE_TYPE=local|s3` 环境变量切换存储后端
-- 后端 154 测试全通过，所有测试已更新为 mock StorageService
+## 当前正在收口
 
-## 2026-03-19 ShareLink 并发安全加固完成
-- shareCode 生成改为带重试逻辑（最多 5 次），碰到唯一约束冲突自动重新生成
-- 下载计数改为原子 SQL `UPDATE ... SET download_count = download_count + 1 WHERE ... AND (max_download = -1 OR download_count < max_download)`
-- 消除了并发下载时的丢失更新问题和超限下载竞态
-- `getShareInfo` 中保留快速检查（用于查询场景的早期拒绝），实际下载由原子 SQL 保证
-- 移除了重复的 status 检查
-- 后端 154 测试全通过（+1 原子下载计数测试）
+- 用户侧交易链路：`pricing.html`、`payment-result.html`、用户订单历史、网盘侧栏配额/VIP 卡片与升级入口都已接入当前工作树。
+- 网盘高频操作：选择模式、批量移动/删除、拖拽移动已经接入前端交互，并复用了后端移动接口。
+- 注册验证链路：公开设置接口已下发验证码 provider，注册页会按 provider 加载对应脚本与文案。
+- 上述内容本轮已完成语法检查、Java 编译、订单/注册设置相关定向测试与 Docker 烟测；仍缺“启用真实商户后的成功支付/退款回调”页面级回归。
+- QuickDrop 当前已从“信令基础”进入“配对直传 MVP”：
+  - 已实现同账号设备发现、服务器中转和 chunk 续传
+  - 已实现同账号设备免配对自动直连，以及“发送前直连优先 / 未就绪回退中转”
+  - 已实现匹配码配对后的 `WebRTC DataChannel` 浏览器直传
+  - 已实现同账号发送端在直传中途失败时自动切到服务器中转
+  - 当前仍缺 `TURN` 的真实部署，以及直传 / 中转两条数据面的更细粒度统一接续
+- Docker 验收现在不再只靠零散手工 `curl`，而是已有仓库内脚本基线可直接重复执行。
+- repo 内基础 smoke 已经覆盖到部分真实写路径，不再只是只读接口探针。
+- repo 内基础 smoke 已继续覆盖文件上传与真实下载，不再只停留在目录级写路径。
+- repo 内基础 smoke 已继续覆盖公开分享与公开下载的核心行为。
+- repo 内基础 smoke 已继续覆盖批量移动/删除的底层行为。
+- repo 内浏览器自动化已扩到套餐页和支付结果页。
+- repo 内已具备最小浏览器自动化基线，拖拽移动和批量操作弹窗都不再只靠手工回归。
+- 当前运行态切到 `S3/MinIO` 后，仓库内 smoke 也已重新确认上传后下载、自有文件下载、匿名公开下载和登录态公开下载的内容一致性。
+- repo 内浏览器自动化已继续补到网盘侧栏当前用户配额/VIP 展示和升级入口。
 
-## 2026-03-19 公开分享页预览对齐完成
-- 新增 `GET /api/preview/{shareCode}?extractCode=` 公开分享预览端点，支持 Office 文档 LibreOffice 转 PDF
-- 分享信息 VO 新增 `fileType` 字段，供前端判断是否可预览
-- 公开分享页新增"在线预览"按钮，PDF/Office 文件走 PDF.js 查看器，图片/文本直接内嵌
-- SecurityConfig 已放行 `/api/preview/**` 路径
-- 后端 153 测试全通过，JS 语法检查通过，Docker smoke test 确认 DOCX 转 PDF 预览成功
+## 当前平台能力
 
-## 2026-03-19 敏感配置加密存储完成
-- `system_setting` 表中的敏感配置（SMTP 密码、reCAPTCHA secret key）现在使用 AES-GCM 加密存储
-- 加密密钥通过 `SETTING_ENCRYPT_KEY` 环境变量注入，支持 SHA-256 密钥派生
-- 加密值以 `ENC:` 前缀标识，未加密的旧数据自动以明文透传（向后兼容）
-- 未配置加密密钥时自动降级为明文存储，启动时会打印警告日志
-- 非敏感配置（频控、CORS、上传策略等）不加密，保持可读性
-- 后端 153 测试全通过（+6 加密测试），Docker smoke test 已确认 DB 中密文正确、API 读取正常
+### 用户侧
 
-## 2026-03-19 管理员公告邮件完成
-- 管理员后台新增"发送公告"功能，可向所有注册用户或指定用户 ID 发送邮件
-- 发送前会检查 SMTP 配置是否已就绪，未配置时给出明确提示
-- 支持逐个发送并统计成功/失败数量，单个用户失败不影响其余用户
-- 前端新增公告表单（主题、正文、可选用户 ID），发送前有确认弹窗
-- 后端 147 测试全通过（+4 公告测试），JS 语法检查通过，Docker smoke test 通过
+- 匿名上传与匿名分享可按运行时策略启停。
+- 用户网盘支持文件夹创建、重命名、删除、移动、批量选择、批量移动/删除、拖拽移动、分类筛选、面包屑导航与浏览器历史返回。
+- 文件支持预览、下载、分享、提取码、过期时间、下载次数限制。
+- 相同内容文件支持去重存储，减少重复占用。
+- 用户可从首页、登录态区域和网盘侧栏进入套餐购买页；套餐页会展示当前默认商户支持的支付方式，已登录用户可查看自己的订单历史，支付结果页支持状态轮询，网盘侧栏展示存储/下载/VIP 配额与升级入口。
+- 注册页会根据公开运行时设置在 `Google reCAPTCHA` 和 `Cloudflare Turnstile` 之间切换。
 
-## 2026-03-19 邮件模板体系完成
-- 新增 `EmailTemplate` / `EmailTemplateService`，支持多语言模板（en/zh）和变量替换 `{code}`, `{expireMinutes}`, `{appName}`
-- 验证码邮件改为按模板发送，前端 `send-code` 请求现在会传 `locale` 参数，邮件语言跟随用户界面语言
-- 管理员后台新增"邮件模板"编辑区，可分别编辑英文和中文的主题和正文
-- 模板存储在 `system_setting` 表，沿用"内置默认值 + 管理员覆盖值"模式
-- 未自定义时使用内置英文/中文默认模板；自定义后合并未覆盖的语言仍回退到默认
-- 后端 143 测试全通过（+6 模板测试），JS 语法检查通过，Docker smoke test 通过
+### 管理侧
 
-## 2026-03-19 SMTP 后台化完成
-- SMTP 邮件配置已接入管理员后台，支持运行时读取和修改 SMTP 主机、端口、用户名、密码、发件人地址和 STARTTLS 开关
-- 密码字段不回显明文，前端只展示"已设置/未设置"状态；更新时留空则保持现有密码
-- 新增"发送测试邮件"功能，管理员可在保存 SMTP 配置后直接验证连通性
-- `EmailServiceImpl` 改为按运行时策略动态创建 `JavaMailSender`，不再依赖 Spring Boot 自动配置的静态 Bean
-- 新增 `SmtpPolicy` record、`SmtpPolicyService`，沿用"配置默认值 + system_setting 覆盖值"模式
-- 后端 137 测试全通过（+6 SMTP 策略测试），JS 语法检查通过，Docker smoke test 通过
+- 管理台通过隐藏路径 `/console/{slug}` 访问，不依赖站点公开按钮暴露入口。
+- 支持用户、文件、分享、套餐、支付商户、订单、SMTP、邮件模板、公告、存储策略和注册/安全策略管理。
+- 安全 provider 支持 Google reCAPTCHA 和 Cloudflare Turnstile。
+- 公告发送支持全量或定向用户，并返回可投递/成功/失败/跳过统计。
 
-## 2026-03-19 Docker Smoke Test 通过
-- 在 WSL2 + Docker Compose 环境完成完整 smoke test，覆盖以下场景：
-  - 首页加载、管理员登录 + JWT、角色同步
-  - 隐藏后台入口 `/console/{slug}` 正确路由（正确 slug 200，错误 slug 404，直接访问 admin.html 被拦截 401）
-  - 管理员后台全部策略端点（频控、CORS、上传、预览、注册、控制台访问）均正常返回
-  - 公开注册设置接口按运行时配置正确响应
-  - DOCX / XLSX 上传后 LibreOffice headless 转 PDF 预览成功
-  - 文件下载返回原始文件
-  - 匿名上传、匿名分享、公开分享查询、公开下载全链路通过
-  - 错误提取码返回 400，频控超限返回 429
-  - 动态修改后台 slug 后旧路径 404、新路径 200
-  - 动态切换邮箱验证开关后公开接口实时生效
-  - 关闭匿名上传后匿名请求返回 403
-  - 注册页、网盘页、PDF 查看器页面均正常加载
-- 详细记录：`docs/archive/2026-03-19-docker-smoke-test.md`
+### 存储与预览
 
-## 2026-03-19 本轮增量（管理员后台与注册控制）
-- 管理员后台现在已支持直接新增用户、删除用户，并补了”不能删除当前登录管理员 / 不能删掉最后一个管理员”的后端保护。
-- 管理员后台入口不再暴露为公开固定 `admin.html`，改为 `/console/{slug}` 隐藏路径；`slug` 既可由 `compose/.env` 初始化，也可在管理员后台里直接修改。
-- 注册与验证设置已经接入管理员后台，当前可直接控制：
-  - 邮箱验证码注册开关
-  - reCAPTCHA 开关
-  - reCAPTCHA site key / secret key / verify URL
-- 注册页已经改为读取公开运行时设置：
-  - 关闭邮箱验证码后，会隐藏发送验证码按钮和验证码输入区
-  - 关闭 reCAPTCHA 后，不再加载 Google 脚本
-- 当前 `compose.yaml` / `.env.example` 已补 `ADMIN_CONSOLE_SLUG` 与 `REGISTRATION_EMAIL_VERIFICATION_ENABLED`，本地测试默认更容易直接联调。
-- 本轮详细记录：`docs/archive/2026-03-19-admin-console-and-registration-controls.md`
-- 本轮回归结果：
-  - `mvn -q -Dmaven.repo.local=/tmp/quickshare-m2 test`
+- 存储后端支持本地文件系统和 S3 兼容对象存储，运行时可切换。
+- 当前空间模型是“共享存储后端 + 用户逻辑配额”：
+  - 上传前按 `storageLimit` 校验用户还能否继续写入
+  - 物理容量仍取决于本地磁盘或 S3 bucket，本系统不会自动为用户规划独立物理空间
+  - 生产环境更适合把 S3 兼容对象存储作为主存储，而不是依赖本地磁盘自动扩容
+- 本地存储模式下，运行态摘要现在除了字节数，还会给出可用空间百分比和风险级别，便于提前判断是否需要扩容或切换 S3。
+- Office 文档通过 LibreOffice 转 PDF，并由内置 PDF.js 查看器承接预览。
+- 公开分享页和用户自有文件预览链路已对齐。
+
+### 运营与部署
+
+- Docker Compose、Flyway、健康检查、结构化日志、管理员自举已具备。
+- 本地存储模式下，`GET /api/health` 现已可直接用于监控上传目录路径、磁盘容量余量和风险级别。
+- GitHub Actions 已覆盖构建、测试与前端语法检查。
+- WSL2 + Docker Compose 已完成多轮真实烟测，适合作为当前本地联调基线。
+- 当前 repo 内也已有 `scripts/quickshare-smoke.sh` 作为基础 smoke 入口，便于后续继续扩展自动化。
+- 当前还已完成一轮真实服务器预发布烟测：
+  - Debian 12 目标机已安装 Docker / Compose / Git
+  - `quickshare.878877.xyz` 已返回 `200`
+  - 服务器上的 QuickDrop `sync` 和公开分享创建路径已确认可用
+  - 服务器现已安装并启用 `coturn`
+  - 服务器上的 `GET /api/public/quickdrop/rtc-config` 已开始下发真实 TURN `udp/tcp` 地址
+
+## 验证快照
+
+- 本轮工作树核对已通过以下方式完成：
+  - `./scripts/check-js.sh`
+  - `node --check src/main/resources/static/js/quickdrop.js`
+  - `node --check src/main/resources/static/js/quickdrop-share.js`
+  - `node --check src/main/resources/static/js/quickdrop-signal.js`
+  - `node --check src/main/resources/static/js/quickdrop-direct.js`
+  - `node --check src/main/resources/static/js/quickdrop.js`
+  - `node --check`：
+    - `src/main/resources/static/js/admin.js`
+    - `src/main/resources/static/js/auth.js`
+    - `src/main/resources/static/js/quickdrop.js`
+    - `src/main/resources/static/js/quickdrop-share.js`
+    - `src/main/resources/static/js/quickdrop-signal.js`
+    - `src/main/resources/static/js/quickdrop-direct.js`
+    - `src/main/resources/static/js/lang-switch.js`
+    - `src/main/resources/static/js/netdisk-render.js`
+    - `src/main/resources/static/js/netdisk.js`
+    - `src/main/resources/static/js/qrcode-handler.js`
+    - `src/main/resources/static/js/register-render.js`
+    - `src/main/resources/static/js/register.js`
+    - `src/main/resources/static/js/transfer.js`
+    - `src/main/resources/static/js/ui.js`
+    - `src/main/resources/static/js/upload.js`
+    - `src/main/resources/static/js/modal.js`
+    - `src/main/resources/static/js/pricing.js`
+    - `src/main/resources/static/js/payment-result.js`
+  - `./mvnw -q -DskipTests compile`
+  - `./mvnw -q -Dtest=QuickDropPairingServiceImplTest,QuickDropServiceImplTest test`
+  - `./mvnw -q -Dtest=QuickDropServiceImplTest test`
+  - `./mvnw -q -Dtest=PublicSettingsControllerTest,AdminPolicyServiceImplTest,RegistrationSettingsServiceImplTest test`
+  - `./mvnw -q -Dtest=PlanControllerTest,PaymentServiceImplTest,AdminServiceImplTest test`
+  - `./mvnw -q -Dtest=FileControllerTest,FileServiceImplTest test`
+  - `./mvnw -q -Dtest=LocalStorageRuntimeInspectorTest,AdminPolicyServiceImplTest,HealthControllerTest test`
+  - `docker compose up --build -d`
+  - `curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/quickdrop.html`
+  - `curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/quickdrop-share.html`
+  - `POST /api/auth/login`
+  - `POST /api/quickdrop/sync`
+  - `POST /api/quickdrop/direct-sessions`
+  - `POST /api/public/quickdrop/shares`
+  - `PUT /api/public/quickdrop/shares/{shareToken}/chunks/0`
+  - `GET /api/public/quickdrop/shares/{shareToken}`
+  - `POST /api/quickdrop/public-shares/{shareToken}/save`
+  - `./scripts/quickshare-smoke.sh`
+  - `docker compose up --build -d app`
   - `node --check src/main/resources/static/js/admin.js`
-  - `node --check src/main/resources/static/js/session.js`
-  - `node --check src/main/resources/static/js/auth.js`
-  - `node --check src/main/resources/static/js/register.js`
-  - `node --check src/main/resources/static/js/lang-switch.js`
-  - `ruby -e "require 'yaml'; YAML.load_file('compose.yaml'); puts 'compose.yaml OK'"`
+  - `node --check src/main/resources/static/js/home-notifications.js`
+  - `node --check playwright.config.js`
+  - `node --check tests/e2e/admin-email-templates.spec.js`
+  - `node --check tests/e2e/admin-orders.spec.js`
+  - `node --check tests/e2e/admin-payment-providers.spec.js`
+  - `node --check tests/e2e/admin-plans.spec.js`
+  - `node --check tests/e2e/admin-registration.spec.js`
+  - `node --check tests/e2e/admin-rate-limits.spec.js`
+  - `node --check tests/e2e/admin-smtp.spec.js`
+  - `node --check tests/e2e/admin-storage.spec.js`
+  - `node --check tests/e2e/admin-system.spec.js`
+  - `node --check tests/e2e/admin-upload-preview.spec.js`
+  - `node --check tests/e2e/home-notifications.spec.js`
+  - `node --check tests/e2e/netdisk-drag.spec.js`
+  - `node --check tests/e2e/netdisk-quota.spec.js`
+  - `node --check tests/e2e/pricing-payment.spec.js`
+  - `node --check tests/e2e/quickdrop.spec.js`
+  - `node --check tests/e2e/register-captcha.spec.js`
+  - `npm install`
+  - `npx playwright install chromium`
+  - `npx playwright test tests/e2e/admin-email-templates.spec.js`
+  - `npx playwright test tests/e2e/admin-orders.spec.js`
+  - `npx playwright test tests/e2e/admin-payment-providers.spec.js`
+  - `npx playwright test tests/e2e/admin-plans.spec.js`
+  - `npx playwright test tests/e2e/admin-registration.spec.js`
+  - `npx playwright test tests/e2e/admin-rate-limits.spec.js`
+  - `npx playwright test tests/e2e/admin-smtp.spec.js`
+  - `npx playwright test tests/e2e/admin-storage.spec.js`
+  - `npx playwright test tests/e2e/admin-system.spec.js`
+  - `npx playwright test tests/e2e/admin-upload-preview.spec.js`
+  - `npx playwright test tests/e2e/home-notifications.spec.js`
+  - `npx playwright test tests/e2e/netdisk-drag.spec.js`
+  - `npx playwright test tests/e2e/netdisk-quota.spec.js`
+  - `npx playwright test tests/e2e/pricing-payment.spec.js`
+  - `npx playwright test tests/e2e/quickdrop.spec.js`
+  - `npx playwright test tests/e2e/register-captcha.spec.js`
+  - `npx playwright test tests/e2e`
+- 真实烟测已覆盖：
+  - 文件移动
+  - 文件夹移动
+  - 上传去重
+  - 公告发送统计
+  - 网盘浏览器历史返回
+- 本轮已补轻量 Docker 烟测：服务健康、公开套餐接口、公开支付方式接口、公开注册设置接口、`pricing.html` / `payment-result.html` 页面可访问，登录后的订单列表与订单详情接口也已确认。
+- `./scripts/quickshare-smoke.sh` 现已额外确认：登录后根目录列表、创建 smoke 文件夹、移动子文件夹到目标目录、删除父文件夹递归清理。
+- `./scripts/quickshare-smoke.sh` 现已额外确认：同目录同名同内容上传复用同一记录，异名同内容上传复用同一 `filePath`，下载后内容比对通过且 `downloadUsed` 递增。
+- `./scripts/quickshare-smoke.sh` 现已额外确认：分享创建成功，错误提取码查询返回 `400`，匿名公开下载不改变账号额度，登录态公开下载后 `downloadUsed` 再递增。
+- `./scripts/quickshare-smoke.sh` 现已额外确认：两个文件和一个文件夹可顺序移动到目标目录，并可顺序删除后把目标目录恢复为空。
+- `./scripts/quickshare-smoke.sh` 现已额外确认：本地存储模式下 `GET /api/health` 与 `GET /api/admin/settings/storage` 会同时返回风险字段，且上传目录与风险级别保持一致。
+- `./scripts/quickshare-smoke.sh` 现已额外确认：临时支付商户和临时套餐可完成 `create -> notify -> paid -> refund -> rollback -> cleanup`。
+- `tests/e2e/admin-email-templates.spec.js` 已确认：管理台邮件模板页可真实编辑和保存模板内容，刷新后表单会回填最新值，并能通过管理接口回读验证；测试结束后会恢复原值。
+- `tests/e2e/admin-orders.spec.js` 已确认：管理台订单页可真实执行 `pending -> paid -> refunded -> deleted`，并能通过管理接口和 `/api/profile` 验证配额发放与回滚；测试结束后会自动清理 `E2E` 订单、套餐和商户数据。
+- `tests/e2e/admin-payment-providers.spec.js` 已确认：管理台支付商户页可真实新增、编辑和删除商户，并能通过管理接口回读验证；编辑时留空密钥会保留原有商户密钥，测试前后会自动清理 `E2E Provider*` 数据。
+- `tests/e2e/admin-plans.spec.js` 已确认：管理台套餐页可真实新增、编辑和删除套餐，并能通过管理接口回读验证；测试前后会自动清理 `E2E Plan*` 数据。
+- `tests/e2e/admin-registration.spec.js` 已确认：管理台注册设置页可真实保存配置、同步到公开注册设置接口，并在测试结束后恢复原值。
+- `tests/e2e/admin-rate-limits.spec.js` 已确认：管理台频控策略表格的四个 scene 会正确渲染，单个 scene 可真实保存，并能通过管理接口回读验证；测试结束后会恢复原值。
+- `tests/e2e/admin-smtp.spec.js` 已确认：管理台 SMTP 配置可真实回填、保存，并能从页面触发真实测试邮件发送；当前环境 SMTP 运行态配置可用。
+- `tests/e2e/admin-storage.spec.js` 已确认：管理台总览页本地容量风险卡片，以及管理台存储页运行态摘要、风险级别卡片、提示文案、类型切换显隐、保存请求和连接测试请求都能跑通，且不改变当前后端类型。
+- `tests/e2e/admin-system.spec.js` 已确认：管理台系统页的 `CORS` 策略和后台入口路径可真实保存，并能通过管理接口回读验证；隐藏后台路径在页内 hash 导航后不会再被折回站点根路径。
+- `tests/e2e/admin-upload-preview.spec.js` 已确认：管理台上传策略和预览策略可真实保存，并能通过管理接口回读验证，测试结束后会恢复原值。
+- `tests/e2e/home-notifications.spec.js` 已确认：首页通知中心会向匿名用户展示全站通知，并在登录后切换“全部通知 / 我的通知”分类；对应通知数据来自新的持久化公告记录接口。
+- `tests/e2e/home-notifications.spec.js` 已确认：首页通知中心已改为右上角铃铛入口，匿名用户默认折叠、点击后展开；登录用户检测到更新通知时会自动弹出。
+- `tests/e2e/home-notifications.spec.js` 已确认：新通知自动弹出时铃铛会显示未读数量徽标，关闭通知中心后会清空当前批次未读提示；移动端顶部按钮组也已纳入页面回归。
+- `tests/e2e/home-notifications.spec.js` 已确认：通知中心中的单条已读与全部已读都会实时更新徽标数量，并与当前面板中的按钮状态保持一致。
+- `tests/e2e/home-notifications.spec.js` 已确认：通知中心默认先展示前 4 条，点击“查看更多”后会继续展开；长正文支持展开/收起，避免弹层被一次性撑满。
+- `QuickDropPairingServiceImplTest` 已确认：QuickDrop 匹配码可创建并被另一端 claim，且会生成 `pairSessionId`。
+- `QuickDropServiceImplTest` 已确认：QuickDrop 分片上传在最后一个 chunk 到齐后会组装完整文件，并把传输状态切到 `ready`。
+- QuickDrop 运行态已确认：
+  - `quickdrop.html` 返回 `200`
+  - `quickdrop-share.html` 返回 `200`
+  - 登录后 `POST /api/quickdrop/sync` 能返回当前设备、设备列表和推荐 chunk 大小
+  - 登录后 `POST /api/quickdrop/direct-sessions` 可为同账号两台在线设备建立直连会话
+  - 公开分享可完成 `create -> upload chunk -> get share info`
+  - 登录后可把公开分享保存到当前用户网盘根目录
+  - `GET /api/public/quickdrop/rtc-config` 会下发默认开启的直传配置和 STUN 列表
+- QuickDrop 目标文件夹保存已确认：
+  - `POST /api/folders` 可创建保存目标文件夹
+  - `POST /api/quickdrop/public-shares/{shareToken}/save` 传入 `folderId` 后，保存结果会落到该文件夹
+- 预发布服务器烟测已确认：
+  - `docker-compose ps` 中 `app/mysql/redis` 已启动
+  - `GET http://127.0.0.1/api/health` 返回 `UP`
+  - `GET http://quickshare.878877.xyz` 返回 `200`
+  - `POST /api/auth/login`、`POST /api/quickdrop/sync`、`POST /api/public/quickdrop/shares` 在服务器上都已跑通
+  - `GET /api/public/quickdrop/rtc-config` 在服务器上已返回 STUN + TURN 配置
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 设备页可渲染同账号设备列表、接收箱条目和保存到网盘动作。
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 同账号设备页会自动请求直连会话，并在直连可用时优先走浏览器直传。
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 公开分享页可完成创建流程，并能在取件页展示下载入口。
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 同账号设备页在直连未就绪时会自动回退服务器中转，而不是直接报错卡住。
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 同账号设备页在直传中途失败时也会自动切到服务器中转继续。
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 同账号主接收箱已能合并显示直传任务，并可直接把直传文件保存到网盘。
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 同账号主发送记录已能合并显示直传任务。
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 同一个文件若从直传切到中转，主发送记录仍只显示一条混合任务，而不是两条重复记录。
+- `QuickDropServiceImplTest` 已确认：QuickDrop 中转任务创建时会持久化并返回 `taskKey`。
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 配对直传页可接收浏览器分片、渲染本地直传接收箱，并在完成后提供下载按钮。
+- `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 配对直传发送页会正确走控制通道确认、二进制通道发送和完成态收口。
+- `tests/e2e/netdisk-drag.spec.js` 已确认：真实页面中把文件和文件夹拖到目标目录后，UI 和后端结果保持一致；选择模式下的批量移动/删除弹窗流程也可跑通。
+- `tests/e2e/netdisk-drag.spec.js` 已确认：浏览器返回键会优先恢复网盘内部上下文，而不是直接离开当前网盘流程。
+- `tests/e2e/netdisk-quota.spec.js` 已确认：`netdisk.html` 侧栏会按当前登录用户资料正确渲染昵称、VIP 状态、存储/下载配额和 `pricing.html` 升级入口。
+- `tests/e2e/pricing-payment.spec.js` 已确认：套餐页能按当前支付商户状态正确禁买/展示订单历史，支付结果页能展示现有订单状态、缺参回退态，以及 `pending -> paid` 自动轮询切换。
+- `tests/e2e/pricing-payment.spec.js` 已确认：套餐页支付弹窗可正常打开，模拟创建订单成功后会跳到支付结果页。
+- `tests/e2e/pricing-payment.spec.js` 已确认：真实默认商户会返回带本地 `notify_url` / `return_url` 的跳转地址；临时测试商户可通过本地签名 `notify` 跑通 `paid`、`refunded` 和配额回滚。
+- `tests/e2e/register-captcha.spec.js` 已确认：注册页会按公开设置切换 `reCAPTCHA` / `Turnstile`，关闭验证码时输入区/按钮/容器都会同步收口。
+- 2026-03-21 这轮额外复核已确认：
+  - `./mvnw -q -DskipTests compile`
+  - `./mvnw -q -Dtest=PlanControllerTest,PaymentServiceImplTest,AdminServiceImplTest test`
+  - `./mvnw -q -Dtest=FileControllerTest,FileServiceImplTest test`
+  - `./mvnw -q -Dtest=LocalStorageRuntimeInspectorTest,AdminPolicyServiceImplTest,HealthControllerTest test`
+  - `./scripts/quickshare-smoke.sh`
+  - `docker compose up --build -d app`
+  - `npx playwright test tests/e2e/home-notifications.spec.js`
+  - `npx playwright test tests/e2e/netdisk-quota.spec.js`
+  - `npx playwright test tests/e2e/pricing-payment.spec.js`
+- 当前 Docker 环境里 `GET /api/public/payment-options` 已返回默认商户与支持的 `payTypes`。
+- `downloads` 套餐烟测已确认：登录用户下载自有文件后，`downloadUsed` 从 `0` 增加到 `1`。
+- 管理台存储接口烟测已确认：`GET /api/admin/settings/storage` 返回 `localUploadDir`、`localUploadDirExists`、`localDiskTotalBytes`、`localDiskUsableBytes`。
+- 管理台存储接口烟测已确认：`GET /api/admin/settings/storage` 还会返回 `localDiskUsablePercent`、`localDiskRiskLevel`。
+- 健康检查接口烟测已确认：`GET /api/health` 在本地模式返回 `storageUploadDir`、`storageUploadDirExists`、`storageDiskTotalBytes`、`storageDiskUsableBytes`、`storageDiskUsablePercent`、`storageDiskRiskLevel`。
+- `HealthControllerTest` 已确认：`GET /api/health` 在 S3 模式返回 `storageConnectionStatus`、`storageBucket`、`storageEndpoint`，本地模式继续返回本地磁盘字段。
+- `RequestRateLimitServiceImplTest`、`QuotaServiceImplTest`、`FileControllerTest`、`PlanBootstrapServiceImplTest` 已确认：
+  - 免费层上传频控已生效
+  - 游客 `2GB` 上限已生效
+  - `-1` 继续保持为无限下载
+  - 空库时默认套餐会自动补齐
+- 本地 MinIO profile 已确认可起栈：
+  - `quickshare` bucket 会自动初始化
+  - 最新联调与 2026-03-21 的 S3 运行态 smoke 复核都已确认连接、上传、下载、公开下载和删除链路可用
+  - 当前 `./scripts/quickshare-smoke.sh` 已实际比对下载内容与原始上传内容一致
+- 真实商户下单地址、支付结果页状态、配额刷新和退款回滚现在都已有自动化回归；当前还没有验证的是“公网商户主动回调到本机 localhost”的真实外部网络路径。
+- 详细记录见：
+  - `docs/archive/2026-03-21-minio-smoke-revalidation-and-doc-sync.md`
+  - `docs/archive/2026-03-21-playwright-netdisk-quota-baseline.md`
+  - `docs/archive/2026-03-21-home-notification-popover.md`
+  - `docs/archive/2026-03-21-quickdrop-phase1.md`
+  - `docs/archive/2026-03-21-quickdrop-public-share-and-save.md`
+  - `docs/archive/2026-03-21-preprod-server-smoke.md`
+  - `docs/archive/2026-03-21-preprod-turn-enable.md`
+  - `docs/archive/2026-03-21-quickdrop-signaling-foundation.md`
+  - `docs/archive/2026-03-21-quickdrop-direct-transfer-mvp.md`
+  - `docs/archive/2026-03-21-quickdrop-same-account-auto-direct-and-relay-fallback.md`
+  - `docs/archive/2026-03-21-quickdrop-mid-transfer-fallback-and-turn-prep.md`
+  - `docs/archive/2026-03-21-quickdrop-unified-task-view-and-direct-save.md`
+  - `docs/archive/2026-03-21-quickdrop-task-merge-and-hybrid-row.md`
+  - `docs/archive/2026-03-21-quickdrop-server-task-key.md`
+  - `docs/archive/2026-03-20-ui-polish-file-management-and-docs-sync.md`
+  - `docs/archive/2026-03-20-order-system-hardening-and-pricing-sync.md`
+  - `docs/archive/2026-03-20-payment-local-provider-integration.md`
+  - `docs/archive/2026-03-20-s3-health-visibility.md`
+  - `docs/archive/2026-03-20-playwright-drag-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-email-templates-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-orders-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-payment-providers-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-plans-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-registration-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-rate-limits-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-smtp-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-storage-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-system-baseline.md`
+  - `docs/archive/2026-03-20-playwright-admin-upload-preview-baseline.md`
+  - `docs/archive/2026-03-20-notification-center-and-announcement-history.md`
+  - `docs/archive/2026-03-20-playwright-pricing-payment-baseline.md`
+  - `docs/archive/2026-03-20-playwright-register-captcha-baseline.md`
+  - `docs/archive/2026-03-20-smoke-script-baseline.md`
+  - `docs/archive/2026-03-20-download-quota-wiring.md`
+  - `docs/archive/2026-03-20-storage-strategy.md`
+  - `docs/archive/2026-03-20-storage-runtime-visibility.md`
+  - `docs/archive/2026-03-20-health-storage-metrics.md`
+  - `docs/archive/2026-03-20-storage-risk-levels.md`
+  - `docs/archive/2026-03-20-storage-risk-automation.md`
+  - `docs/archive/2026-03-20-free-tier-hardening-and-minio-profile.md`
+  - `docs/archive/2026-03-20-overview-storage-risk.md`
+  - `docs/archive/2026-03-19-docker-smoke-test.md`
 
-## 当前完成情况
-- 后端：Spring Boot 3.2 + MyBatis-Plus；支持注册/登录（JWT）、邮箱验证码（Redis 缓存）、基础文件上传/预览/下载、分享链接创建与校验、文件/文件夹的新增、删除、重命名（部分）。
-- 前端：静态页 index/login/register/netdisk/admin，包含上传与分享流程、多语言与主题切换、网盘文件展示/搜索/本地缓存，以及最小管理员后台页面。管理员页面已接通概览、用户、文件、分享管理和基础操作，并已可直接调整频控策略、上传策略（含匿名上传开关）、预览策略、CORS、后台隐藏入口，以及注册与验证设置；当前也已支持在后台直接新增 / 删除用户。
-- 安全加固（进行中）：引入 Spring Security + JWT 过滤、全局异常处理；控制器层已切到认证上下文并返回正确 HTTP 状态码；首页共享链路已调整为“匿名可上传分享、网盘能力仍需登录”；分享信息查询、预览、下载已补最小回归，并为匿名上传、公开分享查询、公开下载补了基于 Redis 的最小频控；公开分享查询现已补 `IP + shareCode` 维度的提取码错误次数限制，超限返回 `429`，成功校验后会清理错误计数；限流策略、上传策略、预览策略、CORS、后台入口策略和注册验证设置来源都已抽成独立 provider，并已接入管理员面板可调覆盖值；上传策略当前已支持服务层大小限制、扩展名白名单和匿名上传总开关；预览策略当前已支持总开关、图片 / 视频 / 音频 / PDF / 文本 / Office 文档族开关与扩展名收窄；用户自有文件下载现已从预览链路拆分到 `/api/files/{id}/download`，避免预览策略影响正常下载；Office 文档预览现已补上 LibreOffice headless 转 PDF provider，并新增同源 PDF.js 查看器统一承接 PDF / Office 浏览；控制器层宽松 `@CrossOrigin` 已移除，默认 CORS 改为白名单；`User.role` 已落库并接入注册 / 登录 / JWT 角色流转；JWT 过滤现已改为只接受正常登录 access token，并以数据库当前角色为准；新增 `/api/profile` 供前端同步当前登录态，首页 / 网盘 / 管理页管理员入口已改为先向服务端解析当前隐藏后台路径再跳转；公开注册页也已改为按运行时设置动态决定是否显示邮箱验证码和 reCAPTCHA。
-- 部署基线（已补齐）：新增 `Dockerfile`、`compose.yaml`、`.env.example` 与 MySQL 初始化脚本，当前版本已完成服务器 Docker Compose 联调；运行时镜像现已内置 LibreOffice headless 与常用字体，`compose` 单文件部署也已接入启动期管理员账号自举，部署完成后可直接登录管理后台；同时也已补 `ADMIN_CONSOLE_SLUG` 和 `REGISTRATION_EMAIL_VERIFICATION_ENABLED`，方便本地或测试环境直接起栈联调。
+## 当前非阻塞事项
 
-## 进度表
-| 阶段 | 状态 | 说明 |
-| --- | --- | --- |
-| 阶段 0：基线与配置清理 | **已完成** | Docker Compose、Flyway、LibreOffice 镜像、管理员自举 |
-| 阶段 1：安全与鉴权强化 | **已完成** | JWT/RBAC、频控、CORS、SMTP/模板/公告、AES 加密、ShareLink 并发安全 |
-| 阶段 2：文件夹与文件闭环 | **已完成** | 目录 CRUD、ShareLink 清理、深度限制、父目录验证、前端缓存一致性 |
-| 阶段 3：管理员体系与后台 | **已完成** | 全功能管理面板、存储配置（local/S3 实时切换）、所有策略后台化 |
-| 阶段 4：易支付接入 | **已完成** | 多商户易支付、套餐/订单/配额/VIP、定时任务、安全加固 |
-| 阶段 5：运维与质量 | **已完成** | Flyway V1-V3、GitHub Actions CI、结构化日志、健康检查、README/LICENSE |
+- WSL2 / 当前 JDK 组合下，完整 `mvn test` 仍受 Mockito / ByteBuddy 自附加限制影响，不适合作为唯一收口标准。
+- repo 内 smoke 脚本解决了“可重复接口/页面探针”，但还没有覆盖浏览器级的完整页面回归。
+- 容器回退模式当前还未覆盖文件传输类校验；这部分仍以主机模式 smoke 为主。
+- 当前浏览器自动化已覆盖管理台注册设置、通知中心、拖拽移动、选择模式批量操作弹窗、浏览器历史返回、套餐页、支付结果页、网盘配额侧栏和注册页 provider 切换，但还没有覆盖真实公网商户回跳和更广的登录后 CRUD 页面行为。
+- 当前 QuickDrop 已有同账号中转、公开分享和配对直传三条页面级自动化，但还没有覆盖“真实浏览器间大文件直传到完成下载”的整条路径。
+- 当前 QuickDrop 现已补一条本地真实双页浏览器回归，但它验证的是“真实两页传输与统一任务收口”；并没有把“headless 下稳定保持 direct 而不回退 relay”锁成通过门槛。
+- 当前 public / anonymous 直传虽然已有 server-first `pair task` 页面视图，但还没有和 same-account `task` 收敛成同一套顶层模型与操作语义。
+- 当前 QuickDrop 的公开取件页“已登录后直接显示保存控件”浏览器 mock 用例仍待继续收口；对应业务能力已通过运行态 API 验证。
+- 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架和 public pair task 页面级任务视图，但仍待继续做真实双端公网/TURN 验证，并补更细粒度的 attempt 生命周期，再考虑顶层模型统一。
+- 当前服务器还只是预发布环境：
+  - 还没有 HTTPS / 证书
+  - 还没有正式发布前的最终脱敏提交流程
+  - 还没跑完整服务器版 smoke 脚本和更长链路的 QuickDrop 真实文件传输验证
+- 当前 CI 仍以构建和语法检查为主，还没有把 Docker smoke 和选定 Playwright 用例作为默认门槛串起来；这属于下一步回归基线增强。
+- 当前 `downloads` 套餐口径是“登录用户自己的下载次数”；若未来要把匿名分享访问也计入套餐额度，需要重新定义扣减主体。
+- 当前存储策略还没有自动扩容、冷热分层、对象生命周期和容量告警；这些属于后续部署与运维增强。
+- 部分大数据量分页/性能优化仍属于后续体验增强，不影响当前主流程可用性。
 
-## 下次续做起点
-- 所有 5 个后端阶段已完成（2026-03-19），153 测试全通过。
-- 剩余工作为**前端 UI 对接**：
-  1. 管理面板：套餐管理表单（CRUD）、支付商户管理表单（CRUD）、订单列表页（查看/手动支付/退款）
-  2. 管理面板：易支付配置已从单一 system_setting 改为 payment_provider 表，旧的 epay 设置表单需替换
-  3. 用户端：购买页面（展示套餐列表 + 选择支付方式 + 跳转支付）、支付结果页
-  4. 用户端：个人中心显示配额（存储空间已用/总量、下载次数、VIP 到期时间）
-- 所有后端 API 已就绪，前端只需对接：
-  - `GET /api/public/plans` — 公开套餐列表
-  - `POST /api/payment/create` — 创建订单并获取支付跳转 URL
-  - `GET /api/payment/orders` — 用户订单历史
-  - `GET /api/payment/order/{no}` — 查询单个订单
-  - `GET /api/profile` — 用户配额信息（storageLimit/Used/downloadLimit/Used/vipExpireTime）
-  - `GET/POST/PUT/DELETE /api/admin/plans` — 管理员套餐 CRUD
-  - `GET/POST/PUT/DELETE /api/admin/payment-providers` — 管理员支付商户 CRUD
-  - `GET /api/admin/orders` — 管理员订单列表
-  - `PUT /api/admin/orders/{id}/mark-paid` — 手动标记支付
-  - `PUT /api/admin/orders/{id}/mark-refunded` — 标记退款
+## 文档约定
 
-## 主要缺陷与风险
-- 配置安全：现已去除明文密钥，需按环境变量/本地 profile 正确注入，否则无法连接外部资源。
-- 部署侧风险：虽然已补 `compose.yaml`、基础建表脚本、LibreOffice 运行依赖和启动期管理员自举，但生产部署时仍需显式设置 `JWT_SECRET`、邮件参数、CORS 白名单以及持久化目录策略；本轮新增了 `user.role` 字段和 `system_setting` 表，已有数据库需要先执行 `docker/mysql/manual/2026-03-18-add-user-role.sql` 与 `docker/mysql/manual/2026-03-18-add-system-setting-table.sql`；如果不使用启动自举，也仍可参考 `docker/mysql/manual/2026-03-18-promote-user-to-admin.sql` 手工提升首个管理员。
-- 鉴权待补完：已移除 `userId=1` 回退、控制器改为读取 Security 上下文，并补了文件接口鉴权回归；首页匿名上传/分享现通过临时分享凭证与网盘登录态拆分，分享信息查询 / 预览 / 下载也已补回归；匿名上传、公开分享查询、公开下载都已加最小频控，提取码错误次数也已按 `IP + shareCode` 单独限流，限流、上传策略、预览策略与 CORS 策略来源也已解耦并接入后台可调覆盖值；当前登录鉴权已改为只接受 access token 并以数据库角色为准，前端管理员入口也会实时同步当前身份；当前管理员模型只保留 `USER` / `ADMIN`，管理员接口、最小后台页面和首批策略配置界面都已具备最高权限入口，但更多策略项仍未迁入后台。
-- 文件夹/文件闭环仍需联调：目录列表、上传归属、文件夹重命名、重名冲突校验与物理删除已补齐，但更深层目录回归、前端缓存边界和逻辑删除一致性还未系统验证。
-- 文件可靠性：上传基础校验与流关闭已处理，删除也会同步清理物理文件；已补“逻辑删除文件不可继续分享”的校验，但 `ShareLink.status`、分享唯一性、下载次数并发安全、MD5/写入流程优化仍待继续处理。
-- 基础设施：已有 Docker Compose 和初始化 SQL，可用于服务器联调；但仍缺少迁移脚本体系、自动化测试覆盖、日志与监控体系；前端管理员页面目前也只有手工联调与脚本语法检查，没有浏览器自动化回归。
-- 测试环境提示：`QuickshareApplicationTests` 在本地未启动 MySQL 时，当前仍会打印一次 `Connection refused` 告警；现阶段 `SystemSettingOverrideServiceImpl` 预加载采用 fail-open，会回退到文件配置，因此不会导致本轮 `mvn test` 失败，但后续若收紧启动策略要同步处理这条测试噪音。
-- 预览能力边界：管理员后台现已能控制图片 / 视频 / 音频 / PDF / 文本 / Office 文档族预览开关，并可按扩展名继续收窄；Office / 表格 / 演示文档现在已改为走 LibreOffice headless 转 PDF + 同源 PDF.js 查看器，镜像里也已内置 LibreOffice；但当前本地开发环境没有 Docker 可执行，因此这轮还缺真实 `compose` 起栈 smoke test，以及是否继续对齐公开分享页的收口工作。
-- 后续后台能力：SMTP 运行时配置、邮件模板管理、管理员通知 / 公告邮件，以及 Cloudflare Turnstile / Google reCAPTCHA 提供器切换均已加入后续工作流，但本轮尚未开始实现。
-- 文档与协议：README 描述的特性与实现程度不完全一致；仓库缺少独立的 `LICENSE` 文件。
-
-## 近期改进优先级（建议顺序）
-1) 安全与配置：在已完成提取码错误次数限制、CORS 白名单收口、`User.role` 落库、第一批 `ADMIN` 接口、最小管理员页面、频控 / 上传 / 预览 / CORS 策略后台化，以及管理员角色实时同步的基础上，先把 LibreOffice 预览 provider 做完真实环境 smoke test，再继续把更多安全策略接入后台可调项和更细的预览策略。
-2) 文件/文件夹闭环：上传、列表、重命名、删除全链路支持 `folderId`；`/api/files` 支持按文件夹查询并过滤逻辑删除；补齐 `/folders/{id}/rename`；删除时同步清理物理文件。
-3) 分享与预览：确保 `ShareLink` 唯一性与默认状态；下载/预览校验过期/次数/权限；为图片/视频增加缩略图缓存与限流。
-4) 可运维性：在现有 Docker Compose 基线基础上，引入 Flyway/Liquibase 建表，增加单元/集成测试（鉴权、上传、分享、文件夹），限制 CORS 域名，完善日志与全局错误返回格式。
-5) 产品化：修订 README/前端文案与实际功能对齐，新增 LICENSE，补充部署与性能调优指引。
-
-## 运行与配置提示
-- 推荐新增 `application-local.yml`（不入库）并通过环境变量注入数据库、Redis、SMTP、JWT、reCAPTCHA、上传目录等敏感配置。
-- 如需启用 Office 文档稳定预览，还需确保运行环境可执行 `OFFICE_PREVIEW_COMMAND`（默认 `soffice`），并为预览缓存目录预留可写权限。
-- 若使用容器部署，`.env.example` 已提供首个管理员自举配置；首次对外暴露前应至少修改 `BOOTSTRAP_ADMIN_PASSWORD`、`JWT_SECRET` 和 `CORS_ALLOWED_ORIGINS`。
-- 运行时需本地 MySQL 与 Redis，上传目录由 `file.upload-dir` 自动创建；生产环境建议开启对象存储或独立磁盘并配置备份/限流。
-- 服务器联调可以直接使用仓库中的 `compose.yaml`；首次启动会执行 `docker/mysql/init/001-schema.sql` 建表，后续若需重建库需同时清理 MySQL 数据卷。
+- `README.md`：面向使用者的当前能力与部署说明
+- `docs/TESTING.md`：未来改动的默认测试与验收流程
+- `docs/STATUS.md`：当前状态快照
+- `docs/PLAN.md`：维护阶段的后续方向
+- `docs/CHANGELOG.md`：按日期汇总变更
+- `docs/archive/`：保留详细里程碑与会话归档

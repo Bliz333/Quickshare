@@ -58,4 +58,6 @@ public interface AdminService {
     void markOrderPaid(Long orderId);
 
     void markOrderRefunded(Long orderId);
+
+    void deleteOrder(Long orderId);
 }

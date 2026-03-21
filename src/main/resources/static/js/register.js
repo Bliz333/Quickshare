@@ -6,10 +6,12 @@ let countdown = 0;
 let registrationSettings = {
     emailVerificationEnabled: true,
     recaptchaEnabled: false,
+    captchaProvider: 'recaptcha',
     recaptchaSiteKey: ''
 };
-let recaptchaScriptLoaded = false;
-let recaptchaRenderQueued = false;
+let captchaScriptLoaded = false;
+let captchaRenderQueued = false;
+let captchaWidgetId = null;
 
 async function loadRegistrationSettings() {
     try {
@@ -65,76 +67,98 @@ function applyRegistrationSettings() {
     }
 
     if (recaptchaEnabled) {
-        loadRecaptchaScript();
+        loadCaptchaScript();
     }
 }
 
-function loadRecaptchaScript() {
-    if (recaptchaScriptLoaded) {
-        renderRecaptcha();
+function getCaptchaProvider() {
+    return registrationSettings.captchaProvider || 'recaptcha';
+}
+
+function loadCaptchaScript() {
+    const provider = getCaptchaProvider();
+    if (captchaScriptLoaded) {
+        renderCaptcha();
         return;
     }
 
-    if (document.querySelector('script[data-recaptcha-script="true"]')) {
-        recaptchaRenderQueued = true;
+    const scriptAttr = 'data-captcha-script';
+    if (document.querySelector(`script[${scriptAttr}="true"]`)) {
+        captchaRenderQueued = true;
         return;
     }
 
-    recaptchaRenderQueued = true;
+    captchaRenderQueued = true;
     const script = document.createElement('script');
-    script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+    if (provider === 'turnstile') {
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onCaptchaApiReady';
+    } else {
+        script.src = 'https://www.google.com/recaptcha/api.js?render=explicit&onload=onCaptchaApiReady';
+    }
     script.async = true;
     script.defer = true;
-    script.dataset.recaptchaScript = 'true';
-    script.onload = () => {
-        recaptchaScriptLoaded = true;
-        renderRecaptcha();
-    };
+    script.dataset.captchaScript = 'true';
     document.head.appendChild(script);
 }
 
-function renderRecaptcha() {
+window.onCaptchaApiReady = function() {
+    captchaScriptLoaded = true;
+    renderCaptcha();
+};
+
+function renderCaptcha() {
     if (!registrationSettings.recaptchaEnabled || !registrationSettings.recaptchaSiteKey) {
         return;
     }
 
     const container = document.getElementById('captchaContainer');
-    if (!container || typeof grecaptcha === 'undefined' || typeof grecaptcha.render !== 'function') {
-        return;
-    }
+    if (!container) return;
 
     container.innerHTML = '';
-    const recaptchaDiv = document.createElement('div');
-    recaptchaDiv.id = 'recaptcha-widget';
-    container.appendChild(recaptchaDiv);
+    const widgetDiv = document.createElement('div');
+    widgetDiv.id = 'captcha-widget';
+    container.appendChild(widgetDiv);
 
     const isDark = document.documentElement.classList.contains('dark-mode');
-    grecaptcha.render('recaptcha-widget', {
-        sitekey: registrationSettings.recaptchaSiteKey,
-        theme: isDark ? 'dark' : 'light'
-    });
-    recaptchaRenderQueued = false;
+    const provider = getCaptchaProvider();
+
+    if (provider === 'turnstile' && typeof turnstile !== 'undefined') {
+        captchaWidgetId = turnstile.render('#captcha-widget', {
+            sitekey: registrationSettings.recaptchaSiteKey,
+            theme: isDark ? 'dark' : 'light'
+        });
+    } else if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.render === 'function') {
+        captchaWidgetId = grecaptcha.render('captcha-widget', {
+            sitekey: registrationSettings.recaptchaSiteKey,
+            theme: isDark ? 'dark' : 'light'
+        });
+    }
+    captchaRenderQueued = false;
 }
 
-function getRecaptchaResponse() {
+function getCaptchaResponse() {
     if (!registrationSettings.recaptchaEnabled) return null;
-    if (typeof grecaptcha === 'undefined') return null;
+    const provider = getCaptchaProvider();
 
     try {
-        return grecaptcha.getResponse();
+        if (provider === 'turnstile' && typeof turnstile !== 'undefined') {
+            return turnstile.getResponse(captchaWidgetId);
+        }
+        if (typeof grecaptcha !== 'undefined') {
+            return grecaptcha.getResponse(captchaWidgetId);
+        }
     } catch (error) {
-        console.warn('reCAPTCHA getResponse error:', error);
-        return null;
+        console.warn('Captcha getResponse error:', error);
     }
+    return null;
 }
 
-function resetRecaptcha() {
-    if (registrationSettings.recaptchaEnabled && typeof grecaptcha !== 'undefined' && typeof renderRecaptcha === 'function') {
-        try {
-            renderRecaptcha();
-        } catch (error) {
-            console.warn('reCAPTCHA reset error:', error);
-        }
+function resetCaptcha() {
+    if (!registrationSettings.recaptchaEnabled) return;
+    try {
+        renderCaptcha();
+    } catch (error) {
+        console.warn('Captcha reset error:', error);
     }
 }
 
@@ -153,8 +177,8 @@ async function sendVerificationCode() {
 
     if (countdown > 0) return;
 
-    const recaptchaResponse = getRecaptchaResponse();
-    if (registrationSettings.recaptchaEnabled && !recaptchaResponse) {
+    const captchaResponse = getCaptchaResponse();
+    if (registrationSettings.recaptchaEnabled && !captchaResponse) {
         showToast(t('captchaRequired'), 'error');
         return;
     }
@@ -166,7 +190,7 @@ async function sendVerificationCode() {
     try {
         const payload = {
             email,
-            recaptchaToken: recaptchaResponse,
+            recaptchaToken: captchaResponse,
             locale: typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'en'
         };
 
@@ -181,7 +205,7 @@ async function sendVerificationCode() {
         if (data.code === 200) {
             showToast(t('codeSent'), 'success');
             startCountdown(btn);
-            resetRecaptcha();
+            resetCaptcha();
         } else {
             throw new Error(data.message || t('sendCodeFailed'));
         }
@@ -189,7 +213,7 @@ async function sendVerificationCode() {
         showToast(err.message, 'error');
         btn.disabled = false;
         btn.textContent = t('sendCodeBtn');
-        resetRecaptcha();
+        resetCaptcha();
     }
 }
 
@@ -287,7 +311,7 @@ window.addEventListener('load', async () => {
         window.toggleTheme = function() {
             originalToggleTheme();
             if (registrationSettings.recaptchaEnabled) {
-                setTimeout(renderRecaptcha, 100);
+                setTimeout(renderCaptcha, 100);
             }
         };
     }

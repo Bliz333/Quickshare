@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS `quickdrop_public_share` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `share_token` VARCHAR(64) NOT NULL,
+  `uploader_user_id` BIGINT DEFAULT NULL,
+  `sender_label` VARCHAR(128) NOT NULL,
+  `file_name` VARCHAR(255) NOT NULL,
+  `file_size` BIGINT NOT NULL,
+  `content_type` VARCHAR(255) DEFAULT NULL,
+  `chunk_size` INT NOT NULL,
+  `total_chunks` INT NOT NULL,
+  `uploaded_chunks` INT NOT NULL DEFAULT 0,
+  `status` VARCHAR(32) NOT NULL DEFAULT 'pending_upload',
+  `assembled_path` VARCHAR(1024) DEFAULT NULL,
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `expire_time` DATETIME NOT NULL,
+  `downloaded_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_quickdrop_public_share_token` (`share_token`),
+  KEY `idx_quickdrop_public_share_expire` (`expire_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

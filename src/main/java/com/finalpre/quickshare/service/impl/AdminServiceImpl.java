@@ -20,6 +20,7 @@ import com.finalpre.quickshare.entity.FileInfo;
 import com.finalpre.quickshare.entity.ShareLink;
 import com.finalpre.quickshare.entity.User;
 import com.finalpre.quickshare.mapper.FileInfoMapper;
+import com.finalpre.quickshare.service.NotificationService;
 import com.finalpre.quickshare.mapper.ShareLinkMapper;
 import com.finalpre.quickshare.mapper.UserMapper;
 import com.finalpre.quickshare.service.AdminService;
@@ -36,6 +37,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -83,6 +85,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired
     private QuotaService quotaService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Override
     public AdminOverviewVO getOverview() {
@@ -256,6 +261,12 @@ public class AdminServiceImpl implements AdminService {
 
         shareLinkMapper.delete(new QueryWrapper<ShareLink>().eq("file_id", fileInfo.getId()));
         fileInfoMapper.deleteById(fileInfo.getId());
+        if (!Integer.valueOf(1).equals(fileInfo.getIsFolder())
+                && fileInfo.getFileSize() != null
+                && fileInfo.getFileSize() > 0
+                && fileInfo.getUserId() != null) {
+            quotaService.releaseStorage(fileInfo.getUserId(), fileInfo.getFileSize());
+        }
     }
 
     @Override
@@ -402,30 +413,51 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional
     public void markOrderPaid(Long orderId) {
         PaymentOrder order = paymentOrderMapper.selectById(orderId);
         if (order == null) throw new ResourceNotFoundException("订单不存在");
         if ("paid".equals(order.getStatus())) throw new IllegalArgumentException("订单已支付");
+        if ("refunded".equals(order.getStatus())) throw new IllegalArgumentException("已退款订单不能再标记为已支付");
+        if (!"pending".equals(order.getStatus()) && !"expired".equals(order.getStatus())) {
+            throw new IllegalArgumentException("当前订单状态不支持标记为已支付");
+        }
 
         order.setStatus("paid");
         order.setNotifyTime(LocalDateTime.now());
         paymentOrderMapper.updateById(order);
 
-        try {
-            quotaService.grantQuota(order);
-        } catch (Exception e) {
-            log.error("Failed to grant quota for manually paid order {}", order.getOrderNo(), e);
-        }
+        quotaService.grantQuota(order);
         log.info("Order manually marked as paid. orderNo={}", order.getOrderNo());
     }
 
     @Override
+    @Transactional
     public void markOrderRefunded(Long orderId) {
         PaymentOrder order = paymentOrderMapper.selectById(orderId);
         if (order == null) throw new ResourceNotFoundException("订单不存在");
+        if ("refunded".equals(order.getStatus())) throw new IllegalArgumentException("订单已退款");
+        if (!"paid".equals(order.getStatus())) throw new IllegalArgumentException("只有已支付订单才能退款");
+
+        quotaService.revokeQuota(order);
         order.setStatus("refunded");
         paymentOrderMapper.updateById(order);
         log.info("Order marked as refunded. orderNo={}", order.getOrderNo());
+    }
+
+    @Override
+    @Transactional
+    public void deleteOrder(Long orderId) {
+        PaymentOrder order = paymentOrderMapper.selectById(orderId);
+        if (order == null) throw new ResourceNotFoundException("订单不存在");
+
+        String status = order.getStatus() == null ? "pending" : order.getStatus().trim().toLowerCase();
+        if ("paid".equals(status)) {
+            throw new IllegalArgumentException("已支付订单请先退款后再删除");
+        }
+
+        paymentOrderMapper.deleteById(orderId);
+        log.info("Order deleted from admin console. orderNo={}, status={}", order.getOrderNo(), status);
     }
 
     private void validatePlanRequest(AdminPlanRequest request) {
@@ -456,6 +488,13 @@ public class AdminServiceImpl implements AdminService {
     private void deletePhysicalFile(FileInfo fileInfo) {
         String storageKey = fileInfo.getFilePath();
         if (storageKey == null || storageKey.isBlank()) {
+            return;
+        }
+        long references = fileInfoMapper.selectCount(new QueryWrapper<FileInfo>()
+                .eq("file_path", storageKey)
+                .eq("deleted", 0)
+                .ne("id", fileInfo.getId()));
+        if (references > 0) {
             return;
         }
 
@@ -569,14 +608,36 @@ public class AdminServiceImpl implements AdminService {
                 .filter(u -> u.getEmail() != null && !u.getEmail().isBlank() && u.getEmail().contains("@"))
                 .toList();
 
+        if (recipients.isEmpty()) {
+            throw new IllegalArgumentException("未找到可发送公告的用户");
+        }
+        if (validRecipients.isEmpty()) {
+            throw new IllegalArgumentException("匹配到的用户没有可用邮箱地址");
+        }
+
+        String normalizedSubject = request.getSubject().trim();
+        String body = request.getBody();
+        if (request.getUserIds() != null && !request.getUserIds().isEmpty()) {
+            notificationService.recordPersonalNotifications(
+                    recipients.stream().map(User::getId).toList(),
+                    normalizedSubject,
+                    body,
+                    null
+            );
+        } else {
+            notificationService.recordGlobalNotification(normalizedSubject, body, null);
+        }
+
         AdminAnnouncementResultVO result = new AdminAnnouncementResultVO();
-        result.setTotalRecipients(validRecipients.size());
+        result.setTotalRecipients(recipients.size());
+        result.setDeliverableCount(validRecipients.size());
+        result.setSkippedCount(recipients.size() - validRecipients.size());
         int success = 0;
         int fail = 0;
 
         for (User user : validRecipients) {
             try {
-                emailServiceImpl.sendRawEmail(user.getEmail(), request.getSubject().trim(), request.getBody());
+                emailServiceImpl.sendRawEmail(user.getEmail(), normalizedSubject, body);
                 success++;
             } catch (Exception e) {
                 fail++;
@@ -586,7 +647,8 @@ public class AdminServiceImpl implements AdminService {
 
         result.setSuccessCount(success);
         result.setFailCount(fail);
-        log.info("Announcement sent. total={}, success={}, fail={}", validRecipients.size(), success, fail);
+        log.info("Announcement sent. matched={}, deliverable={}, success={}, fail={}, skipped={}",
+                recipients.size(), validRecipients.size(), success, fail, result.getSkippedCount());
         return result;
     }
 

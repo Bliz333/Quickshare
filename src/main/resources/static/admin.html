@@ -55,6 +55,10 @@
             --shadow-panel: 0 24px 60px rgba(2, 6, 23, 0.45);
         }
 
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Outfit', sans-serif;
             background:
@@ -63,6 +67,10 @@
                 var(--bg-light);
             color: var(--text-main);
             transition: background-color 0.3s, color 0.3s;
+        }
+
+        button {
+            cursor: pointer;
         }
 
         .bg-glow {
@@ -142,6 +150,13 @@
             background: rgba(99, 102, 241, 0.18);
         }
 
+        .toolbar-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
         .toolbar-btn {
             display: inline-flex;
             align-items: center;
@@ -155,7 +170,7 @@
             color: var(--text-main);
             font-size: 0.92rem;
             font-weight: 600;
-            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
         }
 
         .dark-mode .toolbar-btn {
@@ -166,6 +181,7 @@
             transform: translateY(-1px);
             border-color: var(--primary);
             background: rgba(14, 165, 233, 0.12);
+            box-shadow: 0 10px 24px rgba(14, 165, 233, 0.12);
         }
 
         .toolbar-btn.primary {
@@ -210,6 +226,280 @@
             color: white;
             font-weight: 700;
             box-shadow: 0 12px 24px rgba(14, 165, 233, 0.2);
+        }
+
+        .admin-shell {
+            max-width: 1560px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .admin-topbar {
+            padding: 22px 24px;
+            border-radius: 32px;
+            margin-bottom: 24px;
+        }
+
+        .admin-layout {
+            display: grid;
+            grid-template-columns: 264px minmax(0, 1fr);
+            gap: 24px;
+            align-items: start;
+        }
+
+        .admin-sidebar-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            z-index: 70;
+        }
+
+        .admin-sidebar-backdrop.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .admin-sidebar {
+            position: sticky;
+            top: 24px;
+            padding: 18px 14px;
+            border-radius: 28px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(18px);
+            box-shadow: var(--shadow-panel);
+        }
+
+        .sidebar-group + .sidebar-group {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        .sidebar-group-label {
+            display: block;
+            padding: 0 12px 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-sub);
+        }
+
+        .admin-sidebar-nav {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .admin-sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 44px;
+            padding: 10px 14px;
+            border-radius: 16px;
+            color: var(--text-sub);
+            font-size: 0.92rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .admin-sidebar-nav li a i {
+            width: 18px;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+
+        .admin-sidebar-nav li a:hover {
+            background: rgba(14, 165, 233, 0.08);
+            color: var(--text-main);
+            transform: translateX(2px);
+        }
+
+        .admin-sidebar-nav li a.active {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(20, 184, 166, 0.12));
+            color: var(--primary-dark);
+            box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.16), 0 12px 26px rgba(14, 165, 233, 0.08);
+        }
+
+        .dark-mode .admin-sidebar-nav li a.active {
+            color: var(--primary-light);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(34, 211, 238, 0.12));
+            box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.18), 0 12px 26px rgba(2, 6, 23, 0.28);
+        }
+
+        .admin-main {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .admin-page {
+            display: none;
+        }
+
+        .admin-page.active {
+            display: block;
+            animation: fadeIn 0.22s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .page-hero {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 28px 32px;
+            border-radius: 32px;
+            margin-bottom: 24px;
+        }
+
+        .page-hero-title {
+            font-size: 2rem;
+            font-weight: 650;
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+        }
+
+        .page-hero-description {
+            margin-top: 12px;
+            max-width: 60ch;
+            color: var(--text-sub);
+            font-size: 0.98rem;
+            line-height: 1.7;
+        }
+
+        .page-hero-note {
+            max-width: 320px;
+            display: flex;
+            gap: 12px;
+            padding: 16px 18px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.32);
+            color: var(--text-sub);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .dark-mode .page-hero-note {
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        .page-hero-note i {
+            margin-top: 2px;
+            color: var(--primary);
+        }
+
+        .page-section-grid {
+            display: grid;
+            gap: 24px;
+        }
+
+        .page-section-grid.grid-two {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .page-section-grid.grid-main {
+            grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.85fr);
+        }
+
+        .section-card {
+            border-radius: 28px;
+            padding: 24px;
+        }
+
+        .section-card.full-span {
+            grid-column: 1 / -1;
+        }
+
+        .section-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .section-card-title {
+            font-size: 1.18rem;
+            font-weight: 650;
+            line-height: 1.25;
+        }
+
+        .section-card-subtitle {
+            margin-top: 6px;
+            color: var(--text-sub);
+            font-size: 0.93rem;
+            line-height: 1.65;
+            max-width: 62ch;
+        }
+
+        .section-divider {
+            height: 1px;
+            margin: 24px 0;
+            background: var(--border-color);
+            opacity: 0.85;
+        }
+
+        .form-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .form-note {
+            max-width: 64ch;
+            color: var(--text-sub);
+            font-size: 0.84rem;
+            line-height: 1.65;
+        }
+
+        .info-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .info-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            color: var(--text-sub);
+            font-size: 0.92rem;
+            line-height: 1.7;
+        }
+
+        .info-list li i {
+            margin-top: 4px;
+            color: var(--primary);
         }
 
         .stat-card {
@@ -263,6 +553,7 @@
             color: var(--primary-dark);
             font-weight: 700;
             font-size: 0.82rem;
+            flex-shrink: 0;
         }
 
         .dark-mode .count-badge {
@@ -271,10 +562,10 @@
         }
 
         .table-wrap {
-            overflow-x: auto;
+            overflow: auto;
             border: 1px solid var(--border-color);
-            border-radius: 20px;
-            background: rgba(248, 250, 252, 0.75);
+            border-radius: 24px;
+            background: rgba(248, 250, 252, 0.72);
         }
 
         .dark-mode .table-wrap {
@@ -283,13 +574,26 @@
 
         .admin-table {
             width: 100%;
-            min-width: 880px;
-            border-collapse: collapse;
+            min-width: 920px;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .admin-table.table-narrow {
+            min-width: 720px;
+        }
+
+        .admin-table.table-compact {
+            min-width: 820px;
+        }
+
+        .admin-table.table-wide {
+            min-width: 1100px;
         }
 
         .admin-table th,
         .admin-table td {
-            padding: 14px 16px;
+            padding: 18px 20px;
             border-bottom: 1px solid var(--border-color);
             text-align: left;
             vertical-align: top;
@@ -300,11 +604,27 @@
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--text-sub);
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.58);
         }
 
         .dark-mode .admin-table th {
-            background: rgba(15, 23, 42, 0.58);
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        .admin-table tbody tr:nth-child(even) {
+            background: rgba(148, 163, 184, 0.05);
+        }
+
+        .dark-mode .admin-table tbody tr:nth-child(even) {
+            background: rgba(15, 23, 42, 0.32);
+        }
+
+        .admin-table tbody tr:hover {
+            background: rgba(14, 165, 233, 0.08);
+        }
+
+        .dark-mode .admin-table tbody tr:hover {
+            background: rgba(99, 102, 241, 0.12);
         }
 
         .admin-table tr:last-child td {
@@ -345,20 +665,27 @@
             color: var(--warning);
         }
 
+        .action-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         .action-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            min-height: 36px;
-            padding: 0 12px;
-            border-radius: 12px;
+            min-height: 38px;
+            padding: 0 14px;
+            border-radius: 14px;
             border: 1px solid var(--border-color);
             background: rgba(255, 255, 255, 0.5);
             color: var(--text-main);
-            font-size: 0.82rem;
+            font-size: 0.84rem;
             font-weight: 600;
-            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
         }
 
         .dark-mode .action-btn {
@@ -369,6 +696,11 @@
             transform: translateY(-1px);
             border-color: var(--primary);
             background: rgba(14, 165, 233, 0.1);
+            box-shadow: 0 10px 18px rgba(14, 165, 233, 0.08);
+        }
+
+        .action-btn.action-btn-secondary {
+            background: transparent;
         }
 
         .action-btn:disabled,
@@ -389,7 +721,7 @@
         }
 
         .empty-row {
-            padding: 30px 16px;
+            padding: 36px 20px;
             text-align: center;
             color: var(--text-sub);
         }
@@ -402,7 +734,12 @@
             border-radius: 18px;
             padding: 12px 14px;
             font-size: 0.92rem;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        textarea.settings-field {
+            min-height: 112px;
+            resize: vertical;
         }
 
         .dark-mode .settings-field {
@@ -423,6 +760,22 @@
             width: 18px;
             height: 18px;
             accent-color: var(--primary);
+            margin-top: 1px;
+            flex-shrink: 0;
+        }
+
+        .checkbox-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.48);
+        }
+
+        .dark-mode .checkbox-card {
+            background: rgba(15, 23, 42, 0.54);
         }
 
         .toast-container {
@@ -500,9 +853,120 @@
             }
         }
 
+        .admin-sidebar-toggle {
+            display: none;
+        }
+
+        @media (max-width: 1280px) {
+            .admin-layout {
+                grid-template-columns: 236px minmax(0, 1fr);
+            }
+
+            .page-hero {
+                padding: 26px 24px;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .page-section-grid.grid-two,
+            .page-section-grid.grid-main {
+                grid-template-columns: 1fr;
+            }
+
+            .page-hero {
+                flex-direction: column;
+            }
+
+            .page-hero-note {
+                max-width: none;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 960px) {
+            body.admin-sidebar-open {
+                overflow: hidden;
+            }
+
+            .admin-shell {
+                padding: 16px 14px 32px;
+            }
+
+            .admin-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .admin-sidebar-toggle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                min-height: 42px;
+                padding: 0 16px;
+                border-radius: 999px;
+                border: 1px solid var(--border-color);
+                background: rgba(255, 255, 255, 0.5);
+                color: var(--text-main);
+                font-size: 0.9rem;
+                font-weight: 600;
+            }
+
+            .dark-mode .admin-sidebar-toggle {
+                background: rgba(15, 23, 42, 0.58);
+            }
+
+            .admin-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: min(82vw, 320px);
+                max-width: 320px;
+                transform: translateX(-100%);
+                transition: transform 0.28s ease;
+                z-index: 80;
+                overflow-y: auto;
+                padding: 24px 16px 28px;
+                border-radius: 0 28px 28px 0;
+            }
+
+            .admin-sidebar.mobile-open {
+                transform: translateX(0);
+            }
+        }
+
         @media (max-width: 768px) {
+            .admin-topbar {
+                padding: 18px;
+                border-radius: 28px;
+            }
+
+            .toolbar-actions {
+                justify-content: stretch;
+            }
+
             .toolbar-btn {
                 width: 100%;
+            }
+
+            .page-hero-title {
+                font-size: 1.6rem;
+            }
+
+            .section-card {
+                padding: 20px;
+                border-radius: 24px;
+            }
+
+            .section-card-header,
+            .form-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .admin-table th,
+            .admin-table td {
+                padding: 16px 14px;
             }
 
             .toast-container {
@@ -556,8 +1020,8 @@
     </div>
 </div>
 
-<div class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 relative z-10">
-    <header class="glass-card rounded-[28px] p-5 md:p-7 mb-6">
+<div class="admin-shell">
+    <header class="admin-topbar glass-card">
         <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div class="space-y-4">
                 <div class="eyebrow">
@@ -570,7 +1034,7 @@
                 </div>
             </div>
 
-            <div class="flex flex-col gap-3 xl:items-end">
+            <div class="flex flex-col gap-4 xl:items-end">
                 <div class="user-badge">
                     <div class="user-avatar" id="adminAvatar">A</div>
                     <div>
@@ -579,7 +1043,11 @@
                     </div>
                 </div>
 
-                <div class="flex flex-wrap gap-2">
+                <div class="toolbar-actions">
+                    <button type="button" class="admin-sidebar-toggle" onclick="toggleAdminSidebar()">
+                        <i class="fa-solid fa-bars"></i>
+                        <span data-i18n="adminOpenMenu">打开菜单</span>
+                    </button>
                     <button type="button" class="toolbar-btn" onclick="goToNetdisk()">
                         <i class="fa-solid fa-hard-drive"></i>
                         <span data-i18n="adminBackToNetdisk">返回网盘</span>
@@ -601,527 +1069,1021 @@
         </div>
     </header>
 
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-6" id="overviewCards"></section>
+    <div class="admin-sidebar-backdrop" id="adminSidebarBackdrop" onclick="toggleAdminSidebar(false)"></div>
 
-    <section class="grid gap-6 xl:grid-cols-[2fr,1fr] mb-6">
-        <div class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="flex items-center justify-between gap-3 mb-5">
-                <div>
-                    <h2 class="text-xl font-semibold" data-i18n="adminUsers">用户管理</h2>
-                    <p class="text-sm text-text-sub mt-1" data-i18n="adminUsersSubtitle">管理员拥有最高权限，可直接新增、删除用户并调整角色。</p>
-                </div>
-                <span class="count-badge" id="usersCountBadge">0</span>
-            </div>
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5 mb-5">
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserUsername" data-i18n="usernameLabel">用户名</label>
-                    <input id="newUserUsername" type="text" class="settings-field" data-i18n="regUsernamePlaceholder" placeholder="请输入用户名">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserNickname" data-i18n="nicknameLabel">昵称</label>
-                    <input id="newUserNickname" type="text" class="settings-field" data-i18n="nicknamePlaceholder" placeholder="显示名称">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserEmail" data-i18n="emailLabel">邮箱</label>
-                    <input id="newUserEmail" type="email" class="settings-field" data-i18n="emailPlaceholder" placeholder="your@email.com">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserPassword" data-i18n="adminUserPassword">初始密码</label>
-                    <input id="newUserPassword" type="password" class="settings-field" placeholder="至少6位">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserRole" data-i18n="adminRole">角色</label>
-                    <select id="newUserRole" class="settings-field">
-                        <option value="USER" data-i18n="adminRoleUser">普通用户</option>
-                        <option value="ADMIN" data-i18n="adminRoleAdmin">管理员</option>
-                    </select>
-                </div>
-            </div>
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
-                <p class="text-xs text-text-sub" data-i18n="adminCreateUserHint">这里创建的是平台用户账号，创建后可直接登录，不依赖注册页面。</p>
-                <button type="button" class="action-btn" onclick="createAdminUser(this)">
-                    <i class="fa-solid fa-user-plus"></i>
-                    <span data-i18n="adminCreateUser">新增用户</span>
-                </button>
-            </div>
-            <div class="table-wrap">
-                <table class="admin-table">
-                    <thead>
-                    <tr>
-                        <th data-i18n="usernameLabel">用户名</th>
-                        <th data-i18n="nicknameLabel">昵称</th>
-                        <th data-i18n="emailLabel">邮箱</th>
-                        <th data-i18n="adminCreatedTime">创建时间</th>
-                        <th data-i18n="adminRole">角色</th>
-                        <th data-i18n="actions">操作</th>
-                    </tr>
-                    </thead>
-                    <tbody id="usersTableBody">
-                    <tr>
-                        <td colspan="6" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <aside class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-accent text-white flex items-center justify-center shadow-lg shadow-sky-500/20">
-                    <i class="fa-solid fa-sliders"></i>
-                </div>
-                <div>
-                    <h2 class="text-xl font-semibold" data-i18n="adminPolicyRuntimeTitle">策略运行说明</h2>
-                    <p class="text-sm text-text-sub mt-1" data-i18n="adminPolicyRuntimeText">频控、上传限制和 CORS 策略已支持后台调整，修改后会直接作用到当前 provider 输出。</p>
-                </div>
+    <div class="admin-layout">
+        <aside class="admin-sidebar" id="adminSidebar">
+            <div class="sidebar-group">
+                <span class="sidebar-group-label" data-i18n="adminSidebarGroupOperations">运营概览</span>
+                <ul class="admin-sidebar-nav">
+                    <li><a href="javascript:void(0)" class="active" onclick="showAdminPage('overview', this)" data-nav="overview"><i class="fa-solid fa-chart-pie"></i><span data-i18n="adminNavOverview">概览</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('users', this)" data-nav="users"><i class="fa-solid fa-users"></i><span data-i18n="adminNavUsers">用户</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('files', this)" data-nav="files"><i class="fa-solid fa-file"></i><span data-i18n="adminNavFiles">文件</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('shares', this)" data-nav="shares"><i class="fa-solid fa-share-nodes"></i><span data-i18n="adminNavShares">分享</span></a></li>
+                </ul>
             </div>
 
-            <div class="panel-note rounded-[22px] p-4 text-sm text-text-sub">
-                <p data-i18n="adminPolicyRuntimeHint">当前覆盖值会写入 `system_setting` 表，未配置的项继续回退到配置文件默认值。</p>
+            <div class="sidebar-group">
+                <span class="sidebar-group-label" data-i18n="adminSidebarGroupCommerce">交易与套餐</span>
+                <ul class="admin-sidebar-nav">
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('plans', this)" data-nav="plans"><i class="fa-solid fa-tags"></i><span data-i18n="adminNavPlans">套餐</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('payment', this)" data-nav="payment"><i class="fa-solid fa-credit-card"></i><span data-i18n="adminNavPayment">支付</span></a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-group">
+                <span class="sidebar-group-label" data-i18n="adminSidebarGroupPolicies">策略与系统</span>
+                <ul class="admin-sidebar-nav">
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('security', this)" data-nav="security"><i class="fa-solid fa-shield-halved"></i><span data-i18n="adminNavSecurity">安全</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('upload-preview', this)" data-nav="upload-preview"><i class="fa-solid fa-upload"></i><span data-i18n="adminNavUploadPreview">上传与预览</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('storage', this)" data-nav="storage"><i class="fa-solid fa-database"></i><span data-i18n="adminNavStorage">存储</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('email', this)" data-nav="email"><i class="fa-solid fa-envelope"></i><span data-i18n="adminNavEmail">邮件</span></a></li>
+                    <li><a href="javascript:void(0)" onclick="showAdminPage('system', this)" data-nav="system"><i class="fa-solid fa-gear"></i><span data-i18n="adminNavSystem">系统</span></a></li>
+                </ul>
             </div>
         </aside>
-    </section>
 
-    <section class="glass-card rounded-[28px] p-5 md:p-6 mb-6">
-        <div class="flex items-center justify-between gap-3 mb-5">
-            <div>
-                <h2 class="text-xl font-semibold" data-i18n="adminFiles">文件管理</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminFilesSubtitle">可强制删除任意文件或文件夹，删除后会同步清理关联分享。</p>
-            </div>
-            <span class="count-badge" id="filesCountBadge">0</span>
-        </div>
-        <div class="table-wrap">
-            <table class="admin-table">
-                <thead>
-                <tr>
-                    <th data-i18n="fileName">文件名</th>
-                    <th data-i18n="adminOwner">归属用户</th>
-                    <th data-i18n="adminFileType">类型</th>
-                    <th data-i18n="size">大小</th>
-                    <th data-i18n="adminUploadTime">上传时间</th>
-                    <th data-i18n="actions">操作</th>
-                </tr>
-                </thead>
-                <tbody id="filesTableBody">
-                <tr>
-                    <td colspan="6" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <section class="glass-card rounded-[28px] p-5 md:p-6">
-        <div class="flex items-center justify-between gap-3 mb-5">
-            <div>
-                <h2 class="text-xl font-semibold" data-i18n="adminShares">分享管理</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminSharesSubtitle">可直接失效任意分享，后续这里会继续接入公开入口策略项。</p>
-            </div>
-            <span class="count-badge" id="sharesCountBadge">0</span>
-        </div>
-        <div class="table-wrap">
-            <table class="admin-table">
-                <thead>
-                <tr>
-                    <th data-i18n="adminShareCode">分享码</th>
-                    <th data-i18n="fileName">文件名</th>
-                    <th data-i18n="adminOwner">归属用户</th>
-                    <th data-i18n="extractCode">提取码</th>
-                    <th data-i18n="expireTime">过期时间</th>
-                    <th data-i18n="adminDownloads">下载情况</th>
-                    <th data-i18n="adminShareStatus">状态</th>
-                    <th data-i18n="actions">操作</th>
-                </tr>
-                </thead>
-                <tbody id="sharesTableBody">
-                <tr>
-                    <td colspan="8" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <section class="grid gap-6 xl:grid-cols-[1.2fr,1fr] mt-6">
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="flex items-center justify-between gap-3 mb-5">
-                <div>
-                    <h2 class="text-xl font-semibold" data-i18n="adminRateLimitTitle">频控策略</h2>
-                    <p class="text-sm text-text-sub mt-1" data-i18n="adminRateLimitSubtitle">当前四个公开入口相关频控都可以在这里直接调整。</p>
-                </div>
-            </div>
-            <div class="table-wrap">
-                <table class="admin-table">
-                    <thead>
-                    <tr>
-                        <th data-i18n="adminRateLimitScene">场景</th>
-                        <th data-i18n="adminEnabled">启用</th>
-                        <th data-i18n="adminMaxRequests">最大次数</th>
-                        <th data-i18n="adminWindowSeconds">窗口秒数</th>
-                        <th data-i18n="actions">操作</th>
-                    </tr>
-                    </thead>
-                    <tbody id="rateLimitTableBody">
-                    <tr>
-                        <td colspan="5" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <div class="space-y-6">
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="mb-5">
-                <h2 class="text-xl font-semibold" data-i18n="adminConsoleAccessTitle">后台入口</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminConsoleAccessSubtitle">管理后台不再挂在公开固定页面，只通过隐藏路径进入。</p>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="adminConsoleSlug" data-i18n="adminConsoleSlug">入口路径标识</label>
-                    <input id="adminConsoleSlug" type="text" class="settings-field" placeholder="quickshare-admin" oninput="updateAdminConsolePathPreview()">
-                </div>
-                <div class="panel-note rounded-[18px] px-4 py-3 text-sm text-text-sub">
-                    <div class="font-medium text-text-main mb-1" data-i18n="adminConsolePathPreview">当前访问路径</div>
-                    <div id="adminConsolePathPreviewValue" class="mono break-all">/console/quickshare-admin</div>
-                </div>
-                <p class="text-xs text-text-sub" data-i18n="adminConsoleAccessHint">保存后管理后台会立刻切到新路径，旧入口会失效。</p>
-                <button type="button" class="action-btn" onclick="saveAdminConsoleAccess(this)">
-                    <i class="fa-solid fa-route"></i>
-                    <span data-i18n="adminSaveSettings">保存配置</span>
-                </button>
-            </div>
-        </section>
-
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="mb-5">
-                <h2 class="text-xl font-semibold" data-i18n="adminRegistrationTitle">注册与验证</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminRegistrationSubtitle">本地测试环境可以直接在这里关闭邮箱验证码和人机验证。</p>
-            </div>
-
-            <div class="space-y-4">
-                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                    <input id="registrationEmailVerificationEnabled" type="checkbox" class="settings-checkbox">
-                    <span data-i18n="adminEmailVerificationEnabled">启用邮箱验证码注册</span>
-                </label>
-
-                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                    <input id="registrationRecaptchaEnabled" type="checkbox" class="settings-checkbox">
-                    <span data-i18n="adminRecaptchaEnabled">启用人机验证</span>
-                </label>
-
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="registrationRecaptchaSiteKey" data-i18n="adminRecaptchaSiteKey">reCAPTCHA Site Key</label>
-                    <input id="registrationRecaptchaSiteKey" type="text" class="settings-field" placeholder="6Lc...">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="registrationRecaptchaSecretKey" data-i18n="adminRecaptchaSecretKey">reCAPTCHA Secret Key</label>
-                    <input id="registrationRecaptchaSecretKey" type="password" class="settings-field" placeholder="6Lc...">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="registrationRecaptchaVerifyUrl" data-i18n="adminRecaptchaVerifyUrl">校验地址</label>
-                    <input id="registrationRecaptchaVerifyUrl" type="text" class="settings-field" placeholder="https://www.google.com/recaptcha/api/siteverify">
-                </div>
-
-                <p class="text-xs text-text-sub" data-i18n="adminRegistrationHint">关闭邮箱验证码后，注册页会直接放行邮箱和验证码步骤；关闭人机验证后，不再加载 Google 验证组件。</p>
-                <button type="button" class="action-btn" onclick="saveRegistrationSettings(this)">
-                    <i class="fa-solid fa-user-lock"></i>
-                    <span data-i18n="adminSaveSettings">保存配置</span>
-                </button>
-            </div>
-        </section>
-
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="mb-5">
-                <h2 class="text-xl font-semibold" data-i18n="adminUploadPolicyTitle">上传策略</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminUploadPolicySubtitle">按需调整服务层上传大小限制和扩展名白名单。</p>
-            </div>
-
-            <div class="space-y-4">
-                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                    <input id="guestUploadEnabled" type="checkbox" class="settings-checkbox">
-                    <span data-i18n="adminGuestUploadEnabled">允许匿名上传</span>
-                </label>
-
-                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                    <input id="uploadSizeLimitEnabled" type="checkbox" class="settings-checkbox" onchange="toggleUploadSizeLimit()">
-                    <span data-i18n="adminUploadSizeLimitEnabled">启用额外大小限制</span>
-                </label>
-
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="uploadMaxFileSizeMb" data-i18n="adminUploadMaxFileSizeMb">最大上传大小（MB）</label>
-                    <input id="uploadMaxFileSizeMb" type="number" min="1" step="0.1" class="settings-field" placeholder="100">
-                    <p id="uploadPolicyHint" class="text-xs text-text-sub mt-2"></p>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="uploadAllowedExtensions" data-i18n="adminAllowedExtensions">允许扩展名</label>
-                    <textarea id="uploadAllowedExtensions" rows="4" class="settings-field" placeholder="pdf,docx,jpg,png"></textarea>
-                    <p class="text-xs text-text-sub mt-2" data-i18n="adminUploadExtensionsHint">留空表示允许全部扩展名，支持逗号或换行分隔。</p>
-                </div>
-
-                <button type="button" class="action-btn" onclick="saveUploadPolicySettings(this)">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    <span data-i18n="adminSaveSettings">保存配置</span>
-                </button>
-            </div>
-        </section>
-
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="mb-5">
-                <h2 class="text-xl font-semibold" data-i18n="adminPreviewPolicyTitle">预览策略</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminPreviewPolicySubtitle">按文件族控制预览能力，并支持用扩展名进一步收窄范围。</p>
-            </div>
-
-            <div class="space-y-4">
-                <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                    <input id="previewEnabled" type="checkbox" class="settings-checkbox">
-                    <span data-i18n="adminPreviewEnabled">启用文件预览</span>
-                </label>
-
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                        <input id="previewImageEnabled" type="checkbox" class="settings-checkbox">
-                        <span data-i18n="adminPreviewImageEnabled">图片</span>
-                    </label>
-                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                        <input id="previewVideoEnabled" type="checkbox" class="settings-checkbox">
-                        <span data-i18n="adminPreviewVideoEnabled">视频</span>
-                    </label>
-                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                        <input id="previewAudioEnabled" type="checkbox" class="settings-checkbox">
-                        <span data-i18n="adminPreviewAudioEnabled">音频</span>
-                    </label>
-                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                        <input id="previewPdfEnabled" type="checkbox" class="settings-checkbox">
-                        <span data-i18n="adminPreviewPdfEnabled">PDF</span>
-                    </label>
-                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                        <input id="previewTextEnabled" type="checkbox" class="settings-checkbox">
-                        <span data-i18n="adminPreviewTextEnabled">纯文本 / 代码 / 配置</span>
-                    </label>
-                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                        <input id="previewOfficeEnabled" type="checkbox" class="settings-checkbox">
-                        <span data-i18n="adminPreviewOfficeEnabled">Office 文档（Word / Excel / PPT）</span>
-                    </label>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="previewAllowedExtensions" data-i18n="adminPreviewAllowedExtensions">允许预览的扩展名</label>
-                    <textarea id="previewAllowedExtensions" rows="4" class="settings-field" placeholder="pdf,docx,xlsx,pptx,txt,png,mp4,mp3"></textarea>
-                    <p class="text-xs text-text-sub mt-2" data-i18n="adminPreviewExtensionsHint">留空表示按上方文件族开关放行；填写后会额外按扩展名收窄。</p>
-                    <p id="previewPolicyHint" class="text-xs text-text-sub mt-2"></p>
-                </div>
-
-                <button type="button" class="action-btn" onclick="savePreviewPolicySettings(this)">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    <span data-i18n="adminSaveSettings">保存配置</span>
-                </button>
-            </div>
-        </section>
-
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="mb-5">
-                <h2 class="text-xl font-semibold" data-i18n="adminCorsTitle">CORS 策略</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminCorsSubtitle">按需调整来源白名单、方法、请求头和缓存时间。</p>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="corsAllowedOrigins" data-i18n="adminAllowedOrigins">允许来源</label>
-                    <textarea id="corsAllowedOrigins" rows="5" class="settings-field" placeholder="http://localhost:3000&#10;https://app.example.com"></textarea>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="corsAllowedMethods" data-i18n="adminAllowedMethods">允许方法</label>
-                    <input id="corsAllowedMethods" type="text" class="settings-field" placeholder="GET,POST,PUT,DELETE,OPTIONS">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="corsAllowedHeaders" data-i18n="adminAllowedHeaders">允许请求头</label>
-                    <input id="corsAllowedHeaders" type="text" class="settings-field" placeholder="Authorization,Content-Type">
-                </div>
-
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40">
-                        <input id="corsAllowCredentials" type="checkbox" class="settings-checkbox">
-                        <span data-i18n="adminAllowCredentials">允许携带凭证</span>
-                    </label>
-
-                    <div>
-                        <label class="block text-sm font-medium text-text-sub mb-2" for="corsMaxAgeSeconds" data-i18n="adminMaxAgeSeconds">缓存秒数</label>
-                        <input id="corsMaxAgeSeconds" type="number" min="1" class="settings-field" placeholder="3600">
-                    </div>
-                </div>
-
-                <button type="button" class="action-btn" onclick="saveCorsPolicySettings(this)">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    <span data-i18n="adminSaveSettings">保存配置</span>
-                </button>
-            </div>
-        </section>
-
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="mb-5">
-                <h2 class="text-xl font-semibold" data-i18n="adminStorageTitle">Storage Configuration</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminStorageSubtitle">Configure file storage backend. Supports local filesystem and S3-compatible services (AWS S3, MinIO, Cloudflare R2).</p>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" data-i18n="adminStorageType">Storage Type</label>
-                    <select id="storageType" class="settings-field" onchange="toggleS3Fields()">
-                        <option value="local">Local Filesystem</option>
-                        <option value="s3">S3 Compatible (S3 / MinIO / R2)</option>
-                    </select>
-                </div>
-                <div id="s3Fields" style="display:none;" class="space-y-4 border border-border rounded-[18px] p-4">
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3Endpoint" data-i18n="adminS3Endpoint">Endpoint URL</label>
-                            <input id="s3Endpoint" type="text" class="settings-field" placeholder="https://play.min.io">
+        <main class="admin-main">
+            <div class="admin-page active" data-page="overview">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            <span data-i18n="adminNavOverview">概览</span>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3Bucket" data-i18n="adminS3Bucket">Bucket</label>
-                            <input id="s3Bucket" type="text" class="settings-field" placeholder="quickshare">
+                            <h2 class="page-hero-title" data-i18n="adminNavOverview">概览</h2>
+                            <p class="page-hero-description" data-i18n="adminOverviewDescription">集中查看平台核心指标、存储规模和分享活跃度，快速判断后台整体运行状态。</p>
                         </div>
                     </div>
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="page-hero-note">
+                        <i class="fa-solid fa-sparkles"></i>
+                        <span data-i18n="adminOverviewNote">建议先从这里确认全局趋势，再进入用户、支付或安全页处理细项。</span>
+                    </div>
+                </section>
+
+                <section class="grid gap-5 md:grid-cols-2 xl:grid-cols-3" id="overviewCards"></section>
+            </div>
+
+            <div class="admin-page" data-page="users">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-users"></i>
+                            <span data-i18n="adminNavUsers">用户</span>
+                        </div>
                         <div>
-                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3AccessKey" data-i18n="adminS3AccessKey">Access Key</label>
-                            <input id="s3AccessKey" type="text" class="settings-field">
+                            <h2 class="page-hero-title" data-i18n="adminUsers">用户管理</h2>
+                            <p class="page-hero-description" data-i18n="adminUsersSubtitle">管理员拥有最高权限，可直接新增、删除用户并调整角色。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="page-section-grid">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminUsers">用户管理</h3>
+                                <p class="section-card-subtitle" data-i18n="adminUsersSubtitle">管理员拥有最高权限，可直接新增、删除用户并调整角色。</p>
+                            </div>
+                            <span class="count-badge" id="usersCountBadge">0</span>
+                        </div>
+
+                        <div class="space-y-5">
+                            <div class="eyebrow">
+                                <i class="fa-solid fa-user-plus"></i>
+                                <span data-i18n="adminCreateUser">新增用户</span>
+                            </div>
+
+                            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserUsername" data-i18n="usernameLabel">用户名</label>
+                                    <input id="newUserUsername" type="text" class="settings-field" data-i18n="regUsernamePlaceholder" placeholder="请输入用户名">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserNickname" data-i18n="nicknameLabel">昵称</label>
+                                    <input id="newUserNickname" type="text" class="settings-field" data-i18n="nicknamePlaceholder" placeholder="显示名称">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserEmail" data-i18n="emailLabel">邮箱</label>
+                                    <input id="newUserEmail" type="email" class="settings-field" data-i18n="emailPlaceholder" placeholder="your@email.com">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserPassword" data-i18n="adminUserPassword">初始密码</label>
+                                    <input id="newUserPassword" type="password" class="settings-field" placeholder="至少6位">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="newUserRole" data-i18n="adminRole">角色</label>
+                                    <select id="newUserRole" class="settings-field">
+                                        <option value="USER" data-i18n="adminRoleUser">普通用户</option>
+                                        <option value="ADMIN" data-i18n="adminRoleAdmin">管理员</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <p class="form-note" data-i18n="adminCreateUserHint">这里创建的是平台用户账号，创建后可直接登录，不依赖注册页面。</p>
+                                <button type="button" class="action-btn" onclick="createAdminUser(this)">
+                                    <i class="fa-solid fa-user-plus"></i>
+                                    <span data-i18n="adminCreateUser">新增用户</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="section-divider"></div>
+
+                        <div class="table-wrap">
+                            <table class="admin-table table-compact">
+                                <thead>
+                                <tr>
+                                    <th data-i18n="usernameLabel">用户名</th>
+                                    <th data-i18n="nicknameLabel">昵称</th>
+                                    <th data-i18n="emailLabel">邮箱</th>
+                                    <th data-i18n="adminCreatedTime">创建时间</th>
+                                    <th data-i18n="adminRole">角色</th>
+                                    <th data-i18n="actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="6" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
+            </div>
+
+            <div class="admin-page" data-page="files">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-file"></i>
+                            <span data-i18n="adminNavFiles">文件</span>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3SecretKey" data-i18n="adminS3SecretKey">Secret Key</label>
-                            <input id="s3SecretKey" type="password" class="settings-field" placeholder="Leave empty to keep current">
-                            <p id="s3SecretKeyHint" class="text-xs text-text-sub mt-1"></p>
+                            <h2 class="page-hero-title" data-i18n="adminFiles">文件管理</h2>
+                            <p class="page-hero-description" data-i18n="adminFilesSubtitle">可强制删除任意文件或文件夹，删除后会同步清理关联分享。</p>
                         </div>
                     </div>
-                    <div class="grid gap-4 sm:grid-cols-2">
+                </section>
+
+                <section class="page-section-grid">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminFiles">文件管理</h3>
+                                <p class="section-card-subtitle" data-i18n="adminFilesSubtitle">可强制删除任意文件或文件夹，删除后会同步清理关联分享。</p>
+                            </div>
+                            <span class="count-badge" id="filesCountBadge">0</span>
+                        </div>
+
+                        <div class="table-wrap">
+                            <table class="admin-table table-compact">
+                                <thead>
+                                <tr>
+                                    <th data-i18n="fileName">文件名</th>
+                                    <th data-i18n="adminOwner">归属用户</th>
+                                    <th data-i18n="adminFileType">类型</th>
+                                    <th data-i18n="size">大小</th>
+                                    <th data-i18n="adminUploadTime">上传时间</th>
+                                    <th data-i18n="actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="filesTableBody">
+                                <tr>
+                                    <td colspan="6" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
+            </div>
+
+            <div class="admin-page" data-page="shares">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-share-nodes"></i>
+                            <span data-i18n="adminNavShares">分享</span>
+                        </div>
                         <div>
-                            <label class="block text-sm font-medium text-text-sub mb-2" for="s3Region" data-i18n="adminS3Region">Region</label>
-                            <input id="s3Region" type="text" class="settings-field" placeholder="auto">
+                            <h2 class="page-hero-title" data-i18n="adminShares">分享管理</h2>
+                            <p class="page-hero-description" data-i18n="adminSharesSubtitle">可直接失效任意分享，后续这里会继续接入公开入口策略项。</p>
                         </div>
-                        <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40 self-end">
-                            <input id="s3PathStyleAccess" type="checkbox" class="settings-checkbox" checked>
-                            <span data-i18n="adminS3PathStyle">Path-Style Access</span>
-                        </label>
                     </div>
-                    <p id="storageConnectionStatus" class="text-sm"></p>
-                </div>
-                <div class="flex flex-wrap gap-3">
-                    <button type="button" class="action-btn" onclick="saveStoragePolicy(this)">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        <span data-i18n="adminSaveSettings">Save Settings</span>
-                    </button>
-                    <button type="button" class="action-btn action-btn-secondary" onclick="testStorageConnection(this)">
-                        <i class="fa-solid fa-plug"></i>
-                        <span data-i18n="adminStorageTestConnection">Test Connection</span>
-                    </button>
-                </div>
-            </div>
-        </section>
+                </section>
 
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="mb-5">
-                <h2 class="text-xl font-semibold" data-i18n="adminEmailTemplatesTitle">Email Templates</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminEmailTemplatesSubtitle">Customize email content for each language. Use {variables} as placeholders.</p>
-            </div>
-            <div id="emailTemplatesContainer" class="space-y-6"></div>
-        </section>
+                <section class="page-section-grid">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminShares">分享管理</h3>
+                                <p class="section-card-subtitle" data-i18n="adminSharesSubtitle">可直接失效任意分享，后续这里会继续接入公开入口策略项。</p>
+                            </div>
+                            <span class="count-badge" id="sharesCountBadge">0</span>
+                        </div>
 
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="mb-5">
-                <h2 class="text-xl font-semibold" data-i18n="adminAnnouncementTitle">Send Announcement</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminAnnouncementSubtitle">Send an email to all registered users or selected users.</p>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="announcementSubject" data-i18n="adminAnnouncementSubjectLabel">Subject</label>
-                    <input id="announcementSubject" type="text" class="settings-field" placeholder="Announcement subject...">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="announcementBody" data-i18n="adminAnnouncementBodyLabel">Body</label>
-                    <textarea id="announcementBody" rows="6" class="settings-field" placeholder="Write your announcement here..."></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-text-sub mb-2" for="announcementUserIds" data-i18n="adminAnnouncementUserIds">User IDs (optional)</label>
-                    <input id="announcementUserIds" type="text" class="settings-field" placeholder="Leave empty to send to all users. Comma-separated IDs: 1,2,3">
-                </div>
-                <div class="flex items-center gap-4">
-                    <button type="button" class="action-btn" onclick="sendAnnouncement(this)">
-                        <i class="fa-solid fa-bullhorn"></i>
-                        <span data-i18n="adminAnnouncementSend">Send Announcement</span>
-                    </button>
-                    <span id="announcementResult" class="text-sm text-text-sub"></span>
-                </div>
-            </div>
-        </section>
-
-        <section class="glass-card rounded-[28px] p-5 md:p-6">
-            <div class="mb-5">
-                <h2 class="text-xl font-semibold" data-i18n="adminSmtpTitle">SMTP 邮件配置</h2>
-                <p class="text-sm text-text-sub mt-1" data-i18n="adminSmtpSubtitle">配置 SMTP 服务器以支持邮箱验证码发送。</p>
+                        <div class="table-wrap">
+                            <table class="admin-table table-wide">
+                                <thead>
+                                <tr>
+                                    <th data-i18n="adminShareCode">分享码</th>
+                                    <th data-i18n="fileName">文件名</th>
+                                    <th data-i18n="adminOwner">归属用户</th>
+                                    <th data-i18n="extractCode">提取码</th>
+                                    <th data-i18n="expireTime">过期时间</th>
+                                    <th data-i18n="adminDownloads">下载情况</th>
+                                    <th data-i18n="adminShareStatus">状态</th>
+                                    <th data-i18n="actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="sharesTableBody">
+                                <tr>
+                                    <td colspan="8" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
             </div>
 
-            <div class="space-y-4">
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpHost" data-i18n="adminSmtpHost">SMTP 主机</label>
-                        <input id="smtpHost" type="text" class="settings-field" placeholder="smtp.gmail.com">
+            <div class="admin-page" data-page="plans">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-tags"></i>
+                            <span data-i18n="adminNavPlans">套餐</span>
+                        </div>
+                        <div>
+                            <h2 class="page-hero-title" data-i18n="adminPlansTitle">套餐管理</h2>
+                            <p class="page-hero-description" data-i18n="adminPlansSubtitle">管理可购买的套餐，包括存储空间、下载次数和 VIP 时长。</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpPort" data-i18n="adminSmtpPort">SMTP 端口</label>
-                        <input id="smtpPort" type="number" min="1" max="65535" class="settings-field" placeholder="587">
-                    </div>
-                </div>
+                </section>
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpUsername" data-i18n="adminSmtpUsername">用户名</label>
-                        <input id="smtpUsername" type="text" class="settings-field" placeholder="your-email@gmail.com">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpPassword" data-i18n="adminSmtpPassword">密码</label>
-                        <input id="smtpPassword" type="password" class="settings-field" placeholder="留空则保持当前密码">
-                        <p id="smtpPasswordHint" class="text-xs text-text-sub mt-1"></p>
-                    </div>
-                </div>
+                <section class="page-section-grid">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminPlansTitle">套餐管理</h3>
+                                <p class="section-card-subtitle" data-i18n="adminPlansSubtitle">管理可购买的套餐，包括存储空间、下载次数和 VIP 时长。</p>
+                            </div>
+                            <span class="count-badge" id="plansCountBadge">0</span>
+                        </div>
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium text-text-sub mb-2" for="smtpSenderAddress" data-i18n="adminSmtpSenderAddress">发件人地址</label>
-                        <input id="smtpSenderAddress" type="text" class="settings-field" placeholder="留空则使用用户名">
-                    </div>
-                    <label class="flex items-center gap-3 text-sm text-text-main rounded-[18px] border border-border px-4 py-3 bg-white/50 dark:bg-slate-950/40 self-end">
-                        <input id="smtpStarttlsEnabled" type="checkbox" class="settings-checkbox" checked>
-                        <span data-i18n="adminSmtpStarttls">启用 STARTTLS</span>
-                    </label>
-                </div>
+                        <div class="space-y-5">
+                            <div class="eyebrow">
+                                <i class="fa-solid fa-plus"></i>
+                                <span data-i18n="adminPlanCreateBtn">新增套餐</span>
+                            </div>
 
-                <div class="flex flex-wrap gap-3">
-                    <button type="button" class="action-btn" onclick="saveSmtpSettings(this)">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        <span data-i18n="adminSaveSettings">保存配置</span>
-                    </button>
-                    <button type="button" class="action-btn action-btn-secondary" onclick="sendSmtpTestEmail(this)">
-                        <i class="fa-solid fa-paper-plane"></i>
-                        <span data-i18n="adminSmtpTestSend">发送测试邮件</span>
-                    </button>
-                </div>
+                            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="planName" data-i18n="adminPlanName">套餐名称</label>
+                                    <input id="planName" type="text" class="settings-field" data-i18n="adminPlanNamePlaceholder" placeholder="如：基础版 100GB">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="planType" data-i18n="adminPlanType">类型</label>
+                                    <select id="planType" class="settings-field">
+                                        <option value="storage" data-i18n="adminPlanTypeStorage">存储空间</option>
+                                        <option value="downloads" data-i18n="adminPlanTypeDownloads">下载次数</option>
+                                        <option value="vip" data-i18n="adminPlanTypeVip">VIP 时长</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="planValue" data-i18n="adminPlanValue">数值</label>
+                                    <input id="planValue" type="number" class="settings-field" placeholder="107374182400">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="planPrice" data-i18n="adminPlanPrice">价格</label>
+                                    <input id="planPrice" type="number" step="0.01" class="settings-field" data-i18n="adminPlanPricePlaceholder" placeholder="0.00">
+                                </div>
+                            </div>
+
+                            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="planDescription" data-i18n="adminPlanDescription">描述</label>
+                                    <input id="planDescription" type="text" class="settings-field" data-i18n="adminPlanDescriptionPlaceholder" placeholder="套餐说明">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="planSortOrder" data-i18n="adminPlanSortOrder">排序</label>
+                                    <input id="planSortOrder" type="number" class="settings-field" value="0">
+                                </div>
+                                <label class="checkbox-card xl:self-end">
+                                    <input id="planStatus" type="checkbox" class="settings-checkbox" checked>
+                                    <span data-i18n="adminPlanStatus">启用</span>
+                                </label>
+                                <div class="action-group xl:items-end xl:justify-end">
+                                    <button type="button" id="planSaveBtn" class="action-btn" onclick="savePlan(this)">
+                                        <i class="fa-solid fa-plus"></i>
+                                        <span data-i18n="adminPlanCreateBtn">新增套餐</span>
+                                    </button>
+                                    <button type="button" id="planCancelBtn" class="action-btn action-btn-secondary hidden" onclick="cancelEditPlan()">
+                                        <span data-i18n="adminPlanCancelEdit">取消编辑</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-divider"></div>
+
+                        <div class="table-wrap">
+                            <table class="admin-table table-compact">
+                                <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th data-i18n="adminPlanName">名称</th>
+                                    <th data-i18n="adminPlanType">类型</th>
+                                    <th data-i18n="adminPlanValue">数值</th>
+                                    <th data-i18n="adminPlanPrice">价格</th>
+                                    <th data-i18n="adminPlanSortOrder">排序</th>
+                                    <th data-i18n="adminOrderStatus">状态</th>
+                                    <th data-i18n="actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="plansTableBody">
+                                <tr>
+                                    <td colspan="8" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
             </div>
-        </section>
-        </div>
-    </section>
+
+            <div class="admin-page" data-page="payment">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-credit-card"></i>
+                            <span data-i18n="adminNavPayment">支付</span>
+                        </div>
+                        <div>
+                            <h2 class="page-hero-title" data-i18n="adminNavPayment">支付</h2>
+                            <p class="page-hero-description" data-i18n="adminPaymentPageDescription">将支付商户配置、商户清单和订单处理统一收拢到同一工作流中，方便快速处理交易问题。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="page-section-grid">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminProvidersTitle">支付商户</h3>
+                                <p class="section-card-subtitle" data-i18n="adminProvidersSubtitle">管理易支付商户，支持多个商户并行。</p>
+                            </div>
+                            <span class="count-badge" id="providersCountBadge">0</span>
+                        </div>
+
+                        <div class="page-section-grid grid-main">
+                            <div class="space-y-5">
+                                <div class="eyebrow">
+                                    <i class="fa-solid fa-wallet"></i>
+                                    <span data-i18n="adminProviderCreateBtn">新增商户</span>
+                                </div>
+
+                                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="providerName" data-i18n="adminProviderName">商户名称</label>
+                                        <input id="providerName" type="text" class="settings-field" data-i18n="adminProviderNamePlaceholder" placeholder="如：主力商户">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="providerApiUrl" data-i18n="adminProviderApiUrl">API 地址</label>
+                                        <input id="providerApiUrl" type="text" class="settings-field" data-i18n="adminProviderApiUrlPlaceholder" placeholder="https://pay.example.com">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="providerPid" data-i18n="adminProviderPid">商户 PID</label>
+                                        <input id="providerPid" type="text" class="settings-field">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="providerKey" data-i18n="adminProviderKey">商户密钥</label>
+                                        <input id="providerKey" type="password" class="settings-field" data-i18n="adminProviderKeyPlaceholder" placeholder="留空则保持现有密钥">
+                                        <p id="providerKeyHint" class="text-xs text-text-sub mt-2"></p>
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="providerPayTypes" data-i18n="adminProviderPayTypes">支付方式</label>
+                                        <input id="providerPayTypes" type="text" class="settings-field" data-i18n="adminProviderPayTypesPlaceholder" placeholder="alipay,wxpay,qqpay">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="providerSortOrder" data-i18n="adminProviderSortOrder">排序</label>
+                                        <input id="providerSortOrder" type="number" class="settings-field" value="0">
+                                    </div>
+                                    <label class="checkbox-card xl:self-end">
+                                        <input id="providerEnabled" type="checkbox" class="settings-checkbox" checked>
+                                        <span data-i18n="adminProviderEnabled">启用</span>
+                                    </label>
+                                    <div class="action-group xl:items-end xl:justify-end">
+                                        <button type="button" id="providerSaveBtn" class="action-btn" onclick="savePaymentProvider(this)">
+                                            <i class="fa-solid fa-plus"></i>
+                                            <span data-i18n="adminProviderCreateBtn">新增商户</span>
+                                        </button>
+                                        <button type="button" id="providerCancelBtn" class="action-btn action-btn-secondary hidden" onclick="cancelEditProvider()">
+                                            <span data-i18n="adminProviderCancelEdit">取消编辑</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <aside class="section-card panel-note p-5">
+                                <div class="space-y-4">
+                                    <div>
+                                        <h4 class="text-base font-semibold text-text-main" data-i18n="adminProviderGuideTitle">商户配置说明</h4>
+                                        <p class="text-sm text-text-sub mt-2" data-i18n="adminProviderGuideText">建议把高频使用的商户放在更靠前的排序位置，便于前台优先使用稳定渠道。</p>
+                                    </div>
+                                    <ul class="info-list">
+                                        <li>
+                                            <i class="fa-solid fa-shield"></i>
+                                            <span data-i18n="adminProviderGuideNote">编辑时密钥可留空，系统会继续保留当前商户密钥，避免重复录入敏感信息。</span>
+                                        </li>
+                                        <li>
+                                            <i class="fa-solid fa-layer-group"></i>
+                                            <span data-i18n="adminProvidersSubtitle">管理易支付商户，支持多个商户并行。</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </aside>
+                        </div>
+
+                        <div class="section-divider"></div>
+
+                        <div class="table-wrap">
+                            <table class="admin-table table-wide">
+                                <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th data-i18n="adminProviderName">名称</th>
+                                    <th data-i18n="adminProviderApiUrl">API 地址</th>
+                                    <th data-i18n="adminProviderPid">PID</th>
+                                    <th data-i18n="adminProviderPayTypes">支付方式</th>
+                                    <th data-i18n="adminProviderEnabled">启用</th>
+                                    <th data-i18n="adminProviderSortOrder">排序</th>
+                                    <th data-i18n="actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="providersTableBody">
+                                <tr>
+                                    <td colspan="8" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminOrdersTitle">订单管理</h3>
+                                <p class="section-card-subtitle" data-i18n="adminOrdersSubtitle">查看所有订单，可手动标记支付或退款。</p>
+                            </div>
+                            <span class="count-badge" id="ordersCountBadge">0</span>
+                        </div>
+
+                        <div class="table-wrap">
+                            <table class="admin-table table-wide">
+                                <thead>
+                                <tr>
+                                    <th data-i18n="adminOrderNo">订单号</th>
+                                    <th data-i18n="adminOrderUser">用户</th>
+                                    <th data-i18n="adminOrderPlan">套餐</th>
+                                    <th data-i18n="adminOrderAmount">金额</th>
+                                    <th data-i18n="adminOrderStatus">状态</th>
+                                    <th data-i18n="adminOrderPayType">支付方式</th>
+                                    <th data-i18n="adminOrderProvider">商户</th>
+                                    <th data-i18n="adminOrderTradeNo">交易号</th>
+                                    <th data-i18n="adminOrderTime">创建时间</th>
+                                    <th data-i18n="actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="ordersTableBody">
+                                <tr>
+                                    <td colspan="10" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
+            </div>
+
+            <div class="admin-page" data-page="security">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span data-i18n="adminNavSecurity">安全</span>
+                        </div>
+                        <div>
+                            <h2 class="page-hero-title" data-i18n="adminNavSecurity">安全</h2>
+                            <p class="page-hero-description" data-i18n="adminSecurityPageDescription">把注册验证与公开入口频控拆分成独立模块，便于单独调整安全阈值和注册体验。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="page-section-grid grid-two">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminRegistrationTitle">注册与验证</h3>
+                                <p class="section-card-subtitle" data-i18n="adminRegistrationSubtitle">本地测试环境可以直接在这里关闭邮箱验证码和人机验证。</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <label class="checkbox-card">
+                                <input id="registrationEmailVerificationEnabled" type="checkbox" class="settings-checkbox">
+                                <span data-i18n="adminEmailVerificationEnabled">启用邮箱验证码注册</span>
+                            </label>
+
+                            <label class="checkbox-card">
+                                <input id="registrationRecaptchaEnabled" type="checkbox" class="settings-checkbox">
+                                <span data-i18n="adminRecaptchaEnabled">启用人机验证</span>
+                            </label>
+
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="registrationCaptchaProvider" data-i18n="adminCaptchaProvider">人机验证提供商</label>
+                                <select id="registrationCaptchaProvider" class="settings-field">
+                                    <option value="recaptcha" data-i18n="adminCaptchaRecaptcha">Google reCAPTCHA</option>
+                                    <option value="turnstile" data-i18n="adminCaptchaTurnstile">Cloudflare Turnstile</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label id="registrationCaptchaSiteKeyLabel" class="block text-sm font-medium text-text-sub mb-2" for="registrationRecaptchaSiteKey">Site Key</label>
+                                <input id="registrationRecaptchaSiteKey" type="text" class="settings-field" placeholder="6Lc... / 0x4A...">
+                            </div>
+
+                            <div>
+                                <label id="registrationCaptchaSecretKeyLabel" class="block text-sm font-medium text-text-sub mb-2" for="registrationRecaptchaSecretKey">Secret Key</label>
+                                <input id="registrationRecaptchaSecretKey" type="password" class="settings-field" placeholder="6Lc... / 0x4A...">
+                            </div>
+
+                            <div>
+                                <label id="registrationCaptchaVerifyUrlLabel" class="block text-sm font-medium text-text-sub mb-2" for="registrationRecaptchaVerifyUrl">校验地址</label>
+                                <input id="registrationRecaptchaVerifyUrl" type="text" class="settings-field" placeholder="留空则自动使用对应提供商默认地址">
+                                <p id="registrationCaptchaVerifyHint" class="form-note mt-2 text-sm text-text-sub"></p>
+                            </div>
+
+                            <div class="form-actions">
+                                <p class="form-note" data-i18n="adminRegistrationHint">关闭邮箱验证码后，注册页会直接放行邮箱和验证码步骤；关闭人机验证后，不再加载验证组件。</p>
+                                <button type="button" class="action-btn" onclick="saveRegistrationSettings(this)">
+                                    <i class="fa-solid fa-user-lock"></i>
+                                    <span data-i18n="adminSaveSettings">保存配置</span>
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminRateLimitTitle">频控策略</h3>
+                                <p class="section-card-subtitle" data-i18n="adminRateLimitSubtitle">当前四个公开入口相关频控都可以在这里直接调整。</p>
+                            </div>
+                        </div>
+
+                        <div class="table-wrap">
+                            <table class="admin-table table-narrow">
+                                <thead>
+                                <tr>
+                                    <th data-i18n="adminRateLimitScene">场景</th>
+                                    <th data-i18n="adminEnabled">启用</th>
+                                    <th data-i18n="adminMaxRequests">最大次数</th>
+                                    <th data-i18n="adminWindowSeconds">窗口秒数</th>
+                                    <th data-i18n="actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="rateLimitTableBody">
+                                <tr>
+                                    <td colspan="5" class="empty-row" data-i18n="adminLoading">正在加载管理台数据...</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
+            </div>
+
+            <div class="admin-page" data-page="upload-preview">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-upload"></i>
+                            <span data-i18n="adminNavUploadPreview">上传与预览</span>
+                        </div>
+                        <div>
+                            <h2 class="page-hero-title" data-i18n="adminNavUploadPreview">上传与预览</h2>
+                            <p class="page-hero-description" data-i18n="adminUploadPreviewPageDescription">把上传限制和预览策略分成两个独立配置区，便于控制文件接入边界和在线查看范围。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="page-section-grid grid-two">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminUploadPolicyTitle">上传策略</h3>
+                                <p class="section-card-subtitle" data-i18n="adminUploadPolicySubtitle">按需调整服务层上传大小限制和扩展名白名单。</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <label class="checkbox-card">
+                                <input id="guestUploadEnabled" type="checkbox" class="settings-checkbox">
+                                <span data-i18n="adminGuestUploadEnabled">允许匿名上传</span>
+                            </label>
+
+                            <label class="checkbox-card">
+                                <input id="uploadSizeLimitEnabled" type="checkbox" class="settings-checkbox" onchange="toggleUploadSizeLimit()">
+                                <span data-i18n="adminUploadSizeLimitEnabled">启用额外大小限制</span>
+                            </label>
+
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="uploadMaxFileSizeMb" data-i18n="adminUploadMaxFileSizeMb">最大上传大小（MB）</label>
+                                <input id="uploadMaxFileSizeMb" type="number" min="1" step="0.1" class="settings-field" placeholder="100">
+                                <p id="uploadPolicyHint" class="text-xs text-text-sub mt-2"></p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="uploadAllowedExtensions" data-i18n="adminAllowedExtensions">允许扩展名</label>
+                                <textarea id="uploadAllowedExtensions" rows="4" class="settings-field" placeholder="pdf,docx,jpg,png"></textarea>
+                                <p class="text-xs text-text-sub mt-2" data-i18n="adminUploadExtensionsHint">留空表示允许全部扩展名，支持逗号或换行分隔。</p>
+                            </div>
+
+                            <button type="button" class="action-btn" onclick="saveUploadPolicySettings(this)">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span data-i18n="adminSaveSettings">保存配置</span>
+                            </button>
+                        </div>
+                    </article>
+
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminPreviewPolicyTitle">预览策略</h3>
+                                <p class="section-card-subtitle" data-i18n="adminPreviewPolicySubtitle">按文件族控制预览能力，并支持用扩展名进一步收窄范围。</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <label class="checkbox-card">
+                                <input id="previewEnabled" type="checkbox" class="settings-checkbox">
+                                <span data-i18n="adminPreviewEnabled">启用文件预览</span>
+                            </label>
+
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <label class="checkbox-card">
+                                    <input id="previewImageEnabled" type="checkbox" class="settings-checkbox">
+                                    <span data-i18n="adminPreviewImageEnabled">图片</span>
+                                </label>
+                                <label class="checkbox-card">
+                                    <input id="previewVideoEnabled" type="checkbox" class="settings-checkbox">
+                                    <span data-i18n="adminPreviewVideoEnabled">视频</span>
+                                </label>
+                                <label class="checkbox-card">
+                                    <input id="previewAudioEnabled" type="checkbox" class="settings-checkbox">
+                                    <span data-i18n="adminPreviewAudioEnabled">音频</span>
+                                </label>
+                                <label class="checkbox-card">
+                                    <input id="previewPdfEnabled" type="checkbox" class="settings-checkbox">
+                                    <span data-i18n="adminPreviewPdfEnabled">PDF</span>
+                                </label>
+                                <label class="checkbox-card">
+                                    <input id="previewTextEnabled" type="checkbox" class="settings-checkbox">
+                                    <span data-i18n="adminPreviewTextEnabled">纯文本 / 代码 / 配置</span>
+                                </label>
+                                <label class="checkbox-card">
+                                    <input id="previewOfficeEnabled" type="checkbox" class="settings-checkbox">
+                                    <span data-i18n="adminPreviewOfficeEnabled">Office 文档（Word / Excel / PPT）</span>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="previewAllowedExtensions" data-i18n="adminPreviewAllowedExtensions">允许预览的扩展名</label>
+                                <textarea id="previewAllowedExtensions" rows="4" class="settings-field" placeholder="pdf,docx,xlsx,pptx,txt,png,mp4,mp3"></textarea>
+                                <p class="text-xs text-text-sub mt-2" data-i18n="adminPreviewExtensionsHint">留空表示按上方文件族开关放行；填写后会额外按扩展名收窄。</p>
+                                <p id="previewPolicyHint" class="text-xs text-text-sub mt-2"></p>
+                            </div>
+
+                            <button type="button" class="action-btn" onclick="savePreviewPolicySettings(this)">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span data-i18n="adminSaveSettings">保存配置</span>
+                            </button>
+                        </div>
+                    </article>
+                </section>
+            </div>
+
+            <div class="admin-page" data-page="storage">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-database"></i>
+                            <span data-i18n="adminNavStorage">存储</span>
+                        </div>
+                        <div>
+                            <h2 class="page-hero-title" data-i18n="adminNavStorage">存储</h2>
+                            <p class="page-hero-description" data-i18n="adminStoragePageDescription">集中管理本地存储和 S3 兼容对象存储，确保上传链路、密钥配置与连通性状态一目了然。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="page-section-grid">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminStorageRuntimeTitle">运行状态</h3>
+                                <p class="section-card-subtitle" data-i18n="adminStorageRuntimeSubtitle">查看当前正在使用的存储后端、本地上传目录以及磁盘余量，方便判断是否需要切换到对象存储。</p>
+                            </div>
+                        </div>
+
+                        <div id="storageRuntimeSummary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"></div>
+                        <p id="storageRuntimeHint" class="text-sm text-text-sub mt-4"></p>
+                    </article>
+
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminStorageTitle">Storage Configuration</h3>
+                                <p class="section-card-subtitle" data-i18n="adminStorageSubtitle">Configure file storage backend. Supports local filesystem and S3-compatible services (AWS S3, MinIO, Cloudflare R2).</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" data-i18n="adminStorageType">Storage Type</label>
+                                <select id="storageType" class="settings-field" onchange="toggleS3Fields()">
+                                    <option value="local">Local Filesystem</option>
+                                    <option value="s3">S3 Compatible (S3 / MinIO / R2)</option>
+                                </select>
+                            </div>
+
+                            <div id="s3Fields" style="display:none;" class="space-y-4 border border-border rounded-[20px] p-4 bg-white/30 dark:bg-slate-950/30">
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="s3Endpoint" data-i18n="adminS3Endpoint">Endpoint URL</label>
+                                        <input id="s3Endpoint" type="text" class="settings-field" placeholder="https://play.min.io">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="s3Bucket" data-i18n="adminS3Bucket">Bucket</label>
+                                        <input id="s3Bucket" type="text" class="settings-field" placeholder="quickshare">
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="s3AccessKey" data-i18n="adminS3AccessKey">Access Key</label>
+                                        <input id="s3AccessKey" type="text" class="settings-field">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="s3SecretKey" data-i18n="adminS3SecretKey">Secret Key</label>
+                                        <input id="s3SecretKey" type="password" class="settings-field" placeholder="Leave empty to keep current">
+                                        <p id="s3SecretKeyHint" class="text-xs text-text-sub mt-2"></p>
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label class="block text-sm font-medium text-text-sub mb-2" for="s3Region" data-i18n="adminS3Region">Region</label>
+                                        <input id="s3Region" type="text" class="settings-field" placeholder="auto">
+                                    </div>
+                                    <label class="checkbox-card sm:self-end">
+                                        <input id="s3PathStyleAccess" type="checkbox" class="settings-checkbox" checked>
+                                        <span data-i18n="adminS3PathStyle">Path-Style Access</span>
+                                    </label>
+                                </div>
+
+                                <p id="storageConnectionStatus" class="text-sm"></p>
+                            </div>
+
+                            <div class="action-group">
+                                <button type="button" class="action-btn" onclick="saveStoragePolicy(this)">
+                                    <i class="fa-solid fa-floppy-disk"></i>
+                                    <span data-i18n="adminSaveSettings">Save Settings</span>
+                                </button>
+                                <button type="button" class="action-btn action-btn-secondary" onclick="testStorageConnection(this)">
+                                    <i class="fa-solid fa-plug"></i>
+                                    <span data-i18n="adminStorageTestConnection">Test Connection</span>
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+                </section>
+            </div>
+
+            <div class="admin-page" data-page="email">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-envelope"></i>
+                            <span data-i18n="adminNavEmail">邮件</span>
+                        </div>
+                        <div>
+                            <h2 class="page-hero-title" data-i18n="adminNavEmail">邮件</h2>
+                            <p class="page-hero-description" data-i18n="adminEmailPageDescription">把 SMTP、模板和公告发送拆分成独立模块，先配置发送能力，再维护模板与运营通知。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="page-section-grid grid-main">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminSmtpTitle">SMTP 邮件配置</h3>
+                                <p class="section-card-subtitle" data-i18n="adminSmtpSubtitle">配置 SMTP 服务器以支持邮箱验证码发送。</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="smtpHost" data-i18n="adminSmtpHost">SMTP 主机</label>
+                                    <input id="smtpHost" type="text" class="settings-field" placeholder="smtp.gmail.com">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="smtpPort" data-i18n="adminSmtpPort">SMTP 端口</label>
+                                    <input id="smtpPort" type="number" min="1" max="65535" class="settings-field" placeholder="587">
+                                </div>
+                            </div>
+
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="smtpUsername" data-i18n="adminSmtpUsername">用户名</label>
+                                    <input id="smtpUsername" type="text" class="settings-field" placeholder="your-email@gmail.com">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="smtpPassword" data-i18n="adminSmtpPassword">密码</label>
+                                    <input id="smtpPassword" type="password" class="settings-field" placeholder="留空则保持当前密码">
+                                    <p id="smtpPasswordHint" class="text-xs text-text-sub mt-2"></p>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="smtpSenderAddress" data-i18n="adminSmtpSenderAddress">发件人地址</label>
+                                    <input id="smtpSenderAddress" type="text" class="settings-field" placeholder="留空则使用用户名">
+                                </div>
+                                <label class="checkbox-card sm:self-end">
+                                    <input id="smtpStarttlsEnabled" type="checkbox" class="settings-checkbox" checked>
+                                    <span data-i18n="adminSmtpStarttls">启用 STARTTLS</span>
+                                </label>
+                            </div>
+
+                            <div class="action-group">
+                                <button type="button" class="action-btn" onclick="saveSmtpSettings(this)">
+                                    <i class="fa-solid fa-floppy-disk"></i>
+                                    <span data-i18n="adminSaveSettings">保存配置</span>
+                                </button>
+                                <button type="button" class="action-btn action-btn-secondary" onclick="sendSmtpTestEmail(this)">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                    <span data-i18n="adminSmtpTestSend">发送测试邮件</span>
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminAnnouncementTitle">Send Announcement</h3>
+                                <p class="section-card-subtitle" data-i18n="adminAnnouncementSubtitle">Send an email to all registered users or selected users.</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="announcementSubject" data-i18n="adminAnnouncementSubjectLabel">Subject</label>
+                                <input id="announcementSubject" type="text" class="settings-field" placeholder="Announcement subject...">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="announcementBody" data-i18n="adminAnnouncementBodyLabel">Body</label>
+                                <textarea id="announcementBody" rows="6" class="settings-field" placeholder="Write your announcement here..."></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="announcementUserIds" data-i18n="adminAnnouncementUserIds">User IDs (optional)</label>
+                                <input id="announcementUserIds" type="text" class="settings-field" placeholder="Leave empty to send to all users. Comma-separated IDs: 1,2,3">
+                            </div>
+                            <div class="action-group">
+                                <button type="button" class="action-btn" onclick="sendAnnouncement(this)">
+                                    <i class="fa-solid fa-bullhorn"></i>
+                                    <span data-i18n="adminAnnouncementSend">Send Announcement</span>
+                                </button>
+                                <span id="announcementResult" class="text-sm text-text-sub"></span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="section-card glass-card full-span">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminEmailTemplatesTitle">Email Templates</h3>
+                                <p class="section-card-subtitle" data-i18n="adminEmailTemplatesSubtitle">Customize email content for each language. Use {variables} as placeholders.</p>
+                            </div>
+                        </div>
+                        <div id="emailTemplatesContainer" class="space-y-6"></div>
+                    </article>
+                </section>
+            </div>
+
+            <div class="admin-page" data-page="system">
+                <section class="page-hero glass-card">
+                    <div class="space-y-4">
+                        <div class="eyebrow">
+                            <i class="fa-solid fa-gear"></i>
+                            <span data-i18n="adminNavSystem">系统</span>
+                        </div>
+                        <div>
+                            <h2 class="page-hero-title" data-i18n="adminNavSystem">系统</h2>
+                            <p class="page-hero-description" data-i18n="adminSystemPageDescription">把后台入口和跨域策略分开展示，便于分别处理控制台访问安全与外部接入配置。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="page-section-grid grid-two">
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminConsoleAccessTitle">后台入口</h3>
+                                <p class="section-card-subtitle" data-i18n="adminConsoleAccessSubtitle">管理后台不再挂在公开固定页面，只通过隐藏路径进入。</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="adminConsoleSlug" data-i18n="adminConsoleSlug">入口路径标识</label>
+                                <input id="adminConsoleSlug" type="text" class="settings-field" placeholder="quickshare-admin" oninput="updateAdminConsolePathPreview()">
+                            </div>
+
+                            <div class="panel-note rounded-[18px] px-4 py-3 text-sm text-text-sub">
+                                <div class="font-medium text-text-main mb-1" data-i18n="adminConsolePathPreview">当前访问路径</div>
+                                <div id="adminConsolePathPreviewValue" class="mono break-all">/console/quickshare-admin</div>
+                            </div>
+
+                            <div class="form-actions">
+                                <p class="form-note" data-i18n="adminConsoleAccessHint">保存后管理后台会立刻切到新路径，旧入口会失效。</p>
+                                <button type="button" class="action-btn" onclick="saveAdminConsoleAccess(this)">
+                                    <i class="fa-solid fa-route"></i>
+                                    <span data-i18n="adminSaveSettings">保存配置</span>
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="section-card glass-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h3 class="section-card-title" data-i18n="adminCorsTitle">CORS 策略</h3>
+                                <p class="section-card-subtitle" data-i18n="adminCorsSubtitle">按需调整来源白名单、方法、请求头和缓存时间。</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="corsAllowedOrigins" data-i18n="adminAllowedOrigins">允许来源</label>
+                                <textarea id="corsAllowedOrigins" rows="5" class="settings-field" placeholder="http://localhost:3000&#10;https://app.example.com"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="corsAllowedMethods" data-i18n="adminAllowedMethods">允许方法</label>
+                                <input id="corsAllowedMethods" type="text" class="settings-field" placeholder="GET,POST,PUT,DELETE,OPTIONS">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="corsAllowedHeaders" data-i18n="adminAllowedHeaders">允许请求头</label>
+                                <input id="corsAllowedHeaders" type="text" class="settings-field" placeholder="Authorization,Content-Type">
+                            </div>
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <label class="checkbox-card">
+                                    <input id="corsAllowCredentials" type="checkbox" class="settings-checkbox">
+                                    <span data-i18n="adminAllowCredentials">允许携带凭证</span>
+                                </label>
+                                <div>
+                                    <label class="block text-sm font-medium text-text-sub mb-2" for="corsMaxAgeSeconds" data-i18n="adminMaxAgeSeconds">缓存秒数</label>
+                                    <input id="corsMaxAgeSeconds" type="number" min="1" class="settings-field" placeholder="3600">
+                                </div>
+                            </div>
+                            <button type="button" class="action-btn" onclick="saveCorsPolicySettings(this)">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span data-i18n="adminSaveSettings">保存配置</span>
+                            </button>
+                        </div>
+                    </article>
+                </section>
+            </div>
+        </main>
+    </div>
 </div>
 
 <script src="js/config.js"></script>
 <script src="js/session.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/lang-switch.js"></script>
+<script src="js/modal.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/admin.js"></script>
 </body>

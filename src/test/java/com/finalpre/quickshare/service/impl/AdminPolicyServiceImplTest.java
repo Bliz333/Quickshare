@@ -15,6 +15,7 @@ import com.finalpre.quickshare.service.FilePreviewPolicy;
 import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
+import com.finalpre.quickshare.service.LocalStorageRuntimeInfo;
 import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
 import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.service.CorsPolicyService;
@@ -22,6 +23,8 @@ import com.finalpre.quickshare.service.RateLimitPolicyService;
 import com.finalpre.quickshare.service.RateLimitRule;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.SmtpPolicyService;
+import com.finalpre.quickshare.service.StoragePolicy;
+import com.finalpre.quickshare.service.StoragePolicyService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import com.finalpre.quickshare.vo.AdminFilePreviewPolicyVO;
 import com.finalpre.quickshare.vo.AdminFileUploadPolicyVO;
@@ -34,7 +37,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,6 +67,15 @@ class AdminPolicyServiceImplTest {
 
     @Mock
     private SmtpPolicyService smtpPolicyService;
+
+    @Mock
+    private StoragePolicyService storagePolicyService;
+
+    @Mock
+    private DelegatingStorageService delegatingStorageService;
+
+    @Mock
+    private LocalStorageRuntimeInspector localStorageRuntimeInspector;
 
     @Mock
     private EmailServiceImpl emailServiceImpl;
@@ -128,7 +139,7 @@ class AdminPolicyServiceImplTest {
     @Test
     void getRegistrationSettingsShouldExposeResolvedPolicy() {
         when(registrationSettingsService.getPolicy()).thenReturn(new RegistrationSettingsPolicy(
-                false, false, "", "", "https://www.google.com/recaptcha/api/siteverify"
+                false, false, "recaptcha", "", "", "https://www.google.com/recaptcha/api/siteverify"
         ));
 
         AdminRegistrationSettingsVO result = adminPolicyService.getRegistrationSettings();
@@ -353,5 +364,51 @@ class AdminPolicyServiceImplTest {
         assertThat(captor.getValue().allowedMethods()).containsExactly("GET", "POST");
         assertThat(captor.getValue().allowedHeaders()).containsExactly("Authorization");
         assertThat(captor.getValue().maxAgeSeconds()).isEqualTo(7200L);
+    }
+
+    @Test
+    void getStoragePolicyShouldExposeLocalDiskMetrics() {
+        when(storagePolicyService.getPolicy()).thenReturn(new StoragePolicy("local", "", "", "", "", "", false));
+        when(localStorageRuntimeInspector.resolve()).thenReturn(new LocalStorageRuntimeInfo(
+                "/srv/quickshare/uploads",
+                false,
+                1_000L,
+                860L,
+                86.0,
+                "healthy"
+        ));
+
+        var result = adminPolicyService.getStoragePolicy();
+
+        assertThat(result.getType()).isEqualTo("local");
+        assertThat(result.getConnectionStatus()).isEqualTo("local");
+        assertThat(result.getLocalUploadDir()).isEqualTo("/srv/quickshare/uploads");
+        assertThat(result.isLocalUploadDirExists()).isFalse();
+        assertThat(result.getLocalDiskTotalBytes()).isEqualTo(1_000L);
+        assertThat(result.getLocalDiskUsableBytes()).isEqualTo(860L);
+        assertThat(result.getLocalDiskUsablePercent()).isEqualTo(86.0);
+        assertThat(result.getLocalDiskRiskLevel()).isEqualTo("healthy");
+    }
+
+    @Test
+    void getStoragePolicyShouldExposeS3ConnectionState() {
+        StoragePolicy policy = new StoragePolicy(
+                "s3",
+                "https://s3.example.com",
+                "access",
+                "secret",
+                "quickshare",
+                "auto",
+                true
+        );
+        when(storagePolicyService.getPolicy()).thenReturn(policy);
+        when(delegatingStorageService.testS3Connection(policy)).thenReturn(null);
+
+        var result = adminPolicyService.getStoragePolicy();
+
+        assertThat(result.getType()).isEqualTo("s3");
+        assertThat(result.getConnectionStatus()).isEqualTo("connected");
+        assertThat(result.getS3Endpoint()).isEqualTo("https://s3.example.com");
+        assertThat(result.getS3Bucket()).isEqualTo("quickshare");
     }
 }

@@ -9,5 +9,8 @@ public class PublicRegistrationSettingsVO {
 
     private Boolean recaptchaEnabled;
 
+    /** "recaptcha" or "turnstile" */
+    private String captchaProvider;
+
     private String recaptchaSiteKey;
 }

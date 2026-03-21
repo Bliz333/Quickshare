@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/">
+    <title data-i18n="paymentResultTitle">支付结果 - QuickShare</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        (function() {
+            const saved = localStorage.getItem('quickshare-theme');
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+    <style>
+        :root {
+            --primary: #0ea5e9; --primary-light: #38bdf8; --primary-dark: #0284c7;
+            --accent: #14b8a6; --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --text-main: #0f172a; --text-sub: #64748b;
+            --bg-light: #f8fafc; --bg-card: #ffffff; --border-color: #e2e8f0;
+            --glass-bg: rgba(255,255,255,0.82); --glass-border: rgba(255,255,255,0.58);
+            --shadow-panel: 0 24px 60px rgba(15,23,42,0.08);
+        }
+        .dark-mode {
+            --primary: #6366f1; --primary-light: #818cf8; --primary-dark: #4f46e5;
+            --accent: #22d3ee; --success: #34d399; --warning: #fbbf24; --danger: #f87171;
+            --text-main: #f1f5f9; --text-sub: #94a3b8;
+            --bg-light: #020617; --bg-card: #0f172a; --border-color: #1e293b;
+            --glass-bg: rgba(15,23,42,0.82); --glass-border: rgba(148,163,184,0.14);
+            --shadow-panel: 0 24px 60px rgba(2,6,23,0.45);
+        }
+        body { font-family:'Outfit',sans-serif; background: radial-gradient(circle at top left,rgba(56,189,248,0.18),transparent 32%), radial-gradient(circle at bottom right,rgba(20,184,166,0.14),transparent 32%), var(--bg-light); color:var(--text-main); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+        .glass-card { background:var(--glass-bg); border:1px solid var(--glass-border); backdrop-filter:blur(18px); border-radius:28px; box-shadow:var(--shadow-panel); }
+        .result-icon { width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:2rem; margin:0 auto 20px; }
+        .result-icon.success { background:rgba(16,185,129,0.15); color:var(--success); }
+        .result-icon.pending { background:rgba(245,158,11,0.15); color:var(--warning); }
+        .result-icon.expired { background:rgba(239,68,68,0.15); color:var(--danger); }
+        .result-icon.refunded { background:rgba(100,116,139,0.15); color:var(--text-sub); }
+        .detail-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border-color); font-size:0.9rem; }
+        .detail-row:last-child { border-bottom:none; }
+        .toolbar-btn { display:inline-flex; align-items:center; gap:6px; padding:10px 20px; border-radius:14px; border:1px solid var(--border-color); background:var(--glass-bg); color:var(--text-main); font-size:0.88rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-decoration:none; }
+        .toolbar-btn:hover { border-color:var(--primary); color:var(--primary); }
+        .toolbar-btn:disabled { opacity:0.6; cursor:not-allowed; pointer-events:none; }
+        .toolbar-btn.primary { background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; border:none; }
+        .result-meta { margin:0 0 20px; padding:12px 14px; border-radius:18px; background:rgba(245,158,11,0.12); color:var(--text-sub); font-size:0.86rem; line-height:1.7; text-align:left; }
+        .dark-mode .result-meta { background:rgba(251,191,36,0.12); }
+        .toast-container { position:fixed; top:24px; right:24px; z-index:9999; }
+    </style>
+</head>
+<body>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="glass-card" style="max-width:480px; width:90%; padding:40px; text-align:center;">
+    <div id="resultContent">
+        <div class="result-icon pending">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+        </div>
+        <h2 style="font-size:1.4rem; font-weight:600; margin-bottom:8px;" data-i18n="paymentResultChecking">正在查询订单状态...</h2>
+    </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/session.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/lang-switch.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/payment-result.js"></script>
+</body>
+</html>

@@ -27,6 +27,7 @@ import com.finalpre.quickshare.service.RateLimitRule;
 import com.finalpre.quickshare.service.EmailTemplate;
 import com.finalpre.quickshare.service.EmailTemplateService;
 import com.finalpre.quickshare.service.EpayPolicy;
+import com.finalpre.quickshare.service.LocalStorageRuntimeInfo;
 import com.finalpre.quickshare.service.SmtpPolicy;
 import com.finalpre.quickshare.service.SmtpPolicyService;
 import com.finalpre.quickshare.service.StoragePolicy;
@@ -78,6 +79,9 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
 
     @Autowired
     private DelegatingStorageService delegatingStorageService;
+
+    @Autowired
+    private LocalStorageRuntimeInspector localStorageRuntimeInspector;
 
     @Autowired
     private EmailTemplateService emailTemplateService;
@@ -146,21 +150,27 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
             throw new IllegalArgumentException("注册设置参数不完整");
         }
 
+        String provider = normalizeOptionalValue(request.getCaptchaProvider());
+        if (provider == null) provider = "recaptcha";
+
         String siteKey = normalizeOptionalValue(request.getRecaptchaSiteKey());
         String secretKey = normalizeOptionalValue(request.getRecaptchaSecretKey());
         String verifyUrl = normalizeOptionalValue(request.getRecaptchaVerifyUrl());
         if (verifyUrl == null) {
-            verifyUrl = "https://www.google.com/recaptcha/api/siteverify";
+            verifyUrl = "turnstile".equals(provider)
+                    ? "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+                    : "https://www.google.com/recaptcha/api/siteverify";
         }
 
         if (Boolean.TRUE.equals(request.getRecaptchaEnabled())
-                && (siteKey == null || secretKey == null || verifyUrl.isBlank())) {
-            throw new IllegalArgumentException("启用人机验证时必须填写 site key、secret key 和校验地址");
+                && (siteKey == null || secretKey == null)) {
+            throw new IllegalArgumentException("启用人机验证时必须填写 site key 和 secret key");
         }
 
         systemSettingOverrideService.saveRegistrationSettingsPolicy(new RegistrationSettingsPolicy(
                 request.getEmailVerificationEnabled(),
                 request.getRecaptchaEnabled(),
+                provider,
                 siteKey == null ? "" : siteKey,
                 secretKey == null ? "" : secretKey,
                 verifyUrl
@@ -387,6 +397,7 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
         vo.setS3Bucket(policy.s3Bucket());
         vo.setS3Region(policy.s3Region());
         vo.setS3PathStyleAccess(policy.s3PathStyleAccess());
+        populateLocalStorageMetrics(vo);
 
         if (policy.isS3() && policy.hasS3Config()) {
             String err = delegatingStorageService.testS3Connection(policy);
@@ -397,6 +408,20 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
             vo.setConnectionStatus("local");
         }
         return vo;
+    }
+
+    private void populateLocalStorageMetrics(AdminStoragePolicyVO vo) {
+        LocalStorageRuntimeInfo runtimeInfo = localStorageRuntimeInspector == null ? null : localStorageRuntimeInspector.resolve();
+        if (runtimeInfo == null) {
+            return;
+        }
+
+        vo.setLocalUploadDir(runtimeInfo.uploadDir());
+        vo.setLocalUploadDirExists(runtimeInfo.uploadDirExists());
+        vo.setLocalDiskTotalBytes(runtimeInfo.diskTotalBytes());
+        vo.setLocalDiskUsableBytes(runtimeInfo.diskUsableBytes());
+        vo.setLocalDiskUsablePercent(runtimeInfo.diskUsablePercent());
+        vo.setLocalDiskRiskLevel(runtimeInfo.diskRiskLevel());
     }
 
     @Override
@@ -521,6 +546,7 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
         AdminRegistrationSettingsVO vo = new AdminRegistrationSettingsVO();
         vo.setEmailVerificationEnabled(policy.emailVerificationEnabled());
         vo.setRecaptchaEnabled(policy.recaptchaEnabled());
+        vo.setCaptchaProvider(policy.captchaProvider());
         vo.setRecaptchaSiteKey(policy.recaptchaSiteKey());
         vo.setRecaptchaSecretKey(policy.recaptchaSecretKey());
         vo.setRecaptchaVerifyUrl(policy.recaptchaVerifyUrl());

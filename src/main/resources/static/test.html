@@ -1028,6 +1028,7 @@
 </div>
 
 <!-- 语言切换脚本 (假设外部文件 lang-switch.js 存在，此处仅用于保持代码完整性) -->
+<script src="js/modal.js"></script>
 <script>
     /* ================= Fluid Light Effect JS ================= */
     document.addEventListener('mousemove', (e) => {
@@ -1299,10 +1300,14 @@
         }
     }
 
-    function handleLogout() {
+    async function handleLogout() {
         const lang = getCurrentLanguage();
-        // Use a custom modal or message box instead of confirm()
-        const isConfirmed = window.prompt(i18n[lang].logoutConfirm + ' (Type "yes" to confirm)') === 'yes';
+        const isConfirmed = await showAppConfirm(i18n[lang].logoutConfirm, {
+            title: lang === 'zh' ? '退出登录' : 'Log Out',
+            tone: 'danger',
+            icon: 'fa-right-from-bracket',
+            confirmText: i18n[lang].logout
+        });
 
         if (isConfirmed) {
             localStorage.removeItem('token');

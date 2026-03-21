@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -28,23 +33,12 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Build and test
-        run: mvn -B -q test -Dspring.flyway.enabled=false
+        run: ./mvnw -B -q test -Dspring.flyway.enabled=false
         env:
           SPRING_PROFILES_ACTIVE: test
 
-      - name: Verify JS syntax
-        run: |
-          node --check src/main/resources/static/js/admin.js
-          node --check src/main/resources/static/js/auth.js
-          node --check src/main/resources/static/js/download.js
-          node --check src/main/resources/static/js/lang-switch.js
-          node --check src/main/resources/static/js/netdisk.js
-          node --check src/main/resources/static/js/netdisk-render.js
-          node --check src/main/resources/static/js/pdf-viewer.js
-          node --check src/main/resources/static/js/register.js
-          node --check src/main/resources/static/js/session.js
-          node --check src/main/resources/static/js/transfer.js
-          node --check src/main/resources/static/js/upload.js
+      - name: Verify JS syntax baseline
+        run: ./scripts/check-js.sh
 
       - name: Package (skip tests)
-        run: mvn -B -q package -DskipTests
+        run: ./mvnw -B -q package -DskipTests

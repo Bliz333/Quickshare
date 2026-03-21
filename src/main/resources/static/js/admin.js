@@ -17,7 +17,31 @@ const adminState = {
     smtpPolicy: null,
     emailTemplates: [],
     storagePolicy: null,
+    plans: [],
+    paymentProviders: [],
+    orders: [],
+    editingPlanId: null,
+    editingProviderId: null,
     isRedirecting: false
+};
+
+const ADMIN_PAGE_STORAGE_KEY = 'quickshare-admin-page';
+const ADMIN_PAGE_NAMES = new Set([
+    'overview',
+    'users',
+    'files',
+    'shares',
+    'plans',
+    'payment',
+    'security',
+    'upload-preview',
+    'storage',
+    'email',
+    'system'
+]);
+const CAPTCHA_VERIFY_DEFAULTS = {
+    recaptcha: 'https://www.google.com/recaptcha/api/siteverify',
+    turnstile: 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
 };
 
 function getStoredAdminUser() {
@@ -85,6 +109,120 @@ function formatMegabytes(value) {
     }
 
     return String(Number(megabytes.toFixed(megabytes >= 10 ? 1 : 2)));
+}
+
+function formatPercent(value) {
+    if (value == null || Number.isNaN(Number(value))) return '-';
+
+    const numeric = Number(value);
+    if (Number.isInteger(numeric)) {
+        return `${numeric}%`;
+    }
+
+    return `${numeric.toFixed(1)}%`;
+}
+
+function getStorageRiskLabel(level) {
+    switch (level) {
+        case 'critical':
+            return t('adminStorageRiskCritical');
+        case 'warning':
+            return t('adminStorageRiskWarning');
+        case 'healthy':
+            return t('adminStorageRiskHealthy');
+        default:
+            return t('adminStorageRiskUnknown');
+    }
+}
+
+function getStorageRiskValueClass(level) {
+    switch (level) {
+        case 'critical':
+            return 'text-rose-600 dark:text-rose-300';
+        case 'warning':
+            return 'text-amber-600 dark:text-amber-300';
+        case 'healthy':
+            return 'text-emerald-600 dark:text-emerald-300';
+        default:
+            return 'text-text-main';
+    }
+}
+
+function getStorageRiskIcon(level) {
+    switch (level) {
+        case 'critical':
+            return 'fa-triangle-exclamation';
+        case 'warning':
+            return 'fa-gauge-high';
+        default:
+            return 'fa-shield-heart';
+    }
+}
+
+function getStorageConnectionLabel(connectionStatus) {
+    return connectionStatus === 'connected'
+        ? t('adminStorageConnected')
+        : connectionStatus === 'local'
+            ? t('adminStorageTestLocal')
+            : connectionStatus === 'not_configured'
+                ? t('adminStorageNotConfigured')
+                : (connectionStatus || '-');
+}
+
+function getStorageRuntimeHint(policy) {
+    if (!policy || policy.type === 's3') {
+        return t('adminStorageRuntimeS3Hint');
+    }
+
+    if (policy.localDiskRiskLevel === 'critical') {
+        return t('adminStorageRuntimeLocalHintCritical');
+    }
+
+    if (policy.localDiskRiskLevel === 'warning') {
+        return t('adminStorageRuntimeLocalHintWarning');
+    }
+
+    return t('adminStorageRuntimeLocalHint');
+}
+
+function buildOverviewStorageCard(policy) {
+    if (!policy) return null;
+
+    if (policy.type === 's3') {
+        return {
+            key: 'storage-runtime',
+            icon: 'fa-cloud',
+            label: t('adminStatStorageRuntime'),
+            value: getStorageConnectionLabel(policy.connectionStatus),
+            meta: policy.s3Bucket || policy.s3Endpoint || '-'
+        };
+    }
+
+    return {
+        key: 'storage-risk',
+        icon: getStorageRiskIcon(policy.localDiskRiskLevel),
+        iconClass: getStorageRiskValueClass(policy.localDiskRiskLevel),
+        label: t('adminStatStorageRisk'),
+        value: `${getStorageRiskLabel(policy.localDiskRiskLevel)} · ${formatPercent(policy.localDiskUsablePercent)}`,
+        valueClass: getStorageRiskValueClass(policy.localDiskRiskLevel),
+        meta: policy.localUploadDir || '-'
+    };
+}
+
+async function confirmAdminAction(message, options = {}) {
+    const tone = options.tone || 'danger';
+    return showAppConfirm(message, {
+        tone,
+        icon: options.icon || (tone === 'danger' ? 'fa-triangle-exclamation' : 'fa-circle-question'),
+        ...options
+    });
+}
+
+async function promptAdminInput(message, options = {}) {
+    return showAppPrompt(message, {
+        icon: options.icon || 'fa-pen',
+        ...options
+    });
 }
 
 function getRoleLabel(role) {
@@ -241,24 +379,29 @@ function renderOverview() {
     };
 
     const cards = [
-        { icon: 'fa-users', label: t('adminStatUsers'), value: overview.userCount || 0 },
-        { icon: 'fa-file-lines', label: t('adminStatFiles'), value: overview.fileCount || 0 },
-        { icon: 'fa-folder-tree', label: t('adminStatFolders'), value: overview.folderCount || 0 },
-        { icon: 'fa-share-nodes', label: t('adminStatShares'), value: overview.shareCount || 0 },
-        { icon: 'fa-signal', label: t('adminStatActiveShares'), value: overview.activeShareCount || 0 },
-        { icon: 'fa-hard-drive', label: t('adminStatStorage'), value: formatBytes(overview.totalStorageBytes || 0) }
+        { key: 'users', icon: 'fa-users', label: t('adminStatUsers'), value: overview.userCount || 0 },
+        { key: 'files', icon: 'fa-file-lines', label: t('adminStatFiles'), value: overview.fileCount || 0 },
+        { key: 'folders', icon: 'fa-folder-tree', label: t('adminStatFolders'), value: overview.folderCount || 0 },
+        { key: 'shares', icon: 'fa-share-nodes', label: t('adminStatShares'), value: overview.shareCount || 0 },
+        { key: 'active-shares', icon: 'fa-signal', label: t('adminStatActiveShares'), value: overview.activeShareCount || 0 },
+        { key: 'storage-used', icon: 'fa-hard-drive', label: t('adminStatStorage'), value: formatBytes(overview.totalStorageBytes || 0) }
     ];
+    const storageCard = buildOverviewStorageCard(adminState.storagePolicy);
+    if (storageCard) {
+        cards.push(storageCard);
+    }
 
     container.innerHTML = cards.map(card => `
-        <article class="stat-card glass-card">
+        <article class="stat-card glass-card" data-overview-card="${escapeHtml(card.key || '')}">
             <div class="flex items-start justify-between gap-4 relative z-10">
                 <div class="space-y-4">
-                    <div class="stat-icon">
+                    <div class="stat-icon ${card.iconClass || ''}">
                         <i class="fa-solid ${card.icon}"></i>
                     </div>
                     <div>
                         <p class="text-sm text-text-sub">${escapeHtml(card.label)}</p>
-                        <h3 class="text-2xl md:text-3xl font-semibold mt-2">${escapeHtml(card.value)}</h3>
+                        <h3 class="text-2xl md:text-3xl font-semibold mt-2 ${card.valueClass || ''}">${escapeHtml(card.value)}</h3>
+                        ${card.meta ? `<p class="text-xs text-text-sub mt-3 break-all">${escapeHtml(card.meta)}</p>` : ''}
                     </div>
                 </div>
             </div>
@@ -546,6 +689,51 @@ function updateAdminConsolePathPreview() {
     preview.textContent = buildAdminConsolePath(input?.value);
 }
 
+function getSelectedCaptchaProvider() {
+    const provider = document.getElementById('registrationCaptchaProvider')?.value;
+    return provider === 'turnstile' ? 'turnstile' : 'recaptcha';
+}
+
+function updateRegistrationCaptchaCopy() {
+    const provider = getSelectedCaptchaProvider();
+    const siteKeyLabel = document.getElementById('registrationCaptchaSiteKeyLabel');
+    const secretKeyLabel = document.getElementById('registrationCaptchaSecretKeyLabel');
+    const verifyUrlLabel = document.getElementById('registrationCaptchaVerifyUrlLabel');
+    const verifyUrlInput = document.getElementById('registrationRecaptchaVerifyUrl');
+    const verifyHint = document.getElementById('registrationCaptchaVerifyHint');
+    const defaultUrl = CAPTCHA_VERIFY_DEFAULTS[provider];
+
+    if (siteKeyLabel) {
+        siteKeyLabel.textContent = t(provider === 'turnstile'
+            ? 'adminCaptchaTurnstileSiteKey'
+            : 'adminCaptchaRecaptchaSiteKey');
+    }
+    if (secretKeyLabel) {
+        secretKeyLabel.textContent = t(provider === 'turnstile'
+            ? 'adminCaptchaTurnstileSecretKey'
+            : 'adminCaptchaRecaptchaSecretKey');
+    }
+    if (verifyUrlLabel) {
+        verifyUrlLabel.textContent = t('adminCaptchaVerifyUrlLabel');
+    }
+    if (verifyUrlInput) {
+        verifyUrlInput.placeholder = defaultUrl;
+    }
+    if (verifyHint) {
+        verifyHint.textContent = t(provider === 'turnstile'
+            ? 'adminCaptchaVerifyUrlHintTurnstile'
+            : 'adminCaptchaVerifyUrlHintRecaptcha').replace('{url}', defaultUrl);
+    }
+}
+
+function bindRegistrationSettingsEvents() {
+    const providerEl = document.getElementById('registrationCaptchaProvider');
+    if (!providerEl || providerEl.dataset.bound === 'true') return;
+
+    providerEl.addEventListener('change', updateRegistrationCaptchaCopy);
+    providerEl.dataset.bound = 'true';
+}
+
 function renderAdminConsoleAccessForm() {
     const config = adminState.adminConsoleAccess;
     if (!config) return;
@@ -563,15 +751,18 @@ function renderRegistrationSettingsForm() {
 
     const emailVerificationEl = document.getElementById('registrationEmailVerificationEnabled');
     const recaptchaEnabledEl = document.getElementById('registrationRecaptchaEnabled');
+    const providerEl = document.getElementById('registrationCaptchaProvider');
     const siteKeyEl = document.getElementById('registrationRecaptchaSiteKey');
     const secretKeyEl = document.getElementById('registrationRecaptchaSecretKey');
     const verifyUrlEl = document.getElementById('registrationRecaptchaVerifyUrl');
 
     if (emailVerificationEl) emailVerificationEl.checked = !!settings.emailVerificationEnabled;
     if (recaptchaEnabledEl) recaptchaEnabledEl.checked = !!settings.recaptchaEnabled;
+    if (providerEl) providerEl.value = settings.captchaProvider || 'recaptcha';
     if (siteKeyEl) siteKeyEl.value = settings.recaptchaSiteKey || '';
     if (secretKeyEl) secretKeyEl.value = settings.recaptchaSecretKey || '';
-    if (verifyUrlEl) verifyUrlEl.value = settings.recaptchaVerifyUrl || 'https://www.google.com/recaptcha/api/siteverify';
+    if (verifyUrlEl) verifyUrlEl.value = settings.recaptchaVerifyUrl || '';
+    updateRegistrationCaptchaCopy();
 }
 
 function renderCorsPolicyForm() {
@@ -678,7 +869,7 @@ function renderPreviewPolicyForm() {
 
 async function refreshPolicySettings(showSuccess = false, silentFailure = false) {
     try {
-        const [rateLimits, adminConsoleAccess, registrationSettings, fileUploadPolicy, filePreviewPolicy, corsPolicy, smtpPolicy, emailTemplates, storagePolicy] = await Promise.all([
+        const [rateLimits, adminConsoleAccess, registrationSettings, fileUploadPolicy, filePreviewPolicy, corsPolicy, smtpPolicy, emailTemplates, storagePolicy, plans, paymentProviders] = await Promise.all([
             adminRequest('/admin/settings/rate-limits'),
             adminRequest('/admin/settings/admin-console'),
             adminRequest('/admin/settings/registration'),
@@ -687,7 +878,9 @@ async function refreshPolicySettings(showSuccess = false, silentFailure = false)
             adminRequest('/admin/settings/cors'),
             adminRequest('/admin/settings/smtp'),
             adminRequest('/admin/settings/email-templates'),
-            adminRequest('/admin/settings/storage')
+            adminRequest('/admin/settings/storage'),
+            adminRequest('/admin/plans'),
+            adminRequest('/admin/payment-providers')
         ]);
 
         adminState.rateLimits = rateLimits || [];
@@ -699,6 +892,8 @@ async function refreshPolicySettings(showSuccess = false, silentFailure = false)
         adminState.smtpPolicy = smtpPolicy || null;
         adminState.emailTemplates = emailTemplates || [];
         adminState.storagePolicy = storagePolicy || null;
+        adminState.plans = plans || [];
+        adminState.paymentProviders = paymentProviders || [];
         renderRateLimitPolicies();
         renderAdminConsoleAccessForm();
         renderRegistrationSettingsForm();
@@ -706,8 +901,11 @@ async function refreshPolicySettings(showSuccess = false, silentFailure = false)
         renderPreviewPolicyForm();
         renderCorsPolicyForm();
         renderStoragePolicyForm();
+        renderOverview();
         renderEmailTemplates();
         renderSmtpPolicyForm();
+        renderPlans();
+        renderPaymentProviders();
 
         if (showSuccess && typeof showToast === 'function') {
             showToast(t('adminRefreshSuccess'), 'success');
@@ -724,22 +922,25 @@ async function refreshAdminData(showSuccess = false, skipAccessCheck = false) {
 
     setLoading(true);
     try {
-        const [overview, users, files, shares] = await Promise.all([
+        const [overview, users, files, shares, orders] = await Promise.all([
             adminRequest('/admin/overview'),
             adminRequest('/admin/users'),
             adminRequest('/admin/files'),
-            adminRequest('/admin/shares')
+            adminRequest('/admin/shares'),
+            adminRequest('/admin/orders')
         ]);
 
         adminState.overview = overview || {};
         adminState.users = users || [];
         adminState.files = files || [];
         adminState.shares = shares || [];
+        adminState.orders = orders || [];
 
         renderOverview();
         renderUsers();
         renderFiles();
         renderShares();
+        renderOrders();
         await refreshPolicySettings(showSuccess, true);
     } catch (error) {
         if (!adminState.isRedirecting && typeof showToast === 'function') {
@@ -753,10 +954,10 @@ async function refreshAdminData(showSuccess = false, skipAccessCheck = false) {
 async function saveRegistrationSettings(button) {
     const emailVerificationEnabled = !!document.getElementById('registrationEmailVerificationEnabled')?.checked;
     const recaptchaEnabled = !!document.getElementById('registrationRecaptchaEnabled')?.checked;
+    const captchaProvider = document.getElementById('registrationCaptchaProvider')?.value || 'recaptcha';
     const recaptchaSiteKey = document.getElementById('registrationRecaptchaSiteKey')?.value.trim() || '';
     const recaptchaSecretKey = document.getElementById('registrationRecaptchaSecretKey')?.value.trim() || '';
-    const recaptchaVerifyUrl = document.getElementById('registrationRecaptchaVerifyUrl')?.value.trim()
-        || 'https://www.google.com/recaptcha/api/siteverify';
+    const recaptchaVerifyUrl = document.getElementById('registrationRecaptchaVerifyUrl')?.value.trim() || '';
 
     button.disabled = true;
 
@@ -766,6 +967,7 @@ async function saveRegistrationSettings(button) {
             body: JSON.stringify({
                 emailVerificationEnabled,
                 recaptchaEnabled,
+                captchaProvider,
                 recaptchaSiteKey,
                 recaptchaSecretKey,
                 recaptchaVerifyUrl
@@ -984,6 +1186,76 @@ function toggleS3Fields() {
     if (s3Fields) s3Fields.style.display = type === 's3' ? '' : 'none';
 }
 
+function renderStorageRuntimeSummary() {
+    const policy = adminState.storagePolicy;
+    const container = document.getElementById('storageRuntimeSummary');
+    const hintEl = document.getElementById('storageRuntimeHint');
+    if (!policy || !container) return;
+
+    const isS3 = policy.type === 's3';
+    const cards = [
+        {
+            key: 'backend',
+            label: t('adminStorageRuntimeBackend'),
+            value: isS3 ? t('adminStorageBackendS3') : t('adminStorageBackendLocal')
+        },
+        {
+            key: 'connection',
+            label: t('adminStorageRuntimeConnection'),
+            value: getStorageConnectionLabel(policy.connectionStatus)
+        },
+        {
+            key: isS3 ? 's3-bucket' : 'local-upload-dir',
+            label: isS3 ? t('adminStorageRuntimeBucket') : t('adminStorageRuntimeUploadDir'),
+            value: isS3
+                ? (policy.s3Bucket || '-')
+                : (policy.localUploadDir || '-')
+        },
+        {
+            key: isS3 ? 's3-endpoint' : 'local-usable',
+            label: isS3 ? t('adminStorageRuntimeEndpoint') : t('adminStorageRuntimeUsable'),
+            value: isS3
+                ? (policy.s3Endpoint || '-')
+                : (policy.localDiskUsableBytes != null ? formatBytes(policy.localDiskUsableBytes) : '-')
+        }
+    ];
+
+    if (!isS3) {
+        cards.push({
+            key: 'local-total',
+            label: t('adminStorageRuntimeTotal'),
+            value: policy.localDiskTotalBytes != null ? formatBytes(policy.localDiskTotalBytes) : '-'
+        });
+        cards.push({
+            key: 'local-risk',
+            label: t('adminStorageRuntimeRisk'),
+            value: `${getStorageRiskLabel(policy.localDiskRiskLevel)} · ${formatPercent(policy.localDiskUsablePercent)}`,
+            valueClass: getStorageRiskValueClass(policy.localDiskRiskLevel),
+            riskLevel: policy.localDiskRiskLevel || 'unknown'
+        });
+        cards.push({
+            key: 'local-path-status',
+            label: t('adminStorageRuntimePathStatus'),
+            value: policy.localUploadDirExists
+                ? t('adminStoragePathReady')
+                : t('adminStoragePathMissing')
+        });
+    }
+
+    container.innerHTML = cards.map(card => `
+        <div class="rounded-[20px] border border-border bg-white/30 dark:bg-slate-950/30 p-4"
+             data-runtime-card="${escapeHtml(card.key || '')}">
+            <div class="text-xs uppercase tracking-[0.14em] text-text-sub font-semibold">${escapeHtml(card.label)}</div>
+            <div class="mt-3 text-sm font-semibold break-all ${card.valueClass || ''}"
+                 data-risk-level="${escapeHtml(card.riskLevel || '')}">${escapeHtml(card.value)}</div>
+        </div>
+    `).join('');
+
+    if (hintEl) {
+        hintEl.textContent = getStorageRuntimeHint(policy);
+    }
+}
+
 function renderStoragePolicyForm() {
     const policy = adminState.storagePolicy;
     if (!policy) return;
@@ -1026,6 +1298,7 @@ function renderStoragePolicyForm() {
     }
 
     toggleS3Fields();
+    renderStorageRuntimeSummary();
 }
 
 async function saveStoragePolicy(button) {
@@ -1176,8 +1449,17 @@ async function sendAnnouncement(button) {
         payload.userIds = userIdsRaw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
     }
 
-    const recipientDesc = payload.userIds ? payload.userIds.length + ' user(s)' : t('adminAnnouncementAllUsers');
-    if (!confirm(t('adminAnnouncementConfirm').replace('{target}', recipientDesc))) return;
+    const recipientDesc = payload.userIds
+        ? (getCurrentLanguage() === 'en'
+            ? `${payload.userIds.length} selected user(s)`
+            : `选中的 ${payload.userIds.length} 个用户`)
+        : t('adminAnnouncementAllUsers');
+    const confirmed = await confirmAdminAction(t('adminAnnouncementConfirm').replace('{target}', recipientDesc), {
+        tone: 'default',
+        icon: 'fa-bullhorn',
+        confirmText: getCurrentLanguage() === 'en' ? 'Send' : '发送'
+    });
+    if (!confirmed) return;
 
     button.disabled = true;
     if (resultEl) resultEl.textContent = t('adminAnnouncementSending');
@@ -1189,12 +1471,14 @@ async function sendAnnouncement(button) {
         });
         const msg = t('adminAnnouncementDone')
             .replace('{total}', result.totalRecipients)
+            .replace('{deliverable}', result.deliverableCount)
             .replace('{success}', result.successCount)
-            .replace('{fail}', result.failCount);
+            .replace('{fail}', result.failCount)
+            .replace('{skipped}', result.skippedCount);
         if (resultEl) resultEl.textContent = msg;
-        showToast(msg, result.failCount > 0 ? 'warning' : 'success');
+        showToast(msg, result.failCount > 0 || result.skippedCount > 0 ? 'warning' : 'success');
     } catch (error) {
-        if (resultEl) resultEl.textContent = '';
+        if (resultEl) resultEl.textContent = error.message || t('adminAnnouncementFailed');
         if (!adminState.isRedirecting) {
             showToast(error.message || t('adminAnnouncementFailed'), 'error');
         }
@@ -1260,8 +1544,22 @@ async function saveSmtpSettings(button) {
 }
 
 async function sendSmtpTestEmail(button) {
-    const toEmail = prompt(t('adminSmtpTestPrompt'));
-    if (!toEmail || !toEmail.includes('@')) return;
+    const lang = getCurrentLanguage();
+    const toEmail = await promptAdminInput(t('adminSmtpTestPrompt'), {
+        title: lang === 'en' ? 'Send Test Email' : '发送测试邮件',
+        label: lang === 'en' ? 'Recipient email' : '收件邮箱',
+        placeholder: 'name@example.com',
+        inputType: 'email',
+        icon: 'fa-envelope',
+        confirmText: lang === 'en' ? 'Send' : '发送',
+        validate: (value) => {
+            if (!value || !value.includes('@')) {
+                return lang === 'en' ? 'Enter a valid email address.' : '请输入有效的邮箱地址。';
+            }
+            return '';
+        }
+    });
+    if (!toEmail) return;
 
     button.disabled = true;
     try {
@@ -1290,7 +1588,11 @@ async function toggleUserRole(userId, targetRole, button) {
         ? `Change ${userName} to ${roleText}?`
         : `确定将 ${userName} 调整为 ${roleText} 吗？`;
 
-    if (!confirm(confirmMessage)) return;
+    if (!await confirmAdminAction(confirmMessage, {
+        tone: 'default',
+        icon: 'fa-user-gear',
+        confirmText: getCurrentLanguage() === 'en' ? 'Apply' : '确认调整'
+    })) return;
 
     button.disabled = true;
 
@@ -1389,7 +1691,7 @@ async function deleteAdminUser(userId, button) {
         ? `Delete user "${userName}" and all owned files?`
         : `确定删除用户「${userName}」以及该用户名下的全部文件吗？`;
 
-    if (!confirm(confirmMessage)) return;
+    if (!await confirmAdminAction(confirmMessage)) return;
 
     button.disabled = true;
 
@@ -1413,7 +1715,7 @@ async function deleteAdminFile(fileId, button) {
         ? `Force delete "${fileName}"?`
         : `确定强制删除「${fileName}」吗？`;
 
-    if (!confirm(confirmMessage)) return;
+    if (!await confirmAdminAction(confirmMessage)) return;
 
     button.disabled = true;
 
@@ -1437,7 +1739,7 @@ async function disableAdminShare(shareId, button) {
         ? `Disable share ${shareCode}?`
         : `确定失效分享 ${shareCode} 吗？`;
 
-    if (!confirm(confirmMessage)) return;
+    if (!await confirmAdminAction(confirmMessage)) return;
 
     button.disabled = true;
 
@@ -1454,15 +1756,449 @@ async function disableAdminShare(shareId, button) {
     }
 }
 
+// ========== Plan Management ==========
+
+function formatPlanValue(type, value) {
+    if (!value) return '-';
+    if (type === 'storage') return formatBytes(value);
+    if (type === 'downloads') return value.toLocaleString();
+    if (type === 'vip') return value + ' ' + t('pricingVipUnit');
+    return String(value);
+}
+
+function getPlanTypeLabel(type) {
+    if (type === 'storage') return t('adminPlanTypeStorage');
+    if (type === 'downloads') return t('adminPlanTypeDownloads');
+    if (type === 'vip') return t('adminPlanTypeVip');
+    return type || '-';
+}
+
+function renderPlans() {
+    const body = document.getElementById('plansTableBody');
+    const badge = document.getElementById('plansCountBadge');
+    if (!body) return;
+
+    const plans = (adminState.plans || []).slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    if (badge) badge.textContent = plans.length;
+
+    if (plans.length === 0) {
+        body.innerHTML = `<tr><td colspan="8" class="empty-row">${escapeHtml(t('adminNoData') || '暂无数据')}</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = plans.map(p => `<tr>
+        <td class="mono">${escapeHtml(p.id)}</td>
+        <td>${escapeHtml(p.name)}</td>
+        <td>${escapeHtml(getPlanTypeLabel(p.type))}</td>
+        <td>${escapeHtml(formatPlanValue(p.type, p.value))}</td>
+        <td class="mono">${escapeHtml(p.price)}</td>
+        <td>${p.sortOrder || 0}</td>
+        <td><span class="status-chip ${p.status === 1 ? 'status-active' : 'status-disabled'}">${p.status === 1 ? t('adminEnabled') : t('adminDisabled') || '禁用'}</span></td>
+        <td class="flex gap-2">
+            <button class="action-btn" onclick="editPlan(${p.id})"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button class="action-btn danger" onclick="deletePlan(${p.id}, this)"><i class="fa-solid fa-trash"></i></button>
+        </td>
+    </tr>`).join('');
+}
+
+function editPlan(planId) {
+    const plan = adminState.plans.find(p => p.id === planId);
+    if (!plan) return;
+    adminState.editingPlanId = planId;
+    const el = id => document.getElementById(id);
+    if (el('planName')) el('planName').value = plan.name || '';
+    if (el('planDescription')) el('planDescription').value = plan.description || '';
+    if (el('planType')) el('planType').value = plan.type || 'storage';
+    if (el('planValue')) el('planValue').value = plan.value || '';
+    if (el('planPrice')) el('planPrice').value = plan.price || '';
+    if (el('planSortOrder')) el('planSortOrder').value = plan.sortOrder || 0;
+    if (el('planStatus')) el('planStatus').checked = plan.status === 1;
+    const saveBtn = el('planSaveBtn');
+    if (saveBtn) saveBtn.querySelector('span').textContent = t('adminPlanSaveBtn');
+    const cancelBtn = el('planCancelBtn');
+    if (cancelBtn) cancelBtn.classList.remove('hidden');
+}
+
+function cancelEditPlan() {
+    adminState.editingPlanId = null;
+    const el = id => document.getElementById(id);
+    ['planName', 'planDescription', 'planValue', 'planPrice'].forEach(id => { if (el(id)) el(id).value = ''; });
+    if (el('planType')) el('planType').value = 'storage';
+    if (el('planSortOrder')) el('planSortOrder').value = '0';
+    if (el('planStatus')) el('planStatus').checked = true;
+    const saveBtn = el('planSaveBtn');
+    if (saveBtn) saveBtn.querySelector('span').textContent = t('adminPlanCreateBtn');
+    const cancelBtn = el('planCancelBtn');
+    if (cancelBtn) cancelBtn.classList.add('hidden');
+}
+
+async function savePlan(button) {
+    const el = id => document.getElementById(id);
+    const name = el('planName')?.value.trim();
+    const description = el('planDescription')?.value.trim();
+    const type = el('planType')?.value;
+    const value = el('planValue')?.value.trim();
+    const price = el('planPrice')?.value.trim();
+    const sortOrder = parseInt(el('planSortOrder')?.value) || 0;
+    const status = el('planStatus')?.checked ? 1 : 0;
+
+    if (!name || !type || !value || !price) {
+        showToast(t('adminPlanSaveFailed'), 'error');
+        return;
+    }
+
+    button.disabled = true;
+    try {
+        const body = { name, description, type, value: parseInt(value), price: parseFloat(price), sortOrder, status };
+        if (adminState.editingPlanId) {
+            await adminRequest(`/admin/plans/${adminState.editingPlanId}`, { method: 'PUT', body: JSON.stringify(body) });
+        } else {
+            await adminRequest('/admin/plans', { method: 'POST', body: JSON.stringify(body) });
+        }
+        showToast(t('adminPlanSaved'), 'success');
+        cancelEditPlan();
+        await refreshPolicySettings(false, false);
+    } catch (error) {
+        showToast(error.message || t('adminPlanSaveFailed'), 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function deletePlan(planId, button) {
+    const plan = adminState.plans.find(p => p.id === planId);
+    const msg = t('adminPlanDeleteConfirm').replace('{name}', plan?.name || planId);
+    if (!await confirmAdminAction(msg)) return;
+    button.disabled = true;
+    try {
+        await adminRequest(`/admin/plans/${planId}`, { method: 'DELETE' });
+        showToast(t('adminPlanDeleted'), 'success');
+        await refreshPolicySettings(false, false);
+    } catch (error) {
+        showToast(error.message || t('adminPlanDeleteFailed'), 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+// ========== Payment Provider Management ==========
+
+function renderPaymentProviders() {
+    const body = document.getElementById('providersTableBody');
+    const badge = document.getElementById('providersCountBadge');
+    if (!body) return;
+
+    const providers = (adminState.paymentProviders || []).slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    if (badge) badge.textContent = providers.length;
+
+    if (providers.length === 0) {
+        body.innerHTML = `<tr><td colspan="8" class="empty-row">${escapeHtml(t('adminNoData') || '暂无数据')}</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = providers.map(p => `<tr>
+        <td class="mono">${escapeHtml(p.id)}</td>
+        <td>${escapeHtml(p.name)}</td>
+        <td class="mono text-xs">${escapeHtml(p.apiUrl)}</td>
+        <td class="mono">${escapeHtml(p.pid)}</td>
+        <td>${escapeHtml(p.payTypes)}</td>
+        <td><span class="status-chip ${p.enabled === 1 ? 'status-active' : 'status-disabled'}">${p.enabled === 1 ? t('adminEnabled') : t('adminDisabled') || '禁用'}</span></td>
+        <td>${p.sortOrder || 0}</td>
+        <td class="flex gap-2">
+            <button class="action-btn" onclick="editPaymentProvider(${p.id})"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button class="action-btn danger" onclick="deletePaymentProvider(${p.id}, this)"><i class="fa-solid fa-trash"></i></button>
+        </td>
+    </tr>`).join('');
+}
+
+function editPaymentProvider(providerId) {
+    const provider = adminState.paymentProviders.find(p => p.id === providerId);
+    if (!provider) return;
+    adminState.editingProviderId = providerId;
+    const el = id => document.getElementById(id);
+    if (el('providerName')) el('providerName').value = provider.name || '';
+    if (el('providerApiUrl')) el('providerApiUrl').value = provider.apiUrl || '';
+    if (el('providerPid')) el('providerPid').value = provider.pid || '';
+    if (el('providerKey')) el('providerKey').value = '';
+    if (el('providerPayTypes')) el('providerPayTypes').value = provider.payTypes || '';
+    if (el('providerEnabled')) el('providerEnabled').checked = provider.enabled === 1;
+    if (el('providerSortOrder')) el('providerSortOrder').value = provider.sortOrder || 0;
+    const hint = el('providerKeyHint');
+    if (hint) hint.textContent = provider.hasKey ? t('adminProviderKeySet') : t('adminProviderKeyNotSet');
+    const saveBtn = el('providerSaveBtn');
+    if (saveBtn) saveBtn.querySelector('span').textContent = t('adminProviderSaveBtn');
+    const cancelBtn = el('providerCancelBtn');
+    if (cancelBtn) cancelBtn.classList.remove('hidden');
+}
+
+function cancelEditProvider() {
+    adminState.editingProviderId = null;
+    const el = id => document.getElementById(id);
+    ['providerName', 'providerApiUrl', 'providerPid', 'providerKey', 'providerPayTypes'].forEach(id => { if (el(id)) el(id).value = ''; });
+    if (el('providerEnabled')) el('providerEnabled').checked = true;
+    if (el('providerSortOrder')) el('providerSortOrder').value = '0';
+    const hint = el('providerKeyHint');
+    if (hint) hint.textContent = '';
+    const saveBtn = el('providerSaveBtn');
+    if (saveBtn) saveBtn.querySelector('span').textContent = t('adminProviderCreateBtn');
+    const cancelBtn = el('providerCancelBtn');
+    if (cancelBtn) cancelBtn.classList.add('hidden');
+}
+
+async function savePaymentProvider(button) {
+    const el = id => document.getElementById(id);
+    const name = el('providerName')?.value.trim();
+    const apiUrl = el('providerApiUrl')?.value.trim();
+    const pid = el('providerPid')?.value.trim();
+    const merchantKey = el('providerKey')?.value.trim() || null;
+    const payTypes = el('providerPayTypes')?.value.trim();
+    const enabled = el('providerEnabled')?.checked ? 1 : 0;
+    const sortOrder = parseInt(el('providerSortOrder')?.value) || 0;
+
+    if (!name || !apiUrl || !pid) {
+        showToast(t('adminProviderSaveFailed'), 'error');
+        return;
+    }
+
+    button.disabled = true;
+    try {
+        const body = { name, apiUrl, pid, merchantKey, payTypes, enabled, sortOrder };
+        if (adminState.editingProviderId) {
+            await adminRequest(`/admin/payment-providers/${adminState.editingProviderId}`, { method: 'PUT', body: JSON.stringify(body) });
+        } else {
+            await adminRequest('/admin/payment-providers', { method: 'POST', body: JSON.stringify(body) });
+        }
+        showToast(t('adminProviderSaved'), 'success');
+        cancelEditProvider();
+        await refreshPolicySettings(false, false);
+    } catch (error) {
+        showToast(error.message || t('adminProviderSaveFailed'), 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function deletePaymentProvider(providerId, button) {
+    const provider = adminState.paymentProviders.find(p => p.id === providerId);
+    const msg = t('adminProviderDeleteConfirm').replace('{name}', provider?.name || providerId);
+    if (!await confirmAdminAction(msg)) return;
+    button.disabled = true;
+    try {
+        await adminRequest(`/admin/payment-providers/${providerId}`, { method: 'DELETE' });
+        showToast(t('adminProviderDeleted'), 'success');
+        await refreshPolicySettings(false, false);
+    } catch (error) {
+        showToast(error.message || t('adminProviderDeleteFailed'), 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+// ========== Order Management ==========
+
+function getOrderStatusChip(status) {
+    const map = {
+        pending: { cls: 'status-expired', label: t('adminOrderStatusPending') },
+        paid: { cls: 'status-active', label: t('adminOrderStatusPaid') },
+        expired: { cls: 'status-disabled', label: t('adminOrderStatusExpired') },
+        refunded: { cls: 'status-disabled', label: t('adminOrderStatusRefunded') }
+    };
+    const info = map[status] || { cls: '', label: status };
+    return `<span class="status-chip ${info.cls}">${escapeHtml(info.label)}</span>`;
+}
+
+function renderOrders() {
+    const body = document.getElementById('ordersTableBody');
+    const badge = document.getElementById('ordersCountBadge');
+    if (!body) return;
+
+    const orders = adminState.orders || [];
+    if (badge) badge.textContent = orders.length;
+
+    if (orders.length === 0) {
+        body.innerHTML = `<tr><td colspan="10" class="empty-row">${escapeHtml(t('adminNoData') || '暂无数据')}</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = orders.map(o => `<tr>
+        <td class="mono text-xs">${escapeHtml(o.orderNo)}</td>
+        <td>${escapeHtml(o.username || o.userId)}</td>
+        <td>${escapeHtml(o.planName || '-')}</td>
+        <td class="mono">${escapeHtml(o.amount)}</td>
+        <td>${getOrderStatusChip(o.status)}</td>
+        <td>${escapeHtml(o.payType || '-')}</td>
+        <td>${escapeHtml(o.providerName || '-')}</td>
+        <td class="mono text-xs">${escapeHtml(o.tradeNo || '-')}</td>
+        <td>${formatDateTime(o.createTime)}</td>
+        <td class="flex gap-2">${o.status === 'pending' ? `<button class="action-btn" onclick="markOrderPaid(${o.id}, this)"><i class="fa-solid fa-check"></i> <span>${t('adminOrderMarkPaid')}</span></button>` : ''}${o.status === 'paid' ? `<button class="action-btn danger" onclick="markOrderRefunded(${o.id}, this)"><i class="fa-solid fa-rotate-left"></i> <span>${t('adminOrderMarkRefunded')}</span></button>` : ''}${o.status !== 'paid' ? `<button class="action-btn danger" onclick="deleteOrder(${o.id}, this)"><i class="fa-solid fa-trash"></i> <span>${t('adminOrderDelete')}</span></button>` : ''}</td>
+    </tr>`).join('');
+}
+
+async function markOrderPaid(orderId, button) {
+    const order = adminState.orders.find(o => o.id === orderId);
+    const msg = t('adminOrderMarkPaidConfirm').replace('{orderNo}', order?.orderNo || orderId);
+    if (!await confirmAdminAction(msg, {
+        tone: 'default',
+        icon: 'fa-badge-check',
+        confirmText: getCurrentLanguage() === 'en' ? 'Mark Paid' : '确认已支付'
+    })) return;
+    button.disabled = true;
+    try {
+        await adminRequest(`/admin/orders/${orderId}/mark-paid`, { method: 'PUT' });
+        showToast(t('adminOrderMarkPaidSuccess'), 'success');
+        await refreshAdminData(false);
+    } catch (error) {
+        showToast(error.message || t('adminOrderMarkFailed'), 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function markOrderRefunded(orderId, button) {
+    const order = adminState.orders.find(o => o.id === orderId);
+    const msg = t('adminOrderMarkRefundedConfirm').replace('{orderNo}', order?.orderNo || orderId);
+    if (!await confirmAdminAction(msg, {
+        tone: 'default',
+        icon: 'fa-rotate-left',
+        confirmText: getCurrentLanguage() === 'en' ? 'Confirm Refund' : '确认退款'
+    })) return;
+    button.disabled = true;
+    try {
+        await adminRequest(`/admin/orders/${orderId}/mark-refunded`, { method: 'PUT' });
+        showToast(t('adminOrderMarkRefundedSuccess'), 'success');
+        await refreshAdminData(false);
+    } catch (error) {
+        showToast(error.message || t('adminOrderMarkFailed'), 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function deleteOrder(orderId, button) {
+    const order = adminState.orders.find(o => o.id === orderId);
+    const msg = t('adminOrderDeleteConfirm').replace('{orderNo}', order?.orderNo || orderId);
+    if (!await confirmAdminAction(msg, {
+        tone: 'danger',
+        icon: 'fa-trash',
+        confirmText: getCurrentLanguage() === 'en' ? 'Delete' : '删除'
+    })) return;
+    button.disabled = true;
+    try {
+        await adminRequest(`/admin/orders/${orderId}`, { method: 'DELETE' });
+        showToast(t('adminOrderDeleteSuccess'), 'success');
+        await refreshAdminData(false);
+    } catch (error) {
+        showToast(error.message || t('adminOrderDeleteFailed'), 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+// ========== Page Navigation ==========
+
+function showAdminPage(pageName, navEl) {
+    const activePage = setActiveAdminPage(pageName);
+
+    document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
+    const target = document.querySelector(`.admin-page[data-page="${activePage}"]`);
+    if (target) target.classList.add('active');
+
+    document.querySelectorAll('.admin-sidebar-nav a').forEach(a => a.classList.remove('active'));
+    if (navEl && navEl.dataset.nav === activePage) {
+        navEl.classList.add('active');
+    } else {
+        const link = document.querySelector(`.admin-sidebar-nav a[data-nav="${activePage}"]`);
+        if (link) link.classList.add('active');
+    }
+
+    closeAdminSidebar();
+}
+
+function toggleAdminSidebar(forceOpen) {
+    const sidebar = document.getElementById('adminSidebar');
+    if (!sidebar) return;
+
+    const shouldOpen = typeof forceOpen === 'boolean'
+        ? forceOpen
+        : !sidebar.classList.contains('mobile-open');
+
+    if (shouldOpen) {
+        openAdminSidebar();
+    } else {
+        closeAdminSidebar();
+    }
+}
+
+function closeAdminSidebar() {
+    const sidebar = document.getElementById('adminSidebar');
+    const backdrop = document.getElementById('adminSidebarBackdrop');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.remove('visible');
+    document.body.classList.remove('admin-sidebar-open');
+}
+
+function openAdminSidebar() {
+    const sidebar = document.getElementById('adminSidebar');
+    const backdrop = document.getElementById('adminSidebarBackdrop');
+    if (sidebar) sidebar.classList.add('mobile-open');
+    if (backdrop) backdrop.classList.add('visible');
+    document.body.classList.add('admin-sidebar-open');
+}
+
+function getInitialAdminPage() {
+    const fromHash = window.location.hash.replace(/^#/, '').trim();
+    if (ADMIN_PAGE_NAMES.has(fromHash)) {
+        return fromHash;
+    }
+
+    const fromStorage = localStorage.getItem(ADMIN_PAGE_STORAGE_KEY);
+    if (ADMIN_PAGE_NAMES.has(fromStorage)) {
+        return fromStorage;
+    }
+
+    return 'overview';
+}
+
+function updateAdminPageHash(pageName) {
+    const nextHash = `#${pageName}`;
+    if (window.location.hash !== nextHash) {
+        const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+        history.replaceState(null, '', nextUrl);
+    }
+}
+
+function setActiveAdminPage(pageName) {
+    if (!ADMIN_PAGE_NAMES.has(pageName)) {
+        return 'overview';
+    }
+
+    localStorage.setItem(ADMIN_PAGE_STORAGE_KEY, pageName);
+    updateAdminPageHash(pageName);
+    return pageName;
+}
+
+function bindAdminLayoutEvents() {
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 960) {
+            closeAdminSidebar();
+        }
+    });
+}
+
 function goToNetdisk() {
     window.location.href = 'netdisk.html';
 }
 
-function handleAdminLogout() {
-    if (confirm(t('logoutConfirm'))) {
-        clearSession();
-        window.location.href = 'index.html';
-    }
+async function handleAdminLogout() {
+    const confirmed = await confirmAdminAction(t('logoutConfirm'), {
+        title: getCurrentLanguage() === 'en' ? 'Log Out' : '退出登录',
+        icon: 'fa-right-from-bracket',
+        confirmText: getCurrentLanguage() === 'en' ? 'Log out' : '退出',
+        tone: 'danger'
+    });
+    if (!confirmed) return;
+    clearSession();
+    window.location.href = 'index.html';
 }
 
 function rerenderForLanguageChange() {
@@ -1471,16 +2207,23 @@ function rerenderForLanguageChange() {
     renderUsers();
     renderFiles();
     renderShares();
+    renderOrders();
     renderRateLimitPolicies();
     renderAdminConsoleAccessForm();
     renderRegistrationSettingsForm();
     renderUploadPolicyForm();
     renderPreviewPolicyForm();
     renderCorsPolicyForm();
+    renderPlans();
+    renderPaymentProviders();
 }
 
 async function initAdminPage() {
     if (!await ensureAdminAccess()) return;
+
+    bindAdminLayoutEvents();
+    bindRegistrationSettingsEvents();
+
     renderOverview();
     renderUsers();
     renderFiles();
@@ -1489,6 +2232,7 @@ async function initAdminPage() {
     renderAdminConsoleAccessForm();
     renderRegistrationSettingsForm();
     renderUploadPolicyForm();
+    showAdminPage(getInitialAdminPage());
     refreshAdminData(false, true);
 }
 
@@ -1511,3 +2255,17 @@ window.savePreviewPolicySettings = savePreviewPolicySettings;
 window.saveCorsPolicySettings = saveCorsPolicySettings;
 window.toggleUploadSizeLimit = toggleUploadSizeLimit;
 window.updateAdminConsolePathPreview = updateAdminConsolePathPreview;
+window.savePlan = savePlan;
+window.editPlan = editPlan;
+window.cancelEditPlan = cancelEditPlan;
+window.deletePlan = deletePlan;
+window.savePaymentProvider = savePaymentProvider;
+window.editPaymentProvider = editPaymentProvider;
+window.cancelEditProvider = cancelEditProvider;
+window.deletePaymentProvider = deletePaymentProvider;
+window.markOrderPaid = markOrderPaid;
+window.markOrderRefunded = markOrderRefunded;
+window.deleteOrder = deleteOrder;
+window.showAdminPage = showAdminPage;
+window.toggleAdminSidebar = toggleAdminSidebar;
+window.closeAdminSidebar = closeAdminSidebar;

@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class RegistrationSettingsServiceImpl implements RegistrationSettingsService {
 
+    private static final String DEFAULT_RECAPTCHA_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
+    private static final String DEFAULT_TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
     @Autowired
     private RegistrationProperties registrationProperties;
 
@@ -32,6 +35,7 @@ public class RegistrationSettingsServiceImpl implements RegistrationSettingsServ
         return normalize(new RegistrationSettingsPolicy(
                 registrationProperties.isEmailVerificationEnabled(),
                 recaptchaProperties.isEnabled(),
+                "recaptcha",
                 recaptchaProperties.getSiteKey(),
                 recaptchaProperties.getSecretKey(),
                 recaptchaProperties.getVerifyUrl()
@@ -40,23 +44,30 @@ public class RegistrationSettingsServiceImpl implements RegistrationSettingsServ
 
     private RegistrationSettingsPolicy normalize(RegistrationSettingsPolicy source) {
         if (source == null) {
-            return new RegistrationSettingsPolicy(true, false, "", "", "https://www.google.com/recaptcha/api/siteverify");
+            return new RegistrationSettingsPolicy(true, false, "recaptcha", "", "", DEFAULT_RECAPTCHA_VERIFY_URL);
         }
+
+        String provider = normalizeValue(source.captchaProvider());
+        if (provider.isBlank()) provider = "recaptcha";
 
         String siteKey = normalizeValue(source.recaptchaSiteKey());
         String secretKey = normalizeValue(source.recaptchaSecretKey());
         String verifyUrl = normalizeValue(source.recaptchaVerifyUrl());
         boolean recaptchaEnabled = source.recaptchaEnabled()
                 && !siteKey.isBlank()
-                && !secretKey.isBlank()
-                && !verifyUrl.isBlank();
+                && !secretKey.isBlank();
+
+        if (verifyUrl.isBlank()) {
+            verifyUrl = "turnstile".equals(provider) ? DEFAULT_TURNSTILE_VERIFY_URL : DEFAULT_RECAPTCHA_VERIFY_URL;
+        }
 
         return new RegistrationSettingsPolicy(
                 source.emailVerificationEnabled(),
                 recaptchaEnabled,
+                provider,
                 siteKey,
                 secretKey,
-                verifyUrl.isBlank() ? "https://www.google.com/recaptcha/api/siteverify" : verifyUrl
+                verifyUrl
         );
     }
 

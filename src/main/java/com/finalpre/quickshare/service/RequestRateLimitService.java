@@ -4,6 +4,8 @@ public interface RequestRateLimitService {
 
     void checkGuestUploadAllowed(String clientIp);
 
+    void checkBasicUserUploadAllowed(Long userId, String clientIp);
+
     void checkPublicShareInfoAllowed(String clientIp);
 
     void checkPublicDownloadAllowed(String clientIp);

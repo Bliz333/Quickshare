@@ -195,6 +195,8 @@ npx playwright test tests/e2e/netdisk-quota.spec.js
 npx playwright test tests/e2e/quickdrop.spec.js
 npx playwright test tests/e2e/quickdrop-real.spec.js
 ./scripts/quickshare-playwright-smoke.sh
+./scripts/deploy-preprod.sh
+DEPLOY_GIT_BRANCH=main DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 ```
 
 没有本地 Node / Chromium 的服务器环境，优先使用 Dockerized Playwright：
@@ -204,6 +206,20 @@ npx playwright test tests/e2e/quickdrop-real.spec.js
 PLAYWRIGHT_TEST_TARGET=tests/e2e/quickdrop.spec.js ./scripts/quickshare-playwright-smoke.sh
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 ./scripts/quickshare-playwright-smoke.sh
 ```
+
+预发布部署验证现已统一为 GitHub 拉取式：
+
+```bash
+./scripts/deploy-preprod.sh
+DEPLOY_RUN_SMOKE=1 ./scripts/deploy-preprod.sh
+DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
+```
+
+说明：
+
+- 服务器会在 `/root/quickshare` 内 `git fetch/reset` 到目标分支，然后执行 `docker compose up --build -d`
+- 默认部署当前本地分支名；如需强制部署 `main`，显式传 `DEPLOY_GIT_BRANCH=main`
+- 真实 QuickDrop 浏览器回归继续在服务器本机网络中执行，而不是依赖当前环境直连公网 `:8080`
 
 当前这组用例覆盖：
 - 管理台注册设置保存、provider 切换和公开设置同步

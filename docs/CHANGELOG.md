@@ -2,6 +2,17 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-22 (GitHub 拉取式预发布部署)
+
+- 详细记录：`docs/archive/2026-03-22-github-pull-preprod-deploy.md`
+- 核心变更：
+  - `Dockerfile` 已改成多阶段自举构建，`docker compose up --build -d` 现在可直接从新鲜 Git checkout 完成应用构建，不再依赖预先存在的 `target/*.jar` 或循环 `APP_BASE_IMAGE`
+  - `compose.yaml` 已移除 `APP_BASE_IMAGE` build args，应用镜像改为直接由当前源码构建
+  - `deploy-preprod.sh` 已从“本地打包上传”切换为“预发布机 `git fetch/reset` 指定分支后 `docker compose up --build -d`”
+  - 预发布部署默认跟随当前本地分支名；若需部署 `main`，可显式传 `DEPLOY_GIT_BRANCH=main`
+  - 预发布回滚已收口为 commit 级恢复：仅在构建/启动/health 失败时自动回退到上一个 commit
+  - `rtc-config`、host smoke 和 Dockerized Playwright 浏览器 smoke 继续作为部署后的标准后验收
+
 ## 2026-03-22 (预发布浏览器回归固化)
 
 - 详细记录：`docs/archive/2026-03-22-preprod-browser-smoke-baseline.md`

@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        APP_BASE_IMAGE: ${APP_BASE_IMAGE:-quickshare:local}
     image: quickshare:local
     restart: unless-stopped
     env_file:

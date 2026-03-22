@@ -12,10 +12,17 @@
   - 已补 `docs/PUBLISHING.md` 的提交身份检查
   - 已切换 GitHub SSH remote 并推送当前分支
   - 本机已具备测试服务器快捷登录 helper（本地未跟踪配置）
+- 已完成阶段 C：GitHub 拉取式预发布部署基线
+  - `Dockerfile` 已支持从新鲜 Git checkout 自举构建
+  - `deploy-preprod.sh` 已改为远端 `git fetch/reset` + `docker compose up --build -d`
+  - 仅在构建 / 启动 / `health` 失败时自动回滚到上一个 commit
+  - `quickshare-smoke.sh` 与 `quickshare-playwright-smoke.sh` 继续作为部署后验收入口
 
 ## 分阶段 Checklist（按风险优先级）
 
 ### Phase 1. 预发布部署复现与真实公网验证
+
+- 当前状态：已完成基础收口，后续只需在这条链路上继续做稳定性复核，不再继续维护上传式发布包流程
 
 - 目标：
   - 用当前 `feature/hardening-plan` 工作分支在预发布机完整复现一轮部署
@@ -93,6 +100,7 @@
   - 启用支付商户后的真实外部回跳、支付结果页轮询、退款状态与网盘配额/VIP 展示刷新
 - 条件允许时继续补浏览器自动化，而不是只依赖手工点击回归。
 - 当前 Playwright + Chromium 基线已经可用，下一步应继续扩大页面级覆盖面，优先补真实公网商户回跳场景、更多登录后网盘 CRUD 交互，以及把当前默认验收脚本同步进 CI。
+- 预发布部署路径现已统一为 GitHub 拉取式；下一步更值得投入的是在这条稳定底座上继续补高价值页面级回归，而不是继续维护本地上传式部署。
 
 ### 3. 部署与文档卫生
 

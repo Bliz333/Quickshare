@@ -5,6 +5,9 @@
 build
 dist
 node_modules
+target
+playwright-report
+test-results
 *.iml
 *.ipr
 *.iws

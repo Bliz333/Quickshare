@@ -22,6 +22,9 @@
 - 新增 `scripts/quickshare-playwright-smoke.sh`，测试服务器即使没有本地 Node / Chromium，也能通过 Dockerized Playwright 执行真实浏览器回归。
 - `deploy-preprod.sh` 已新增 `DEPLOY_RUN_BROWSER_SMOKE=1`，远端部署后可直接在服务器本机网络里复跑 `tests/e2e/quickdrop-real.spec.js`。
 - 已在测试服务器本机网络里实测 `tests/e2e/quickdrop-real.spec.js` 通过，same-account 双页真实 QuickDrop 传输继续能落到统一任务列表。
+- `Dockerfile` 已改成多阶段自举构建；应用镜像现在可以直接从 Git checkout 构建，不再依赖宿主机预先产出的 `target/*.jar`。
+- `deploy-preprod.sh` 已改成 GitHub 拉取式部署：预发布机在 `/root/quickshare` 内 `git fetch/reset` 到目标分支后直接 `docker compose up --build -d`。
+- 预发布部署当前默认跟随本地分支名，必要时可显式指定 `DEPLOY_GIT_BRANCH=main`；这也为后续从 `feature/hardening-plan` 合并回 `main` 留出了统一入口。
 
 - 统一站内 Modal 交互，替换突兀的浏览器原生弹窗体验。
 - 修复管理台与网盘之间的导航收口问题，并继续保持公开页面不暴露管理入口按钮。
@@ -174,6 +177,7 @@
     - 首屏仍有进一步减少辅助文案和标签的空间
     - 记录当前已是页内次级页面；后续仍可继续评估独立 URL
 - Docker 验收现在不再只靠零散手工 `curl`，而是已有仓库内脚本基线可直接重复执行。
+- 预发布部署现在也不再依赖本地打包上传，而是统一收口到 GitHub 拉取 + Docker Compose 构建。
 - repo 内基础 smoke 已经覆盖到部分真实写路径，不再只是只读接口探针。
 - repo 内基础 smoke 已继续覆盖文件上传与真实下载，不再只停留在目录级写路径。
 - repo 内基础 smoke 已继续覆盖公开分享与公开下载的核心行为。

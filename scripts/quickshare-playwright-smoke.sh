@@ -39,13 +39,13 @@ log "running ${PLAYWRIGHT_TEST_TARGET} against ${PLAYWRIGHT_BASE_URL}"
 docker run --rm \
     --network host \
     --ipc=host \
-    -e CI=1 \
-    -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    -e PLAYWRIGHT_BASE_URL \
-    -e PLAYWRIGHT_TEST_TARGET \
-    -e PLAYWRIGHT_REPORTER \
-    -e E2E_ADMIN_USERNAME \
-    -e E2E_ADMIN_PASSWORD \
+    -e "CI=1" \
+    -e "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1" \
+    -e "PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL}" \
+    -e "PLAYWRIGHT_TEST_TARGET=${PLAYWRIGHT_TEST_TARGET}" \
+    -e "PLAYWRIGHT_REPORTER=${PLAYWRIGHT_REPORTER}" \
+    -e "E2E_ADMIN_USERNAME=${E2E_ADMIN_USERNAME}" \
+    -e "E2E_ADMIN_PASSWORD=${E2E_ADMIN_PASSWORD}" \
     -v "$ROOT_DIR:/workspace" \
     -v "$PLAYWRIGHT_NPM_CACHE_DIR:/root/.npm" \
     -w /workspace \

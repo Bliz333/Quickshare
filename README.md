@@ -94,9 +94,17 @@ Optional preprod deploy example:
 ```bash
 ./scripts/deploy-preprod.sh
 DEPLOY_RUN_SMOKE=1 ./scripts/deploy-preprod.sh
+DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 ```
 
 Default host-mode smoke now covers login, storage/order probes, folder create/move/delete, upload deduplication, owned-file download verification, share creation, extract-code validation, public download accounting, and API-level batch move/delete validation. Container mode remains the fallback when host port forwarding is unstable.
+
+Dockerized browser smoke for environments without local Node/Chromium:
+
+```bash
+./scripts/quickshare-playwright-smoke.sh
+PLAYWRIGHT_TEST_TARGET=tests/e2e/quickdrop.spec.js ./scripts/quickshare-playwright-smoke.sh
+```
 
 Minimal browser automation baseline:
 

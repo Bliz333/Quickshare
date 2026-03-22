@@ -2,6 +2,15 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-22 (预发布浏览器回归固化)
+
+- 详细记录：`docs/archive/2026-03-22-preprod-browser-smoke-baseline.md`
+- 核心变更：
+  - 新增 `scripts/quickshare-playwright-smoke.sh`，把 Dockerized Playwright 运行入口固定到仓库内，默认执行 `tests/e2e/quickdrop-real.spec.js`
+  - `deploy-preprod.sh` 新增 `DEPLOY_RUN_BROWSER_SMOKE=1`，远端部署后可直接在测试服务器本机网络里执行真实双页 QuickDrop 浏览器回归
+  - 重新确认 `tests/e2e/quickdrop-real.spec.js` 使用已验证通过的基线实现，避免把当前执行环境里针对公网链路异常的试验性改动带进主线
+  - 已在测试服务器通过 Dockerized Playwright 实测 `quickdrop-real.spec.js`，确认 same-account 双页真实传输继续能落到统一任务列表
+
 ## 2026-03-22 (发布脱敏、远端接入与路线图重排)
 
 - 详细记录：`docs/archive/2026-03-22-publishing-hygiene-and-roadmap-reset.md`

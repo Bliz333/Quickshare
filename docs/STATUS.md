@@ -19,6 +19,9 @@
 - 上一轮未提交的 QuickDrop 页面收口已重新验收并正式提交，当前 GitHub 分支已有可恢复基线。
 - 公开文档中的真实域名 / 服务器 IP 已完成脱敏，发布流程已补上 `git` 提交身份检查与修正步骤。
 - 当前本机到 GitHub 与测试服务器的远端接入链路都已完成配置，后续可直接继续做部署验证与远端回归。
+- 新增 `scripts/quickshare-playwright-smoke.sh`，测试服务器即使没有本地 Node / Chromium，也能通过 Dockerized Playwright 执行真实浏览器回归。
+- `deploy-preprod.sh` 已新增 `DEPLOY_RUN_BROWSER_SMOKE=1`，远端部署后可直接在服务器本机网络里复跑 `tests/e2e/quickdrop-real.spec.js`。
+- 已在测试服务器本机网络里实测 `tests/e2e/quickdrop-real.spec.js` 通过，same-account 双页真实 QuickDrop 传输继续能落到统一任务列表。
 
 - 统一站内 Modal 交互，替换突兀的浏览器原生弹窗体验。
 - 修复管理台与网盘之间的导航收口问题，并继续保持公开页面不暴露管理入口按钮。
@@ -61,6 +64,7 @@
   - 同账号页主列表现在优先按服务端任务渲染，任务删除动作也已切到任务语义
   - 浏览器端 direct 已完成 / 已转存记录现在会按保留时长自动清理，避免本地直传缓存无限堆积
   - 已新增本地真实双页浏览器回归，确认 same-account QuickDrop 真实传输可落到统一任务列表
+  - 真实双页回归现已补上 Dockerized 服务器执行入口，不再依赖测试服务器额外预装 Node / Chromium
   - public / anonymous paired direct transfer 现在也已补服务端 `pair task` 记录层，不再完全停留在浏览器本地
   - 公开配对页和配对直传面板现已优先按服务端 `pair task` 渲染页面级任务视图，当前 pair session 的 incoming / outgoing 任务都可见
   - server-only public pair task 现已支持页内详情与删除；若当前浏览器已有接收分片，任务仍可直接下载

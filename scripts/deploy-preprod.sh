@@ -12,6 +12,7 @@ DEPLOY_REMOTE_DIR="${DEPLOY_REMOTE_DIR:-/root/quickshare}"
 DEPLOY_REMOTE_BACKUP_DIR="${DEPLOY_REMOTE_BACKUP_DIR:-/root/quickshare-backups}"
 DEPLOY_SKIP_PACKAGE="${DEPLOY_SKIP_PACKAGE:-0}"
 DEPLOY_RUN_SMOKE="${DEPLOY_RUN_SMOKE:-0}"
+DEPLOY_RUN_BROWSER_SMOKE="${DEPLOY_RUN_BROWSER_SMOKE:-0}"
 DEPLOY_HEALTH_URL="${DEPLOY_HEALTH_URL:-http://127.0.0.1:8080/api/health}"
 DEPLOY_RTC_URL="${DEPLOY_RTC_URL:-http://127.0.0.1:8080/api/public/quickdrop/rtc-config}"
 DEPLOY_VERIFY_RETRIES="${DEPLOY_VERIFY_RETRIES:-30}"
@@ -85,6 +86,7 @@ log "deploying archive on ${DEPLOY_TARGET}"
     "$REMOTE_PREV_DIR" \
     "$GIT_COMMIT" \
     "$DEPLOY_RUN_SMOKE" \
+    "$DEPLOY_RUN_BROWSER_SMOKE" \
     "$DEPLOY_HEALTH_URL" <<'REMOTE'
 set -euo pipefail
 
@@ -95,7 +97,8 @@ STAGE_DIR="$4"
 PREV_DIR="$5"
 GIT_COMMIT="$6"
 RUN_SMOKE="$7"
-HEALTH_URL="$8"
+RUN_BROWSER_SMOKE="$8"
+HEALTH_URL="$9"
 
 compose_cmd() {
     if command -v docker-compose >/dev/null 2>&1; then
@@ -154,11 +157,21 @@ wait_for_health() {
     return 1
 }
 
-if [[ "$RUN_SMOKE" == "1" ]]; then
+if [[ "$RUN_SMOKE" == "1" || "$RUN_BROWSER_SMOKE" == "1" ]]; then
     wait_for_health
+fi
+
+if [[ "$RUN_SMOKE" == "1" ]]; then
     (
         cd "$REMOTE_DIR"
         ./scripts/quickshare-smoke.sh
+    )
+fi
+
+if [[ "$RUN_BROWSER_SMOKE" == "1" ]]; then
+    (
+        cd "$REMOTE_DIR"
+        ./scripts/quickshare-playwright-smoke.sh
     )
 fi
 

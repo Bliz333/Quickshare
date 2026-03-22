@@ -24,6 +24,7 @@ const QuickDropDirectTransfer = (() => {
         incomingTransfers: [],
         outgoingTransfers: [],
         displayTransfers: [],
+        pickerMenuOpen: false,
         serverPairTasks: [],
         pairTaskContextKey: '',
         pairTaskPollTimer: null,
@@ -856,6 +857,14 @@ const QuickDropDirectTransfer = (() => {
         }
     }
 
+    function renderPickerMenu() {
+        const menu = document.getElementById('quickDropDirectPickerMenu');
+        if (!menu) {
+            return;
+        }
+        menu.classList.toggle('hidden', !state.pickerMenuOpen);
+    }
+
     function renderTransferList() {
         const list = document.getElementById('quickDropDirectTransferList');
         const empty = document.getElementById('quickDropDirectTransferEmpty');
@@ -928,6 +937,7 @@ const QuickDropDirectTransfer = (() => {
         renderSelectedFile();
         renderActiveSend();
         renderPeer();
+        renderPickerMenu();
         renderTransferList();
     }
 
@@ -1984,6 +1994,7 @@ const QuickDropDirectTransfer = (() => {
     }
 
     function openFilePicker() {
+        closePickerMenu();
         const input = document.getElementById('quickDropDirectFileInput');
         if (input) {
             input.click();
@@ -1991,14 +2002,29 @@ const QuickDropDirectTransfer = (() => {
     }
 
     function openFolderPicker() {
+        closePickerMenu();
         const input = document.getElementById('quickDropDirectFolderInput');
         if (input) {
             input.click();
         }
     }
 
+    function togglePickerMenu() {
+        state.pickerMenuOpen = !state.pickerMenuOpen;
+        renderPickerMenu();
+    }
+
+    function closePickerMenu() {
+        if (!state.pickerMenuOpen) {
+            return;
+        }
+        state.pickerMenuOpen = false;
+        renderPickerMenu();
+    }
+
     function handleFileChange(event) {
         setSelectedFiles(Array.from(event.target.files || []));
+        closePickerMenu();
         render();
     }
 
@@ -2022,6 +2048,12 @@ const QuickDropDirectTransfer = (() => {
         if (folderInput) {
             folderInput.addEventListener('change', handleFileChange);
         }
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('#quickDropDirectPickerShell')) {
+                closePickerMenu();
+            }
+        });
 
         if (list) {
             list.addEventListener('click', event => {
@@ -2106,6 +2138,7 @@ const QuickDropDirectTransfer = (() => {
         init,
         openFilePicker,
         openFolderPicker,
+        togglePickerMenu,
         sendDirectFile,
         sendFile,
         markFallbackToRelay(context = {}) {
@@ -2151,6 +2184,7 @@ const QuickDropDirectTransfer = (() => {
 window.QuickDropDirectTransfer = QuickDropDirectTransfer;
 window.openQuickDropDirectFilePicker = () => QuickDropDirectTransfer.openFilePicker();
 window.openQuickDropDirectFolderPicker = () => QuickDropDirectTransfer.openFolderPicker();
+window.toggleQuickDropDirectPickerMenu = () => QuickDropDirectTransfer.togglePickerMenu();
 window.sendQuickDropDirectFile = () => QuickDropDirectTransfer.sendDirectFile();
 
 document.addEventListener('DOMContentLoaded', () => {

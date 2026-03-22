@@ -3,6 +3,8 @@ const QUICKDROP_DEVICE_NAME_KEY = 'quickdrop-device-name';
 const QUICKDROP_PENDING_UPLOADS_KEY = 'quickdrop-pending-uploads';
 const QUICKDROP_TASK_LINKS_KEY = 'quickdrop-task-links';
 const QUICKDROP_SYNC_INTERVAL_MS = 15000;
+const QUICKDROP_HASH_TEMPORARY_HISTORY = '#temporary-history';
+const QUICKDROP_HASH_ACCOUNT_HISTORY = '#account-history';
 
 const quickDropState = {
     profile: null,
@@ -28,8 +30,11 @@ const quickDropState = {
     directSessionLastAttemptAt: 0,
     accountMode: false,
     currentMode: 'temporary',
+    currentSubpage: 'main',
     directHistoryExpanded: false,
-    accountHistoryExpanded: false
+    accountHistoryExpanded: false,
+    deviceSettingsExpanded: false,
+    pickerMenuExpanded: false
 };
 
 function quickDropText(key, fallback) {
@@ -127,6 +132,7 @@ function setQuickDropSelectedFiles(files) {
 function clearQuickDropSelectedFile() {
     quickDropState.selectedFiles = [];
     quickDropState.selectedFile = null;
+    closeQuickDropPickerMenu();
     const fileInput = document.getElementById('quickDropFileInput');
     if (fileInput) {
         fileInput.value = '';
@@ -148,6 +154,9 @@ function setQuickDropAccountMode(enabled) {
         accountModeBtn.classList.toggle('hidden', !quickDropState.accountMode);
     }
     if (!quickDropState.accountMode) {
+        quickDropState.deviceSettingsExpanded = false;
+        quickDropState.pickerMenuExpanded = false;
+        quickDropState.currentSubpage = 'main';
         setQuickDropMode('temporary');
     }
 }
@@ -155,6 +164,7 @@ function setQuickDropAccountMode(enabled) {
 function setQuickDropMode(mode) {
     const normalizedMode = mode === 'account' && quickDropState.accountMode ? 'account' : 'temporary';
     quickDropState.currentMode = normalizedMode;
+    quickDropState.pickerMenuExpanded = false;
 
     const temporaryIds = ['quickDropTemporaryTransferCard'];
     const accountIds = ['quickDropAccountPanels'];
@@ -193,6 +203,79 @@ function renderQuickDropModeGuide() {
         : quickDropText('quickDropModeGuideTemporary', 'Temporary transfer: get a match code first, then choose files or a folder and send.');
 }
 
+function renderQuickDropSubpage() {
+    const hero = document.getElementById('quickDropHeroSection');
+    const mainLayout = document.getElementById('quickDropMainLayout');
+    const historyPage = document.getElementById('quickDropHistoryPage');
+    const historyPageTitle = document.getElementById('quickDropHistoryPageTitle');
+    const showingHistory = quickDropState.currentSubpage !== 'main';
+
+    if (hero) {
+        hero.classList.toggle('hidden', showingHistory);
+    }
+    if (mainLayout) {
+        mainLayout.classList.toggle('hidden', showingHistory);
+    }
+    if (historyPage) {
+        historyPage.classList.toggle('hidden', !showingHistory);
+    }
+    if (historyPageTitle) {
+        historyPageTitle.textContent = quickDropState.currentSubpage === 'temporaryHistory'
+            ? quickDropText('quickDropDirectInboxTitle', 'Transfer History')
+            : quickDropText('quickDropActivityTitle', 'History');
+    }
+}
+
+function getQuickDropHistoryHash(target) {
+    if (target === 'temporaryHistory') {
+        return QUICKDROP_HASH_TEMPORARY_HISTORY;
+    }
+    if (target === 'accountHistory') {
+        return QUICKDROP_HASH_ACCOUNT_HISTORY;
+    }
+    return '';
+}
+
+function getQuickDropSubpageFromHash() {
+    const currentHash = window.location.hash || '';
+    if (currentHash === QUICKDROP_HASH_TEMPORARY_HISTORY) {
+        return 'temporaryHistory';
+    }
+    if (currentHash === QUICKDROP_HASH_ACCOUNT_HISTORY && quickDropState.accountMode) {
+        return 'accountHistory';
+    }
+    return 'main';
+}
+
+function syncQuickDropHistoryHash(target, options = {}) {
+    const desiredHash = getQuickDropHistoryHash(target);
+    const replace = Boolean(options.replace);
+    if ((window.location.hash || '') === desiredHash) {
+        applyQuickDropSubpageFromLocation();
+        return;
+    }
+    const nextUrl = `${window.location.pathname}${window.location.search}${desiredHash}`;
+    if (replace) {
+        window.history.replaceState(null, '', nextUrl);
+        applyQuickDropSubpageFromLocation();
+        return;
+    }
+    window.history.pushState(null, '', nextUrl);
+    applyQuickDropSubpageFromLocation();
+}
+
+function applyQuickDropSubpageFromLocation() {
+    const nextSubpage = getQuickDropSubpageFromHash();
+    if ((window.location.hash || '') !== getQuickDropHistoryHash(nextSubpage)) {
+        syncQuickDropHistoryHash(nextSubpage, { replace: true });
+    }
+    quickDropState.currentSubpage = nextSubpage;
+    quickDropState.directHistoryExpanded = nextSubpage === 'temporaryHistory';
+    quickDropState.accountHistoryExpanded = nextSubpage === 'accountHistory';
+    renderQuickDropSubpage();
+    renderQuickDropDisclosure();
+}
+
 function renderQuickDropDisclosure() {
     const signalStatus = document.getElementById('quickDropSignalStatus');
     const temporaryStatusRow = document.getElementById('quickDropTemporaryStatusRow');
@@ -201,8 +284,15 @@ function renderQuickDropDisclosure() {
     const directHistoryToggle = document.getElementById('quickDropDirectHistoryToggle');
     const accountHistoryPanel = document.getElementById('quickDropAccountHistoryPanel');
     const accountHistoryToggle = document.getElementById('quickDropAccountHistoryToggle');
+    const deviceSettingsPanel = document.getElementById('quickDropDeviceSettingsPanel');
+    const deviceSettingsToggle = document.getElementById('quickDropDeviceSettingsToggle');
     const showTemporaryStatus = quickDropState.currentMode === 'temporary'
         && !!(window.QuickDropSignalManager?.getState?.().pairSessionId || window.QuickDropSignalManager?.isDirectReady?.());
+    const subpageMode = quickDropState.currentSubpage === 'temporaryHistory'
+        ? 'temporary'
+        : quickDropState.currentSubpage === 'accountHistory'
+            ? 'account'
+            : '';
 
     if (signalStatus) {
         signalStatus.classList.toggle('hidden', !showTemporaryStatus);
@@ -214,21 +304,66 @@ function renderQuickDropDisclosure() {
         pairingMeta.classList.toggle('hidden', !showTemporaryStatus);
     }
     if (directHistoryPanel) {
-        directHistoryPanel.classList.toggle('hidden', !quickDropState.directHistoryExpanded);
+        directHistoryPanel.classList.toggle('hidden', subpageMode !== 'temporary');
     }
     if (directHistoryToggle) {
-        directHistoryToggle.querySelector('span').textContent = quickDropState.directHistoryExpanded
+        directHistoryToggle.querySelector('span').textContent = quickDropState.currentSubpage === 'temporaryHistory'
             ? quickDropText('quickDropHideTemporaryHistory', '收起互传记录')
             : quickDropText('quickDropShowTemporaryHistory', '查看互传记录');
     }
     if (accountHistoryPanel) {
-        accountHistoryPanel.classList.toggle('hidden', !quickDropState.accountHistoryExpanded);
+        accountHistoryPanel.classList.toggle('hidden', subpageMode !== 'account');
     }
     if (accountHistoryToggle) {
-        accountHistoryToggle.querySelector('span').textContent = quickDropState.accountHistoryExpanded
+        accountHistoryToggle.querySelector('span').textContent = quickDropState.currentSubpage === 'accountHistory'
             ? quickDropText('quickDropHideAccountHistory', '收起收发记录')
             : quickDropText('quickDropShowAccountHistory', '查看收发记录');
     }
+    if (deviceSettingsPanel) {
+        deviceSettingsPanel.classList.toggle('hidden', !quickDropState.deviceSettingsExpanded);
+    }
+    if (deviceSettingsToggle) {
+        deviceSettingsToggle.querySelector('span').textContent = quickDropState.deviceSettingsExpanded
+            ? quickDropText('quickDropHideDeviceSettings', '收起设备名')
+            : quickDropText('quickDropShowDeviceSettings', '改设备名');
+    }
+}
+
+function renderQuickDropPickerMenu() {
+    const pickerMenu = document.getElementById('quickDropPickerMenu');
+    if (!pickerMenu) {
+        return;
+    }
+    pickerMenu.classList.toggle('hidden', !quickDropState.pickerMenuExpanded);
+}
+
+function toggleQuickDropPickerMenu() {
+    if (!quickDropState.selectedReceiverDeviceId) {
+        showToast(quickDropText('quickDropChooseDeviceFirst', 'Choose a target device first'), 'error');
+        return;
+    }
+    quickDropState.pickerMenuExpanded = !quickDropState.pickerMenuExpanded;
+    renderQuickDropPickerMenu();
+}
+
+function closeQuickDropPickerMenu() {
+    if (!quickDropState.pickerMenuExpanded) {
+        return;
+    }
+    quickDropState.pickerMenuExpanded = false;
+    renderQuickDropPickerMenu();
+}
+
+function closeQuickDropHistoryDrawer() {
+    syncQuickDropHistoryHash('main');
+}
+
+function openQuickDropHistoryPage(target) {
+    const normalizedTarget = target === 'temporaryHistory' ? 'temporaryHistory' : 'accountHistory';
+    if (normalizedTarget === 'accountHistory' && !quickDropState.accountMode) {
+        return;
+    }
+    syncQuickDropHistoryHash(normalizedTarget);
 }
 
 function getStoredQuickDropDeviceName() {
@@ -523,6 +658,7 @@ function renderQuickDropTargetStage() {
     const selected = document.getElementById('quickDropSelectedDevice');
     const selectedMeta = document.getElementById('quickDropSelectedDeviceMeta');
     const sendLabel = document.getElementById('quickDropSendBtnLabel');
+    const targetChip = document.querySelector('.device-target-chip');
     const selectedDevice = getSelectedQuickDropDevice();
 
     if (selected) {
@@ -539,6 +675,9 @@ function renderQuickDropTargetStage() {
         sendLabel.textContent = selectedDevice
             ? quickDropText('quickDropSendNowWithDevice', 'Send to {name}').replace('{name}', selectedDevice.deviceName)
             : quickDropText('quickDropSendNow', 'Send now');
+    }
+    if (targetChip) {
+        targetChip.classList.toggle('selected', Boolean(selectedDevice));
     }
 }
 
@@ -806,33 +945,19 @@ function renderQuickDropDevices() {
     empty.classList.add('hidden');
     list.innerHTML = availableDevices.map(device => `
         <article class="device-card ${quickDropState.selectedReceiverDeviceId === device.deviceId ? 'selected' : ''}" data-quickdrop-device="${device.deviceId}">
-            <div class="device-card-top">
-                <span class="device-card-visual">
-                    <i class="fa-solid ${getQuickDropDeviceIcon(device.deviceType)}"></i>
-                </span>
-                <span class="device-card-state">${quickDropState.selectedReceiverDeviceId === device.deviceId
-                    ? quickDropText('quickDropDeviceSelected', 'Ready')
-                    : quickDropText('quickDropTapToChoose', 'Tap to choose')}</span>
-            </div>
+            <span class="device-card-visual">
+                <i class="fa-solid ${getQuickDropDeviceIcon(device.deviceType)}"></i>
+            </span>
             <div class="device-card-copy">
-                <p class="device-card-kicker">${device.online
-                    ? quickDropText('quickDropOnline', 'Online')
-                    : quickDropText('quickDropOffline', 'Offline')}</p>
                 <h3>${device.deviceName}</h3>
                 <p class="device-meta">
-                    ${device.deviceType || detectQuickDropDeviceType()}
+                    ${device.online ? quickDropText('quickDropOnline', 'Online') : quickDropText('quickDropOffline', 'Offline')}
+                    · ${device.deviceType || detectQuickDropDeviceType()}
                 </p>
             </div>
-            <div class="device-card-foot">
-                <span class="status-pill ${device.online ? 'online' : 'offline'}">
-                    <i class="fa-solid fa-circle"></i>
-                    <span>${device.online ? quickDropText('quickDropOnline', 'Online') : quickDropText('quickDropOffline', 'Offline')}</span>
-                </span>
-                <span class="device-card-action">${quickDropState.selectedReceiverDeviceId === device.deviceId
-                    ? quickDropText('quickDropDeviceSelected', 'Selected')
-                    : quickDropText('quickDropTapToChoose', 'Tap to choose')}</span>
-            </div>
-            <p class="device-meta">${quickDropText('quickDropLastSeen', 'Last seen')}: ${formatQuickDropTime(device.lastSeenAt)}</p>
+            <span class="device-card-state">${quickDropState.selectedReceiverDeviceId === device.deviceId
+                ? quickDropText('quickDropDeviceSelected', 'Selected')
+                : quickDropText('quickDropTapToChoose', 'Tap to choose')}</span>
         </article>
     `).join('');
 
@@ -1108,10 +1233,12 @@ function renderQuickDropPage() {
     updateQuickDropCurrentDeviceCard();
     renderQuickDropDevices();
     renderQuickDropTargetStage();
+    renderQuickDropPickerMenu();
     renderQuickDropFolderSelect();
     renderQuickDropActiveUpload();
     renderQuickDropTransfers();
     setQuickDropMode(quickDropState.currentMode);
+    renderQuickDropSubpage();
     renderQuickDropDisclosure();
 }
 
@@ -1156,6 +1283,7 @@ async function syncQuickDrop(silent = false) {
         quickDropState.recommendedChunkSize = data.recommendedChunkSize || quickDropState.recommendedChunkSize;
         setQuickDropAccountMode(true);
         refreshQuickDropDirectTransfers();
+        quickDropState.currentSubpage = getQuickDropSubpageFromHash();
         renderQuickDropPage();
         maybeEnsureSelectedDeviceDirectRoute({ silent: true, waitForReadyMs: 1200 }).catch(() => {});
     } catch (error) {
@@ -1179,6 +1307,8 @@ async function saveQuickDropDeviceName() {
 
     setStoredQuickDropDeviceName(value);
     await syncQuickDrop();
+    quickDropState.deviceSettingsExpanded = false;
+    renderQuickDropDisclosure();
     showToast(quickDropText('quickDropDeviceNameSaved', 'Device name updated'), 'success');
 }
 
@@ -1187,6 +1317,7 @@ function openQuickDropFilePicker() {
         showToast(quickDropText('quickDropChooseDeviceFirst', 'Choose a target device first'), 'error');
         return;
     }
+    closeQuickDropPickerMenu();
 
     const input = document.getElementById('quickDropFileInput');
     if (input) {
@@ -1199,6 +1330,7 @@ function openQuickDropFolderPicker() {
         showToast(quickDropText('quickDropChooseDeviceFirst', 'Choose a target device first'), 'error');
         return;
     }
+    closeQuickDropPickerMenu();
 
     const input = document.getElementById('quickDropFolderInput');
     if (input) {
@@ -1208,6 +1340,7 @@ function openQuickDropFolderPicker() {
 
 function handleQuickDropFileChange(event) {
     setQuickDropSelectedFiles(Array.from(event.target.files || []));
+    closeQuickDropPickerMenu();
     renderQuickDropActiveUpload();
 }
 
@@ -1529,6 +1662,8 @@ function bindQuickDropEvents() {
     const modeSwitch = document.getElementById('quickDropModeSwitch');
     const directHistoryToggle = document.getElementById('quickDropDirectHistoryToggle');
     const accountHistoryToggle = document.getElementById('quickDropAccountHistoryToggle');
+    const deviceSettingsToggle = document.getElementById('quickDropDeviceSettingsToggle');
+    const historyBackBtn = document.getElementById('quickDropHistoryBackBtn');
     const deviceList = document.getElementById('quickDropDeviceList');
     const incomingList = document.getElementById('quickDropIncomingList');
     const outgoingList = document.getElementById('quickDropOutgoingList');
@@ -1545,20 +1680,29 @@ function bindQuickDropEvents() {
             if (!button) {
                 return;
             }
+            closeQuickDropHistoryDrawer();
             setQuickDropMode(button.getAttribute('data-quickdrop-mode'));
+            renderQuickDropDisclosure();
         });
     }
     if (directHistoryToggle) {
         directHistoryToggle.addEventListener('click', () => {
-            quickDropState.directHistoryExpanded = !quickDropState.directHistoryExpanded;
-            renderQuickDropDisclosure();
+            openQuickDropHistoryPage('temporaryHistory');
         });
     }
     if (accountHistoryToggle) {
         accountHistoryToggle.addEventListener('click', () => {
-            quickDropState.accountHistoryExpanded = !quickDropState.accountHistoryExpanded;
+            openQuickDropHistoryPage('accountHistory');
+        });
+    }
+    if (deviceSettingsToggle) {
+        deviceSettingsToggle.addEventListener('click', () => {
+            quickDropState.deviceSettingsExpanded = !quickDropState.deviceSettingsExpanded;
             renderQuickDropDisclosure();
         });
+    }
+    if (historyBackBtn) {
+        historyBackBtn.addEventListener('click', closeQuickDropHistoryDrawer);
     }
 
     if (deviceList) {
@@ -1574,6 +1718,12 @@ function bindQuickDropEvents() {
             maybeEnsureSelectedDeviceDirectRoute({ silent: true, waitForReadyMs: 1200, force: true }).catch(() => {});
         });
     }
+
+    document.addEventListener('click', event => {
+        if (!event.target.closest('#quickDropPickerShell')) {
+            closeQuickDropPickerMenu();
+        }
+    });
 
     [incomingList, outgoingList].forEach(container => {
         if (!container) {
@@ -1652,6 +1802,10 @@ function bindQuickDropEvents() {
         renderQuickDropPage();
     });
 
+    window.addEventListener('hashchange', () => {
+        applyQuickDropSubpageFromLocation();
+    });
+
     document.addEventListener('quickdrop:direct-statechange', () => {
         renderQuickDropActiveUpload();
         renderQuickDropDisclosure();
@@ -1667,6 +1821,7 @@ async function initQuickDropPage() {
     bindQuickDropEvents();
     setQuickDropAccountMode(typeof isLoggedIn === 'function' && isLoggedIn());
     quickDropState.currentMode = quickDropState.accountMode ? 'account' : 'temporary';
+    quickDropState.currentSubpage = getQuickDropSubpageFromHash();
 
     if (quickDropState.accountMode) {
         try {
@@ -1698,6 +1853,7 @@ async function initQuickDropPage() {
 
 window.syncQuickDrop = syncQuickDrop;
 window.saveQuickDropDeviceName = saveQuickDropDeviceName;
+window.toggleQuickDropPickerMenu = toggleQuickDropPickerMenu;
 window.openQuickDropFilePicker = openQuickDropFilePicker;
 window.openQuickDropFolderPicker = openQuickDropFolderPicker;
 window.sendQuickDropFile = sendQuickDropFile;

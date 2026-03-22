@@ -60,6 +60,12 @@
   - public / anonymous paired direct transfer 现在也已补服务端 `pair task` 记录层，不再完全停留在浏览器本地
   - 公开配对页和配对直传面板现已优先按服务端 `pair task` 渲染页面级任务视图，当前 pair session 的 incoming / outgoing 任务都可见
   - server-only public pair task 现已支持页内详情与删除；若当前浏览器已有接收分片，任务仍可直接下载
+  - `quickdrop.html` 首屏现已继续做减法：顶部入口更少，Hero 更短，模式切换更紧凑
+  - 临时互传和同账号发送现已都改成“选择内容”单入口，再从轻量菜单选择“文件 / 文件夹”
+  - QuickDrop 的收发记录现已移到底部抽屉，设备改名入口已默认折叠，不再长期占首屏空间
+  - QuickDrop 临时互传现已继续压成中心配对卡，首屏更接近“先配对、再发送”的单主路径
+  - QuickDrop 记录区现已从覆盖式抽屉推进到次级页面状态，打开记录时不再遮挡主发送区
+  - QuickDrop 记录次级页现已接上 `hash` 路由，浏览器返回可直接从记录页退回主页面
 - 网盘当前工作树已补上选择模式、批量移动/删除和拖拽移动交互，准备继续补真实烟测。
 - 订单状态机补强：
   - 创建订单时校验默认商户是否支持所选 `payType`
@@ -156,6 +162,9 @@
   - 已实现匹配码配对后的 `WebRTC DataChannel` 浏览器直传
   - 已实现同账号发送端在直传中途失败时自动切到服务器中转
   - 当前仍缺 `TURN` 的真实部署，以及直传 / 中转两条数据面的更细粒度统一接续
+  - 页面层已继续朝 Snapdrop / PairDrop 风格收口，但还没到最终形态：
+    - 首屏仍有进一步减少辅助文案和标签的空间
+    - 记录当前已是页内次级页面；后续仍可继续评估独立 URL
 - Docker 验收现在不再只靠零散手工 `curl`，而是已有仓库内脚本基线可直接重复执行。
 - repo 内基础 smoke 已经覆盖到部分真实写路径，不再只是只读接口探针。
 - repo 内基础 smoke 已继续覆盖文件上传与真实下载，不再只停留在目录级写路径。
@@ -238,6 +247,10 @@
     - `src/main/resources/static/js/pricing.js`
     - `src/main/resources/static/js/payment-result.js`
   - `./mvnw -q -DskipTests compile`
+  - `./mvnw -q -DskipTests package -o`
+  - `docker compose up --build -d app`
+  - `curl -sS http://127.0.0.1:8080/api/health`
+  - `npx playwright test tests/e2e/quickdrop.spec.js`
   - `./mvnw -q -Dtest=QuickDropPairingServiceImplTest,QuickDropServiceImplTest test`
   - `./mvnw -q -Dtest=QuickDropServiceImplTest test`
   - `./mvnw -q -Dtest=PublicSettingsControllerTest,AdminPolicyServiceImplTest,RegistrationSettingsServiceImplTest test`

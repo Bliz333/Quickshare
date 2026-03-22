@@ -50,6 +50,7 @@ async function openQuickDropAccountHistory(page) {
     return;
   }
   await page.locator('#quickDropAccountHistoryToggle').click();
+  await expect(page).toHaveURL(/#account-history$/);
   await expect(panel).toBeVisible();
 }
 
@@ -59,6 +60,7 @@ async function openQuickDropDirectHistory(page) {
     return;
   }
   await page.locator('#quickDropDirectHistoryToggle').click();
+  await expect(page).toHaveURL(/#temporary-history$/);
   await expect(panel).toBeVisible();
 }
 
@@ -206,6 +208,97 @@ test.describe('QuickDrop pages', () => {
     await page.locator('[data-quickdrop-save="12"]').click();
     await expect.poll(() => saveCalled).toBe(true);
     expect(saveRequestFolderId).toBe(301);
+  });
+
+  test('same-account history page uses hash navigation and browser back returns to the main stage', async ({ page, baseURL }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('user', JSON.stringify({
+        id: 1,
+        username: 'admin',
+        nickname: 'QuickShare Admin',
+        role: 'ADMIN'
+      }));
+    });
+
+    await page.route('**/api/profile', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            id: 1,
+            username: 'admin',
+            nickname: 'QuickShare Admin',
+            role: 'ADMIN'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/quickdrop/sync', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            currentDevice: {
+              deviceId: 'device-a',
+              deviceName: 'My Desktop',
+              deviceType: 'Windows',
+              current: true,
+              online: true,
+              lastSeenAt: '2026-03-21T10:00:00'
+            },
+            devices: [
+              {
+                deviceId: 'device-a',
+                deviceName: 'My Desktop',
+                deviceType: 'Windows',
+                current: true,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              },
+              {
+                deviceId: 'device-b',
+                deviceName: 'My Laptop',
+                deviceType: 'Mac',
+                current: false,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              }
+            ],
+            incomingTransfers: [],
+            outgoingTransfers: [],
+            recommendedChunkSize: 2097152
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/folders/all', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: []
+        })
+      });
+    });
+
+    await gotoQuickDropPage(page, baseURL);
+    await openQuickDropAccountHistory(page);
+    await expect(page.locator('#quickDropHistoryPage')).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(/quickdrop\.html$/);
+    await expect(page.locator('#quickDropHistoryPage')).toBeHidden();
+    await expect(page.locator('#quickDropMainLayout')).toBeVisible();
   });
 
   test('same-account page auto-requests a direct session and prefers direct send when ready', async ({ page, baseURL }) => {
@@ -976,6 +1069,7 @@ test.describe('QuickDrop pages', () => {
 
     await expect(page.locator('#quickDropIncomingList')).toContainText('direct-inbox.txt');
     await expect(page.locator('#quickDropIncomingList')).toContainText('Direct');
+    await expect(page.locator('#quickDropIncomingList [data-quickdrop-direct-save="direct-inbox-1"]')).toBeEnabled();
     await page.locator('#quickDropIncomingList [data-quickdrop-direct-save="direct-inbox-1"]').click();
 
     await expect.poll(() => uploadCalled).toBe(true);
@@ -1644,6 +1738,7 @@ test.describe('QuickDrop pages', () => {
     await expect(page.locator('#quickDropDirectTransferList [data-quickdrop-direct-download="direct-offer-1"]')).toBeEnabled();
     await expect.poll(() => pairTaskSyncCalls).toBeGreaterThan(0);
 
+    await openQuickDropDirectHistory(page);
     await page.evaluate(() => {
       window.__quickDropDirectDetailDialog = null;
       window.showAppCopyDialog = async (message, value, options) => {
@@ -1692,7 +1787,6 @@ test.describe('QuickDrop pages', () => {
     });
 
     await gotoQuickDropPage(page, baseURL);
-    await openQuickDropDirectHistory(page);
 
     await page.evaluate(() => {
       window.__quickDropDirectSend = {

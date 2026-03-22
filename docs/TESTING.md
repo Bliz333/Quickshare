@@ -66,6 +66,11 @@ node --check src/main/resources/static/js/payment-result.js
 如果改动影响高频页面或用户操作，还应补：
 - 浏览器手工验证
 - 或 Docker 起栈后的真实页面烟测
+- 如果改动的是 `quickdrop.html` 的首屏布局、模式切换、记录入口或配对/同账号发送主流程，建议直接跑整份：
+
+```bash
+npx playwright test tests/e2e/quickdrop.spec.js
+```
 
 ## 3. 后端接口或业务逻辑改动
 
@@ -211,6 +216,7 @@ npx playwright test tests/e2e/quickdrop-real.spec.js
 - QuickDrop 同账号设备页自动请求直连会话，以及主发送区“直连优先 / 中转回退”的编排
 - QuickDrop 同账号设备页在直传中途失败时会自动切到服务器中转继续
 - QuickDrop 同账号主接收箱 / 发送记录合并显示直传任务，以及直传文件从主接收箱保存到网盘
+- QuickDrop 页面减法后的首屏结构：模式切换、中心配对卡、带 `hash` 路由的次级记录页、单入口“选择内容”和折叠式设备设置
 - QuickDrop 同一个文件在“直传后回退中转”时，主发送记录仍只显示一条混合任务
 - QuickDrop 中转任务服务端返回 `taskKey` 后，主列表归并仍保持稳定
 - QuickDrop 同账号混合任务详情弹窗会显示服务端 relay `task` 快照、当前阶段和 direct/relay attempt 链路

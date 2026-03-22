@@ -23,6 +23,9 @@
 - 详细记录：`docs/archive/2026-03-21-quickdrop-unified-task-model-and-real-browser-validation.md`
 - 详细记录：`docs/archive/2026-03-21-quickdrop-pair-task-observability.md`
 - 详细记录：`docs/archive/2026-03-21-quickdrop-pair-task-page-view.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-ui-simplification-and-history-drawer.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-center-stage-and-secondary-history-page.md`
+- 详细记录：`docs/archive/2026-03-21-quickdrop-history-hash-and-target-stage.md`
 - 补齐缺失归档：`docs/archive/2026-03-20-playwright-admin-registration-baseline.md`
 - 核心变更：
   - 重新核对当前运行态后确认，应用现在已经运行在 `S3/MinIO` 模式
@@ -93,6 +96,14 @@
   - `quickdrop-direct.js` 的公开配对任务面板现已优先消费服务端 `pair task`，不再只看浏览器本地 incoming 记录
   - 页面级 `pair task` 视图现已支持 server-only 任务的详情与删除；若当前浏览器已有接收分片，任务仍会提供下载动作
   - `QuickDropPairingServiceImplTest` 与 `tests/e2e/quickdrop.spec.js` 已继续覆盖 public pair task 的读投影、server-only task view 和详情展示
+  - `quickdrop.html` 已继续做页面减法：顶部入口减少、Hero 更短、模式切换更紧凑
+  - QuickDrop 临时互传和同账号发送区都已改成“选择内容”单入口，再从轻量菜单选择文件或文件夹
+  - QuickDrop 收发记录已移到底部抽屉，设备改名入口已默认折叠，不再长期占首屏空间
+  - QuickDrop 临时互传首屏现已继续压成更接近 PairDrop 的中心配对卡，不再是分散的多段表单区
+  - QuickDrop 记录区现已从覆盖式抽屉推进到真正的次级页面状态，不再遮挡主发送区
+  - QuickDrop 记录次级页现已接上 `#temporary-history / #account-history` hash 状态，可直接配合浏览器返回回到主页面
+  - `tests/e2e/quickdrop.spec.js` 已同步收口到新的记录次级页面交互，并继续保持整份回归通过
+  - “我的设备”目标舞台已继续强化为投递流线，设备列表视觉进一步弱化成可选目标节点
   - 更新 `README.md`、`docs/TESTING.md`、`docs/PLAN.md`、`docs/STATUS.md`，明确“小里程碑也要即时测试并同步文档”的默认规则
 
 ## 2026-03-20 (UI 收口、订单系统加固、文件管理增强与文档同步)

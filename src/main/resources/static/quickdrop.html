@@ -265,6 +265,37 @@
             transform: translateY(-1px);
         }
 
+        .picker-shell {
+            position: relative;
+            display: grid;
+            gap: 8px;
+        }
+
+        .picker-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            z-index: 8;
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(16px);
+        }
+
+        .dark-mode .picker-menu {
+            background: rgba(15, 23, 42, 0.92);
+        }
+
+        .picker-menu .btn {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
         .layout,
         .sidebar,
         .content {
@@ -459,12 +490,12 @@
 
         .transfer-center-top {
             display: grid;
-            grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
-            gap: 16px;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
             align-items: stretch;
         }
 
-        .pair-panel {
+        .pair-center-card {
             border: 1px solid var(--border-color);
             border-radius: 24px;
             padding: 18px;
@@ -476,23 +507,26 @@
             align-content: start;
         }
 
-        .dark-mode .pair-panel {
+        .dark-mode .pair-center-card {
             background:
                 radial-gradient(circle at top left, rgba(129, 140, 248, 0.14), transparent 54%),
                 rgba(15, 23, 42, 0.54);
         }
 
-        .pair-panel-primary {
-            align-content: center;
-        }
-
-        .pair-panel-secondary {
+        .pair-center-top {
+            display: grid;
             gap: 12px;
         }
 
-        .pair-panel h3 {
+        .pair-center-actions {
+            display: flex;
+            justify-content: center;
+        }
+
+        .pair-center-card h3 {
             margin: 0;
             font-size: 1rem;
+            text-align: center;
         }
 
         .pair-code-display {
@@ -554,6 +588,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.12em;
+            margin: -2px 0;
         }
 
         .pair-divider::before,
@@ -566,6 +601,11 @@
 
         .dark-mode .pair-join-input {
             background: rgba(15, 23, 42, 0.76);
+        }
+
+        .pair-join-block {
+            display: grid;
+            gap: 12px;
         }
 
         .pair-stage {
@@ -635,15 +675,17 @@
 
         .device-card {
             border: 1px solid var(--border-color);
-            border-radius: 22px;
-            padding: 16px;
+            border-radius: 18px;
+            padding: 12px 14px;
             background:
                 radial-gradient(circle at top left, rgba(14, 165, 233, 0.1), transparent 40%),
                 linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.56));
             cursor: pointer;
             transition: all 0.2s ease;
             display: grid;
-            gap: 10px;
+            grid-template-columns: 46px minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
             position: relative;
             overflow: hidden;
         }
@@ -683,20 +725,10 @@
             font-size: 1rem;
         }
 
-        .device-card.selected .device-card-visual {
-            background: rgba(14, 165, 233, 0.18);
-        }
-
-        .device-card-top {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            align-items: center;
-        }
-
         .device-card-copy {
             min-width: 0;
-            flex: 1;
+            display: grid;
+            gap: 4px;
         }
 
         .device-card-state {
@@ -855,9 +887,36 @@
 
         .device-stage-overview {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(260px, 0.88fr);
+            grid-template-columns: minmax(0, 1fr) 72px minmax(260px, 0.96fr);
             gap: 16px;
-            align-items: stretch;
+            align-items: center;
+        }
+
+        .device-stage-flow {
+            display: grid;
+            justify-items: center;
+            gap: 10px;
+            color: var(--text-sub);
+        }
+
+        .device-stage-flow-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 999px;
+            background: rgba(14, 165, 233, 0.12);
+            color: var(--primary-dark);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.12);
+        }
+
+        .device-stage-flow-line {
+            width: 2px;
+            height: 58px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(14, 165, 233, 0.14), rgba(14, 165, 233, 0.4), rgba(16, 185, 129, 0.2));
         }
 
         .device-stage-core,
@@ -954,6 +1013,26 @@
             align-content: center;
         }
 
+        .device-target-chip.selected {
+            border-style: solid;
+            border-color: var(--primary);
+            background:
+                radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 36%),
+                linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(14, 165, 233, 0.04));
+            box-shadow: 0 16px 32px rgba(14, 165, 233, 0.12);
+        }
+
+        .device-targets-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .device-targets-head strong {
+            font-size: 0.9rem;
+        }
+
         .device-target-chip small {
             color: var(--text-sub);
             line-height: 1.6;
@@ -985,6 +1064,43 @@
         .active-upload h3 {
             margin: 0;
             font-size: 0.98rem;
+        }
+
+        .history-page {
+            display: grid;
+            gap: 14px;
+        }
+
+        .history-page-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .history-page-back {
+            min-height: 40px;
+            padding: 0 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: rgba(148, 163, 184, 0.12);
+            color: var(--text-sub);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 700;
+        }
+
+        .history-page-head h2 {
+            margin: 0;
+            font-size: 1.08rem;
+        }
+
+        .history-page-body {
+            display: grid;
+            gap: 14px;
         }
 
         @keyframes quickdrop-float {
@@ -1072,13 +1188,21 @@
                 grid-template-columns: 1fr;
             }
 
-            .peer-stage-meta {
-                justify-content: flex-start;
+            .device-stage-flow {
+                grid-auto-flow: column;
+                justify-content: start;
             }
 
-            .sub-actions .btn {
+            .device-stage-flow-line {
+                width: 58px;
+                height: 2px;
+            }
+
+            .sub-actions .btn,
+            .picker-menu .btn {
                 width: 100%;
             }
+
         }
     </style>
 </head>
@@ -1101,7 +1225,7 @@
 </div>
 
 <main class="page">
-    <section class="hero">
+    <section id="quickDropHeroSection" class="hero">
         <h1 data-i18n="quickDropTitle">QuickDrop</h1>
         <p data-i18n="quickDropSubtitle">打开就能传：给别人临时互传，或者发到你自己的另一台设备。</p>
         <div id="quickDropModeSwitch" class="mode-switch">
@@ -1123,7 +1247,7 @@
         <p id="quickDropModeGuide" class="section-note" data-i18n="quickDropModeGuideTemporary">临时互传：先拿到匹配码，再选文件或文件夹直接发送。</p>
     </section>
 
-    <section class="layout">
+    <section id="quickDropMainLayout" class="layout">
         <article id="quickDropTemporaryTransferCard" class="card card-stage">
             <div class="card-head">
                 <div class="card-copy">
@@ -1133,25 +1257,27 @@
 
             <div class="transfer-center-stage">
                 <div class="transfer-center-top">
-                    <section class="pair-panel pair-panel-primary">
-                        <h3 data-i18n="quickDropPairCodeLabel">匹配码</h3>
+                    <section class="pair-center-card">
+                        <div class="pair-center-top">
+                            <h3 data-i18n="quickDropPairCodeLabel">匹配码</h3>
+                        </div>
                         <div class="pair-code-display">
                             <div>
                                 <strong id="quickDropPairCodeDisplay">-</strong>
                                 <small data-i18n="quickDropCreatePairCodeHint">点一下生成，把这个码给对方。</small>
                             </div>
                         </div>
-                        <button id="quickDropCreatePairCodeBtn" class="btn btn-secondary" type="button">
-                            <i class="fa-solid fa-key"></i>
-                            <span data-i18n="quickDropCreatePairCode">生成匹配码</span>
-                        </button>
-                    </section>
+                        <div class="pair-center-actions">
+                            <button id="quickDropCreatePairCodeBtn" class="btn btn-secondary" type="button">
+                                <i class="fa-solid fa-key"></i>
+                                <span data-i18n="quickDropCreatePairCode">生成匹配码</span>
+                            </button>
+                        </div>
 
-                    <div class="pair-divider"><span data-i18n="quickDropPairOr">或</span></div>
+                        <div class="pair-divider"><span data-i18n="quickDropPairOr">或</span></div>
 
-                    <section class="pair-panel pair-panel-secondary">
-                        <h3 data-i18n="quickDropPairCodeInputLabel">输入匹配码</h3>
-                        <div class="pair-join-stack">
+                        <div class="pair-join-block">
+                            <h3 data-i18n="quickDropPairCodeInputLabel">输入匹配码</h3>
                             <input id="quickDropPairCodeInput" class="pair-join-input" type="text" data-i18n="quickDropPairCodeInputPlaceholder" placeholder="输入 6 位匹配码">
                             <button id="quickDropClaimPairCodeBtn" class="btn btn-primary" type="button">
                                 <i class="fa-solid fa-link"></i>
@@ -1185,14 +1311,22 @@
                     <input id="quickDropDirectFolderInput" type="file" class="hidden" webkitdirectory directory multiple>
 
                     <div class="actions sub-actions">
-                        <button id="quickDropDirectChooseBtn" class="btn btn-secondary" type="button" onclick="openQuickDropDirectFilePicker()">
-                            <i class="fa-solid fa-paperclip"></i>
-                            <span data-i18n="quickDropSelectFiles">选择文件</span>
-                        </button>
-                        <button id="quickDropDirectChooseFolderBtn" class="btn btn-secondary" type="button" onclick="openQuickDropDirectFolderPicker()">
-                            <i class="fa-solid fa-folder-tree"></i>
-                            <span data-i18n="quickDropChooseFolder">选择文件夹</span>
-                        </button>
+                        <div id="quickDropDirectPickerShell" class="picker-shell">
+                            <button id="quickDropDirectChooseBtn" class="btn btn-secondary" type="button" onclick="toggleQuickDropDirectPickerMenu()">
+                                <i class="fa-solid fa-paperclip"></i>
+                                <span data-i18n="quickDropChooseContent">选择内容</span>
+                            </button>
+                            <div id="quickDropDirectPickerMenu" class="picker-menu hidden">
+                                <button id="quickDropDirectChooseFileOption" class="btn btn-secondary" type="button" onclick="openQuickDropDirectFilePicker()">
+                                    <i class="fa-solid fa-file"></i>
+                                    <span data-i18n="quickDropFileOption">文件</span>
+                                </button>
+                                <button id="quickDropDirectChooseFolderBtn" class="btn btn-secondary" type="button" onclick="openQuickDropDirectFolderPicker()">
+                                    <i class="fa-solid fa-folder-tree"></i>
+                                    <span data-i18n="quickDropFolderOption">文件夹</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <button id="quickDropDirectSendBtn" class="btn btn-primary btn-hero" type="button" onclick="sendQuickDropDirectFile()">
@@ -1218,10 +1352,6 @@
                     <i class="fa-solid fa-clock-rotate-left"></i>
                     <span data-i18n="quickDropShowTemporaryHistory">查看互传记录</span>
                 </button>
-            </div>
-            <div id="quickDropDirectHistoryPanel" class="hidden">
-                <div id="quickDropDirectTransferList" class="transfer-list"></div>
-                <p id="quickDropDirectTransferEmpty" class="empty-state" data-i18n="quickDropDirectNoTransfers">当前还没有配对直传任务。</p>
             </div>
         </article>
 
@@ -1252,6 +1382,11 @@
                             </div>
                         </section>
 
+                        <div class="device-stage-flow" aria-hidden="true">
+                            <span class="device-stage-flow-icon"><i class="fa-solid fa-arrow-right"></i></span>
+                            <span class="device-stage-flow-line"></span>
+                        </div>
+
                         <section class="device-stage-target">
                             <span class="device-stage-kicker" data-i18n="quickDropTargetDevice">目标设备</span>
                             <div class="device-target-chip">
@@ -1279,6 +1414,9 @@
                         </button>
                     </div>
 
+                    <div class="device-targets-head">
+                        <strong data-i18n="quickDropDeviceTargetsTitle">可发到这些设备</strong>
+                    </div>
                     <div id="quickDropDeviceList" class="device-grid device-grid-stage"></div>
                     <p id="quickDropDeviceEmpty" class="empty-state hidden" data-i18n="quickDropNoDevices">当前账号下还没有其他设备上线或登记。</p>
                 </div>
@@ -1295,14 +1433,22 @@
                     <input id="quickDropFolderInput" type="file" class="hidden" webkitdirectory directory multiple>
 
                     <div class="actions sub-actions">
-                        <button id="quickDropChooseFileBtn" class="btn btn-secondary" type="button" onclick="openQuickDropFilePicker()">
-                            <i class="fa-solid fa-paperclip"></i>
-                            <span data-i18n="quickDropSelectFiles">选择文件</span>
-                        </button>
-                        <button id="quickDropChooseFolderBtn" class="btn btn-secondary" type="button" onclick="openQuickDropFolderPicker()">
-                            <i class="fa-solid fa-folder-tree"></i>
-                            <span data-i18n="quickDropChooseFolder">选择文件夹</span>
-                        </button>
+                        <div id="quickDropPickerShell" class="picker-shell">
+                            <button id="quickDropChooseFileBtn" class="btn btn-secondary" type="button" onclick="toggleQuickDropPickerMenu()">
+                                <i class="fa-solid fa-paperclip"></i>
+                                <span data-i18n="quickDropChooseContent">选择内容</span>
+                            </button>
+                            <div id="quickDropPickerMenu" class="picker-menu hidden">
+                                <button id="quickDropChooseFileOption" class="btn btn-secondary" type="button" onclick="openQuickDropFilePicker()">
+                                    <i class="fa-solid fa-file"></i>
+                                    <span data-i18n="quickDropFileOption">文件</span>
+                                </button>
+                                <button id="quickDropChooseFolderBtn" class="btn btn-secondary" type="button" onclick="openQuickDropFolderPicker()">
+                                    <i class="fa-solid fa-folder-tree"></i>
+                                    <span data-i18n="quickDropFolderOption">文件夹</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <button id="quickDropSendBtn" class="btn btn-primary btn-hero" type="button" onclick="sendQuickDropFile()">
                         <i class="fa-solid fa-paper-plane"></i>
@@ -1328,32 +1474,47 @@
                     <span data-i18n="quickDropShowAccountHistory">查看收发记录</span>
                 </button>
             </div>
-            <section id="quickDropAccountHistoryPanel" class="transfer-grid hidden">
-                <article class="card">
-                    <div class="card-head">
-                        <div class="card-copy">
-                            <h2 data-i18n="quickDropIncoming">接收箱</h2>
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label for="quickDropSaveFolderSelect" data-i18n="quickDropSaveFolderLabel">保存到文件夹</label>
-                        <select id="quickDropSaveFolderSelect"></select>
-                    </div>
-                    <div id="quickDropIncomingList" class="transfer-list"></div>
-                    <p id="quickDropIncomingEmpty" class="empty-state" data-i18n="quickDropNoIncoming">当前没有发往这台设备的文件。</p>
-                </article>
-
-                <article class="card">
-                    <div class="card-head">
-                        <div class="card-copy">
-                            <h2 data-i18n="quickDropOutgoing">发送记录</h2>
-                        </div>
-                    </div>
-                    <div id="quickDropOutgoingList" class="transfer-list"></div>
-                    <p id="quickDropOutgoingEmpty" class="empty-state" data-i18n="quickDropNoOutgoing">当前设备还没有发出任何文件。</p>
-                </article>
-            </section>
         </div>
+    </section>
+    <section id="quickDropHistoryPage" class="history-page hidden">
+        <div class="history-page-head">
+            <button id="quickDropHistoryBackBtn" class="history-page-back" type="button">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span data-i18n="quickDropBack">返回</span>
+            </button>
+            <h2 id="quickDropHistoryPageTitle" data-i18n="quickDropActivityTitle">记录</h2>
+        </div>
+
+        <div id="quickDropDirectHistoryPanel" class="history-page-body hidden">
+            <div id="quickDropDirectTransferList" class="transfer-list"></div>
+            <p id="quickDropDirectTransferEmpty" class="empty-state" data-i18n="quickDropDirectNoTransfers">当前还没有配对直传任务。</p>
+        </div>
+
+        <section id="quickDropAccountHistoryPanel" class="history-page-body transfer-grid hidden">
+            <article class="card">
+                <div class="card-head">
+                    <div class="card-copy">
+                        <h2 data-i18n="quickDropIncoming">接收箱</h2>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="quickDropSaveFolderSelect" data-i18n="quickDropSaveFolderLabel">保存到文件夹</label>
+                    <select id="quickDropSaveFolderSelect"></select>
+                </div>
+                <div id="quickDropIncomingList" class="transfer-list"></div>
+                <p id="quickDropIncomingEmpty" class="empty-state" data-i18n="quickDropNoIncoming">当前没有发往这台设备的文件。</p>
+            </article>
+
+            <article class="card">
+                <div class="card-head">
+                    <div class="card-copy">
+                        <h2 data-i18n="quickDropOutgoing">发送记录</h2>
+                    </div>
+                </div>
+                <div id="quickDropOutgoingList" class="transfer-list"></div>
+                <p id="quickDropOutgoingEmpty" class="empty-state" data-i18n="quickDropNoOutgoing">当前设备还没有发出任何文件。</p>
+            </article>
+        </section>
     </section>
 </main>
 

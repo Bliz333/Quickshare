@@ -1,6 +1,77 @@
-# QuickShare 后续计划（2026-03-21）
+# QuickShare 后续计划（2026-03-22）
 
 旧的阶段式路线图已经完成。当前计划不再按“从 0 到 6 的大阶段”推进，而是围绕维护、体验和回归质量继续收口。
+
+## 当前阶段进度
+
+- 已完成阶段 A：QuickDrop 页面收口基线固化
+  - 已重新验收未提交的 QuickDrop UI 改动
+  - 已形成正式提交：`feat: finalize quickdrop mode-first history flow`
+- 已完成阶段 B：发布脱敏与远端接入基线
+  - 已清理公开文档中的真实域名 / IP
+  - 已补 `docs/PUBLISHING.md` 的提交身份检查
+  - 已切换 GitHub SSH remote 并推送当前分支
+  - 本机已具备测试服务器快捷登录 helper（本地未跟踪配置）
+
+## 分阶段 Checklist（按风险优先级）
+
+### Phase 1. 预发布部署复现与真实公网验证
+
+- 目标：
+  - 用当前 `feature/hardening-plan` 工作分支在预发布机完整复现一轮部署
+  - 重新确认 `health`、QuickDrop `sync`、`rtc-config`、公开分享创建都可用
+  - 用至少一轮真实双端浏览器验证 TURN / NAT 场景，而不是只停留在本地 mock / headless
+- 建议提交边界：
+  - 远端部署脚本、compose/env 文档、预发布 smoke 结果、必要修复
+- 验收：
+  - `quickshare-test-ssh` 可拉起当前版本
+  - `curl /api/health`、`curl /api/public/quickdrop/rtc-config` 正常
+  - 补一条新的 archive 记录部署过程和验证结果
+
+### Phase 2. QuickDrop 生命周期与任务语义补强
+
+- 目标：
+  - 把 direct / relay attempt 的开始、结束、失败原因、完成原因补成更明确的状态模型
+  - 继续减少 same-account `task` 与 public `pair task` 的顶层语义差异
+- 建议提交边界：
+  - DTO / VO / service / front-end task detail 同步一组提交
+- 验收：
+  - 新状态可在任务详情里看到
+  - 对应服务测试和 Playwright / API 验证同步更新
+
+### Phase 3. QuickDrop 产品化收口
+
+- 目标：
+  - 评估把历史页从页内次级视图推进到独立 URL
+  - 继续减少首屏辅助文案，把“选目标即发”的主路径再压实
+  - 收口转存到网盘后的任务级反馈与入口
+- 建议提交边界：
+  - 页面结构、路由、交互与文档同步一组提交
+- 验收：
+  - `quickdrop.spec.js` 覆盖新的历史入口 / 返回路径
+  - 移动端与桌面端布局都重新回归
+
+### Phase 4. 回归与 smoke 自动化扩展
+
+- 目标：
+  - 把当前默认验收组合继续固定成标准操作序列
+  - 继续补真实公网 / 支付回跳 / 登录后网盘 CRUD 等高价值页面级回归
+- 建议提交边界：
+  - CI / 脚本 / Playwright / smoke 变更单独提交
+- 验收：
+  - 默认小里程碑入口保持 `check-js -> compile -> targeted tests -> smoke -> nearest Playwright`
+  - 至少新增一条覆盖真实用户主路径的自动化
+
+### Phase 5. 运行态与运维加固
+
+- 目标：
+  - 补容量告警、备份 / 生命周期、HTTPS / 反向代理、部署可恢复性
+  - 明确预发布与生产环境的职责边界
+- 建议提交边界：
+  - 运维文档、compose/systemd/nginx、监控项配置分开提交
+- 验收：
+  - 文档能独立指导复现
+  - 关键运维风险有明确的检测或恢复动作
 
 ## 当前目标
 

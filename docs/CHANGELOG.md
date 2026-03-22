@@ -2,6 +2,17 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-22 (发布脱敏、远端接入与路线图重排)
+
+- 详细记录：`docs/archive/2026-03-22-publishing-hygiene-and-roadmap-reset.md`
+- 核心变更：
+  - 重新验收上一轮未提交的 QuickDrop 页面收口改动，并将其正式提交为可恢复基线
+  - 通过静态资源服务器重新执行 `tests/e2e/quickdrop.spec.js`，确认模式优先首屏、中心配对卡、次级记录页和 `hash` 导航回归通过
+  - 清理公开文档中的真实域名与服务器 IP，统一改成占位域名或脱敏描述
+  - `docs/PUBLISHING.md` 补上公开推送前的 `git` 身份检查 / 修正步骤，避免把本机用户名、主机名或私人邮箱带进提交元数据
+  - GitHub remote 已切到 SSH，并已将当前分支推送到 `origin/feature/hardening-plan`
+  - 本机已完成测试服务器快捷登录 helper 配置，后续可直接做远端部署与日志拉取
+
 ## 2026-03-21 (MinIO smoke 复核、小里程碑测试纪律与文档同步)
 
 - 详细记录：`docs/archive/2026-03-21-minio-smoke-revalidation-and-doc-sync.md`

@@ -16,6 +16,7 @@ DEPLOY_HEALTH_URL="${DEPLOY_HEALTH_URL:-http://127.0.0.1:8080/api/health}"
 DEPLOY_RTC_URL="${DEPLOY_RTC_URL:-http://127.0.0.1:8080/api/public/quickdrop/rtc-config}"
 DEPLOY_VERIFY_RETRIES="${DEPLOY_VERIFY_RETRIES:-30}"
 DEPLOY_VERIFY_SLEEP_SECONDS="${DEPLOY_VERIFY_SLEEP_SECONDS:-2}"
+DEPLOY_VERIFY_TIMEOUT_SECONDS="${DEPLOY_VERIFY_TIMEOUT_SECONDS:-20}"
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 GIT_COMMIT="$(git rev-parse HEAD)"
@@ -46,6 +47,7 @@ trap cleanup EXIT
 
 require_cmd git
 require_cmd tar
+require_cmd timeout
 require_cmd "$DEPLOY_SSH_BIN"
 require_cmd "$DEPLOY_SCP_BIN"
 
@@ -82,7 +84,8 @@ log "deploying archive on ${DEPLOY_TARGET}"
     "$REMOTE_STAGE_DIR" \
     "$REMOTE_PREV_DIR" \
     "$GIT_COMMIT" \
-    "$DEPLOY_RUN_SMOKE" <<'REMOTE'
+    "$DEPLOY_RUN_SMOKE" \
+    "$DEPLOY_HEALTH_URL" <<'REMOTE'
 set -euo pipefail
 
 REMOTE_DIR="$1"
@@ -92,6 +95,7 @@ STAGE_DIR="$4"
 PREV_DIR="$5"
 GIT_COMMIT="$6"
 RUN_SMOKE="$7"
+HEALTH_URL="$8"
 
 compose_cmd() {
     if command -v docker-compose >/dev/null 2>&1; then
@@ -139,7 +143,19 @@ if ! (
     exit 1
 fi
 
+wait_for_health() {
+    local attempt
+    for attempt in $(seq 1 30); do
+        if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 2
+    done
+    return 1
+}
+
 if [[ "$RUN_SMOKE" == "1" ]]; then
+    wait_for_health
     (
         cd "$REMOTE_DIR"
         ./scripts/quickshare-smoke.sh
@@ -155,7 +171,7 @@ verify_remote() {
     local attempt body
 
     for attempt in $(seq 1 "$DEPLOY_VERIFY_RETRIES"); do
-        if body="$("$DEPLOY_SSH_BIN" "curl -fsS ${url}" 2>/dev/null)"; then
+        if body="$(timeout "$DEPLOY_VERIFY_TIMEOUT_SECONDS" "$DEPLOY_SSH_BIN" "curl -fsS ${url}" 2>/dev/null)"; then
             if [[ -z "$pattern" || "$body" == *"$pattern"* ]]; then
                 printf '%s\n' "$body"
                 return 0

@@ -89,6 +89,13 @@ SMOKE_UP=1 ./scripts/quickshare-smoke.sh
 SMOKE_MODE=container SMOKE_DOCKER_CONTAINER=quickshare-app-1 ./scripts/quickshare-smoke.sh
 ```
 
+Optional preprod deploy example:
+
+```bash
+./scripts/deploy-preprod.sh
+DEPLOY_RUN_SMOKE=1 ./scripts/deploy-preprod.sh
+```
+
 Default host-mode smoke now covers login, storage/order probes, folder create/move/delete, upload deduplication, owned-file download verification, share creation, extract-code validation, public download accounting, and API-level batch move/delete validation. Container mode remains the fallback when host port forwarding is unstable.
 
 Minimal browser automation baseline:

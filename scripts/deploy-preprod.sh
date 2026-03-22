@@ -17,6 +17,7 @@ DEPLOY_GIT_REMOTE="${DEPLOY_GIT_REMOTE:-origin}"
 DEPLOY_GIT_BRANCH="${DEPLOY_GIT_BRANCH:-$CURRENT_BRANCH}"
 DEPLOY_RUN_SMOKE="${DEPLOY_RUN_SMOKE:-0}"
 DEPLOY_RUN_BROWSER_SMOKE="${DEPLOY_RUN_BROWSER_SMOKE:-0}"
+DEPLOY_SSH_TIMEOUT_SECONDS="${DEPLOY_SSH_TIMEOUT_SECONDS:-900}"
 DEPLOY_HEALTH_URL="${DEPLOY_HEALTH_URL:-http://127.0.0.1:8080/api/health}"
 DEPLOY_RTC_URL="${DEPLOY_RTC_URL:-http://127.0.0.1:8080/api/public/quickdrop/rtc-config}"
 DEPLOY_HEALTH_RETRIES="${DEPLOY_HEALTH_RETRIES:-30}"
@@ -40,13 +41,16 @@ require_cmd() {
 
 require_cmd git
 require_cmd "$DEPLOY_SSH_BIN"
+require_cmd timeout
 
 if [[ -n "$LOCAL_REMOTE_HEAD" && "$LOCAL_HEAD" != "$LOCAL_REMOTE_HEAD" ]]; then
     log "local HEAD ${LOCAL_HEAD} differs from ${DEPLOY_GIT_REMOTE}/${DEPLOY_GIT_BRANCH} ${LOCAL_REMOTE_HEAD}; remote deploy will use GitHub branch state"
 fi
 
 log "deploying branch ${DEPLOY_GIT_BRANCH} on ${DEPLOY_TARGET}"
-"$DEPLOY_SSH_BIN" bash -s -- \
+set +e
+timeout --signal=TERM --kill-after=10 "${DEPLOY_SSH_TIMEOUT_SECONDS}" \
+    "$DEPLOY_SSH_BIN" bash -s -- \
     "$DEPLOY_REMOTE_DIR" \
     "$DEPLOY_GIT_REMOTE" \
     "$DEPLOY_GIT_BRANCH" \
@@ -206,5 +210,15 @@ fi
 
 exit "$FINAL_STATUS"
 REMOTE
+deploy_status=$?
+set -e
+
+if [[ "$deploy_status" -eq 124 ]]; then
+    fail "remote deploy command timed out after ${DEPLOY_SSH_TIMEOUT_SECONDS}s"
+fi
+
+if [[ "$deploy_status" -ne 0 ]]; then
+    exit "$deploy_status"
+fi
 
 log "deployment complete"

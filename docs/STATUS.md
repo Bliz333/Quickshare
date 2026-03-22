@@ -25,6 +25,7 @@
 - `Dockerfile` 已改成多阶段自举构建；应用镜像现在可以直接从 Git checkout 构建，不再依赖宿主机预先产出的 `target/*.jar`。
 - `deploy-preprod.sh` 已改成 GitHub 拉取式部署：预发布机在 `/root/quickshare` 内 `git fetch/reset` 到目标分支后直接 `docker compose up --build -d`。
 - 预发布部署当前默认跟随本地分支名，必要时可显式指定 `DEPLOY_GIT_BRANCH=main`；这也为后续从 `feature/hardening-plan` 合并回 `main` 留出了统一入口。
+- 部署脚本已补 SSH 总超时，当前环境即使在测试机 SSH banner / 认证阶段卡住，也不会再把整条部署流程无限挂死。
 
 - 统一站内 Modal 交互，替换突兀的浏览器原生弹窗体验。
 - 修复管理台与网盘之间的导航收口问题，并继续保持公开页面不暴露管理入口按钮。

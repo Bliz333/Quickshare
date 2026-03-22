@@ -45,6 +45,10 @@
 DEPLOY_GIT_BRANCH=main ./scripts/deploy-preprod.sh
 ```
 
+- 当前脚本还补了 `DEPLOY_SSH_TIMEOUT_SECONDS`
+  - 用于限制本地等待远端 SSH 会话的总时长
+  - 避免测试机在 SSH banner / 认证阶段异常时把部署流程无限挂住
+
 ### 3. 回滚与后验收
 
 - 仅在以下失败时自动回滚到部署前 commit：

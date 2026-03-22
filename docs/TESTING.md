@@ -219,6 +219,7 @@ DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 
 - 服务器会在 `/root/quickshare` 内 `git fetch/reset` 到目标分支，然后执行 `docker compose up --build -d`
 - 默认部署当前本地分支名；如需强制部署 `main`，显式传 `DEPLOY_GIT_BRANCH=main`
+- 若当前环境到测试机的 SSH 会话存在卡住风险，可显式传 `DEPLOY_SSH_TIMEOUT_SECONDS`
 - 真实 QuickDrop 浏览器回归继续在服务器本机网络中执行，而不是依赖当前环境直连公网 `:8080`
 
 当前这组用例覆盖：

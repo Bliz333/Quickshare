@@ -99,6 +99,7 @@ DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 ```
 
 `deploy-preprod.sh` now treats GitHub as the single source of truth: it SSHes to the server, `git fetch/reset`s the target branch in `/root/quickshare`, then runs `docker compose up --build -d`. By default it deploys the current local branch name; set `DEPLOY_GIT_BRANCH=main` when you want the server to track `main`.
+If the SSH session stalls on network/auth issues, use `DEPLOY_SSH_TIMEOUT_SECONDS` to cap how long the local wrapper waits.
 
 Default host-mode smoke now covers login, storage/order probes, folder create/move/delete, upload deduplication, owned-file download verification, share creation, extract-code validation, public download accounting, and API-level batch move/delete validation. Container mode remains the fallback when host port forwarding is unstable.
 

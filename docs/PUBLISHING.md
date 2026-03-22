@@ -11,13 +11,17 @@
 - 搜索仓库中的敏感信息：
 
 ```bash
-rg -n "token|Authorization: Bearer|JWT_SECRET|SETTING_ENCRYPT_KEY|MAIL_PASSWORD|S3_SECRET_KEY|merchantKey|ChangeMeAdmin123|admin@example.com" README.md docs src .env.example compose.yaml tests scripts -g '!target'
+rg -n "token|Authorization: Bearer|JWT_SECRET|SETTING_ENCRYPT_KEY|MAIL_PASSWORD|S3_SECRET_KEY|merchantKey|ChangeMeAdmin123|admin@example.com|[0-9]{1,3}(\\.[0-9]{1,3}){3}|[A-Za-z0-9.-]+\\.(xyz|top|site|online)" README.md docs src .env.example compose.yaml tests scripts -g '!target'
 ```
 
 - 对公开仓库不需要保留的值，改成：
   - 空值
   - 明确占位值
   - 或文档说明“请在私有 `.env` 中配置”
+- 对外文档中的服务器信息，统一改成：
+  - `quickshare.example.com`
+  - `127.0.0.1`
+  - 或“预发布机（地址已脱敏）”这类描述
 
 ## 2. 运行与文档一致性
 
@@ -59,6 +63,20 @@ git diff --stat
   - 本地生成的临时文件
 
 ## 5. 提交与推送
+
+- 先确认提交身份不会暴露本机用户名 / 主机名 / 私人邮箱：
+
+```bash
+git config user.name "QuickShare Maintainer"
+git config user.email "quickshare-maintainer@users.noreply.github.com"
+git log -1 --format='%an <%ae> | %cn <%ce>'
+```
+
+- 如果本轮已有提交用错身份，先修正：
+
+```bash
+git commit --amend --reset-author --no-edit
+```
 
 - 建议先本地提交：
 

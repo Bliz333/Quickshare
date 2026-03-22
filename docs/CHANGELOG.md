@@ -51,7 +51,7 @@
   - 登录态接收端和公开取件页现在都支持“保存到网盘”，不再只能浏览器下载
   - QuickDrop 保存到网盘已支持目标文件夹选择，不再固定落根目录
   - 新增 `tests/e2e/quickdrop.spec.js`，把设备页与公开分享页的最小页面行为纳入浏览器自动化；当前公开取件页登录保存控件的 mock 仍待继续收口
-  - 已在真实 Debian 12 服务器上完成一轮预发布部署烟测，域名 `quickshare.878877.xyz` 返回 `200`，并确认 QuickDrop `sync` 与公开分享创建路径可用
+  - 已在真实 Debian 12 服务器上完成一轮预发布部署烟测，脱敏域名 `quickshare.example.com` 返回 `200`，并确认 QuickDrop `sync` 与公开分享创建路径可用
   - QuickDrop 已补 WebSocket 信令和临时匹配码配对基础，为后续 WebRTC / STUN / TURN 直传做准备
   - QuickDrop 已继续补到配对后的 `WebRTC DataChannel` 浏览器直传：`quickdrop.html` 和 `quickdrop-share.html` 现在都可在匹配成功后直接传文件
   - 直传接收端当前会把已收分片保存在浏览器里，重新配对并发送同一个文件时会继续缺失分片，不会整文件重来
@@ -66,7 +66,7 @@
   - `quickdrop-direct.js` 已补发送上下文和“回退中转中”的状态收口，避免直传中断后页面完全失去进度语义
   - QuickDrop TURN 配置已支持 `QUICKDROP_TURN_URLS` 多地址写法，便于同时下发 `udp/tcp` 两条 TURN 地址；旧的 `QUICKDROP_TURN_URL` 继续兼容
   - `.env.example` 和 `README.md` 已同步改成以 `QUICKDROP_TURN_URLS` 为主，方便后续接真实 TURN 部署
-  - 预发布服务器 `145.79.143.107` 已安装并启用 `coturn`，QuickDrop `rtc-config` 现已开始下发真实 TURN `udp/tcp` 地址
+  - 预发布服务器（地址已脱敏）已安装并启用 `coturn`，QuickDrop `rtc-config` 现已开始下发真实 TURN `udp/tcp` 地址
   - 预发布机上的应用代码已同步到当前工作树版本，且在恢复历史 MySQL 账号密码后重新启动成功
   - QuickDrop 同账号页现在会把浏览器直传任务并入主接收箱 / 发送记录，不再只存在于单独的直传卡片里
   - 主接收箱 / 发送记录已开始显示任务来源 `Direct / Relay`，作为统一任务视图骨架

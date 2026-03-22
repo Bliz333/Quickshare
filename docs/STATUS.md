@@ -213,7 +213,7 @@
 - 当前 repo 内也已有 `scripts/quickshare-smoke.sh` 作为基础 smoke 入口，便于后续继续扩展自动化。
 - 当前还已完成一轮真实服务器预发布烟测：
   - Debian 12 目标机已安装 Docker / Compose / Git
-  - `quickshare.878877.xyz` 已返回 `200`
+  - 脱敏域名 `quickshare.example.com` 已返回 `200`
   - 服务器上的 QuickDrop `sync` 和公开分享创建路径已确认可用
   - 服务器现已安装并启用 `coturn`
   - 服务器上的 `GET /api/public/quickdrop/rtc-config` 已开始下发真实 TURN `udp/tcp` 地址
@@ -351,7 +351,7 @@
 - 预发布服务器烟测已确认：
   - `docker-compose ps` 中 `app/mysql/redis` 已启动
   - `GET http://127.0.0.1/api/health` 返回 `UP`
-  - `GET http://quickshare.878877.xyz` 返回 `200`
+  - `GET http://quickshare.example.com` 返回 `200`
   - `POST /api/auth/login`、`POST /api/quickdrop/sync`、`POST /api/public/quickdrop/shares` 在服务器上都已跑通
   - `GET /api/public/quickdrop/rtc-config` 在服务器上已返回 STUN + TURN 配置
 - `tests/e2e/quickdrop.spec.js` 已确认：QuickDrop 设备页可渲染同账号设备列表、接收箱条目和保存到网盘动作。

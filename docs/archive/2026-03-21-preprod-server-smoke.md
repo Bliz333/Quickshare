@@ -11,7 +11,7 @@
 - Debian 12
 - 约 2 GB 内存
 - 根分区约 15 GB，可用约 14 GB
-- 域名 `quickshare.878877.xyz` 已解析到目标服务器
+- 脱敏域名 `quickshare.example.com` 已解析到目标服务器
 
 ## 本轮动作
 
@@ -47,7 +47,7 @@
   - 数据库 `UP`
   - Redis `UP`
   - 当前为本地存储模式
-- `GET http://quickshare.878877.xyz`
+- `GET http://quickshare.example.com`
   - 返回 `200`
 - `POST /api/auth/login`
   - bootstrap admin 登录成功

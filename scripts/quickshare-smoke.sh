@@ -47,6 +47,14 @@ run_curl() {
   fi
 }
 
+compose_cmd() {
+  if command -v docker-compose >/dev/null 2>&1; then
+    docker-compose "$@"
+  else
+    docker compose "$@"
+  fi
+}
+
 get_body() {
   run_curl -sS --max-time "$CURL_MAX_TIME" "$1"
 }
@@ -203,12 +211,12 @@ fi
 
 if [[ "$SMOKE_UP" == "1" ]]; then
   log "docker compose up --build -d"
-  docker compose up --build -d
+  compose_cmd up --build -d
 fi
 
 if [[ "$SMOKE_DOCKER_PS" == "1" ]]; then
   log "docker compose ps"
-  docker compose ps
+  compose_cmd ps
 fi
 
 cleanup_parent_folder_id=""

@@ -26,18 +26,19 @@
 
 ### Phase 1. 预发布部署复现与真实公网验证
 
-- 当前状态：已完成基础收口，后续只需在这条链路上继续做稳定性复核，不再继续维护上传式发布包流程
+- 当前状态：已完成一轮真实验证，但预发布机的 GitHub 拉取式部署仍缺远端仓库凭据；当前仍保留源码快照上传作为临时回退路径
 
 - 目标：
-  - 用当前 `feature/hardening-plan` 工作分支在预发布机完整复现一轮部署
-  - 重新确认 `health`、QuickDrop `sync`、`rtc-config`、公开分享创建都可用
-  - 用至少一轮真实双端浏览器验证 TURN / NAT 场景，而不是只停留在本地 mock / headless
+  - 补齐预发布机对私有 GitHub 仓库的读取凭据，让 `deploy-preprod.sh` 真正恢复到 `git fetch/reset` 部署
+  - 继续确认 `health`、QuickDrop `sync`、`rtc-config`、公开分享创建都可用
+  - 在真实双端浏览器验证里，把 same-account 最终模式从“可传但收口 relay”继续推进到更稳定的 `direct`
 - 建议提交边界：
-  - 远端部署脚本、compose/env 文档、预发布 smoke 结果、必要修复
+  - 远端部署链路修复、预发布 smoke 结果、直连成功率相关修复
 - 验收：
-  - `quickshare-test-ssh` 可拉起当前版本
+  - 预发布机可直接执行 `deploy-preprod.sh`
   - `curl /api/health`、`curl /api/public/quickdrop/rtc-config` 正常
-  - 补一条新的 archive 记录部署过程和验证结果
+  - same-account 真实双页验证至少新增一条稳定 `direct` 命中结果，或者明确记录无法命中的具体网络原因
+  - 补一条新的 archive 记录部署过程、凭据阻塞和验证结果
 
 ### Phase 2. QuickDrop 生命周期与任务语义补强
 
@@ -156,6 +157,10 @@
       - `QuickDropTaskVO / QuickDropPairTaskVO / QuickDropTaskAttemptVO` 已补 `attemptStatus`、开始/结束/失败原因和关键时间戳
       - `quickdrop.html` 与配对直传详情弹窗现已显示 fallback / fail / save feedback
       - QuickDrop 定向 service test 与 `tests/e2e/quickdrop.spec.js` 已覆盖新详情字段
+    - 已完成补充步：预发布 TURN / same-account 真实链路复核
+      - 预发布 `health`、`rtc-config`、远端 smoke 与 Dockerized 浏览器 smoke 已继续通过
+      - 一次性 real-browser 探针已确认当前 same-account 双页真实传输最终仍收口 `relay`
+      - 下一步要解决的是“稳定直连命中”，不是“能否完成传输”
     - 已完成补充步：QuickDrop 页面级减法收口
       - `quickdrop.html` 首屏已继续去掉步骤条和大段解释
       - 临时互传与同账号发送都已改成“单入口选择内容”

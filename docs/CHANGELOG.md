@@ -2,6 +2,16 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-24 (预发布 TURN 验证与源码快照回退部署)
+
+- 详细记录：`docs/archive/2026-03-24-preprod-turn-validation-and-snapshot-fallback.md`
+- 核心变更：
+  - 实测确认当前预发布机 `/root/quickshare` 不是 git 仓库，且没有可用于拉取私有 GitHub 仓库的凭据，`deploy-preprod.sh` 当前在这台机器上还无法直接走 GitHub 拉取式部署
+  - 为完成本轮公网/TURN 验证，改走“当前源码快照上传 + 保留远端 `.env` + 时间戳回退目录”的临时部署路径
+  - 预发布更新后重新确认 `GET /api/health` 返回 `UP`，`GET /api/public/quickdrop/rtc-config` 继续下发 `STUN + TURN(udp/tcp)` 与凭据
+  - 远端 `./scripts/quickshare-smoke.sh` 通过，Dockerized `./scripts/quickshare-playwright-smoke.sh` 也通过
+  - 补一条一次性 real-browser 探针后确认：same-account 真实双页传输在当前预发布环境里最终仍收口为 `relay`，尚未稳定命中 `direct`
+
 ## 2026-03-24 (QuickDrop 生命周期与详情补强)
 
 - 详细记录：`docs/archive/2026-03-24-quickdrop-lifecycle-and-detail-feedback.md`

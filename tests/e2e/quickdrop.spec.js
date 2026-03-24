@@ -50,7 +50,7 @@ async function openQuickDropAccountHistory(page) {
     return;
   }
   await page.locator('#quickDropAccountHistoryToggle').click();
-  await expect(page).toHaveURL(/#account-history$/);
+  await expect(page).toHaveURL(/[?&]view=account-history$/);
   await expect(panel).toBeVisible();
 }
 
@@ -60,7 +60,7 @@ async function openQuickDropDirectHistory(page) {
     return;
   }
   await page.locator('#quickDropDirectHistoryToggle').click();
-  await expect(page).toHaveURL(/#temporary-history$/);
+  await expect(page).toHaveURL(/[?&]view=temporary-history$/);
   await expect(panel).toBeVisible();
 }
 
@@ -210,7 +210,7 @@ test.describe('QuickDrop pages', () => {
     expect(saveRequestFolderId).toBe(301);
   });
 
-  test('same-account history page uses hash navigation and browser back returns to the main stage', async ({ page, baseURL }) => {
+  test('same-account history page uses route navigation and browser back returns to the main stage', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
       localStorage.setItem('token', 'quickdrop-token');
       localStorage.setItem('user', JSON.stringify({
@@ -295,7 +295,7 @@ test.describe('QuickDrop pages', () => {
     await gotoQuickDropPage(page, baseURL);
     await openQuickDropAccountHistory(page);
     await expect(page.locator('#quickDropHistoryPage')).toBeVisible();
-    await page.goBack();
+    await page.goBack({ waitUntil: 'commit' });
     await expect(page).toHaveURL(/quickdrop\.html$/);
     await expect(page.locator('#quickDropHistoryPage')).toBeHidden();
     await expect(page.locator('#quickDropMainLayout')).toBeVisible();
@@ -636,6 +636,47 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
+    let directFallbackSyncPayload = null;
+    await page.route('**/api/quickdrop/tasks/direct-attempts', async route => {
+      directFallbackSyncPayload = route.request().postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            id: 7001,
+            taskKey: directFallbackSyncPayload.taskKey,
+            direction: 'outgoing',
+            transferMode: 'direct',
+            currentTransferMode: 'direct',
+            stage: directFallbackSyncPayload.status,
+            attemptStatus: 'relay_fallback',
+            endReason: directFallbackSyncPayload.endReason,
+            failureReason: directFallbackSyncPayload.failureReason,
+            fileName: directFallbackSyncPayload.fileName,
+            fileSize: directFallbackSyncPayload.fileSize,
+            completedChunks: 0,
+            totalChunks: 1,
+            attempts: [
+              {
+                transferMode: 'direct',
+                transferId: directFallbackSyncPayload.clientTransferId,
+                stage: directFallbackSyncPayload.status,
+                attemptStatus: 'relay_fallback',
+                endReason: directFallbackSyncPayload.endReason,
+                failureReason: directFallbackSyncPayload.failureReason,
+                completedChunks: 0,
+                totalChunks: 1,
+                updateTime: '2026-03-21T10:00:00'
+              }
+            ]
+          }
+        })
+      });
+    });
+
     let relayTransferCreated = false;
     await page.route('**/api/quickdrop/transfers', async route => {
       if (route.request().method() === 'POST') {
@@ -706,10 +747,14 @@ test.describe('QuickDrop pages', () => {
       QuickDropSignalManager.waitForDirectReady = async () => false;
       QuickDropSignalManager.isDirectReady = () => false;
       QuickDropSignalManager.getState = () => ({
+        connected: true,
         latestPeerLabel: 'My Laptop',
         latestPeerChannelId: 'user:1:device:device-b',
         latestPeerDeviceId: 'device-b',
-        directState: 'negotiating'
+        directState: 'negotiating',
+        directDiagnostics: {
+          rtcHasTurn: true
+        }
       });
 
       QuickDropDirectTransfer.canSendToPeerDevice = () => false;
@@ -726,6 +771,10 @@ test.describe('QuickDrop pages', () => {
     await page.locator('#quickDropSendBtn').click();
 
     await expect.poll(() => relayTransferCreated).toBe(true);
+    await expect.poll(() => directFallbackSyncPayload).not.toBeNull();
+    expect(directFallbackSyncPayload.status).toBe('relay_fallback');
+    expect(directFallbackSyncPayload.endReason).toBe('relay_fallback');
+    expect(directFallbackSyncPayload.failureReason).toBe('direct_ready_timeout');
     expect(await page.evaluate(() => window.__quickDropDirectShouldNotRun)).toBe(false);
     await expect(page.locator('#quickDropActiveUploadMeta')).toContainText('Ready to Download');
   });

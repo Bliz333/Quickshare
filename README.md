@@ -100,6 +100,7 @@ DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 
 `deploy-preprod.sh` now treats GitHub as the single source of truth: it SSHes to the server, `git fetch/reset`s the target branch in `/root/quickshare`, then runs `docker compose up --build -d`. By default it deploys the current local branch name; set `DEPLOY_GIT_BRANCH=main` when you want the server to track `main`.
 If the SSH session stalls on network/auth issues, use `DEPLOY_SSH_TIMEOUT_SECONDS` to cap how long the local wrapper waits.
+For private/internal environments where the remote host is not yet a git worktree or cannot fetch the private repo, leave `DEPLOY_ENABLE_SNAPSHOT_FALLBACK=1` to let the script upload a source snapshot and keep the deploy moving without GitHub credentials.
 
 Default host-mode smoke now covers login, storage/order probes, folder create/move/delete, upload deduplication, owned-file download verification, share creation, extract-code validation, public download accounting, and API-level batch move/delete validation. Container mode remains the fallback when host port forwarding is unstable.
 
@@ -110,7 +111,10 @@ Dockerized browser smoke for environments without local Node/Chromium:
 ```bash
 ./scripts/quickshare-playwright-smoke.sh
 PLAYWRIGHT_TEST_TARGET=tests/e2e/quickdrop.spec.js ./scripts/quickshare-playwright-smoke.sh
+EXPECT_QUICKDROP_FINAL_MODE=direct ./scripts/quickshare-playwright-smoke.sh
 ```
+
+`quickshare-playwright-smoke.sh` now passes through `EXPECT_QUICKDROP_FINAL_MODE`, so internal preprod runs can optionally fail unless the real-browser QuickDrop task stays `direct`.
 
 Minimal browser automation baseline:
 

@@ -16,6 +16,18 @@
 
 ## 今日已完成
 
+- QuickDrop 真实直连诊断已继续补强：
+  - `quickdrop-signal.js` 现在会保留 `rtcHasTurn / rtcHasStun`、candidate type 统计、selected candidate pair、ICE/connection state 和 ready-timeout 事件
+  - `tests/e2e/quickdrop-real.spec.js` 现已打印最终 `transferMode / currentTransferMode / attemptStatus` 和直连诊断快照，不再只知道“测试通过”
+  - same-account 若在真正发文件前就判断直连未就绪，当前也会主动写回一条 direct fallback attempt；后续 relay 任务不再丢失“先试直连再回退”的语义
+- QuickDrop 历史页路由已开始产品化收口：
+  - 当前 canonical 路由改为 `quickdrop.html?view=temporary-history|account-history`
+  - 旧的 `#temporary-history / #account-history` 仍兼容，但页面会自动收口到 query route
+  - 浏览器返回主页面的页面级回归已同步通过
+- 内部预发布部署链路已开始去 GitHub 凭据依赖：
+  - `deploy-preprod.sh` 现在支持“源码快照上传 + 远端保留 `.env` + 时间戳回退目录”的 fallback 路径
+  - 这条路径适合当前私有/internal 测试阶段，不要求预发布机先具备 GitHub deploy key / token
+  - 本轮准备继续用新脚本做二次预发布验证时，目标机 `22/8080` 同时超时；当前阻塞已变成主机不可达
 - 预发布 TURN / 公网验证已继续推进一轮：
   - 实测确认当前预发布机 `/root/quickshare` 还不是 git 仓库，且没有可拉取私有 GitHub 仓库的远端凭据，所以 `deploy-preprod.sh` 在这台机器上暂时仍无法直接走 GitHub 拉取式部署
   - 为完成本轮验证，已改走“源码快照上传 + 保留 `.env` + 时间戳回退目录”的临时部署路径，预发布机当前源码已切到 `fd0ff0f`
@@ -185,10 +197,11 @@
   - 已实现匹配码配对后的 `WebRTC DataChannel` 浏览器直传
   - 已实现同账号发送端在直传中途失败时自动切到服务器中转
   - 已实现 direct / relay attempt 生命周期摘要、失败原因与保存反馈的统一详情视图
+  - 已实现直连诊断快照、selected candidate pair 观测和 “直连未就绪即回退” 的 direct fallback 写回
   - 当前预发布机已经继续验证到“真实双页可传输，但最终模式仍主要收口 `relay`”；下一步仍是提高公网/TURN 下的稳定直传命中率，并继续统一 same-account `task` / public `pair task`
   - 页面层已继续朝 Snapdrop / PairDrop 风格收口，但还没到最终形态：
     - 首屏仍有进一步减少辅助文案和标签的空间
-    - 记录当前已是页内次级页面；后续仍可继续评估独立 URL
+    - 历史页当前已从 hash 收口到 query route；后续仍可继续评估独立 URL
 - Docker 验收现在不再只靠零散手工 `curl`，而是已有仓库内脚本基线可直接重复执行。
 - 预发布部署现在也不再依赖本地打包上传，而是统一收口到 GitHub 拉取 + Docker Compose 构建。
 - repo 内基础 smoke 已经覆盖到部分真实写路径，不再只是只读接口探针。
@@ -480,6 +493,7 @@
 - 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架、public pair task 页面级任务视图，以及 direct / relay attempt 生命周期摘要；下一步重点转向真实双端公网/TURN 验证和顶层模型进一步统一。
 - 当前预发布机虽然已经能继续下发真实 TURN，并完成 same-account 双页真实传输，但这轮实测最终任务模式仍是 `relay`；说明“能传”已验证，“稳定直连命中”仍未验证通过。
 - 当前 `deploy-preprod.sh` 的 GitHub 拉取式部署在预发布机上还缺远端仓库凭据；若不补 deploy key / token，就仍需保留源码快照上传作为临时部署回退路径。
+- 当前准备继续做第二轮预发布验证时，目标机 `22/8080` 同时超时；在主机恢复前，这部分只能先停在本地回归与脚本收口。
 - 当前服务器还只是预发布环境：
   - 还没有 HTTPS / 证书
   - 还没有正式发布前的最终脱敏提交流程

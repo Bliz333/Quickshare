@@ -5,6 +5,9 @@ const QUICKDROP_TASK_LINKS_KEY = 'quickdrop-task-links';
 const QUICKDROP_SYNC_INTERVAL_MS = 15000;
 const QUICKDROP_HASH_TEMPORARY_HISTORY = '#temporary-history';
 const QUICKDROP_HASH_ACCOUNT_HISTORY = '#account-history';
+const QUICKDROP_ROUTE_VIEW_KEY = 'view';
+const QUICKDROP_ROUTE_TEMPORARY_HISTORY = 'temporary-history';
+const QUICKDROP_ROUTE_ACCOUNT_HISTORY = 'account-history';
 
 const quickDropState = {
     profile: null,
@@ -226,17 +229,25 @@ function renderQuickDropSubpage() {
     }
 }
 
-function getQuickDropHistoryHash(target) {
+function getQuickDropHistoryRouteValue(target) {
     if (target === 'temporaryHistory') {
-        return QUICKDROP_HASH_TEMPORARY_HISTORY;
+        return QUICKDROP_ROUTE_TEMPORARY_HISTORY;
     }
     if (target === 'accountHistory') {
-        return QUICKDROP_HASH_ACCOUNT_HISTORY;
+        return QUICKDROP_ROUTE_ACCOUNT_HISTORY;
     }
     return '';
 }
 
-function getQuickDropSubpageFromHash() {
+function getQuickDropSubpageFromLocation() {
+    const params = new URLSearchParams(window.location.search);
+    const routeView = params.get(QUICKDROP_ROUTE_VIEW_KEY) || '';
+    if (routeView === QUICKDROP_ROUTE_TEMPORARY_HISTORY) {
+        return 'temporaryHistory';
+    }
+    if (routeView === QUICKDROP_ROUTE_ACCOUNT_HISTORY && quickDropState.accountMode) {
+        return 'accountHistory';
+    }
     const currentHash = window.location.hash || '';
     if (currentHash === QUICKDROP_HASH_TEMPORARY_HISTORY) {
         return 'temporaryHistory';
@@ -247,27 +258,41 @@ function getQuickDropSubpageFromHash() {
     return 'main';
 }
 
-function syncQuickDropHistoryHash(target, options = {}) {
-    const desiredHash = getQuickDropHistoryHash(target);
+function buildQuickDropHistoryUrl(target) {
+    const url = new URL(window.location.href);
+    const routeValue = getQuickDropHistoryRouteValue(target);
+    if (routeValue) {
+        url.searchParams.set(QUICKDROP_ROUTE_VIEW_KEY, routeValue);
+    } else {
+        url.searchParams.delete(QUICKDROP_ROUTE_VIEW_KEY);
+    }
+    url.hash = '';
+    return `${url.pathname}${url.search}`;
+}
+
+function syncQuickDropHistoryLocation(target, options = {}) {
+    const desiredUrl = buildQuickDropHistoryUrl(target);
     const replace = Boolean(options.replace);
-    if ((window.location.hash || '') === desiredHash) {
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+    if (currentUrl === desiredUrl) {
         applyQuickDropSubpageFromLocation();
         return;
     }
-    const nextUrl = `${window.location.pathname}${window.location.search}${desiredHash}`;
     if (replace) {
-        window.history.replaceState(null, '', nextUrl);
+        window.history.replaceState(null, '', desiredUrl);
         applyQuickDropSubpageFromLocation();
         return;
     }
-    window.history.pushState(null, '', nextUrl);
+    window.history.pushState(null, '', desiredUrl);
     applyQuickDropSubpageFromLocation();
 }
 
 function applyQuickDropSubpageFromLocation() {
-    const nextSubpage = getQuickDropSubpageFromHash();
-    if ((window.location.hash || '') !== getQuickDropHistoryHash(nextSubpage)) {
-        syncQuickDropHistoryHash(nextSubpage, { replace: true });
+    const nextSubpage = getQuickDropSubpageFromLocation();
+    const expectedUrl = buildQuickDropHistoryUrl(nextSubpage);
+    if (`${window.location.pathname}${window.location.search}` !== expectedUrl || window.location.hash) {
+        syncQuickDropHistoryLocation(nextSubpage, { replace: true });
+        return;
     }
     quickDropState.currentSubpage = nextSubpage;
     quickDropState.directHistoryExpanded = nextSubpage === 'temporaryHistory';
@@ -355,7 +380,7 @@ function closeQuickDropPickerMenu() {
 }
 
 function closeQuickDropHistoryDrawer() {
-    syncQuickDropHistoryHash('main');
+    syncQuickDropHistoryLocation('main');
 }
 
 function openQuickDropHistoryPage(target) {
@@ -363,7 +388,7 @@ function openQuickDropHistoryPage(target) {
     if (normalizedTarget === 'accountHistory' && !quickDropState.accountMode) {
         return;
     }
-    syncQuickDropHistoryHash(normalizedTarget);
+    syncQuickDropHistoryLocation(normalizedTarget);
 }
 
 function getStoredQuickDropDeviceName() {
@@ -592,6 +617,14 @@ function formatQuickDropLifecycleReason(reason) {
             return quickDropText('quickDropReasonCancelled', 'Cancelled');
         case 'direct_link_unavailable':
             return quickDropText('quickDropReasonDirectLinkUnavailable', 'Direct link was not ready');
+        case 'direct_ready_timeout':
+            return quickDropText('quickDropReasonDirectReadyTimeout', 'Direct readiness timed out and fell back to relay');
+        case 'ice_connection_failed':
+            return quickDropText('quickDropReasonIceConnectionFailed', 'ICE connection failed');
+        case 'no_relay_candidate':
+            return quickDropText('quickDropReasonNoRelayCandidate', 'No usable TURN relay candidate was gathered');
+        case 'signaling_unavailable':
+            return quickDropText('quickDropReasonSignalingUnavailable', 'Signaling is currently unavailable');
         case 'peer_mismatch':
             return quickDropText('quickDropReasonPeerMismatch', 'Direct link pointed to another device');
         case 'accept_timeout':
@@ -607,6 +640,34 @@ function formatQuickDropLifecycleReason(reason) {
         default:
             return reason ? String(reason).replace(/_/g, ' ') : quickDropText('quickDropNotYet', 'Not yet');
     }
+}
+
+function formatQuickDropCandidateCounts(counts) {
+    const target = counts || {};
+    return ['host', 'srflx', 'relay', 'prflx']
+        .map(key => `${key}:${Number(target[key] || 0)}`)
+        .join(', ');
+}
+
+function buildQuickDropDirectDiagnosticsLines() {
+    const signalState = quickDropSignalState();
+    const diagnostics = signalState.directDiagnostics || {};
+    if (!signalState.directState && !diagnostics.connectionState && !diagnostics.selectedCandidatePair) {
+        return [];
+    }
+    const lines = [
+        `${quickDropText('quickDropDirectSignalStateLabel', 'Direct State')}: ${signalState.directState || quickDropText('quickDropNotYet', 'Not yet')}`,
+        `${quickDropText('quickDropDirectIceStateLabel', 'ICE State')}: ${diagnostics.iceConnectionState || diagnostics.connectionState || quickDropText('quickDropNotYet', 'Not yet')}`,
+        `${quickDropText('quickDropDirectCandidateStatsLabel', 'Candidate Stats')}: local(${formatQuickDropCandidateCounts(diagnostics.localCandidateTypes)}) / remote(${formatQuickDropCandidateCounts(diagnostics.remoteCandidateTypes)})`
+    ];
+    if (diagnostics.selectedCandidatePair) {
+        const pair = diagnostics.selectedCandidatePair;
+        lines.push(`${quickDropText('quickDropDirectSelectedPairLabel', 'Selected Candidate Pair')}: ${pair.localCandidateType || '-'} -> ${pair.remoteCandidateType || '-'} (${pair.localProtocol || pair.remoteProtocol || '-'})`);
+    }
+    if (diagnostics.lastReadyAt) {
+        lines.push(`${quickDropText('quickDropDirectLastReadyLabel', 'Last Direct Ready')}: ${formatQuickDropTime(diagnostics.lastReadyAt)}`);
+    }
+    return lines;
 }
 
 function getLatestQuickDropAttemptTime(attempts, field, lifecycleStatus) {
@@ -873,6 +934,44 @@ function quickDropSignalState() {
         : {};
 }
 
+function quickDropDirectDiagnostics() {
+    return quickDropSignalState().directDiagnostics || {};
+}
+
+function getQuickDropDirectReadyWaitMs(baseMs) {
+    if (window.QuickDropSignalManager && typeof QuickDropSignalManager.getRecommendedDirectWaitMs === 'function') {
+        return QuickDropSignalManager.getRecommendedDirectWaitMs(baseMs);
+    }
+    const diagnostics = quickDropDirectDiagnostics();
+    if (diagnostics.rtcHasTurn) {
+        return Math.max(Number(baseMs) || 0, 4500);
+    }
+    return Number(baseMs) || 0;
+}
+
+function resolveQuickDropDirectFallbackReason(receiverDeviceId) {
+    const signalState = quickDropSignalState();
+    const diagnostics = signalState.directDiagnostics || {};
+    if (!signalState.connected) {
+        return 'signaling_unavailable';
+    }
+    if (signalState.latestPeerDeviceId && receiverDeviceId && signalState.latestPeerDeviceId !== receiverDeviceId) {
+        return 'peer_mismatch';
+    }
+    if (diagnostics.connectionState === 'failed' || diagnostics.iceConnectionState === 'failed') {
+        return 'ice_connection_failed';
+    }
+    if (signalState.directState === 'negotiating') {
+        return 'direct_ready_timeout';
+    }
+    if (diagnostics.rtcHasTurn
+        && Number(diagnostics.localCandidateTypes?.relay || 0) === 0
+        && Number(diagnostics.remoteCandidateTypes?.relay || 0) === 0) {
+        return 'no_relay_candidate';
+    }
+    return 'direct_link_unavailable';
+}
+
 function quickDropDirectMatchesSelectedDevice() {
     const signalState = quickDropSignalState();
     return signalState.latestPeerDeviceId
@@ -928,9 +1027,33 @@ async function maybeEnsureSelectedDeviceDirectRoute(options = {}) {
     }
 
     if (typeof QuickDropSignalManager.waitForDirectReady === 'function') {
-        const waitMs = Number(options.waitForReadyMs) || 0;
+        const waitMs = getQuickDropDirectReadyWaitMs(Number(options.waitForReadyMs) || 0);
         if (waitMs > 0) {
-            return QuickDropSignalManager.waitForDirectReady(targetDevice.deviceId, waitMs);
+            let ready = await QuickDropSignalManager.waitForDirectReady(targetDevice.deviceId, waitMs);
+            if (!ready) {
+                const signalState = quickDropSignalState();
+                const settleWaitMs = Number(options.settleWaitMs) || 0;
+                const stillNegotiatingSamePeer = signalState.directState === 'negotiating'
+                    && signalState.latestPeerDeviceId === targetDevice.deviceId;
+                if (stillNegotiatingSamePeer && settleWaitMs > 0) {
+                    ready = await QuickDropSignalManager.waitForDirectReady(targetDevice.deviceId, settleWaitMs);
+                }
+            }
+            if (!ready && options.forceOnUnavailable) {
+                const signalState = quickDropSignalState();
+                if (signalState.directState === 'unavailable') {
+                    try {
+                        await QuickDropSignalManager.ensurePairWithDevice(targetDevice.deviceId, { force: true });
+                    } catch (error) {
+                        if (!options.silent) {
+                            showToast(error.message, 'warning');
+                        }
+                        return false;
+                    }
+                    ready = await QuickDropSignalManager.waitForDirectReady(targetDevice.deviceId, getQuickDropDirectReadyWaitMs(waitMs));
+                }
+            }
+            return ready;
         }
     }
     return quickDropDirectMatchesSelectedDevice()
@@ -1435,6 +1558,7 @@ function buildQuickDropTransferDetailValue(transfer, direction) {
         lines.push(`${quickDropText('quickDropTaskAttemptsLabel', 'Attempts')}:`);
         task.attempts.forEach(attempt => lines.push(formatQuickDropTaskAttemptLine(attempt)));
     }
+    lines.push(...buildQuickDropDirectDiagnosticsLines());
 
     return lines.join('\n');
 }
@@ -1521,7 +1645,7 @@ async function syncQuickDrop(silent = false) {
         quickDropState.recommendedChunkSize = data.recommendedChunkSize || quickDropState.recommendedChunkSize;
         setQuickDropAccountMode(true);
         refreshQuickDropDirectTransfers();
-        quickDropState.currentSubpage = getQuickDropSubpageFromHash();
+        quickDropState.currentSubpage = getQuickDropSubpageFromLocation();
         renderQuickDropPage();
         maybeEnsureSelectedDeviceDirectRoute({ silent: true, waitForReadyMs: 1200 }).catch(() => {});
     } catch (error) {
@@ -1731,7 +1855,9 @@ async function sendSingleQuickDropFile(selectedItem, batchIndex, batchTotal) {
         let directTaskId = findQuickDropTaskByKey(taskKey)?.id || null;
         const directReady = await maybeEnsureSelectedDeviceDirectRoute({
             silent: true,
-            waitForReadyMs: 1800
+            waitForReadyMs: 1800,
+            settleWaitMs: 4200,
+            forceOnUnavailable: true
         });
         if (directReady
             && window.QuickDropDirectTransfer
@@ -1760,6 +1886,20 @@ async function sendSingleQuickDropFile(selectedItem, batchIndex, batchTotal) {
         }
 
         if (!directInterrupted && getSelectedQuickDropDevice()?.online) {
+            if (window.QuickDropDirectTransfer?.recordSameAccountRelayFallbackAttempt) {
+                const currentDeviceId = getQuickDropDeviceId();
+                const failureReason = resolveQuickDropDirectFallbackReason(receiverDeviceId);
+                QuickDropDirectTransfer.recordSameAccountRelayFallbackAttempt({
+                    taskId: directTaskId,
+                    taskKey,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    contentType: file.type || 'application/octet-stream',
+                    senderDeviceId: currentDeviceId,
+                    receiverDeviceId,
+                    failureReason
+                }).catch(error => console.warn('Failed to record same-account direct fallback attempt:', error));
+            }
             showToast(quickDropText('quickDropRelayFallback', 'Direct link is not ready yet, falling back to server relay'), 'warning');
         }
 
@@ -2044,6 +2184,10 @@ function bindQuickDropEvents() {
         applyQuickDropSubpageFromLocation();
     });
 
+    window.addEventListener('popstate', () => {
+        applyQuickDropSubpageFromLocation();
+    });
+
     document.addEventListener('quickdrop:direct-statechange', () => {
         renderQuickDropActiveUpload();
         renderQuickDropDisclosure();
@@ -2059,7 +2203,7 @@ async function initQuickDropPage() {
     bindQuickDropEvents();
     setQuickDropAccountMode(typeof isLoggedIn === 'function' && isLoggedIn());
     quickDropState.currentMode = quickDropState.accountMode ? 'account' : 'temporary';
-    quickDropState.currentSubpage = getQuickDropSubpageFromHash();
+    quickDropState.currentSubpage = getQuickDropSubpageFromLocation();
 
     if (quickDropState.accountMode) {
         try {

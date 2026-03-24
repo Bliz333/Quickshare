@@ -68,6 +68,7 @@ test.describe('QuickDrop real browser flow', () => {
     const receiverPage = await receiverContext.newPage();
 
     let createdTaskId = null;
+    let finalSnapshot = null;
     try {
       await Promise.all([
         senderPage.goto(`${baseURL}/quickdrop.html`, { waitUntil: 'domcontentloaded' }),
@@ -101,10 +102,36 @@ test.describe('QuickDrop real browser flow', () => {
         timeout: 30000
       });
 
-      createdTaskId = await senderPage.evaluate(() => {
-        return window.quickDropState?.displayOutgoingTransfers?.[0]?.task?.taskId || null;
+      finalSnapshot = await senderPage.evaluate(() => {
+        const item = window.quickDropState?.displayOutgoingTransfers?.[0] || null;
+        const task = item?.task || null;
+        const signal = window.QuickDropSignalManager?.getState?.() || {};
+        return {
+          taskId: task?.taskId || task?.id || item?.taskId || null,
+          transferMode: task?.transferMode || item?.transferMode || null,
+          currentTransferMode: task?.currentTransferMode || null,
+          stage: task?.stage || item?.status || null,
+          attemptStatus: task?.attemptStatus || null,
+          endReason: task?.endReason || null,
+          failureReason: task?.failureReason || null,
+          attempts: (task?.attempts || []).map(attempt => ({
+            transferMode: attempt.transferMode,
+            stage: attempt.stage,
+            attemptStatus: attempt.attemptStatus,
+            endReason: attempt.endReason,
+            failureReason: attempt.failureReason,
+            updateTime: attempt.updateTime
+          })),
+          directDiagnostics: signal.directDiagnostics || null
+        };
       });
+      createdTaskId = finalSnapshot?.taskId || null;
       expect(createdTaskId).toBeTruthy();
+      console.log('[quickdrop-real] final_snapshot=' + JSON.stringify(finalSnapshot));
+      const expectedMode = process.env.EXPECT_QUICKDROP_FINAL_MODE || '';
+      if (expectedMode) {
+        expect(finalSnapshot?.transferMode).toBe(expectedMode);
+      }
     } finally {
       if (createdTaskId) {
         await request.delete(`/api/quickdrop/tasks/${createdTaskId}?deviceId=device-sender-real`, {

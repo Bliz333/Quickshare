@@ -489,6 +489,31 @@ const QuickDropDirectTransfer = (() => {
         return result.data || null;
     }
 
+    async function recordSameAccountRelayFallbackAttempt(details = {}) {
+        const syntheticTransfer = {
+            id: details.clientTransferId || `direct-probe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            taskId: details.taskId || null,
+            taskKey: details.taskKey || '',
+            fileName: details.fileName || '',
+            fileSize: Number(details.fileSize || 0),
+            contentType: details.contentType || 'application/octet-stream',
+            totalChunks: Number(details.totalChunks || 1),
+            direction: 'outgoing',
+            status: 'relay_fallback',
+            startReason: 'same_account_direct',
+            endReason: 'relay_fallback',
+            failureReason: details.failureReason || 'direct_ready_timeout',
+            sentChunks: 0,
+            acknowledgedChunks: 0,
+            senderDeviceId: details.senderDeviceId || getCurrentDeviceId(),
+            receiverDeviceId: details.receiverDeviceId || '',
+            peerDeviceId: details.receiverDeviceId || '',
+            peerLabel: details.peerLabel || '',
+            updateTime: nowIso()
+        };
+        return syncDirectAttemptToServer(syntheticTransfer);
+    }
+
     async function syncPublicPairTaskToServer(transfer, options = {}) {
         if (!canSyncPublicPairTaskToServer(transfer)) {
             return null;
@@ -690,6 +715,14 @@ const QuickDropDirectTransfer = (() => {
                 return text('quickDropReasonCancelled', 'Cancelled');
             case 'direct_link_unavailable':
                 return text('quickDropReasonDirectLinkUnavailable', 'Direct link was not ready');
+            case 'direct_ready_timeout':
+                return text('quickDropReasonDirectReadyTimeout', 'Direct readiness timed out and fell back to relay');
+            case 'ice_connection_failed':
+                return text('quickDropReasonIceConnectionFailed', 'ICE connection failed');
+            case 'no_relay_candidate':
+                return text('quickDropReasonNoRelayCandidate', 'No usable TURN relay candidate was gathered');
+            case 'signaling_unavailable':
+                return text('quickDropReasonSignalingUnavailable', 'Signaling is currently unavailable');
             case 'peer_mismatch':
                 return text('quickDropReasonPeerMismatch', 'Direct link pointed to another device');
             case 'accept_timeout':
@@ -705,6 +738,34 @@ const QuickDropDirectTransfer = (() => {
             default:
                 return reason ? String(reason).replace(/_/g, ' ') : text('quickDropNotYet', 'Not yet');
         }
+    }
+
+    function formatCandidateCounts(counts) {
+        const target = counts || {};
+        return ['host', 'srflx', 'relay', 'prflx']
+            .map(key => `${key}:${Number(target[key] || 0)}`)
+            .join(', ');
+    }
+
+    function buildDirectDiagnosticsLines() {
+        const signalState = getSignalState();
+        const diagnostics = signalState.directDiagnostics || {};
+        if (!signalState.directState && !diagnostics.connectionState && !diagnostics.selectedCandidatePair) {
+            return [];
+        }
+        const lines = [
+            `${text('quickDropDirectSignalStateLabel', 'Direct State')}: ${signalState.directState || text('quickDropNotYet', 'Not yet')}`,
+            `${text('quickDropDirectIceStateLabel', 'ICE State')}: ${diagnostics.iceConnectionState || diagnostics.connectionState || text('quickDropNotYet', 'Not yet')}`,
+            `${text('quickDropDirectCandidateStatsLabel', 'Candidate Stats')}: local(${formatCandidateCounts(diagnostics.localCandidateTypes)}) / remote(${formatCandidateCounts(diagnostics.remoteCandidateTypes)})`
+        ];
+        if (diagnostics.selectedCandidatePair) {
+            const pair = diagnostics.selectedCandidatePair;
+            lines.push(`${text('quickDropDirectSelectedPairLabel', 'Selected Candidate Pair')}: ${pair.localCandidateType || '-'} -> ${pair.remoteCandidateType || '-'} (${pair.localProtocol || pair.remoteProtocol || '-'})`);
+        }
+        if (diagnostics.lastReadyAt) {
+            lines.push(`${text('quickDropDirectLastReadyLabel', 'Last Direct Ready')}: ${formatTime(diagnostics.lastReadyAt)}`);
+        }
+        return lines;
     }
 
     function getLatestAttemptTime(attempts, field, lifecycleStatus) {
@@ -1235,6 +1296,7 @@ const QuickDropDirectTransfer = (() => {
                 lines.push(formatTaskAttemptLine(attempt));
             });
         }
+        lines.push(...buildDirectDiagnosticsLines());
         return lines.join('\n');
     }
 
@@ -2459,6 +2521,7 @@ const QuickDropDirectTransfer = (() => {
             }
             return [...state.incomingTransfers, ...state.outgoingTransfers];
         },
+        recordSameAccountRelayFallbackAttempt,
         downloadTransfer,
         deleteTransfer,
         saveTransferToNetdisk,

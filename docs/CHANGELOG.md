@@ -2,6 +2,17 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-24 (QuickDrop 直连诊断、历史页 route 与内部部署回退)
+
+- 详细记录：`docs/archive/2026-03-24-quickdrop-direct-observability-and-snapshot-deploy-fallback.md`
+- 核心变更：
+  - `quickdrop-signal.js` 已补直连诊断快照：包含 `rtc-config` 摘要、connection / ICE 状态、候选统计、selected candidate pair 和 ready-timeout 事件
+  - same-account 发送在“直连未就绪就回退 relay”时，现已主动写回一条 direct fallback attempt，不再只剩纯 relay 记录
+  - `tests/e2e/quickdrop-real.spec.js` 现在会输出真实浏览器链路的最终任务模式和直连诊断，并支持 `EXPECT_QUICKDROP_FINAL_MODE`
+  - `quickdrop.html` 历史页路由已从纯 hash 收口到 `?view=temporary-history|account-history`，同时保留旧 hash 兼容
+  - `deploy-preprod.sh` 已新增私有/internal 环境可用的源码快照回退部署路径，不再强依赖远端 GitHub 凭据
+  - 本轮二次预发布验证尝试时，目标机 `22/8080` 同时超时，说明阻塞已转为主机不可达，而不是脚本逻辑错误
+
 ## 2026-03-24 (预发布 TURN 验证与源码快照回退部署)
 
 - 详细记录：`docs/archive/2026-03-24-preprod-turn-validation-and-snapshot-fallback.md`

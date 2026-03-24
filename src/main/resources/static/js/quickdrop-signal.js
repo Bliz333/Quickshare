@@ -2,6 +2,73 @@ const QUICKDROP_SIGNAL_DEVICE_ID_KEY = 'quickdrop-device-id';
 const QUICKDROP_SIGNAL_GUEST_ID_KEY = 'quickdrop-guest-id';
 
 const QuickDropSignalManager = (() => {
+    function nowIso() {
+        return new Date().toISOString();
+    }
+
+    function createCandidateTypeCounts() {
+        return {
+            host: 0,
+            srflx: 0,
+            relay: 0,
+            prflx: 0,
+            unknown: 0
+        };
+    }
+
+    function createCandidateProtocolCounts() {
+        return {
+            udp: 0,
+            tcp: 0,
+            unknown: 0
+        };
+    }
+
+    function createDirectDiagnostics(previous = {}) {
+        return {
+            negotiationId: Number(previous.negotiationId || 0),
+            rtcFetchedAt: previous.rtcFetchedAt || '',
+            rtcHasTurn: Boolean(previous.rtcHasTurn),
+            rtcHasStun: Boolean(previous.rtcHasStun),
+            iceServerUrls: Array.isArray(previous.iceServerUrls) ? [...previous.iceServerUrls] : [],
+            negotiationStartedAt: '',
+            lastSignalType: '',
+            connectionState: '',
+            iceConnectionState: '',
+            iceGatheringState: '',
+            signalingState: '',
+            controlChannelState: '',
+            fileChannelState: '',
+            localCandidateTypes: createCandidateTypeCounts(),
+            remoteCandidateTypes: createCandidateTypeCounts(),
+            localCandidateProtocols: createCandidateProtocolCounts(),
+            remoteCandidateProtocols: createCandidateProtocolCounts(),
+            selectedCandidatePair: null,
+            selectedCandidatePairAt: '',
+            lastReadyAt: previous.lastReadyAt || '',
+            lastUnavailableAt: previous.lastUnavailableAt || '',
+            lastCloseAt: '',
+            lastWaitTimeoutMs: 0,
+            lastWaitResult: '',
+            lastWaitCompletedAt: '',
+            events: []
+        };
+    }
+
+    function cloneDirectDiagnostics(diagnostics) {
+        const current = diagnostics || createDirectDiagnostics();
+        return {
+            ...current,
+            iceServerUrls: [...(current.iceServerUrls || [])],
+            localCandidateTypes: { ...(current.localCandidateTypes || createCandidateTypeCounts()) },
+            remoteCandidateTypes: { ...(current.remoteCandidateTypes || createCandidateTypeCounts()) },
+            localCandidateProtocols: { ...(current.localCandidateProtocols || createCandidateProtocolCounts()) },
+            remoteCandidateProtocols: { ...(current.remoteCandidateProtocols || createCandidateProtocolCounts()) },
+            selectedCandidatePair: current.selectedCandidatePair ? { ...current.selectedCandidatePair } : null,
+            events: [...(current.events || [])].map(event => ({ ...event }))
+        };
+    }
+
     const state = {
         socket: null,
         connected: false,
@@ -18,7 +85,8 @@ const QuickDropSignalManager = (() => {
         fileChannel: null,
         directState: 'idle',
         pendingRemoteCandidates: [],
-        pairSessionRequest: null
+        pairSessionRequest: null,
+        directDiagnostics: createDirectDiagnostics()
     };
 
     function text(key, fallback) {
@@ -27,6 +95,116 @@ const QuickDropSignalManager = (() => {
 
     function emit(eventName, detail = {}) {
         document.dispatchEvent(new CustomEvent(eventName, { detail }));
+    }
+
+    function parseCandidateType(candidate) {
+        const explicitType = candidate?.type;
+        if (explicitType) {
+            return String(explicitType).trim().toLowerCase();
+        }
+        const raw = typeof candidate === 'string' ? candidate : candidate?.candidate || '';
+        const match = String(raw).match(/\btyp\s+([a-z]+)/i);
+        return match ? match[1].toLowerCase() : 'unknown';
+    }
+
+    function parseCandidateProtocol(candidate) {
+        const explicitProtocol = candidate?.protocol;
+        if (explicitProtocol) {
+            return String(explicitProtocol).trim().toLowerCase();
+        }
+        const raw = typeof candidate === 'string' ? candidate : candidate?.candidate || '';
+        const match = String(raw).match(/\b(udp|tcp)\b/i);
+        return match ? match[1].toLowerCase() : 'unknown';
+    }
+
+    function incrementCandidateCount(target, key) {
+        const normalizedKey = target[key] != null ? key : 'unknown';
+        target[normalizedKey] = Number(target[normalizedKey] || 0) + 1;
+    }
+
+    function recordDirectCandidate(side, candidate) {
+        const diagnostics = state.directDiagnostics;
+        const typeKey = parseCandidateType(candidate);
+        const protocolKey = parseCandidateProtocol(candidate);
+        if (side === 'local') {
+            incrementCandidateCount(diagnostics.localCandidateTypes, typeKey);
+            incrementCandidateCount(diagnostics.localCandidateProtocols, protocolKey);
+            return;
+        }
+        incrementCandidateCount(diagnostics.remoteCandidateTypes, typeKey);
+        incrementCandidateCount(diagnostics.remoteCandidateProtocols, protocolKey);
+    }
+
+    function recordDirectEvent(type, extra = {}) {
+        state.directDiagnostics.events = [
+            ...(state.directDiagnostics.events || []),
+            {
+                at: nowIso(),
+                type,
+                ...extra
+            }
+        ].slice(-40);
+    }
+
+    function updatePeerConnectionDiagnostics(pc) {
+        if (!pc) {
+            return;
+        }
+        state.directDiagnostics.connectionState = pc.connectionState || '';
+        state.directDiagnostics.iceConnectionState = pc.iceConnectionState || '';
+        state.directDiagnostics.iceGatheringState = pc.iceGatheringState || '';
+        state.directDiagnostics.signalingState = pc.signalingState || '';
+    }
+
+    async function refreshSelectedCandidatePair(pc) {
+        if (!pc || typeof pc.getStats !== 'function') {
+            return;
+        }
+        try {
+            const stats = await pc.getStats();
+            let selectedPair = null;
+            for (const stat of stats.values()) {
+                if (stat.type === 'transport' && stat.selectedCandidatePairId) {
+                    selectedPair = stats.get(stat.selectedCandidatePairId) || null;
+                    break;
+                }
+            }
+            if (!selectedPair) {
+                for (const stat of stats.values()) {
+                    if (stat.type === 'candidate-pair' && (stat.selected || (stat.nominated && stat.state === 'succeeded'))) {
+                        selectedPair = stat;
+                        break;
+                    }
+                }
+            }
+            if (!selectedPair) {
+                return;
+            }
+            const localCandidate = selectedPair.localCandidateId ? stats.get(selectedPair.localCandidateId) : null;
+            const remoteCandidate = selectedPair.remoteCandidateId ? stats.get(selectedPair.remoteCandidateId) : null;
+            state.directDiagnostics.selectedCandidatePair = {
+                state: selectedPair.state || '',
+                nominated: Boolean(selectedPair.nominated),
+                localCandidateType: localCandidate?.candidateType || '',
+                remoteCandidateType: remoteCandidate?.candidateType || '',
+                localProtocol: localCandidate?.protocol || '',
+                remoteProtocol: remoteCandidate?.protocol || '',
+                localAddress: localCandidate?.address || localCandidate?.ip || '',
+                remoteAddress: remoteCandidate?.address || remoteCandidate?.ip || ''
+            };
+            state.directDiagnostics.selectedCandidatePairAt = nowIso();
+            recordDirectEvent('selected_candidate_pair', {
+                localCandidateType: state.directDiagnostics.selectedCandidatePair.localCandidateType,
+                remoteCandidateType: state.directDiagnostics.selectedCandidatePair.remoteCandidateType,
+                localProtocol: state.directDiagnostics.selectedCandidatePair.localProtocol,
+                remoteProtocol: state.directDiagnostics.selectedCandidatePair.remoteProtocol,
+                pairState: state.directDiagnostics.selectedCandidatePair.state
+            });
+        } catch (error) {
+            recordDirectEvent('stats_error', {
+                message: error?.message || String(error)
+            });
+        }
     }
 
     function ensureStorageValue(key, factory) {
@@ -104,7 +282,28 @@ const QuickDropSignalManager = (() => {
     }
 
     function setDirectState(nextState) {
+        const previousState = state.directState;
         state.directState = nextState;
+        if (nextState === 'ready' && previousState !== 'ready') {
+            state.directDiagnostics.lastReadyAt = nowIso();
+            recordDirectEvent('direct_ready', {
+                pairSessionId: state.pairSessionId,
+                peerDeviceId: state.latestPeerDeviceId
+            });
+        } else if (nextState === 'unavailable' && previousState !== 'unavailable') {
+            state.directDiagnostics.lastUnavailableAt = nowIso();
+            recordDirectEvent('direct_unavailable', {
+                pairSessionId: state.pairSessionId,
+                peerDeviceId: state.latestPeerDeviceId,
+                connectionState: state.directDiagnostics.connectionState,
+                iceConnectionState: state.directDiagnostics.iceConnectionState
+            });
+        } else if (nextState !== previousState) {
+            recordDirectEvent('direct_state', {
+                from: previousState,
+                to: nextState
+            });
+        }
         updateStatusUi();
     }
 
@@ -152,7 +351,8 @@ const QuickDropSignalManager = (() => {
             pairSessionId: state.pairSessionId,
             peerLabel: state.latestPeerLabel,
             peerChannelId: state.latestPeerChannelId,
-            peerDeviceId: state.latestPeerDeviceId
+            peerDeviceId: state.latestPeerDeviceId,
+            diagnostics: cloneDirectDiagnostics(state.directDiagnostics)
         });
     }
 
@@ -250,6 +450,13 @@ const QuickDropSignalManager = (() => {
         state.fileChannel = null;
         state.peerConnection = null;
         state.pendingRemoteCandidates = [];
+        state.directDiagnostics.controlChannelState = 'closed';
+        state.directDiagnostics.fileChannelState = 'closed';
+        state.directDiagnostics.connectionState = '';
+        state.directDiagnostics.iceConnectionState = '';
+        state.directDiagnostics.iceGatheringState = '';
+        state.directDiagnostics.signalingState = '';
+        state.directDiagnostics.lastCloseAt = nowIso();
         setDirectState(nextDirectState);
         emit('quickdrop:direct-close', {
             pairSessionId: state.pairSessionId,
@@ -273,12 +480,28 @@ const QuickDropSignalManager = (() => {
             throw new Error(result.message || 'RTC config failed');
         }
         state.rtcConfig = result.data || { directTransferEnabled: false, iceServers: [] };
+        const urls = (state.rtcConfig.iceServers || [])
+            .flatMap(server => Array.isArray(server?.urls) ? server.urls : [])
+            .filter(Boolean)
+            .map(url => String(url));
+        state.directDiagnostics.rtcFetchedAt = nowIso();
+        state.directDiagnostics.rtcHasTurn = urls.some(url => url.startsWith('turn:') || url.startsWith('turns:'));
+        state.directDiagnostics.rtcHasStun = urls.some(url => url.startsWith('stun:') || url.startsWith('stuns:'));
+        state.directDiagnostics.iceServerUrls = urls;
+        recordDirectEvent('rtc_config', {
+            directTransferEnabled: Boolean(state.rtcConfig.directTransferEnabled),
+            rtcHasTurn: state.directDiagnostics.rtcHasTurn,
+            rtcHasStun: state.directDiagnostics.rtcHasStun,
+            iceServers: urls.length
+        });
         return state.rtcConfig;
     }
 
     function bindControlChannel(channel) {
         state.controlChannel = channel;
+        state.directDiagnostics.controlChannelState = channel.readyState || 'connecting';
         channel.onopen = () => {
+            state.directDiagnostics.controlChannelState = channel.readyState || 'open';
             updateDirectChannelState();
             emit('quickdrop:direct-open', {
                 channel: 'control',
@@ -302,8 +525,12 @@ const QuickDropSignalManager = (() => {
             }
             emit('quickdrop:direct-control', { message });
         };
-        channel.onclose = updateDirectChannelState;
+        channel.onclose = () => {
+            state.directDiagnostics.controlChannelState = channel.readyState || 'closed';
+            updateDirectChannelState();
+        };
         channel.onerror = () => {
+            state.directDiagnostics.controlChannelState = channel.readyState || 'error';
             setDirectState('unavailable');
         };
     }
@@ -311,7 +538,9 @@ const QuickDropSignalManager = (() => {
     function bindFileChannel(channel) {
         state.fileChannel = channel;
         channel.binaryType = 'arraybuffer';
+        state.directDiagnostics.fileChannelState = channel.readyState || 'connecting';
         channel.onopen = () => {
+            state.directDiagnostics.fileChannelState = channel.readyState || 'open';
             updateDirectChannelState();
             emit('quickdrop:direct-open', {
                 channel: 'file',
@@ -324,8 +553,12 @@ const QuickDropSignalManager = (() => {
         channel.onmessage = event => {
             emit('quickdrop:direct-binary', { data: event.data });
         };
-        channel.onclose = updateDirectChannelState;
+        channel.onclose = () => {
+            state.directDiagnostics.fileChannelState = channel.readyState || 'closed';
+            updateDirectChannelState();
+        };
         channel.onerror = () => {
+            state.directDiagnostics.fileChannelState = channel.readyState || 'error';
             setDirectState('unavailable');
         };
     }
@@ -356,23 +589,77 @@ const QuickDropSignalManager = (() => {
         }
 
         cleanupPeerConnection('negotiating');
+        state.directDiagnostics = {
+            ...createDirectDiagnostics(state.directDiagnostics),
+            negotiationId: Number(state.directDiagnostics.negotiationId || 0) + 1,
+            rtcFetchedAt: state.directDiagnostics.rtcFetchedAt,
+            rtcHasTurn: state.directDiagnostics.rtcHasTurn,
+            rtcHasStun: state.directDiagnostics.rtcHasStun,
+            iceServerUrls: [...(state.directDiagnostics.iceServerUrls || [])],
+            lastReadyAt: state.directDiagnostics.lastReadyAt,
+            lastUnavailableAt: state.directDiagnostics.lastUnavailableAt
+        };
+        state.directDiagnostics.negotiationStartedAt = nowIso();
+        recordDirectEvent('negotiation_start', {
+            pairSessionId: state.pairSessionId,
+            peerDeviceId: state.latestPeerDeviceId,
+            rtcHasTurn: state.directDiagnostics.rtcHasTurn
+        });
 
         const pc = new RTCPeerConnection({
             iceServers: rtcConfig.iceServers || []
         });
         state.peerConnection = pc;
+        updatePeerConnectionDiagnostics(pc);
 
         pc.onicecandidate = event => {
             if (!event.candidate) {
+                recordDirectEvent('local_candidate_complete', {
+                    iceGatheringState: pc.iceGatheringState || ''
+                });
                 return;
             }
-            QuickDropSignalManager.sendSignal('candidate', event.candidate.toJSON ? event.candidate.toJSON() : event.candidate);
+            const candidatePayload = event.candidate.toJSON ? event.candidate.toJSON() : event.candidate;
+            recordDirectCandidate('local', candidatePayload);
+            QuickDropSignalManager.sendSignal('candidate', candidatePayload);
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            updatePeerConnectionDiagnostics(pc);
+            recordDirectEvent('ice_connection_state', {
+                value: pc.iceConnectionState || ''
+            });
+            if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                refreshSelectedCandidatePair(pc).catch(() => {});
+            }
+            updateDirectChannelState();
+        };
+
+        pc.onicegatheringstatechange = () => {
+            updatePeerConnectionDiagnostics(pc);
+            recordDirectEvent('ice_gathering_state', {
+                value: pc.iceGatheringState || ''
+            });
+        };
+
+        pc.onsignalingstatechange = () => {
+            updatePeerConnectionDiagnostics(pc);
+            recordDirectEvent('signaling_state', {
+                value: pc.signalingState || ''
+            });
         };
 
         pc.onconnectionstatechange = () => {
+            updatePeerConnectionDiagnostics(pc);
+            recordDirectEvent('connection_state', {
+                value: pc.connectionState || ''
+            });
             if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
                 setDirectState('unavailable');
                 return;
+            }
+            if (pc.connectionState === 'connected') {
+                refreshSelectedCandidatePair(pc).catch(() => {});
             }
             updateDirectChannelState();
         };
@@ -410,6 +697,10 @@ const QuickDropSignalManager = (() => {
         }
         const signalType = payload.signalType;
         const signalPayload = payload.payload || {};
+        state.directDiagnostics.lastSignalType = signalType || '';
+        recordDirectEvent('signal', {
+            signalType
+        });
 
         if (signalType === 'offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(signalPayload));
@@ -429,6 +720,7 @@ const QuickDropSignalManager = (() => {
         }
 
         if (signalType === 'candidate') {
+            recordDirectCandidate('remote', signalPayload);
             if (!pc.remoteDescription || !pc.remoteDescription.type) {
                 state.pendingRemoteCandidates.push(signalPayload);
                 return;
@@ -571,10 +863,13 @@ const QuickDropSignalManager = (() => {
 
     async function waitForDirectReady(expectedPeerDeviceId, timeoutMs = 2500) {
         const normalizedExpectedPeerDeviceId = String(expectedPeerDeviceId || '').trim();
+        state.directDiagnostics.lastWaitTimeoutMs = timeoutMs;
         const readyNow = state.directState === 'ready'
             && hasOpenDirectChannels()
             && (!normalizedExpectedPeerDeviceId || state.latestPeerDeviceId === normalizedExpectedPeerDeviceId);
         if (readyNow) {
+            state.directDiagnostics.lastWaitResult = 'ready_immediate';
+            state.directDiagnostics.lastWaitCompletedAt = nowIso();
             return true;
         }
         return new Promise(resolve => {
@@ -584,6 +879,8 @@ const QuickDropSignalManager = (() => {
                 const matchesPeer = !normalizedExpectedPeerDeviceId || detail.peerDeviceId === normalizedExpectedPeerDeviceId;
                 if (detail.directState === 'ready' && matchesPeer) {
                     finished = true;
+                    state.directDiagnostics.lastWaitResult = 'ready_after_wait';
+                    state.directDiagnostics.lastWaitCompletedAt = nowIso();
                     cleanup();
                     resolve(true);
                 }
@@ -598,6 +895,13 @@ const QuickDropSignalManager = (() => {
                     return;
                 }
                 finished = true;
+                state.directDiagnostics.lastWaitResult = 'timeout';
+                state.directDiagnostics.lastWaitCompletedAt = nowIso();
+                recordDirectEvent('ready_timeout', {
+                    timeoutMs,
+                    peerDeviceId: normalizedExpectedPeerDeviceId,
+                    directState: state.directState
+                });
                 cleanup();
                 resolve(false);
             }, timeoutMs);
@@ -790,11 +1094,22 @@ const QuickDropSignalManager = (() => {
         waitForDirectReady(expectedPeerDeviceId, timeoutMs) {
             return waitForDirectReady(expectedPeerDeviceId, timeoutMs);
         },
+        getRecommendedDirectWaitMs(baseMs = 2500) {
+            let recommended = Number(baseMs) || 0;
+            if (state.directDiagnostics.rtcHasTurn) {
+                recommended = Math.max(recommended, 4500);
+            }
+            if (state.directState === 'negotiating') {
+                recommended = Math.max(recommended, state.directDiagnostics.rtcHasTurn ? 7000 : 3200);
+            }
+            return recommended;
+        },
         getState() {
             return {
                 ...state,
                 controlChannelOpen: state.controlChannel?.readyState === 'open',
-                fileChannelOpen: state.fileChannel?.readyState === 'open'
+                fileChannelOpen: state.fileChannel?.readyState === 'open',
+                directDiagnostics: cloneDirectDiagnostics(state.directDiagnostics)
             };
         }
     };

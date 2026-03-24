@@ -26,16 +26,16 @@
 
 ### Phase 1. 预发布部署复现与真实公网验证
 
-- 当前状态：已完成一轮真实验证，但预发布机的 GitHub 拉取式部署仍缺远端仓库凭据；当前仍保留源码快照上传作为临时回退路径
+- 当前状态：已完成一轮真实验证，并补上源码快照回退部署；但第二轮验证时目标机暂时不可达，当前还需要等主机恢复后继续
 
 - 目标：
-  - 补齐预发布机对私有 GitHub 仓库的读取凭据，让 `deploy-preprod.sh` 真正恢复到 `git fetch/reset` 部署
+  - 对内部测试环境，继续沿用源码快照回退部署，不把 GitHub 凭据作为当前阻塞
   - 继续确认 `health`、QuickDrop `sync`、`rtc-config`、公开分享创建都可用
   - 在真实双端浏览器验证里，把 same-account 最终模式从“可传但收口 relay”继续推进到更稳定的 `direct`
 - 建议提交边界：
-  - 远端部署链路修复、预发布 smoke 结果、直连成功率相关修复
+  - 预发布 smoke 结果、直连成功率相关修复、内部回退部署链路收口
 - 验收：
-  - 预发布机可直接执行 `deploy-preprod.sh`
+  - 预发布机可在无 GitHub 凭据条件下继续执行 `deploy-preprod.sh`
   - `curl /api/health`、`curl /api/public/quickdrop/rtc-config` 正常
   - same-account 真实双页验证至少新增一条稳定 `direct` 命中结果，或者明确记录无法命中的具体网络原因
   - 补一条新的 archive 记录部署过程、凭据阻塞和验证结果
@@ -157,6 +157,10 @@
       - `QuickDropTaskVO / QuickDropPairTaskVO / QuickDropTaskAttemptVO` 已补 `attemptStatus`、开始/结束/失败原因和关键时间戳
       - `quickdrop.html` 与配对直传详情弹窗现已显示 fallback / fail / save feedback
       - QuickDrop 定向 service test 与 `tests/e2e/quickdrop.spec.js` 已覆盖新详情字段
+    - 已完成补充步：QuickDrop 直连诊断与最终模式探针
+      - `quickdrop-signal.js` 已补 `rtc-config` 摘要、ICE/connection state、候选统计和 selected candidate pair
+      - `tests/e2e/quickdrop-real.spec.js` 现已输出真实链路最终模式，并支持 `EXPECT_QUICKDROP_FINAL_MODE`
+      - same-account 在“直连未就绪即回退 relay”时，现已写回 direct fallback attempt
     - 已完成补充步：预发布 TURN / same-account 真实链路复核
       - 预发布 `health`、`rtc-config`、远端 smoke 与 Dockerized 浏览器 smoke 已继续通过
       - 一次性 real-browser 探针已确认当前 same-account 双页真实传输最终仍收口 `relay`
@@ -167,7 +171,7 @@
       - 记录区已移到底部抽屉，设备改名已默认折叠
     - 已完成补充步：QuickDrop 中心舞台与次级记录页
       - 临时互传现已进一步压成中心配对卡
-      - 记录区已从抽屉推进到真正的次级页面状态，并接上 `hash` 路由
+      - 记录区已从抽屉推进到真正的次级页面状态，并开始从 `hash` 收口到 query route
     - 下一步更适合继续做产品化收口，而不是再堆新控件：
       - 继续减少首屏辅助文案
       - 继续把设备目标区收成“点目标即发”的舞台

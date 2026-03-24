@@ -474,6 +474,9 @@ const QuickDropDirectTransfer = (() => {
                         : (transfer.acknowledgedChunks || transfer.sentChunks || 0)
                 ),
                 status: transfer.status || 'sending',
+                startReason: transfer.startReason || inferTransferStartReason(transfer),
+                endReason: transfer.endReason || '',
+                failureReason: transfer.failureReason || '',
                 savedToNetdisk: Boolean(options.savedToNetdisk),
                 downloaded: Boolean(options.downloaded)
             })
@@ -515,6 +518,9 @@ const QuickDropDirectTransfer = (() => {
                         : (transfer.acknowledgedChunks || transfer.sentChunks || 0)
                 ),
                 status: transfer.status || 'sending',
+                startReason: transfer.startReason || inferTransferStartReason(transfer),
+                endReason: transfer.endReason || '',
+                failureReason: transfer.failureReason || '',
                 savedToNetdisk: Boolean(options.savedToNetdisk),
                 downloaded: Boolean(options.downloaded)
             })
@@ -592,6 +598,10 @@ const QuickDropDirectTransfer = (() => {
 
     function transferStatusLabel(status) {
         switch (status) {
+            case 'waiting_accept':
+                return text('quickDropDirectWaitingAccept', 'Waiting for peer resume map');
+            case 'negotiating':
+                return text('quickDropLifecycleNegotiating', 'Negotiating');
             case 'sending':
                 return text('quickDropDirectSending', 'Sending directly');
             case 'waiting_complete':
@@ -602,6 +612,8 @@ const QuickDropDirectTransfer = (() => {
                 return text('quickDropStatusReady', 'Ready to Download');
             case 'completed':
                 return text('quickDropStatusCompleted', 'Completed');
+            case 'failed':
+                return text('quickDropLifecycleFailed', 'Failed');
             case 'receiving':
                 return text('quickDropDirectReceiving', 'Receiving');
             case 'cancelled':
@@ -609,6 +621,165 @@ const QuickDropDirectTransfer = (() => {
             default:
                 return text('quickDropDirectPending', 'Pending');
         }
+    }
+
+    function deriveAttemptStatus(stage) {
+        switch (stage) {
+            case 'waiting_accept':
+            case 'pending_upload':
+            case 'ready':
+            case 'waiting_complete':
+                return 'waiting';
+            case 'negotiating':
+                return 'negotiating';
+            case 'sending':
+            case 'receiving':
+            case 'uploading':
+                return 'transferring';
+            case 'relay_fallback':
+                return 'relay_fallback';
+            case 'failed':
+                return 'failed';
+            case 'completed':
+                return 'completed';
+            case 'cancelled':
+                return 'cancelled';
+            default:
+                return stage || 'waiting';
+        }
+    }
+
+    function attemptStatusLabel(status) {
+        switch (status) {
+            case 'waiting':
+                return text('quickDropLifecycleWaiting', 'Waiting');
+            case 'negotiating':
+                return text('quickDropLifecycleNegotiating', 'Negotiating');
+            case 'transferring':
+                return text('quickDropLifecycleTransferring', 'Transferring');
+            case 'relay_fallback':
+                return text('quickDropLifecycleFallback', 'Relay Fallback');
+            case 'failed':
+                return text('quickDropLifecycleFailed', 'Failed');
+            case 'completed':
+                return text('quickDropLifecycleCompleted', 'Completed');
+            case 'cancelled':
+                return text('quickDropLifecycleCancelled', 'Cancelled');
+            default:
+                return transferStatusLabel(status);
+        }
+    }
+
+    function lifecycleReasonLabel(reason) {
+        switch (reason) {
+            case 'relay_transfer_created':
+                return text('quickDropReasonRelayTransferCreated', 'Server relay transfer started');
+            case 'same_account_direct':
+                return text('quickDropReasonSameAccountDirect', 'Same-account direct session');
+            case 'pair_session_direct':
+                return text('quickDropReasonPairSessionDirect', 'Paired direct session');
+            case 'saved_to_netdisk':
+                return text('quickDropReasonSavedToNetdisk', 'Saved to netdisk');
+            case 'downloaded':
+                return text('quickDropReasonDownloaded', 'Downloaded');
+            case 'peer_confirmed':
+                return text('quickDropReasonPeerConfirmed', 'Peer confirmed completion');
+            case 'relay_fallback':
+                return text('quickDropReasonRelayFallback', 'Switched to server relay');
+            case 'cancelled':
+                return text('quickDropReasonCancelled', 'Cancelled');
+            case 'direct_link_unavailable':
+                return text('quickDropReasonDirectLinkUnavailable', 'Direct link was not ready');
+            case 'peer_mismatch':
+                return text('quickDropReasonPeerMismatch', 'Direct link pointed to another device');
+            case 'accept_timeout':
+                return text('quickDropReasonAcceptTimeout', 'Peer did not respond in time');
+            case 'peer_missed_offer':
+                return text('quickDropReasonPeerMissedOffer', 'Peer missed the transfer offer');
+            case 'peer_reported_error':
+                return text('quickDropReasonPeerReportedError', 'Peer reported an error');
+            case 'direct_transfer_interrupted':
+                return text('quickDropReasonDirectTransferInterrupted', 'Direct transfer was interrupted');
+            case 'direct_transfer_failed':
+                return text('quickDropReasonDirectTransferFailed', 'Direct transfer failed');
+            default:
+                return reason ? String(reason).replace(/_/g, ' ') : text('quickDropNotYet', 'Not yet');
+        }
+    }
+
+    function getLatestAttemptTime(attempts, field, lifecycleStatus) {
+        return [...(attempts || [])]
+            .map(attempt => {
+                if (attempt?.[field]) {
+                    return attempt[field];
+                }
+                if (lifecycleStatus && (attempt?.attemptStatus || deriveAttemptStatus(attempt?.stage || '')) === lifecycleStatus) {
+                    return attempt?.updateTime || '';
+                }
+                return '';
+            })
+            .filter(Boolean)
+            .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] || '';
+    }
+
+    function normalizeTaskAttempt(attempt, fallback = {}) {
+        const stage = attempt?.stage || fallback.stage || '';
+        return {
+            transferMode: attempt?.transferMode || fallback.transferMode || 'direct',
+            transferId: attempt?.transferId != null ? String(attempt.transferId) : (fallback.transferId || ''),
+            stage,
+            attemptStatus: attempt?.attemptStatus || fallback.attemptStatus || deriveAttemptStatus(stage),
+            startReason: attempt?.startReason || fallback.startReason || '',
+            endReason: attempt?.endReason || fallback.endReason || '',
+            failureReason: attempt?.failureReason || fallback.failureReason || '',
+            completedChunks: Number(attempt?.completedChunks ?? fallback.completedChunks ?? 0),
+            totalChunks: Number(attempt?.totalChunks ?? fallback.totalChunks ?? 0),
+            startTime: attempt?.startTime || fallback.startTime || attempt?.updateTime || fallback.updateTime || '',
+            updateTime: attempt?.updateTime || fallback.updateTime || '',
+            completedAt: attempt?.completedAt || fallback.completedAt || '',
+            failedAt: attempt?.failedAt || fallback.failedAt || '',
+            fallbackAt: attempt?.fallbackAt || fallback.fallbackAt || '',
+            savedToNetdiskAt: attempt?.savedToNetdiskAt || fallback.savedToNetdiskAt || '',
+            downloadedAt: attempt?.downloadedAt || fallback.downloadedAt || ''
+        };
+    }
+
+    function summarizeTaskAttempts(attempts, fallback = {}) {
+        const normalizedAttempts = [...(attempts || [])]
+            .filter(Boolean)
+            .sort((left, right) => new Date(right?.updateTime || 0).getTime() - new Date(left?.updateTime || 0).getTime());
+        const current = normalizedAttempts[0] || {};
+        return {
+            attemptStatus: current.attemptStatus || fallback.attemptStatus || deriveAttemptStatus(current.stage || fallback.stage || ''),
+            startReason: current.startReason || fallback.startReason || '',
+            endReason: current.endReason || fallback.endReason || '',
+            failureReason: current.failureReason
+                || normalizedAttempts.find(attempt => attempt.failureReason)?.failureReason
+                || fallback.failureReason
+                || '',
+            startTime: current.startTime || fallback.startTime || current.updateTime || fallback.updateTime || '',
+            completedAt: fallback.completedAt || getLatestAttemptTime(normalizedAttempts, 'completedAt', 'completed'),
+            failedAt: fallback.failedAt || getLatestAttemptTime(normalizedAttempts, 'failedAt', 'failed'),
+            fallbackAt: fallback.fallbackAt || getLatestAttemptTime(normalizedAttempts, 'fallbackAt', 'relay_fallback'),
+            savedToNetdiskAt: fallback.savedToNetdiskAt || getLatestAttemptTime(normalizedAttempts, 'savedToNetdiskAt'),
+            downloadedAt: fallback.downloadedAt || getLatestAttemptTime(normalizedAttempts, 'downloadedAt')
+        };
+    }
+
+    function inferTransferStartReason(transfer) {
+        return transfer?.senderDeviceId && transfer?.receiverDeviceId
+            ? 'same_account_direct'
+            : 'pair_session_direct';
+    }
+
+    function createDirectError(reason, message) {
+        const error = new Error(message);
+        error.quickDropFailureReason = reason;
+        return error;
+    }
+
+    function resolveDirectFailureStage(context) {
+        return context?.expectedPeerDeviceId ? 'relay_fallback' : 'failed';
     }
 
     function directionLabel(direction) {
@@ -654,14 +825,26 @@ const QuickDropDirectTransfer = (() => {
         if (!transfer) {
             return [];
         }
-        return [{
+        const startReason = transfer?.startReason
+            || (transfer?.senderDeviceId && transfer?.receiverDeviceId ? 'same_account_direct' : 'pair_session_direct');
+        return [normalizeTaskAttempt({
             transferMode: 'direct',
             transferId: transfer.id != null ? String(transfer.id) : '',
             stage: transfer.status || '',
+            attemptStatus: transfer.attemptStatus || '',
+            startReason,
+            endReason: transfer.endReason || '',
+            failureReason: transfer.failureReason || '',
             completedChunks: getTransferCompletedChunks(transfer),
             totalChunks: Number(transfer.totalChunks || 0),
-            updateTime: transfer.updateTime || ''
-        }];
+            startTime: transfer.startTime || transfer.createdAt || transfer.updateTime || '',
+            updateTime: transfer.updateTime || '',
+            completedAt: transfer.completedAt || '',
+            failedAt: transfer.failedAt || '',
+            fallbackAt: transfer.fallbackAt || '',
+            savedToNetdiskAt: transfer.savedToNetdiskAt || '',
+            downloadedAt: transfer.downloadedAt || ''
+        })];
     }
 
     function sortTaskAttempts(attempts) {
@@ -709,6 +892,8 @@ const QuickDropDirectTransfer = (() => {
     }
 
     function buildDisplayTransferFromLocalTransfer(transfer) {
+        const attempts = sortTaskAttempts(buildTaskAttemptsFromTransfer(transfer));
+        const summary = summarizeTaskAttempts(attempts, transfer);
         return {
             detailId: transfer?.id != null ? String(transfer.id) : '',
             localTransferId: transfer?.id != null ? String(transfer.id) : '',
@@ -721,30 +906,44 @@ const QuickDropDirectTransfer = (() => {
             direction: transfer?.direction || 'incoming',
             transferMode: 'direct',
             stage: transfer?.status || '',
+            attemptStatus: transfer?.attemptStatus || summary.attemptStatus,
+            startReason: transfer?.startReason || summary.startReason,
+            endReason: transfer?.endReason || summary.endReason,
+            failureReason: transfer?.failureReason || summary.failureReason,
             fileName: transfer?.fileName || '',
             fileSize: Number(transfer?.fileSize || 0),
             peerLabel: transfer?.peerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
             completedChunks: getTransferCompletedChunks(transfer),
             totalChunks: Number(transfer?.totalChunks || 0),
+            startTime: transfer?.startTime || summary.startTime || transfer?.createdAt || transfer?.updateTime || '',
             updateTime: transfer?.updateTime || '',
+            completedAt: transfer?.completedAt || summary.completedAt || '',
+            failedAt: transfer?.failedAt || summary.failedAt || '',
+            fallbackAt: transfer?.fallbackAt || summary.fallbackAt || '',
+            savedToNetdiskAt: transfer?.savedToNetdiskAt || summary.savedToNetdiskAt || '',
             directTransferId: transfer?.id != null ? String(transfer.id) : '',
-            attempts: sortTaskAttempts(buildTaskAttemptsFromTransfer(transfer))
+            attempts
         };
     }
 
     function buildDisplayTransferFromPairTask(task, localTransfer) {
         const normalizedAttempts = sortTaskAttempts(
             Array.isArray(task?.attempts) && task.attempts.length
-                ? task.attempts.map(attempt => ({
+                ? task.attempts.map(attempt => normalizeTaskAttempt(attempt, {
                     transferMode: attempt?.transferMode || 'direct',
-                    transferId: attempt?.transferId != null ? String(attempt.transferId) : '',
                     stage: attempt?.stage || task?.stage || '',
                     completedChunks: Number(attempt?.completedChunks || 0),
                     totalChunks: Number(attempt?.totalChunks || task?.totalChunks || 0),
-                    updateTime: attempt?.updateTime || task?.updateTime || ''
+                    startReason: task?.startReason || (localTransfer?.senderDeviceId && localTransfer?.receiverDeviceId ? 'same_account_direct' : 'pair_session_direct'),
+                    updateTime: attempt?.updateTime || task?.updateTime || '',
+                    completedAt: task?.completedAt || '',
+                    failedAt: task?.failedAt || '',
+                    fallbackAt: task?.fallbackAt || '',
+                    savedToNetdiskAt: task?.savedToNetdiskAt || ''
                 }))
                 : buildTaskAttemptsFromTransfer(localTransfer)
         );
+        const summary = summarizeTaskAttempts(normalizedAttempts, task);
         const directTransferId = getPairTaskDirectTransferId(task)
             || (localTransfer?.id != null ? String(localTransfer.id) : '');
         return {
@@ -761,12 +960,21 @@ const QuickDropDirectTransfer = (() => {
             direction: task?.direction || localTransfer?.direction || 'incoming',
             transferMode: task?.transferMode || 'direct',
             stage: task?.stage || localTransfer?.status || '',
+            attemptStatus: task?.attemptStatus || summary.attemptStatus,
+            startReason: task?.startReason || summary.startReason,
+            endReason: task?.endReason || summary.endReason,
+            failureReason: task?.failureReason || summary.failureReason,
             fileName: task?.fileName || localTransfer?.fileName || '',
             fileSize: Number(task?.fileSize ?? localTransfer?.fileSize ?? 0),
             peerLabel: task?.peerLabel || localTransfer?.peerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
             completedChunks: Number(task?.completedChunks ?? getTransferCompletedChunks(localTransfer)),
             totalChunks: Number(task?.totalChunks ?? localTransfer?.totalChunks ?? 0),
+            startTime: task?.startTime || summary.startTime || localTransfer?.createdAt || localTransfer?.updateTime || '',
             updateTime: task?.updateTime || localTransfer?.updateTime || '',
+            completedAt: task?.completedAt || summary.completedAt || localTransfer?.completedAt || '',
+            failedAt: task?.failedAt || summary.failedAt || localTransfer?.failedAt || '',
+            fallbackAt: task?.fallbackAt || summary.fallbackAt || localTransfer?.fallbackAt || '',
+            savedToNetdiskAt: task?.savedToNetdiskAt || summary.savedToNetdiskAt || localTransfer?.savedToNetdiskAt || '',
             directTransferId: directTransferId || '',
             attempts: normalizedAttempts
         };
@@ -942,19 +1150,43 @@ const QuickDropDirectTransfer = (() => {
     }
 
     function formatTaskAttemptLine(attempt) {
-        const idLabel = attempt?.transferMode === 'relay'
-            ? text('quickDropRelayTransferIdLabel', 'Relay Transfer ID')
-            : text('quickDropDirectTransferIdLabel', 'Direct Transfer ID');
-        return [
+        const bits = [
             `- ${attempt?.transferMode === 'relay' ? text('quickDropTransferModeRelay', 'Relay') : text('quickDropTransferModeDirect', 'Direct')}`,
             transferStatusLabel(attempt?.stage || ''),
             `${text('quickDropChunkProgress', 'Chunks')}: ${Number(attempt?.completedChunks || 0)} / ${Number(attempt?.totalChunks || 0)}`,
-            `${idLabel}: ${attempt?.transferId || '-'}`,
-            `${text('quickDropUpdatedAt', 'Updated')}: ${formatTime(attempt?.updateTime)}`
-        ].join(' · ');
+            `${text('quickDropLifecycleLabel', 'Lifecycle')}: ${attemptStatusLabel(attempt?.attemptStatus || deriveAttemptStatus(attempt?.stage || ''))}`
+        ];
+        const idLabel = attempt?.transferMode === 'relay'
+            ? text('quickDropRelayTransferIdLabel', 'Relay Transfer ID')
+            : text('quickDropDirectTransferIdLabel', 'Direct Transfer ID');
+        bits.push(`${idLabel}: ${attempt?.transferId || '-'}`);
+        if (attempt?.startReason) {
+            bits.push(`${text('quickDropStartReasonLabel', 'Start Reason')}: ${lifecycleReasonLabel(attempt.startReason)}`);
+        }
+        if (attempt?.endReason) {
+            bits.push(`${text('quickDropEndReasonLabel', 'End Reason')}: ${lifecycleReasonLabel(attempt.endReason)}`);
+        }
+        if (attempt?.failureReason) {
+            bits.push(`${text('quickDropFailureReasonLabel', 'Failure Reason')}: ${lifecycleReasonLabel(attempt.failureReason)}`);
+        }
+        if (attempt?.startTime) {
+            bits.push(`${text('quickDropStartedAtLabel', 'Started')}: ${formatTime(attempt.startTime)}`);
+        }
+        if (attempt?.fallbackAt) {
+            bits.push(`${text('quickDropFallbackAtLabel', 'Fallback At')}: ${formatTime(attempt.fallbackAt)}`);
+        }
+        if (attempt?.failedAt) {
+            bits.push(`${text('quickDropFailedAtLabel', 'Failed At')}: ${formatTime(attempt.failedAt)}`);
+        }
+        if (attempt?.completedAt) {
+            bits.push(`${text('quickDropCompletedAtLabel', 'Completed At')}: ${formatTime(attempt.completedAt)}`);
+        }
+        bits.push(`${text('quickDropUpdatedAt', 'Updated')}: ${formatTime(attempt?.updateTime)}`);
+        return bits.join(' · ');
     }
 
     function buildDirectTransferDetailValue(transfer) {
+        const summary = summarizeTaskAttempts(transfer?.attempts || [], transfer || {});
         const directTransferIds = Array.from(new Set(
             sortTaskAttempts(transfer?.attempts || [])
                 .filter(attempt => attempt?.transferMode === 'direct' && attempt?.transferId)
@@ -964,16 +1196,35 @@ const QuickDropDirectTransfer = (() => {
             `${text('quickDropTaskKeyLabel', 'Task Key')}: ${transfer?.taskKey || '-'}`,
             `${text('quickDropTaskModeLabel', 'Mode')}: ${text('quickDropTransferModeDirect', 'Direct')}`,
             `${text('quickDropTaskStatusLabel', 'Status')}: ${transferStatusLabel(transfer?.stage || '')}`,
+            `${text('quickDropLifecycleLabel', 'Lifecycle')}: ${attemptStatusLabel(transfer?.attemptStatus || summary.attemptStatus || deriveAttemptStatus(transfer?.stage || ''))}`,
             `${text('quickDropTaskDirectionLabel', 'Direction')}: ${directionLabel(transfer?.direction)}`,
             `${text('quickDropTaskFileLabel', 'File')}: ${transfer?.fileName || '-'}`,
             `${text('quickDropTaskSizeLabel', 'Size')}: ${formatSize(transfer?.fileSize)}`,
             `${text('quickDropTaskPeerLabel', 'Peer')}: ${transfer?.peerLabel || '-'}`,
             `${text('quickDropChunkProgress', 'Chunks')}: ${Number(transfer?.completedChunks || 0)} / ${Number(transfer?.totalChunks || 0)}`,
+            `${text('quickDropStartedAtLabel', 'Started')}: ${summary.startTime ? formatTime(summary.startTime) : text('quickDropNotYet', 'Not yet')}`,
+            `${text('quickDropCompletedAtLabel', 'Completed At')}: ${(transfer?.completedAt || summary.completedAt) ? formatTime(transfer?.completedAt || summary.completedAt) : text('quickDropNotYet', 'Not yet')}`,
+            `${text('quickDropSavedAtLabel', 'Saved To Netdisk')}: ${(transfer?.savedToNetdiskAt || summary.savedToNetdiskAt) ? formatTime(transfer?.savedToNetdiskAt || summary.savedToNetdiskAt) : text('quickDropNotYet', 'Not yet')}`,
             `${text('quickDropUpdatedAt', 'Updated')}: ${formatTime(transfer?.updateTime)}`,
             `${text('quickDropAccountTaskIdLabel', 'Account Task ID')}: ${transfer?.taskId || '-'}`,
             `${text('quickDropPairTaskIdLabel', 'Pair Task ID')}: ${transfer?.pairTaskId || '-'}`,
             `${text('quickDropPairSessionLabel', 'Pair Session')}: ${transfer?.pairSessionId || '-'}`
         ];
+        if (transfer?.startReason || summary.startReason) {
+            lines.push(`${text('quickDropStartReasonLabel', 'Start Reason')}: ${lifecycleReasonLabel(transfer?.startReason || summary.startReason)}`);
+        }
+        if (transfer?.endReason || summary.endReason) {
+            lines.push(`${text('quickDropEndReasonLabel', 'End Reason')}: ${lifecycleReasonLabel(transfer?.endReason || summary.endReason)}`);
+        }
+        if (transfer?.failureReason || summary.failureReason) {
+            lines.push(`${text('quickDropFailureReasonLabel', 'Failure Reason')}: ${lifecycleReasonLabel(transfer?.failureReason || summary.failureReason)}`);
+        }
+        if (transfer?.fallbackAt || summary.fallbackAt) {
+            lines.push(`${text('quickDropFallbackAtLabel', 'Fallback At')}: ${formatTime(transfer?.fallbackAt || summary.fallbackAt)}`);
+        }
+        if (transfer?.failedAt || summary.failedAt) {
+            lines.push(`${text('quickDropFailedAtLabel', 'Failed At')}: ${formatTime(transfer?.failedAt || summary.failedAt)}`);
+        }
 
         if (directTransferIds.length) {
             lines.push(`${text('quickDropDirectTransferIdLabel', 'Direct Transfer ID')}: ${directTransferIds.join(', ')}`);
@@ -1019,9 +1270,14 @@ const QuickDropDirectTransfer = (() => {
     }
 
     async function upsertDirectTransferRecord(transfer, options = {}) {
+        const existing = transfer?.id ? await getStoredTransfer(transfer.id) : null;
         let normalized = await putStoredTransfer({
+            ...(existing || {}),
             transferMode: 'direct',
-            ...transfer
+            ...transfer,
+            startReason: transfer?.startReason || existing?.startReason || inferTransferStartReason(transfer || existing || {}),
+            startTime: transfer?.startTime || existing?.startTime || transfer?.createdAt || existing?.createdAt || transfer?.updateTime || existing?.updateTime || nowIso(),
+            attemptStatus: transfer?.attemptStatus || deriveAttemptStatus(transfer?.status || existing?.status || '')
         });
         let shouldRefreshPublicPairTasks = false;
         if (options.syncServer !== false) {
@@ -1146,7 +1402,7 @@ const QuickDropDirectTransfer = (() => {
         return new Promise((resolve, reject) => {
             const timer = window.setTimeout(() => {
                 state.acceptWaiters.delete(transferId);
-                reject(new Error(text('quickDropDirectAcceptTimeout', 'The peer did not respond in time')));
+                reject(createDirectError('accept_timeout', text('quickDropDirectAcceptTimeout', 'The peer did not respond in time')));
             }, QUICKDROP_DIRECT_ACCEPT_TIMEOUT_MS);
             state.acceptWaiters.set(transferId, {
                 resolve(payload) {
@@ -1164,14 +1420,14 @@ const QuickDropDirectTransfer = (() => {
     async function sendFile(file, options = {}) {
         const currentFile = file || state.selectedFile;
         if (!currentFile) {
-            const error = new Error(text('quickDropDirectChooseFileFirst', 'Choose a file first'));
+            const error = createDirectError('direct_transfer_failed', text('quickDropDirectChooseFileFirst', 'Choose a file first'));
             if (!options.silentError) {
                 showToast(error.message, 'error');
             }
             throw error;
         }
         if (!directReady()) {
-            const error = new Error(text('quickDropDirectNeedReady', 'The direct link is not ready yet'));
+            const error = createDirectError('direct_link_unavailable', text('quickDropDirectNeedReady', 'The direct link is not ready yet'));
             if (!options.silentError) {
                 showToast(error.message, 'error');
             }
@@ -1181,7 +1437,7 @@ const QuickDropDirectTransfer = (() => {
         const signalState = getSignalState();
         const peerChannelId = signalState.latestPeerChannelId || '';
         if (!peerChannelId) {
-            const error = new Error(text('quickDropDirectNoPeer', 'Waiting for a paired peer'));
+            const error = createDirectError('direct_link_unavailable', text('quickDropDirectNoPeer', 'Waiting for a paired peer'));
             if (!options.silentError) {
                 showToast(error.message, 'error');
             }
@@ -1189,7 +1445,7 @@ const QuickDropDirectTransfer = (() => {
         }
         const peerDeviceId = signalState.latestPeerDeviceId || extractDeviceId(peerChannelId);
         if (options.expectedPeerDeviceId && peerDeviceId !== String(options.expectedPeerDeviceId).trim()) {
-            const error = new Error(text('quickDropDirectPeerMismatch', 'The current direct link points to another device'));
+            const error = createDirectError('peer_mismatch', text('quickDropDirectPeerMismatch', 'The current direct link points to another device'));
             if (!options.silentError) {
                 showToast(error.message, 'error');
             }
@@ -1205,6 +1461,7 @@ const QuickDropDirectTransfer = (() => {
         const senderDeviceId = getCurrentDeviceId();
         const receiverDeviceId = peerDeviceId;
         const signalContext = getDirectSignalContext();
+        const startReason = options.expectedPeerDeviceId ? 'same_account_direct' : 'pair_session_direct';
 
         pending[pendingKey] = {
             transferId,
@@ -1247,6 +1504,7 @@ const QuickDropDirectTransfer = (() => {
             totalChunks,
             direction: 'outgoing',
             status: 'sending',
+            startReason,
             sentChunks: 0,
             acknowledgedChunks: 0,
             peerLabel: signalState.latestPeerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
@@ -1284,7 +1542,7 @@ const QuickDropDirectTransfer = (() => {
                 pairSessionId: signalContext.pairSessionId
             });
             if (!offered) {
-                throw new Error(text('quickDropDirectNeedReady', 'The direct link is not ready yet'));
+                throw createDirectError('direct_link_unavailable', text('quickDropDirectNeedReady', 'The direct link is not ready yet'));
             }
 
             const acceptPayload = await acceptPromise;
@@ -1325,6 +1583,7 @@ const QuickDropDirectTransfer = (() => {
                 totalChunks,
                 direction: 'outgoing',
                 status: 'sending',
+                startReason,
                 sentChunks: 0,
                 acknowledgedChunks: alreadyReceived,
                 peerLabel: signalState.latestPeerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
@@ -1352,7 +1611,7 @@ const QuickDropDirectTransfer = (() => {
                 const payload = await currentFile.slice(start, end).arrayBuffer();
                 const sent = QuickDropSignalManager.sendDirectBinary(buildChunkPacket(transferId, chunkIndex, totalChunks, payload));
                 if (!sent) {
-                    throw new Error(text('quickDropDirectNeedReady', 'The direct link is not ready yet'));
+                    throw createDirectError('direct_link_unavailable', text('quickDropDirectNeedReady', 'The direct link is not ready yet'));
                 }
                 sentCount += 1;
                 const optimisticCount = alreadyReceived + sentCount;
@@ -1388,6 +1647,7 @@ const QuickDropDirectTransfer = (() => {
                     totalChunks,
                     direction: 'outgoing',
                     status: 'sending',
+                    startReason,
                     sentChunks: sentCount,
                     acknowledgedChunks: Math.max(state.activeSend?.acknowledgedChunks || 0, alreadyReceived),
                     peerLabel: signalState.latestPeerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
@@ -1442,6 +1702,7 @@ const QuickDropDirectTransfer = (() => {
                 totalChunks,
                 direction: 'outgoing',
                 status: 'waiting_complete',
+                startReason,
                 sentChunks: requestedChunks.length,
                 acknowledgedChunks: Math.max(state.activeSend?.acknowledgedChunks || 0, alreadyReceived),
                 peerLabel: signalState.latestPeerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
@@ -1463,14 +1724,20 @@ const QuickDropDirectTransfer = (() => {
             };
         } catch (error) {
             error.quickDropDirectContext = buildSendContext();
+            const failureStage = resolveDirectFailureStage(options);
+            const failureReason = error.quickDropFailureReason || (failureStage === 'relay_fallback'
+                ? 'direct_transfer_interrupted'
+                : 'direct_transfer_failed');
             state.activeSend = {
                 transferId,
                 fileName: currentFile.name,
                 fileSize: currentFile.size,
                 contentType: currentFile.type || 'application/octet-stream',
                 progress: state.activeSend?.progress || 0,
-                status: 'relay_fallback',
-                statusText: text('quickDropDirectResumeHint', 'Re-pair and choose the same file again to continue missing chunks'),
+                status: failureStage,
+                statusText: failureStage === 'relay_fallback'
+                    ? text('quickDropDirectResumeHint', 'Re-pair and choose the same file again to continue missing chunks')
+                    : (error.message || text('quickDropDirectTransferFailed', 'Direct transfer failed')),
                 totalChunks,
                 sentChunks: state.activeSend?.sentChunks || 0,
                 acknowledgedChunks: state.activeSend?.acknowledgedChunks || 0,
@@ -1494,7 +1761,10 @@ const QuickDropDirectTransfer = (() => {
                 contentType: currentFile.type || 'application/octet-stream',
                 totalChunks,
                 direction: 'outgoing',
-                status: 'relay_fallback',
+                status: failureStage,
+                startReason,
+                endReason: failureStage === 'relay_fallback' ? 'relay_fallback' : 'failed',
+                failureReason,
                 sentChunks: state.activeSend?.sentChunks || 0,
                 acknowledgedChunks: state.activeSend?.acknowledgedChunks || 0,
                 peerLabel: signalState.latestPeerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
@@ -1562,6 +1832,8 @@ const QuickDropDirectTransfer = (() => {
             selfLabel: getDirectSignalContext().selfLabel,
             receivedChunks: storedChunkIndexes.size,
             status: storedChunkIndexes.size >= (Number(message.totalChunks) || 1) ? 'ready' : 'receiving',
+            startReason: message.senderDeviceId && message.receiverDeviceId ? 'same_account_direct' : 'pair_session_direct',
+            startTime: existingTransfer?.startTime || existingTransfer?.createdAt || nowIso(),
             createdAt: existingTransfer?.createdAt || nowIso(),
             updateTime: nowIso(),
             direction: 'incoming',
@@ -1585,6 +1857,7 @@ const QuickDropDirectTransfer = (() => {
             senderDeviceId: message.senderDeviceId || session.transfer.senderDeviceId || '',
             receiverDeviceId: message.receiverDeviceId || session.transfer.receiverDeviceId || getCurrentDeviceId(),
             peerDeviceId: message.senderDeviceId || session.transfer.peerDeviceId || '',
+            startReason: session.transfer.startReason || (message.senderDeviceId && message.receiverDeviceId ? 'same_account_direct' : 'pair_session_direct'),
             updateTime: nowIso()
         });
         const missingChunks = buildAllChunkIndexes(session.transfer.totalChunks)
@@ -1631,6 +1904,8 @@ const QuickDropDirectTransfer = (() => {
             totalChunks,
             direction: 'outgoing',
             status: receivedCount >= totalChunks ? 'completed' : 'sending',
+            startReason: state.activeSend?.senderDeviceId && state.activeSend?.receiverDeviceId ? 'same_account_direct' : 'pair_session_direct',
+            endReason: receivedCount >= totalChunks ? 'peer_confirmed' : '',
             sentChunks: state.activeSend.sentChunks || receivedCount,
             acknowledgedChunks: receivedCount,
             peerLabel: state.activeSend.peerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
@@ -1654,15 +1929,18 @@ const QuickDropDirectTransfer = (() => {
         const waiter = state.acceptWaiters.get(message.transferId);
         if (waiter) {
             state.acceptWaiters.delete(message.transferId);
-            waiter.reject(new Error(message.error || text('quickDropDirectTransferFailed', 'Direct transfer failed')));
+            waiter.reject(createDirectError(message.reason || 'peer_reported_error', message.error || text('quickDropDirectTransferFailed', 'Direct transfer failed')));
         }
         if (state.activeSend?.transferId === message.transferId) {
             state.activeSend = {
                 ...state.activeSend,
-                statusText: text('quickDropDirectResumeHint', 'Re-pair and choose the same file again to continue missing chunks')
+                statusText: message.error || text('quickDropDirectTransferFailed', 'Direct transfer failed')
             };
             render();
         }
+        const failureStage = resolveDirectFailureStage({
+            expectedPeerDeviceId: state.activeSend?.receiverDeviceId || ''
+        });
         upsertDirectTransferRecord({
             id: message.transferId,
             taskKey: state.activeSend?.taskKey || '',
@@ -1672,7 +1950,10 @@ const QuickDropDirectTransfer = (() => {
             contentType: state.activeSend?.contentType || 'application/octet-stream',
             totalChunks: state.activeSend?.totalChunks || 0,
             direction: 'outgoing',
-            status: 'relay_fallback',
+            status: failureStage,
+            startReason: state.activeSend?.senderDeviceId && state.activeSend?.receiverDeviceId ? 'same_account_direct' : 'pair_session_direct',
+            endReason: failureStage === 'relay_fallback' ? 'relay_fallback' : 'failed',
+            failureReason: message.reason || 'peer_reported_error',
             sentChunks: state.activeSend?.sentChunks || 0,
             acknowledgedChunks: state.activeSend?.acknowledgedChunks || 0,
             peerLabel: state.activeSend?.peerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
@@ -1708,6 +1989,8 @@ const QuickDropDirectTransfer = (() => {
             totalChunks: state.activeSend.totalChunks || 0,
             direction: 'outgoing',
             status: 'completed',
+            startReason: state.activeSend?.senderDeviceId && state.activeSend?.receiverDeviceId ? 'same_account_direct' : 'pair_session_direct',
+            endReason: 'peer_confirmed',
             sentChunks: state.activeSend.sentChunks || state.activeSend.totalChunks || 0,
             acknowledgedChunks: state.activeSend.totalChunks || state.activeSend.acknowledgedChunks || 0,
             peerLabel: state.activeSend.peerLabel || text('quickDropDirectPeerFallback', 'Paired peer'),
@@ -1774,6 +2057,7 @@ const QuickDropDirectTransfer = (() => {
                 QuickDropSignalManager.sendDirectControl({
                     type: 'transfer-error',
                     transferId: header.transferId,
+                    reason: 'peer_missed_offer',
                     error: text('quickDropDirectMissingOffer', 'The receiver missed the direct transfer offer')
                 });
                 return;
@@ -1847,6 +2131,7 @@ const QuickDropDirectTransfer = (() => {
         await upsertDirectTransferRecord({
             ...transfer,
             status: 'completed',
+            endReason: 'downloaded',
             updateTime: nowIso(),
             completedAt: transfer.completedAt || nowIso()
         }, {
@@ -1897,6 +2182,7 @@ const QuickDropDirectTransfer = (() => {
         await upsertDirectTransferRecord({
             ...transfer,
             status: 'completed',
+            endReason: 'saved_to_netdisk',
             savedToNetdiskAt: nowIso(),
             savedFileId: result.data?.id || null,
             updateTime: nowIso()

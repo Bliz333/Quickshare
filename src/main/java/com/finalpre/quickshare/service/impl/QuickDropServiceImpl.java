@@ -264,6 +264,7 @@ public class QuickDropServiceImpl implements QuickDropService {
         int totalChunks = normalizeTotalChunks(request.getTotalChunks());
         int completedChunks = normalizeCompletedChunks(request.getCompletedChunks(), totalChunks);
         String status = normalizeAttemptStage(request.getStatus(), "sending");
+        LocalDateTime now = LocalDateTime.now();
 
         QuickDropTask task = resolveOrCreateTask(
                 userId,
@@ -281,23 +282,13 @@ public class QuickDropServiceImpl implements QuickDropService {
         );
 
         List<QuickDropTaskAttemptVO> attempts = parseTaskAttempts(task.getAttemptsJson());
-        QuickDropTaskAttemptVO attempt = new QuickDropTaskAttemptVO();
-        attempt.setTransferMode(MODE_DIRECT);
-        attempt.setTransferId(normalizeClientTransferId(request.getClientTransferId()));
-        attempt.setStage(status);
-        attempt.setCompletedChunks(completedChunks);
-        attempt.setTotalChunks(totalChunks);
-        attempt.setUpdateTime(LocalDateTime.now());
+        QuickDropTaskAttemptVO attempt = buildDirectAttempt(request, status, totalChunks, completedChunks, now);
         upsertAttempt(attempts, attempt);
 
         task.setContentType(normalizeContentType(request.getContentType()));
         task.setFileName(fileName);
         task.setFileSize(fileSize);
         task.setTotalChunks(totalChunks);
-        task.setSavedToNetdiskAt(Boolean.TRUE.equals(request.getSavedToNetdisk()) ? LocalDateTime.now() : task.getSavedToNetdiskAt());
-        if (Boolean.TRUE.equals(request.getDownloaded()) || STATUS_COMPLETED.equals(status)) {
-            task.setCompletedAt(LocalDateTime.now());
-        }
         task = saveTaskWithAttempts(task, attempts);
         return toTaskVO(task, reporterDeviceId, buildDeviceNameLookup(loadDevices(userId, reporterDeviceId, LocalDateTime.now())));
     }
@@ -632,6 +623,12 @@ public class QuickDropServiceImpl implements QuickDropService {
         vo.setTransferMode(task.getTransferMode());
         vo.setCurrentTransferMode(task.getCurrentTransferMode());
         vo.setStage(task.getStatus());
+        List<QuickDropTaskAttemptVO> attempts = sortTaskAttempts(parseTaskAttempts(task.getAttemptsJson()));
+        QuickDropAttemptLifecycleHelper.AttemptSummary summary = QuickDropAttemptLifecycleHelper.summarize(attempts);
+        vo.setAttemptStatus(summary.attemptStatus());
+        vo.setStartReason(summary.startReason());
+        vo.setEndReason(summary.endReason());
+        vo.setFailureReason(summary.failureReason());
         vo.setFileName(task.getFileName());
         vo.setFileSize(task.getFileSize());
         vo.setContentType(task.getContentType());
@@ -644,9 +641,12 @@ public class QuickDropServiceImpl implements QuickDropService {
         vo.setCreateTime(task.getCreateTime());
         vo.setUpdateTime(task.getUpdateTime());
         vo.setExpireTime(task.getExpireTime());
-        vo.setCompletedAt(task.getCompletedAt());
-        vo.setSavedToNetdiskAt(task.getSavedToNetdiskAt());
-        vo.setAttempts(sortTaskAttempts(parseTaskAttempts(task.getAttemptsJson())));
+        vo.setStartTime(summary.startTime());
+        vo.setCompletedAt(task.getCompletedAt() != null ? task.getCompletedAt() : summary.completedAt());
+        vo.setFailedAt(summary.failedAt());
+        vo.setFallbackAt(summary.fallbackAt());
+        vo.setSavedToNetdiskAt(task.getSavedToNetdiskAt() != null ? task.getSavedToNetdiskAt() : summary.savedToNetdiskAt());
+        vo.setAttempts(attempts);
         return vo;
     }
 
@@ -707,24 +707,13 @@ public class QuickDropServiceImpl implements QuickDropService {
         }
 
         List<QuickDropTaskAttemptVO> attempts = parseTaskAttempts(task.getAttemptsJson());
-        QuickDropTaskAttemptVO attempt = new QuickDropTaskAttemptVO();
-        attempt.setTransferMode(MODE_RELAY);
-        attempt.setTransferId(String.valueOf(transfer.getId()));
-        attempt.setStage(transfer.getStatus());
-        attempt.setCompletedChunks(transfer.getUploadedChunks());
-        attempt.setTotalChunks(transfer.getTotalChunks());
-        attempt.setUpdateTime(transfer.getUpdateTime());
+        QuickDropTaskAttemptVO attempt = buildRelayAttempt(transfer, savedToNetdisk);
         upsertAttempt(attempts, attempt);
 
         task.setFileName(transfer.getFileName());
         task.setFileSize(transfer.getFileSize());
         task.setContentType(transfer.getContentType());
         task.setTotalChunks(transfer.getTotalChunks());
-        task.setSavedToNetdiskAt(savedToNetdisk ? LocalDateTime.now() : task.getSavedToNetdiskAt());
-        if (STATUS_COMPLETED.equals(transfer.getStatus())) {
-            LocalDateTime completedAt = transfer.getDownloadedAt() != null ? transfer.getDownloadedAt() : transfer.getUpdateTime();
-            task.setCompletedAt(completedAt);
-        }
         return saveTaskWithAttempts(task, attempts);
     }
 
@@ -807,6 +796,7 @@ public class QuickDropServiceImpl implements QuickDropService {
         }
 
         QuickDropTaskAttemptVO currentAttempt = normalizedAttempts.get(0);
+        QuickDropAttemptLifecycleHelper.AttemptSummary summary = QuickDropAttemptLifecycleHelper.summarize(normalizedAttempts);
         Set<String> modes = normalizedAttempts.stream()
                 .map(QuickDropTaskAttemptVO::getTransferMode)
                 .filter(value -> value != null && !value.isBlank())
@@ -821,9 +811,8 @@ public class QuickDropServiceImpl implements QuickDropService {
                 : task.getTotalChunks());
         task.setUpdateTime(currentAttempt.getUpdateTime() == null ? LocalDateTime.now() : currentAttempt.getUpdateTime());
         task.setExpireTime(LocalDateTime.now().plusHours(quickDropProperties.getTransferTtlHours()));
-        if (STATUS_COMPLETED.equals(currentAttempt.getStage()) && task.getCompletedAt() == null) {
-            task.setCompletedAt(task.getUpdateTime());
-        }
+        task.setCompletedAt(summary.completedAt() != null ? summary.completedAt() : task.getCompletedAt());
+        task.setSavedToNetdiskAt(summary.savedToNetdiskAt() != null ? summary.savedToNetdiskAt() : task.getSavedToNetdiskAt());
         task.setAttemptsJson(writeTaskAttempts(normalizedAttempts));
         quickDropTaskMapper.updateById(task);
         return quickDropTaskMapper.selectById(task.getId());
@@ -834,11 +823,11 @@ public class QuickDropServiceImpl implements QuickDropService {
             QuickDropTaskAttemptVO existing = attempts.get(index);
             if (Objects.equals(existing.getTransferMode(), nextAttempt.getTransferMode())
                     && Objects.equals(existing.getTransferId(), nextAttempt.getTransferId())) {
-                attempts.set(index, nextAttempt);
+                attempts.set(index, QuickDropAttemptLifecycleHelper.mergeAttempt(existing, nextAttempt));
                 return;
             }
         }
-        attempts.add(nextAttempt);
+        attempts.add(QuickDropAttemptLifecycleHelper.mergeAttempt(null, nextAttempt));
     }
 
     private List<QuickDropTaskAttemptVO> parseTaskAttempts(String attemptsJson) {
@@ -1052,6 +1041,99 @@ public class QuickDropServiceImpl implements QuickDropService {
         return Math.min(totalChunks, normalized);
     }
 
+    private QuickDropTaskAttemptVO buildDirectAttempt(QuickDropDirectAttemptSyncRequest request,
+                                                      String status,
+                                                      int totalChunks,
+                                                      int completedChunks,
+                                                      LocalDateTime now) {
+        QuickDropTaskAttemptVO attempt = new QuickDropTaskAttemptVO();
+        attempt.setTransferMode(MODE_DIRECT);
+        attempt.setTransferId(normalizeClientTransferId(request.getClientTransferId()));
+        attempt.setStage(status);
+        attempt.setAttemptStatus(QuickDropAttemptLifecycleHelper.normalizeAttemptStatus(null, status));
+        attempt.setStartReason(firstNonBlank(
+                QuickDropAttemptLifecycleHelper.normalizeReason(request.getStartReason()),
+                "same_account_direct"
+        ));
+        attempt.setEndReason(resolveDirectEndReason(status, request));
+        attempt.setFailureReason(resolveDirectFailureReason(status, request));
+        attempt.setCompletedChunks(completedChunks);
+        attempt.setTotalChunks(totalChunks);
+        attempt.setStartTime(now);
+        attempt.setUpdateTime(now);
+        attempt.setCompletedAt(STATUS_COMPLETED.equals(status) ? now : null);
+        attempt.setFailedAt("failed".equals(status) ? now : null);
+        attempt.setFallbackAt("relay_fallback".equals(status) ? now : null);
+        attempt.setSavedToNetdiskAt(Boolean.TRUE.equals(request.getSavedToNetdisk()) ? now : null);
+        attempt.setDownloadedAt(Boolean.TRUE.equals(request.getDownloaded()) ? now : null);
+        return attempt;
+    }
+
+    private QuickDropTaskAttemptVO buildRelayAttempt(QuickDropTransfer transfer, boolean savedToNetdisk) {
+        QuickDropTaskAttemptVO attempt = new QuickDropTaskAttemptVO();
+        attempt.setTransferMode(MODE_RELAY);
+        attempt.setTransferId(String.valueOf(transfer.getId()));
+        attempt.setStage(transfer.getStatus());
+        attempt.setAttemptStatus(QuickDropAttemptLifecycleHelper.normalizeAttemptStatus(null, transfer.getStatus()));
+        attempt.setStartReason("relay_transfer_created");
+        attempt.setEndReason(resolveRelayEndReason(transfer.getStatus(), savedToNetdisk, transfer));
+        attempt.setCompletedChunks(transfer.getUploadedChunks());
+        attempt.setTotalChunks(transfer.getTotalChunks());
+        attempt.setStartTime(transfer.getCreateTime());
+        attempt.setUpdateTime(transfer.getUpdateTime());
+        attempt.setCompletedAt(STATUS_COMPLETED.equals(transfer.getStatus())
+                ? firstNonBlankTime(transfer.getDownloadedAt(), transfer.getUpdateTime())
+                : null);
+        attempt.setSavedToNetdiskAt(savedToNetdisk ? LocalDateTime.now() : null);
+        attempt.setDownloadedAt(!savedToNetdisk ? transfer.getDownloadedAt() : null);
+        return attempt;
+    }
+
+    private String resolveDirectEndReason(String status, QuickDropDirectAttemptSyncRequest request) {
+        String explicit = QuickDropAttemptLifecycleHelper.normalizeReason(request.getEndReason());
+        if (explicit != null) {
+            return explicit;
+        }
+        if (Boolean.TRUE.equals(request.getSavedToNetdisk())) {
+            return "saved_to_netdisk";
+        }
+        if (Boolean.TRUE.equals(request.getDownloaded())) {
+            return "downloaded";
+        }
+        return switch (status) {
+            case STATUS_COMPLETED -> "peer_confirmed";
+            case "relay_fallback" -> "relay_fallback";
+            case "failed" -> "failed";
+            case STATUS_CANCELLED -> "cancelled";
+            default -> null;
+        };
+    }
+
+    private String resolveDirectFailureReason(String status, QuickDropDirectAttemptSyncRequest request) {
+        String explicit = QuickDropAttemptLifecycleHelper.normalizeReason(request.getFailureReason());
+        if (explicit != null) {
+            return explicit;
+        }
+        return switch (status) {
+            case "relay_fallback" -> "direct_transfer_interrupted";
+            case "failed" -> "direct_transfer_failed";
+            default -> null;
+        };
+    }
+
+    private String resolveRelayEndReason(String status, boolean savedToNetdisk, QuickDropTransfer transfer) {
+        if (savedToNetdisk) {
+            return "saved_to_netdisk";
+        }
+        if (transfer.getDownloadedAt() != null && STATUS_COMPLETED.equals(status)) {
+            return "downloaded";
+        }
+        if (STATUS_CANCELLED.equals(status)) {
+            return "cancelled";
+        }
+        return null;
+    }
+
     private String normalizeAttemptStage(String status, String fallback) {
         if (status == null || status.isBlank()) {
             return fallback;
@@ -1066,6 +1148,14 @@ public class QuickDropServiceImpl implements QuickDropService {
         }
         String normalized = clientTransferId.trim();
         return normalized.length() > 128 ? normalized.substring(0, 128) : normalized;
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        return primary != null && !primary.isBlank() ? primary : fallback;
+    }
+
+    private LocalDateTime firstNonBlankTime(LocalDateTime primary, LocalDateTime fallback) {
+        return primary != null ? primary : fallback;
     }
 
     private String normalizeSenderLabel(String senderLabel) {

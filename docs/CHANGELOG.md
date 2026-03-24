@@ -2,6 +2,16 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-24 (QuickDrop 生命周期与详情补强)
+
+- 详细记录：`docs/archive/2026-03-24-quickdrop-lifecycle-and-detail-feedback.md`
+- 核心变更：
+  - `QuickDropTaskVO`、`QuickDropPairTaskVO`、`QuickDropTaskAttemptVO` 已补 `attemptStatus`、开始/结束/失败原因，以及 `start / fallback / failed / completed / saved` 关键时间戳
+  - same-account `task` 与 public `pair task` 的详情摘要现已对齐，浏览器本地 direct 记录与服务端任务回写也共用同一组生命周期字段
+  - `quickdrop.html` 与配对直传详情弹窗已显示 direct / relay attempt 时间线、fallback 原因和“已转存到网盘”反馈
+  - `quickdrop-direct.js` 已区分“同账号直传失败后切中转”和“配对直传直接失败”的状态语义，不再把所有错误都笼统记成 `relay_fallback`
+  - 已通过 `./scripts/check-js.sh`、`./mvnw -q -DskipTests compile`、`./mvnw -q -Dtest=QuickDropServiceImplTest,QuickDropPairingServiceImplTest test`，并在静态资源服务器基线上跑通 `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8081 npx playwright test tests/e2e/quickdrop.spec.js`
+
 ## 2026-03-22 (GitHub 拉取式预发布部署)
 
 - 详细记录：`docs/archive/2026-03-22-github-pull-preprod-deploy.md`

@@ -1,4 +1,4 @@
-# QuickShare 后续计划（2026-03-22）
+# QuickShare 后续计划（2026-03-24）
 
 旧的阶段式路线图已经完成。当前计划不再按“从 0 到 6 的大阶段”推进，而是围绕维护、体验和回归质量继续收口。
 
@@ -17,6 +17,10 @@
   - `deploy-preprod.sh` 已改为远端 `git fetch/reset` + `docker compose up --build -d`
   - 仅在构建 / 启动 / `health` 失败时自动回滚到上一个 commit
   - `quickshare-smoke.sh` 与 `quickshare-playwright-smoke.sh` 继续作为部署后验收入口
+- 已完成阶段 D：QuickDrop 生命周期与详情补强
+  - same-account `task` 与 public `pair task` 已补统一的 attempt 生命周期摘要字段
+  - `quickdrop.html` / 配对直传详情已显示开始/结束/失败原因、fallback 时间与转存反馈
+  - 已补 QuickDrop 定向 service test 与 `tests/e2e/quickdrop.spec.js` 页面回归
 
 ## 分阶段 Checklist（按风险优先级）
 
@@ -37,14 +41,11 @@
 
 ### Phase 2. QuickDrop 生命周期与任务语义补强
 
-- 目标：
-  - 把 direct / relay attempt 的开始、结束、失败原因、完成原因补成更明确的状态模型
-  - 继续减少 same-account `task` 与 public `pair task` 的顶层语义差异
-- 建议提交边界：
-  - DTO / VO / service / front-end task detail 同步一组提交
-- 验收：
-  - 新状态可在任务详情里看到
-  - 对应服务测试和 Playwright / API 验证同步更新
+- 当前状态：已完成
+- 结果：
+  - direct / relay attempt 已补开始、结束、失败原因与关键时间戳
+  - same-account `task` 与 public `pair task` 的详情展示已切到同一套生命周期摘要
+  - 对应 service 测试和 `quickdrop.spec.js` 页面回归已同步更新
 
 ### Phase 3. QuickDrop 产品化收口
 
@@ -116,14 +117,12 @@
 - 明确匿名分享访问是否需要计入分享者或访问者的套餐额度；若需要，补新的扣减主体与对账规则。
 - QuickDrop 下一阶段优先级：
   - 基于已部署的预发布 TURN 做真实双端公网 / NAT 场景验证，并继续提升直连成功率
-  - 继续补更细粒度的 direct / relay attempt 生命周期，例如错误原因、完成原因和更清晰的 attempt 结束态
   - 继续考虑把 public `pair task` 和 same-account `task` 收成同一套顶层模型 / 操作语义
   - 直传文件保存到网盘后的后续动作继续收口：
     - 是否保留本地缓存
     - 是否给出“已转存到网盘”的任务级入口
     - 更长 TTL 或后台自动清理策略
   - 任务级操作继续补：
-    - 任务详情里更明确的 attempt 时间线
     - 任务筛选 / 分页
     - 更完整的任务级下载 / 保存 / 删除一致性
   - 建议按以下顺序推进：
@@ -153,6 +152,10 @@
       - `QuickDropPairingServiceImpl` 已补 `listPairTasks`
       - `quickdrop-direct.js` 配对任务面板现已优先消费服务端 `pair task`
       - server-only public pair task 现已可在页面查看详情并删除
+    - 已完成补充步：QuickDrop 生命周期与任务详情语义
+      - `QuickDropTaskVO / QuickDropPairTaskVO / QuickDropTaskAttemptVO` 已补 `attemptStatus`、开始/结束/失败原因和关键时间戳
+      - `quickdrop.html` 与配对直传详情弹窗现已显示 fallback / fail / save feedback
+      - QuickDrop 定向 service test 与 `tests/e2e/quickdrop.spec.js` 已覆盖新详情字段
     - 已完成补充步：QuickDrop 页面级减法收口
       - `quickdrop.html` 首屏已继续去掉步骤条和大段解释
       - 临时互传与同账号发送都已改成“单入口选择内容”

@@ -1,4 +1,4 @@
-# QuickShare 当前状态（2026-03-22）
+# QuickShare 当前状态（2026-03-24）
 
 顶层状态文档从今天开始只保留“当前真实状态”。历史分阶段记录继续保存在 `docs/archive/`，不再把旧里程碑和现状混写在一起。
 
@@ -16,6 +16,11 @@
 
 ## 今日已完成
 
+- QuickDrop 生命周期与任务详情已补到同一套任务语义：
+  - same-account `task` 与 public `pair task` 现在都会返回 `attemptStatus`、开始/结束/失败原因，以及 `start / fallback / failed / completed / saved` 关键时间戳
+  - `quickdrop.html` 和配对直传详情弹窗已显示 direct / relay attempt 时间线、fallback 原因和“已转存到网盘”反馈，不再只有粗粒度进度
+  - 浏览器本地 direct 记录与服务端任务回写现已共用同一组生命周期字段，删除 / 保存 / 下载后的详情语义保持一致
+  - 已补 `QuickDropServiceImplTest`、`QuickDropPairingServiceImplTest` 与 `tests/e2e/quickdrop.spec.js` 对应回归
 - 上一轮未提交的 QuickDrop 页面收口已重新验收并正式提交，当前 GitHub 分支已有可恢复基线。
 - 公开文档中的真实域名 / 服务器 IP 已完成脱敏，发布流程已补上 `git` 提交身份检查与修正步骤。
 - 当前本机到 GitHub 与测试服务器的远端接入链路都已完成配置，后续可直接继续做部署验证与远端回归。
@@ -173,7 +178,8 @@
   - 已实现同账号设备免配对自动直连，以及“发送前直连优先 / 未就绪回退中转”
   - 已实现匹配码配对后的 `WebRTC DataChannel` 浏览器直传
   - 已实现同账号发送端在直传中途失败时自动切到服务器中转
-  - 当前仍缺 `TURN` 的真实部署，以及直传 / 中转两条数据面的更细粒度统一接续
+  - 已实现 direct / relay attempt 生命周期摘要、失败原因与保存反馈的统一详情视图
+  - 当前仍缺 `TURN` 的真实公网验证，以及 same-account `task` / public `pair task` 更进一步的顶层模型统一
   - 页面层已继续朝 Snapdrop / PairDrop 风格收口，但还没到最终形态：
     - 首屏仍有进一步减少辅助文案和标签的空间
     - 记录当前已是页内次级页面；后续仍可继续评估独立 URL
@@ -465,7 +471,7 @@
 - 当前 QuickDrop 现已补一条本地真实双页浏览器回归，但它验证的是“真实两页传输与统一任务收口”；并没有把“headless 下稳定保持 direct 而不回退 relay”锁成通过门槛。
 - 当前 public / anonymous 直传虽然已有 server-first `pair task` 页面视图，但还没有和 same-account `task` 收敛成同一套顶层模型与操作语义。
 - 当前 QuickDrop 的公开取件页“已登录后直接显示保存控件”浏览器 mock 用例仍待继续收口；对应业务能力已通过运行态 API 验证。
-- 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架和 public pair task 页面级任务视图，但仍待继续做真实双端公网/TURN 验证，并补更细粒度的 attempt 生命周期，再考虑顶层模型统一。
+- 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架、public pair task 页面级任务视图，以及 direct / relay attempt 生命周期摘要；下一步重点转向真实双端公网/TURN 验证和顶层模型进一步统一。
 - 当前服务器还只是预发布环境：
   - 还没有 HTTPS / 证书
   - 还没有正式发布前的最终脱敏提交流程

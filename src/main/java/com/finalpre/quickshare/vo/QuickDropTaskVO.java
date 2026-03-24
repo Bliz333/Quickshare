@@ -13,6 +13,10 @@ public class QuickDropTaskVO {
     private String transferMode;
     private String currentTransferMode;
     private String stage;
+    private String attemptStatus;
+    private String startReason;
+    private String endReason;
+    private String failureReason;
     private String fileName;
     private Long fileSize;
     private String contentType;
@@ -25,7 +29,10 @@ public class QuickDropTaskVO {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private LocalDateTime expireTime;
+    private LocalDateTime startTime;
     private LocalDateTime completedAt;
+    private LocalDateTime failedAt;
+    private LocalDateTime fallbackAt;
     private LocalDateTime savedToNetdiskAt;
     private List<QuickDropTaskAttemptVO> attempts;
 }

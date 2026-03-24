@@ -154,8 +154,12 @@ class QuickDropPairingServiceImplTest {
         assertThat(task.getCurrentTransferMode()).isEqualTo("direct");
         assertThat(task.getDirection()).isEqualTo("outgoing");
         assertThat(task.getPeerChannelId()).isEqualTo("guest:receiver");
+        assertThat(task.getAttemptStatus()).isEqualTo("transferring");
+        assertThat(task.getStartReason()).isEqualTo("pair_session_direct");
         assertThat(task.getAttempts()).hasSize(1);
         assertThat(task.getAttempts().get(0).getTransferId()).isEqualTo("pair-transfer-1");
+        assertThat(task.getAttempts().get(0).getAttemptStatus()).isEqualTo("transferring");
+        assertThat(task.getAttempts().get(0).getStartReason()).isEqualTo("pair_session_direct");
     }
 
     @Test
@@ -201,5 +205,49 @@ class QuickDropPairingServiceImplTest {
         assertThat(tasks.get(0).getAttempts().get(0).getTransferId()).isEqualTo("pair-transfer-in");
         assertThat(tasks.get(1).getAttempts()).hasSize(1);
         assertThat(tasks.get(1).getAttempts().get(0).getTransferId()).isEqualTo("pair-transfer-out");
+    }
+
+    @Test
+    void syncPairTaskShouldTrackFailureLifecycle() {
+        QuickDropPairTaskSyncRequest initial = new QuickDropPairTaskSyncRequest();
+        initial.setPairSessionId("pair-public-2");
+        initial.setSelfChannelId("guest:self");
+        initial.setPeerChannelId("guest:peer");
+        initial.setSelfLabel("Self");
+        initial.setPeerLabel("Peer");
+        initial.setClientTransferId("pair-transfer-fail");
+        initial.setTaskKey("pair:pair-transfer-fail");
+        initial.setFileName("broken.txt");
+        initial.setFileSize(12L);
+        initial.setContentType("text/plain");
+        initial.setTotalChunks(2);
+        initial.setCompletedChunks(1);
+        initial.setStatus("sending");
+        quickDropPairingService.syncPairTask(initial);
+
+        QuickDropPairTaskSyncRequest failed = new QuickDropPairTaskSyncRequest();
+        failed.setPairSessionId("pair-public-2");
+        failed.setSelfChannelId("guest:self");
+        failed.setPeerChannelId("guest:peer");
+        failed.setSelfLabel("Self");
+        failed.setPeerLabel("Peer");
+        failed.setClientTransferId("pair-transfer-fail");
+        failed.setTaskKey("pair:pair-transfer-fail");
+        failed.setFileName("broken.txt");
+        failed.setFileSize(12L);
+        failed.setContentType("text/plain");
+        failed.setTotalChunks(2);
+        failed.setCompletedChunks(1);
+        failed.setStatus("failed");
+        failed.setFailureReason("peer_reported_error");
+
+        QuickDropPairTaskVO task = quickDropPairingService.syncPairTask(failed);
+        assertThat(task.getId()).isNotNull();
+        assertThat(task.getAttemptStatus()).isEqualTo("failed");
+        assertThat(task.getFailureReason()).isEqualTo("peer_reported_error");
+        assertThat(task.getFailedAt()).isNotNull();
+        assertThat(task.getAttempts()).hasSize(1);
+        assertThat(task.getAttempts().get(0).getFailureReason()).isEqualTo("peer_reported_error");
+        assertThat(task.getAttempts().get(0).getFailedAt()).isNotNull();
     }
 }

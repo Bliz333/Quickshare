@@ -121,6 +121,8 @@ class QuickDropServiceImplTest {
         assertThat(firstChunk.getTask().getPeerDeviceId()).isEqualTo("receiver-device");
         assertThat(firstChunk.getTask().getAttempts()).hasSize(1);
         assertThat(firstChunk.getTask().getAttempts().get(0).getTransferId()).isEqualTo("51");
+        assertThat(firstChunk.getTask().getAttempts().get(0).getAttemptStatus()).isEqualTo("transferring");
+        assertThat(firstChunk.getTask().getAttempts().get(0).getStartReason()).isEqualTo("relay_transfer_created");
 
         QuickDropTransferVO completed = quickDropService.uploadChunk(8L, 51L, "sender-device", 1, "world".getBytes());
         assertThat(completed.getStatus()).isEqualTo("ready");
@@ -214,7 +216,68 @@ class QuickDropServiceImplTest {
         assertThat(task.getDirection()).isEqualTo("outgoing");
         assertThat(task.getPeerDeviceId()).isEqualTo("receiver-device");
         assertThat(task.getCompletedChunks()).isEqualTo(2);
+        assertThat(task.getAttemptStatus()).isEqualTo("transferring");
+        assertThat(task.getStartReason()).isEqualTo("same_account_direct");
         assertThat(task.getAttempts()).hasSize(1);
         assertThat(task.getAttempts().get(0).getTransferId()).isEqualTo("direct-1");
+        assertThat(task.getAttempts().get(0).getAttemptStatus()).isEqualTo("transferring");
+        assertThat(task.getAttempts().get(0).getStartReason()).isEqualTo("same_account_direct");
+    }
+
+    @Test
+    void syncDirectAttemptShouldRetainStartReasonAndTrackFallbackFailure() {
+        QuickDropDevice sender = new QuickDropDevice();
+        sender.setDeviceId("sender-device");
+        sender.setUserId(8L);
+        sender.setDeviceName("Sender Device");
+
+        QuickDropDevice receiver = new QuickDropDevice();
+        receiver.setDeviceId("receiver-device");
+        receiver.setUserId(8L);
+        receiver.setDeviceName("Receiver Device");
+
+        when(quickDropDeviceMapper.selectById("sender-device")).thenReturn(sender);
+        when(quickDropDeviceMapper.selectById("receiver-device")).thenReturn(receiver);
+
+        QuickDropDirectAttemptSyncRequest first = new QuickDropDirectAttemptSyncRequest();
+        first.setDeviceId("sender-device");
+        first.setSenderDeviceId("sender-device");
+        first.setReceiverDeviceId("receiver-device");
+        first.setClientTransferId("direct-fallback-1");
+        first.setTaskKey("outgoing|receiver-device|clip.txt|6|1710000000000");
+        first.setFileName("clip.txt");
+        first.setFileSize(6L);
+        first.setContentType("text/plain");
+        first.setTotalChunks(3);
+        first.setCompletedChunks(1);
+        first.setStatus("sending");
+
+        QuickDropTaskVO initial = quickDropService.syncDirectAttempt(8L, first);
+
+        QuickDropDirectAttemptSyncRequest second = new QuickDropDirectAttemptSyncRequest();
+        second.setTaskId(initial.getId());
+        second.setDeviceId("sender-device");
+        second.setSenderDeviceId("sender-device");
+        second.setReceiverDeviceId("receiver-device");
+        second.setClientTransferId("direct-fallback-1");
+        second.setTaskKey("outgoing|receiver-device|clip.txt|6|1710000000000");
+        second.setFileName("clip.txt");
+        second.setFileSize(6L);
+        second.setContentType("text/plain");
+        second.setTotalChunks(3);
+        second.setCompletedChunks(1);
+        second.setStatus("relay_fallback");
+        second.setFailureReason("peer_missed_offer");
+
+        QuickDropTaskVO fallback = quickDropService.syncDirectAttempt(8L, second);
+        assertThat(fallback.getAttemptStatus()).isEqualTo("relay_fallback");
+        assertThat(fallback.getStartReason()).isEqualTo("same_account_direct");
+        assertThat(fallback.getEndReason()).isEqualTo("relay_fallback");
+        assertThat(fallback.getFailureReason()).isEqualTo("peer_missed_offer");
+        assertThat(fallback.getFallbackAt()).isNotNull();
+        assertThat(fallback.getAttempts()).hasSize(1);
+        assertThat(fallback.getAttempts().get(0).getStartTime()).isEqualTo(initial.getAttempts().get(0).getStartTime());
+        assertThat(fallback.getAttempts().get(0).getFailureReason()).isEqualTo("peer_missed_offer");
+        assertThat(fallback.getAttempts().get(0).getFallbackAt()).isNotNull();
     }
 }

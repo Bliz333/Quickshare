@@ -1411,7 +1411,7 @@ test.describe('QuickDrop pages', () => {
                 task: {
                   taskKey: 'outgoing|device-b|detail.txt|5|1710000000000',
                   direction: 'outgoing',
-                  transferMode: 'relay',
+                  transferMode: 'hybrid',
                   currentTransferMode: 'relay',
                   stage: 'ready',
                   fileName: 'detail.txt',
@@ -1420,14 +1420,33 @@ test.describe('QuickDrop pages', () => {
                   peerLabel: 'My Laptop',
                   completedChunks: 1,
                   totalChunks: 1,
+                  failureReason: 'direct_transfer_interrupted',
+                  fallbackAt: '2026-03-21T10:00:01',
                   updateTime: '2026-03-21T10:00:00',
                   attempts: [
+                    {
+                      transferMode: 'direct',
+                      transferId: 'direct-detail-1',
+                      stage: 'relay_fallback',
+                      attemptStatus: 'relay_fallback',
+                      startReason: 'same_account_direct',
+                      endReason: 'relay_fallback',
+                      failureReason: 'direct_transfer_interrupted',
+                      completedChunks: 1,
+                      totalChunks: 1,
+                      startTime: '2026-03-21T09:59:58',
+                      fallbackAt: '2026-03-21T10:00:01',
+                      updateTime: '2026-03-21T10:00:01'
+                    },
                     {
                       transferMode: 'relay',
                       transferId: '77',
                       stage: 'ready',
+                      attemptStatus: 'waiting',
+                      startReason: 'relay_transfer_created',
                       completedChunks: 1,
                       totalChunks: 1,
+                      startTime: '2026-03-21T10:00:00',
                       updateTime: '2026-03-21T10:00:00'
                     }
                   ]
@@ -1475,6 +1494,10 @@ test.describe('QuickDrop pages', () => {
             peerLabel: 'My Laptop',
             peerDeviceId: 'device-b',
             status: 'relay_fallback',
+            startReason: 'same_account_direct',
+            endReason: 'relay_fallback',
+            failureReason: 'direct_transfer_interrupted',
+            fallbackAt: '2026-03-21T10:00:01',
             updateTime: '2026-03-21T10:00:01'
           }];
         }
@@ -1487,9 +1510,13 @@ test.describe('QuickDrop pages', () => {
     const detailDialog = await page.evaluate(() => window.__quickDropDetailDialog);
     expect(detailDialog.value).toContain('Task Key: outgoing|device-b|detail.txt|5|1710000000000');
     expect(detailDialog.value).toContain('Mode: Direct -> Relay');
+    expect(detailDialog.value).toContain('Lifecycle: Waiting');
     expect(detailDialog.value).toContain('Current Step: Relay · Ready to Download');
+    expect(detailDialog.value).toContain('Start Reason: Server relay transfer started');
+    expect(detailDialog.value).toContain('Failure Reason: Direct transfer was interrupted');
     expect(detailDialog.value).toContain('Relay Transfer ID: 77');
     expect(detailDialog.value).toContain('Direct Transfer ID: direct-detail-1');
+    expect(detailDialog.value).toContain('Saved To Netdisk: Not yet');
     expect(detailDialog.value).toContain('Attempts:');
   });
 
@@ -1898,14 +1925,19 @@ test.describe('QuickDrop pages', () => {
         contentType: 'text/plain',
         completedChunks: 0,
         totalChunks: 1,
+        attemptStatus: 'transferring',
+        startReason: 'pair_session_direct',
         updateTime: '2026-03-21T10:00:00',
         attempts: [
           {
             transferMode: 'direct',
             transferId: 'server-transfer-1',
             stage: 'sending',
+            attemptStatus: 'transferring',
+            startReason: 'pair_session_direct',
             completedChunks: 0,
             totalChunks: 1,
+            startTime: '2026-03-21T10:00:00',
             updateTime: '2026-03-21T10:00:00'
           }
         ]
@@ -1973,6 +2005,8 @@ test.describe('QuickDrop pages', () => {
       return page.evaluate(() => window.__quickDropPairTaskDialog);
     }).not.toBeNull();
     const detailDialog = await page.evaluate(() => window.__quickDropPairTaskDialog);
+    expect(detailDialog.value).toContain('Lifecycle: Transferring');
+    expect(detailDialog.value).toContain('Start Reason: Paired direct session');
     expect(detailDialog.value).toContain('Pair Task ID: 801');
     expect(detailDialog.value).toContain('Direct Transfer ID: server-transfer-1');
 

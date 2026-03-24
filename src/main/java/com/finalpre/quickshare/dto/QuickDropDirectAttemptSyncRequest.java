@@ -16,6 +16,9 @@ public class QuickDropDirectAttemptSyncRequest {
     private Integer totalChunks;
     private Integer completedChunks;
     private String status;
+    private String startReason;
+    private String endReason;
+    private String failureReason;
     private Boolean savedToNetdisk;
     private Boolean downloaded;
 }

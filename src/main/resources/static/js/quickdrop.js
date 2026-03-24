@@ -449,6 +449,10 @@ function removeQuickDropRelayTaskKey(transferId) {
 
 function formatQuickDropStatus(status) {
     switch (status) {
+        case 'waiting_accept':
+            return quickDropText('quickDropDirectWaitingAccept', 'Waiting for peer resume map');
+        case 'negotiating':
+            return quickDropText('quickDropLifecycleNegotiating', 'Negotiating');
         case 'pending_upload':
             return quickDropText('quickDropStatusPending', 'Pending Upload');
         case 'uploading':
@@ -465,6 +469,8 @@ function formatQuickDropStatus(status) {
             return quickDropText('quickDropStatusReady', 'Ready to Download');
         case 'completed':
             return quickDropText('quickDropStatusCompleted', 'Completed');
+        case 'failed':
+            return quickDropText('quickDropLifecycleFailed', 'Failed');
         case 'cancelled':
             return quickDropText('quickDropStatusCancelled', 'Cancelled');
         default:
@@ -519,6 +525,149 @@ function quickDropTransferModeLabel(mode) {
         : quickDropText('quickDropTransferModeRelay', 'Relay');
 }
 
+function deriveQuickDropAttemptStatus(stage) {
+    switch (stage) {
+        case 'waiting_accept':
+        case 'pending_upload':
+        case 'ready':
+        case 'waiting_complete':
+            return 'waiting';
+        case 'negotiating':
+            return 'negotiating';
+        case 'sending':
+        case 'receiving':
+        case 'uploading':
+            return 'transferring';
+        case 'relay_fallback':
+            return 'relay_fallback';
+        case 'failed':
+            return 'failed';
+        case 'completed':
+            return 'completed';
+        case 'cancelled':
+            return 'cancelled';
+        default:
+            return stage || 'waiting';
+    }
+}
+
+function formatQuickDropAttemptStatus(status) {
+    switch (status) {
+        case 'waiting':
+            return quickDropText('quickDropLifecycleWaiting', 'Waiting');
+        case 'negotiating':
+            return quickDropText('quickDropLifecycleNegotiating', 'Negotiating');
+        case 'transferring':
+            return quickDropText('quickDropLifecycleTransferring', 'Transferring');
+        case 'relay_fallback':
+            return quickDropText('quickDropLifecycleFallback', 'Relay Fallback');
+        case 'failed':
+            return quickDropText('quickDropLifecycleFailed', 'Failed');
+        case 'completed':
+            return quickDropText('quickDropLifecycleCompleted', 'Completed');
+        case 'cancelled':
+            return quickDropText('quickDropLifecycleCancelled', 'Cancelled');
+        default:
+            return formatQuickDropStatus(status);
+    }
+}
+
+function formatQuickDropLifecycleReason(reason) {
+    switch (reason) {
+        case 'relay_transfer_created':
+            return quickDropText('quickDropReasonRelayTransferCreated', 'Server relay transfer started');
+        case 'same_account_direct':
+            return quickDropText('quickDropReasonSameAccountDirect', 'Same-account direct session');
+        case 'pair_session_direct':
+            return quickDropText('quickDropReasonPairSessionDirect', 'Paired direct session');
+        case 'saved_to_netdisk':
+            return quickDropText('quickDropReasonSavedToNetdisk', 'Saved to netdisk');
+        case 'downloaded':
+            return quickDropText('quickDropReasonDownloaded', 'Downloaded');
+        case 'peer_confirmed':
+            return quickDropText('quickDropReasonPeerConfirmed', 'Peer confirmed completion');
+        case 'relay_fallback':
+            return quickDropText('quickDropReasonRelayFallback', 'Switched to server relay');
+        case 'cancelled':
+            return quickDropText('quickDropReasonCancelled', 'Cancelled');
+        case 'direct_link_unavailable':
+            return quickDropText('quickDropReasonDirectLinkUnavailable', 'Direct link was not ready');
+        case 'peer_mismatch':
+            return quickDropText('quickDropReasonPeerMismatch', 'Direct link pointed to another device');
+        case 'accept_timeout':
+            return quickDropText('quickDropReasonAcceptTimeout', 'Peer did not respond in time');
+        case 'peer_missed_offer':
+            return quickDropText('quickDropReasonPeerMissedOffer', 'Peer missed the transfer offer');
+        case 'peer_reported_error':
+            return quickDropText('quickDropReasonPeerReportedError', 'Peer reported an error');
+        case 'direct_transfer_interrupted':
+            return quickDropText('quickDropReasonDirectTransferInterrupted', 'Direct transfer was interrupted');
+        case 'direct_transfer_failed':
+            return quickDropText('quickDropReasonDirectTransferFailed', 'Direct transfer failed');
+        default:
+            return reason ? String(reason).replace(/_/g, ' ') : quickDropText('quickDropNotYet', 'Not yet');
+    }
+}
+
+function getLatestQuickDropAttemptTime(attempts, field, lifecycleStatus) {
+    return [...(attempts || [])]
+        .map(attempt => {
+            if (attempt?.[field]) {
+                return attempt[field];
+            }
+            if (lifecycleStatus && (attempt?.attemptStatus || deriveQuickDropAttemptStatus(attempt?.stage || '')) === lifecycleStatus) {
+                return attempt?.updateTime || '';
+            }
+            return '';
+        })
+        .filter(Boolean)
+        .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] || '';
+}
+
+function normalizeQuickDropTaskAttempt(attempt, fallback = {}) {
+    const stage = attempt?.stage || fallback.stage || '';
+    return {
+        transferMode: attempt?.transferMode || fallback.transferMode || 'relay',
+        transferId: attempt?.transferId != null ? String(attempt.transferId) : (fallback.transferId || ''),
+        stage,
+        attemptStatus: attempt?.attemptStatus || fallback.attemptStatus || deriveQuickDropAttemptStatus(stage),
+        startReason: attempt?.startReason || fallback.startReason || '',
+        endReason: attempt?.endReason || fallback.endReason || '',
+        failureReason: attempt?.failureReason || fallback.failureReason || '',
+        completedChunks: Number(attempt?.completedChunks ?? fallback.completedChunks ?? 0),
+        totalChunks: Number(attempt?.totalChunks ?? fallback.totalChunks ?? 0),
+        startTime: attempt?.startTime || fallback.startTime || attempt?.updateTime || fallback.updateTime || '',
+        updateTime: attempt?.updateTime || fallback.updateTime || '',
+        completedAt: attempt?.completedAt || fallback.completedAt || '',
+        failedAt: attempt?.failedAt || fallback.failedAt || '',
+        fallbackAt: attempt?.fallbackAt || fallback.fallbackAt || '',
+        savedToNetdiskAt: attempt?.savedToNetdiskAt || fallback.savedToNetdiskAt || '',
+        downloadedAt: attempt?.downloadedAt || fallback.downloadedAt || ''
+    };
+}
+
+function buildQuickDropAttemptSummary(attempts, fallback = {}) {
+    const normalizedAttempts = [...(attempts || [])]
+        .filter(Boolean)
+        .sort((left, right) => new Date(right?.updateTime || 0).getTime() - new Date(left?.updateTime || 0).getTime());
+    const current = normalizedAttempts[0] || {};
+    return {
+        attemptStatus: current.attemptStatus || fallback.attemptStatus || deriveQuickDropAttemptStatus(current.stage || fallback.stage || ''),
+        startReason: current.startReason || fallback.startReason || '',
+        endReason: current.endReason || fallback.endReason || '',
+        failureReason: current.failureReason
+            || normalizedAttempts.find(attempt => attempt.failureReason)?.failureReason
+            || fallback.failureReason
+            || '',
+        startTime: current.startTime || fallback.startTime || current.updateTime || fallback.updateTime || '',
+        completedAt: fallback.completedAt || getLatestQuickDropAttemptTime(normalizedAttempts, 'completedAt', 'completed'),
+        failedAt: fallback.failedAt || getLatestQuickDropAttemptTime(normalizedAttempts, 'failedAt', 'failed'),
+        fallbackAt: fallback.fallbackAt || getLatestQuickDropAttemptTime(normalizedAttempts, 'fallbackAt', 'relay_fallback'),
+        savedToNetdiskAt: fallback.savedToNetdiskAt || getLatestQuickDropAttemptTime(normalizedAttempts, 'savedToNetdiskAt'),
+        downloadedAt: fallback.downloadedAt || getLatestQuickDropAttemptTime(normalizedAttempts, 'downloadedAt')
+    };
+}
+
 function getQuickDropTransferCompletedChunks(transfer, directionHint) {
     const direction = transfer?.direction || directionHint || 'outgoing';
     if (transfer?.transferMode === 'direct') {
@@ -531,14 +680,25 @@ function getQuickDropTransferCompletedChunks(transfer, directionHint) {
 
 function buildQuickDropTaskAttemptFromTransfer(transfer, directionHint) {
     const direction = transfer?.direction || directionHint || 'outgoing';
-    return {
-        transferMode: transfer?.transferMode || 'relay',
+    const transferMode = transfer?.transferMode || 'relay';
+    return normalizeQuickDropTaskAttempt({
+        transferMode,
         transferId: transfer?.id != null ? String(transfer.id) : '',
         stage: transfer?.status || '',
+        attemptStatus: transfer?.attemptStatus || '',
+        startReason: transfer?.startReason || (transferMode === 'direct' ? 'same_account_direct' : 'relay_transfer_created'),
+        endReason: transfer?.endReason || '',
+        failureReason: transfer?.failureReason || '',
         completedChunks: getQuickDropTransferCompletedChunks(transfer, direction),
         totalChunks: Number(transfer?.totalChunks || 0),
-        updateTime: transfer?.updateTime || ''
-    };
+        startTime: transfer?.startTime || transfer?.createTime || transfer?.updateTime || '',
+        updateTime: transfer?.updateTime || '',
+        completedAt: transfer?.completedAt || '',
+        failedAt: transfer?.failedAt || '',
+        fallbackAt: transfer?.fallbackAt || '',
+        savedToNetdiskAt: transfer?.savedToNetdiskAt || '',
+        downloadedAt: transfer?.downloadedAt || ''
+    });
 }
 
 function buildQuickDropTaskFromTransfer(transfer, directionHint) {
@@ -563,13 +723,18 @@ function buildQuickDropTaskFromTransfer(transfer, directionHint) {
     const totalChunks = Number(baseTask.totalChunks ?? transfer?.totalChunks ?? 0);
     const attempts = Array.isArray(baseTask.attempts) && baseTask.attempts.length
         ? baseTask.attempts
-            .map(attempt => ({
+            .map(attempt => normalizeQuickDropTaskAttempt(attempt, {
                 transferMode: attempt?.transferMode || transferMode,
-                transferId: attempt?.transferId != null ? String(attempt.transferId) : '',
                 stage: attempt?.stage || transfer?.status || '',
-                completedChunks: Number(attempt?.completedChunks ?? completedChunks),
-                totalChunks: Number(attempt?.totalChunks ?? totalChunks),
-                updateTime: attempt?.updateTime || transfer?.updateTime || ''
+                completedChunks,
+                totalChunks,
+                updateTime: attempt?.updateTime || transfer?.updateTime || '',
+                startReason: baseTask.startReason || (transferMode === 'direct' ? 'same_account_direct' : 'relay_transfer_created'),
+                completedAt: baseTask.completedAt || transfer?.completedAt || '',
+                failedAt: baseTask.failedAt || transfer?.failedAt || '',
+                fallbackAt: baseTask.fallbackAt || transfer?.fallbackAt || '',
+                savedToNetdiskAt: baseTask.savedToNetdiskAt || transfer?.savedToNetdiskAt || '',
+                downloadedAt: baseTask.downloadedAt || transfer?.downloadedAt || ''
             }))
             .filter(attempt => attempt.transferMode || attempt.transferId || attempt.stage)
         : [buildQuickDropTaskAttemptFromTransfer({
@@ -577,6 +742,19 @@ function buildQuickDropTaskFromTransfer(transfer, directionHint) {
             direction,
             transferMode
         }, direction)];
+    const attemptSummary = buildQuickDropAttemptSummary(attempts, {
+        stage: baseTask.stage || transfer?.status || '',
+        attemptStatus: baseTask.attemptStatus || '',
+        startReason: baseTask.startReason || (transferMode === 'direct' ? 'same_account_direct' : 'relay_transfer_created'),
+        endReason: baseTask.endReason || transfer?.endReason || '',
+        failureReason: baseTask.failureReason || transfer?.failureReason || '',
+        startTime: baseTask.startTime || transfer?.startTime || transfer?.createTime || transfer?.updateTime || '',
+        completedAt: baseTask.completedAt || transfer?.completedAt || '',
+        failedAt: baseTask.failedAt || transfer?.failedAt || '',
+        fallbackAt: baseTask.fallbackAt || transfer?.fallbackAt || '',
+        savedToNetdiskAt: baseTask.savedToNetdiskAt || transfer?.savedToNetdiskAt || '',
+        downloadedAt: baseTask.downloadedAt || transfer?.downloadedAt || ''
+    });
 
     return {
         id: baseTask.id || transfer?.id || null,
@@ -586,6 +764,10 @@ function buildQuickDropTaskFromTransfer(transfer, directionHint) {
         transferMode,
         currentTransferMode,
         stage: baseTask.stage || transfer?.status || '',
+        attemptStatus: baseTask.attemptStatus || attemptSummary.attemptStatus,
+        startReason: baseTask.startReason || attemptSummary.startReason,
+        endReason: baseTask.endReason || attemptSummary.endReason,
+        failureReason: baseTask.failureReason || attemptSummary.failureReason,
         fileName: baseTask.fileName || transfer?.fileName || '',
         fileSize: Number(baseTask.fileSize ?? transfer?.fileSize ?? 0),
         contentType: baseTask.contentType || transfer?.contentType || 'application/octet-stream',
@@ -598,8 +780,12 @@ function buildQuickDropTaskFromTransfer(transfer, directionHint) {
         createTime: baseTask.createTime || transfer?.createTime || '',
         updateTime: baseTask.updateTime || transfer?.updateTime || '',
         expireTime: baseTask.expireTime || transfer?.expireTime || '',
-        completedAt: baseTask.completedAt || transfer?.completedAt || '',
-        savedToNetdiskAt: baseTask.savedToNetdiskAt || transfer?.savedToNetdiskAt || '',
+        startTime: baseTask.startTime || attemptSummary.startTime,
+        completedAt: baseTask.completedAt || attemptSummary.completedAt || transfer?.completedAt || '',
+        failedAt: baseTask.failedAt || attemptSummary.failedAt || transfer?.failedAt || '',
+        fallbackAt: baseTask.fallbackAt || attemptSummary.fallbackAt || transfer?.fallbackAt || '',
+        savedToNetdiskAt: baseTask.savedToNetdiskAt || attemptSummary.savedToNetdiskAt || transfer?.savedToNetdiskAt || '',
+        downloadedAt: baseTask.downloadedAt || attemptSummary.downloadedAt || transfer?.downloadedAt || '',
         attempts
     };
 }
@@ -793,6 +979,7 @@ function mergeQuickDropTransferGroup(items, direction) {
         });
     });
     attempts.sort((left, right) => new Date(right.updateTime || 0).getTime() - new Date(left.updateTime || 0).getTime());
+    const attemptSummary = buildQuickDropAttemptSummary(attempts, primaryTask);
     const mergedTask = {
         ...primaryTask,
         taskKey: primaryTask.taskKey || latestRelayTask?.taskKey || latestDirectTask?.taskKey || '',
@@ -807,6 +994,15 @@ function mergeQuickDropTransferGroup(items, direction) {
         completedChunks: Number(primaryTask.completedChunks ?? getQuickDropTransferCompletedChunks(primary, direction)),
         totalChunks: Number(primaryTask.totalChunks ?? primary.totalChunks ?? 0),
         updateTime: latestUpdateTime || primaryTask.updateTime || primary.updateTime || '',
+        attemptStatus: attemptSummary.attemptStatus || primaryTask.attemptStatus,
+        startReason: attemptSummary.startReason || primaryTask.startReason,
+        endReason: attemptSummary.endReason || primaryTask.endReason,
+        failureReason: attemptSummary.failureReason || primaryTask.failureReason,
+        startTime: attemptSummary.startTime || primaryTask.startTime,
+        completedAt: primaryTask.completedAt || attemptSummary.completedAt,
+        failedAt: attemptSummary.failedAt || primaryTask.failedAt,
+        fallbackAt: attemptSummary.fallbackAt || primaryTask.fallbackAt,
+        savedToNetdiskAt: primaryTask.savedToNetdiskAt || attemptSummary.savedToNetdiskAt,
         attempts
     };
 
@@ -1151,16 +1347,39 @@ function collectQuickDropTaskAttemptIds(task, transferMode) {
 }
 
 function formatQuickDropTaskAttemptLine(attempt) {
-    const idLabel = attempt.transferMode === 'relay'
-        ? quickDropText('quickDropRelayTransferIdLabel', 'Relay Transfer ID')
-        : quickDropText('quickDropDirectTransferIdLabel', 'Direct Transfer ID');
-    return [
+    const bits = [
         `- ${quickDropTransferModeLabel(attempt.transferMode)}`,
         formatQuickDropStatus(attempt.stage),
         `${quickDropText('quickDropChunkProgress', 'Chunks')}: ${Number(attempt.completedChunks || 0)} / ${Number(attempt.totalChunks || 0)}`,
-        `${idLabel}: ${attempt.transferId || '-'}`,
-        `${quickDropText('quickDropUpdatedAt', 'Updated')}: ${formatQuickDropTime(attempt.updateTime)}`
-    ].join(' · ');
+        `${quickDropText('quickDropLifecycleLabel', 'Lifecycle')}: ${formatQuickDropAttemptStatus(attempt.attemptStatus || deriveQuickDropAttemptStatus(attempt.stage || ''))}`
+    ];
+    const idLabel = attempt.transferMode === 'relay'
+        ? quickDropText('quickDropRelayTransferIdLabel', 'Relay Transfer ID')
+        : quickDropText('quickDropDirectTransferIdLabel', 'Direct Transfer ID');
+    bits.push(`${idLabel}: ${attempt.transferId || '-'}`);
+    if (attempt.startReason) {
+        bits.push(`${quickDropText('quickDropStartReasonLabel', 'Start Reason')}: ${formatQuickDropLifecycleReason(attempt.startReason)}`);
+    }
+    if (attempt.endReason) {
+        bits.push(`${quickDropText('quickDropEndReasonLabel', 'End Reason')}: ${formatQuickDropLifecycleReason(attempt.endReason)}`);
+    }
+    if (attempt.failureReason) {
+        bits.push(`${quickDropText('quickDropFailureReasonLabel', 'Failure Reason')}: ${formatQuickDropLifecycleReason(attempt.failureReason)}`);
+    }
+    if (attempt.startTime) {
+        bits.push(`${quickDropText('quickDropStartedAtLabel', 'Started')}: ${formatQuickDropTime(attempt.startTime)}`);
+    }
+    if (attempt.fallbackAt) {
+        bits.push(`${quickDropText('quickDropFallbackAtLabel', 'Fallback At')}: ${formatQuickDropTime(attempt.fallbackAt)}`);
+    }
+    if (attempt.failedAt) {
+        bits.push(`${quickDropText('quickDropFailedAtLabel', 'Failed At')}: ${formatQuickDropTime(attempt.failedAt)}`);
+    }
+    if (attempt.completedAt) {
+        bits.push(`${quickDropText('quickDropCompletedAtLabel', 'Completed At')}: ${formatQuickDropTime(attempt.completedAt)}`);
+    }
+    bits.push(`${quickDropText('quickDropUpdatedAt', 'Updated')}: ${formatQuickDropTime(attempt.updateTime)}`);
+    return bits.join(' · ');
 }
 
 function formatQuickDropTaskCurrentStage(task) {
@@ -1176,6 +1395,7 @@ function buildQuickDropTransferDetailValue(transfer, direction) {
         `${quickDropText('quickDropTaskKeyLabel', 'Task Key')}: ${task.taskKey || '-'}`,
         `${quickDropText('quickDropTaskModeLabel', 'Mode')}: ${quickDropTransferModeLabel(task.transferMode)}`,
         `${quickDropText('quickDropTaskStatusLabel', 'Status')}: ${formatQuickDropStatus(task.stage)}`,
+        `${quickDropText('quickDropLifecycleLabel', 'Lifecycle')}: ${formatQuickDropAttemptStatus(task.attemptStatus || deriveQuickDropAttemptStatus(task.stage || ''))}`,
         `${quickDropText('quickDropTaskCurrentStageLabel', 'Current Step')}: ${formatQuickDropTaskCurrentStage(task)}`,
         `${quickDropText('quickDropTaskDirectionLabel', 'Direction')}: ${task.direction === 'incoming'
             ? quickDropText('quickDropIncoming', 'Inbox')
@@ -1184,8 +1404,26 @@ function buildQuickDropTransferDetailValue(transfer, direction) {
         `${quickDropText('quickDropTaskSizeLabel', 'Size')}: ${formatQuickDropSize(task.fileSize)}`,
         `${quickDropText('quickDropTaskPeerLabel', 'Peer')}: ${task.peerLabel || '-'}`,
         `${quickDropText('quickDropChunkProgress', 'Chunks')}: ${Number(task.completedChunks || 0)} / ${task.totalChunks || 0}`,
+        `${quickDropText('quickDropStartedAtLabel', 'Started')}: ${task.startTime ? formatQuickDropTime(task.startTime) : quickDropText('quickDropNotYet', 'Not yet')}`,
+        `${quickDropText('quickDropCompletedAtLabel', 'Completed At')}: ${task.completedAt ? formatQuickDropTime(task.completedAt) : quickDropText('quickDropNotYet', 'Not yet')}`,
+        `${quickDropText('quickDropSavedAtLabel', 'Saved To Netdisk')}: ${task.savedToNetdiskAt ? formatQuickDropTime(task.savedToNetdiskAt) : quickDropText('quickDropNotYet', 'Not yet')}`,
         `${quickDropText('quickDropUpdatedAt', 'Updated')}: ${formatQuickDropTime(task.updateTime)}`
     ];
+    if (task.startReason) {
+        lines.push(`${quickDropText('quickDropStartReasonLabel', 'Start Reason')}: ${formatQuickDropLifecycleReason(task.startReason)}`);
+    }
+    if (task.endReason) {
+        lines.push(`${quickDropText('quickDropEndReasonLabel', 'End Reason')}: ${formatQuickDropLifecycleReason(task.endReason)}`);
+    }
+    if (task.failureReason) {
+        lines.push(`${quickDropText('quickDropFailureReasonLabel', 'Failure Reason')}: ${formatQuickDropLifecycleReason(task.failureReason)}`);
+    }
+    if (task.fallbackAt) {
+        lines.push(`${quickDropText('quickDropFallbackAtLabel', 'Fallback At')}: ${formatQuickDropTime(task.fallbackAt)}`);
+    }
+    if (task.failedAt) {
+        lines.push(`${quickDropText('quickDropFailedAtLabel', 'Failed At')}: ${formatQuickDropTime(task.failedAt)}`);
+    }
 
     if (relayIds.length) {
         lines.push(`${quickDropText('quickDropRelayTransferIdLabel', 'Relay Transfer ID')}: ${relayIds.join(', ')}`);

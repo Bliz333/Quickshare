@@ -124,6 +124,7 @@ test.describe('Netdisk CRUD dialogs', () => {
       const createdFolder = await readJson(createFolderResponse);
       folderId = createdFolder.id;
 
+      await page.reload();
       const createdFolderItem = await getVisibleNetdiskItem(page, folderName);
       await expect(createdFolderItem).toBeVisible();
 

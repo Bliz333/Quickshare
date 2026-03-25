@@ -137,7 +137,11 @@ test.describe('Netdisk CRUD dialogs', () => {
       const uploadedFile = await uploadTextFile(request, token, 0, fileName, fileContent);
       fileId = uploadedFile.id;
 
-      await page.reload();
+      await page.evaluate(async () => {
+        if (typeof loadFiles === 'function') {
+          await loadFiles();
+        }
+      });
       const uploadedFileItem = await getVisibleNetdiskItem(page, fileName);
       await expect(uploadedFileItem).toBeVisible();
 

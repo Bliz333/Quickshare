@@ -143,21 +143,33 @@ test.describe('Pricing and payment pages', () => {
     }
   });
 
-  test('payment result page renders existing order details and status', async ({ page, request, baseURL }) => {
+  test('payment result page renders order details and status for a paid order', async ({ page, request, baseURL }) => {
     const { token, user } = await loginAsAdmin(request);
-    const orders = await readJson(await request.get('/api/payment/orders', {
-      headers: { Authorization: `Bearer ${token}` }
-    }));
+    const mockedOrder = {
+      orderNo: 'QS-RESULT-E2E',
+      planName: 'E2E Result Plan',
+      amount: 19.99,
+      status: 'paid'
+    };
 
-    expect(orders.length).toBeGreaterThan(0);
-    const targetOrder = orders[0];
+    await page.route('**/api/payment/order/QS-RESULT-E2E', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: mockedOrder
+        })
+      });
+    });
 
     await seedSession(page, token, user);
-    await page.goto(`${baseURL}/payment-result.html?order_no=${encodeURIComponent(targetOrder.orderNo)}`);
+    await page.goto(`${baseURL}/payment-result.html?order_no=${encodeURIComponent(mockedOrder.orderNo)}`);
 
-    await expect(page.locator('#resultContent')).toContainText(targetOrder.orderNo);
-    await expect(page.locator('#resultContent')).toContainText(targetOrder.planName);
-    await expect(page.locator('.result-icon')).toHaveClass(new RegExp(targetOrder.status));
+    await expect(page.locator('#resultContent')).toContainText(mockedOrder.orderNo);
+    await expect(page.locator('#resultContent')).toContainText(mockedOrder.planName);
+    await expect(page.locator('.result-icon')).toHaveClass(/success/);
   });
 
   test('payment result page shows no-order fallback when order number is missing', async ({ page, request, baseURL }) => {

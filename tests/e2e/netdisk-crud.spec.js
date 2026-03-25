@@ -93,7 +93,7 @@ test.describe('Netdisk CRUD dialogs', () => {
     try {
       await seedSession(page, token, user);
       await page.goto(`${baseURL}/netdisk.html`);
-      await expect(page.locator('#listContent')).toBeVisible();
+      await expect(page.locator('button[onclick="createFolder()"]')).toBeVisible();
 
       const createFolderPromise = page.waitForResponse(response => {
         return response.url().endsWith('/api/folders')
@@ -109,6 +109,7 @@ test.describe('Netdisk CRUD dialogs', () => {
       const createdFolder = await readJson(createFolderResponse);
       folderId = createdFolder.id;
 
+      await expect(page.locator('#listContent')).toBeVisible();
       await expect(listRow(page, folderName)).toBeVisible();
 
       const renameFolderPromise = page.waitForResponse(response => {

@@ -65,6 +65,8 @@ mvn test
 
 Recommended verification flow is documented in `docs/TESTING.md`.
 
+Current project acceptance is remote-first: use the local machine for editing/pushing, and run compile/tests/deploy validation on the Debian test server. The currently verified server baseline is JDK 17, Maven 3.8.7, Node 18 / npm 9, Docker, and `docker-compose`.
+
 - Docs-only changes: diff review and consistency check
 - Frontend changes: `./scripts/check-js.sh` or `node --check` on the changed JS files
 - Backend changes: `./mvnw -q -DskipTests compile`
@@ -98,9 +100,9 @@ DEPLOY_RUN_SMOKE=1 ./scripts/deploy-preprod.sh
 DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 ```
 
-`deploy-preprod.sh` now treats GitHub as the single source of truth: it SSHes to the server, `git fetch/reset`s the target branch in `/root/quickshare`, then runs `docker compose up --build -d`. By default it deploys the current local branch name; set `DEPLOY_GIT_BRANCH=main` when you want the server to track `main`.
+When the remote host can read the configured Git remote, `deploy-preprod.sh` SSHes to the server, `git fetch/reset`s the target branch in `/root/quickshare`, then runs `docker compose up --build -d`. By default it deploys the current local branch name; set `DEPLOY_GIT_BRANCH=main` when you want the server to track `main`.
 If the SSH session stalls on network/auth issues, use `DEPLOY_SSH_TIMEOUT_SECONDS` to cap how long the local wrapper waits.
-For private/internal environments where the remote host is not yet a git worktree or cannot fetch the private repo, leave `DEPLOY_ENABLE_SNAPSHOT_FALLBACK=1` to let the script upload a source snapshot and keep the deploy moving without GitHub credentials.
+For private/internal environments where the remote host cannot yet fetch the private repo, leave `DEPLOY_ENABLE_SNAPSHOT_FALLBACK=1` or maintain a server-local git mirror so deployments can continue without exposing long-lived GitHub credentials on the test box.
 
 Default host-mode smoke now covers login, storage/order probes, folder create/move/delete, upload deduplication, owned-file download verification, share creation, extract-code validation, public download accounting, and API-level batch move/delete validation. Container mode remains the fallback when host port forwarding is unstable.
 

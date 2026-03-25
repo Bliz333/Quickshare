@@ -2,6 +2,16 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-26 (远端基线重建、资源回收与 direct 验证)
+
+- 详细记录：`docs/archive/2026-03-26-remote-baseline-rebuild-and-direct-validation.md`
+- 核心变更：
+  - 在远端 Debian 12 测试机安装 `OpenJDK 17`、`Maven 3.8.7`、`Node 18.20.4` 与 `npm 9.2.0`
+  - 将 `/root/quickshare` 从无 `.git` 的源码快照目录重建为正式 git 工作副本，并新增服务器本地 bare repo `/root/quickshare.git`
+  - 远端已重新通过 `./scripts/check-js.sh`、`./mvnw -q -DskipTests compile`、一组覆盖支付/文件/健康检查/QuickDrop 的定向 JUnit、`./scripts/quickshare-smoke.sh` 与 `./scripts/quickshare-playwright-smoke.sh`
+  - `tests/e2e/quickdrop-real.spec.js` 本轮在测试服务器上真实命中 `direct`，不再只停留在“最终收口 relay”的结论
+  - 清理了本轮 bundle、临时快照和未使用 Docker 镜像，磁盘占用从 `96%` 降到 `60%`
+
 ## 2026-03-25 (QuickDrop 本地基线恢复、直连重试与信令地址收口)
 
 - 详细记录：`docs/archive/2026-03-25-quickdrop-local-signal-origin-and-baseline-recovery.md`

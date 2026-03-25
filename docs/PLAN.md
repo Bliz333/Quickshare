@@ -1,4 +1,4 @@
-# QuickShare 后续计划（2026-03-25）
+# QuickShare 后续计划（2026-03-26）
 
 旧的阶段式路线图已经完成。当前计划不再按“从 0 到 6 的大阶段”推进，而是围绕维护、体验和回归质量继续收口。
 
@@ -26,19 +26,20 @@
 
 ### Phase 1. 预发布部署复现与真实公网验证
 
-- 当前状态：已完成一轮真实验证，并补上源码快照回退部署；本地工作区现在也已能通过 `localhost:8081 -> localhost:8080` 的拆分基线复跑 updated 前端 real-browser 探针。最新结果确认信令已连上，但在 `rtcHasTurn=false` 的 STUN-only 条件下仍停在 `negotiating` 并最终回退 `relay`
+- 当前状态：已完成新一轮远端基线重建。测试机现已具备 JDK/Maven/Node，`/root/quickshare` 已收口为 git 工作副本，远端 `smoke` 与 Dockerized `quickdrop-real` 已重新通过，而且本轮真实双页 same-account 传输最终命中 `direct`
 
 - 目标：
-  - 对内部测试环境，继续沿用源码快照回退部署，不把 GitHub 凭据作为当前阻塞
-  - 继续确认 `health`、QuickDrop `sync`、`rtc-config`、公开分享创建都可用
-  - 在真实双端浏览器验证里，把 same-account 最终模式从“可传但收口 relay”继续推进到更稳定的 `direct`
+  - 把当前“服务器本地 bare repo + git 工作副本”的更新路径整理成正式做法，避免再次退回无 `.git` 的源码快照目录
+  - 明确是否要为测试机补 GitHub 只读凭据；若不补，就把本地镜像同步路径文档化
+  - 在资源受限前提下继续保持 `health`、QuickDrop `sync`、`rtc-config`、公开分享创建和真实双页传输可复现
 - 建议提交边界：
-  - 预发布 smoke 结果、直连成功率相关修复、内部回退部署链路收口
+  - 远端部署基线、资源治理规则、主分支切换与文档同步一组提交
 - 验收：
-  - 预发布机可在无 GitHub 凭据条件下继续执行 `deploy-preprod.sh`
+  - 预发布机继续保持 git 工作副本，不再回退成纯源码快照目录
+  - 远端磁盘与内存余量在一次完整回归后仍保持安全余量
   - `curl /api/health`、`curl /api/public/quickdrop/rtc-config` 正常
-  - same-account 真实双页验证至少新增一条稳定 `direct` 命中结果，或者明确记录无法命中的具体网络原因
-  - 补一条新的 archive 记录部署过程、凭据阻塞和验证结果
+  - same-account 真实双页验证继续可复现 `direct` 命中样本，或至少明确新失败来自哪类网络条件
+  - 补一条新的 archive 记录远端重建、回归结果和资源清理结果
 
 ### Phase 2. QuickDrop 生命周期与任务语义补强
 
@@ -102,7 +103,7 @@
   - 启用支付商户后的真实外部回跳、支付结果页轮询、退款状态与网盘配额/VIP 展示刷新
 - 条件允许时继续补浏览器自动化，而不是只依赖手工点击回归。
 - 当前 Playwright + Chromium 基线已经可用，下一步应继续扩大页面级覆盖面，优先补真实公网商户回跳场景、更多登录后网盘 CRUD 交互，以及把当前默认验收脚本同步进 CI。
-- 预发布部署路径现已统一为 GitHub 拉取式；下一步更值得投入的是在这条稳定底座上继续补高价值页面级回归，而不是继续维护本地上传式部署。
+- 脚本层已经支持 GitHub 拉取式；但当前测试机的真实稳定底座是“git 工作副本 + 服务器本地 bare repo + docker-compose”。下一步更值得投入的是把这条远端基线固化，而不是再回到无版本信息的源码快照目录。
 
 ### 3. 部署与文档卫生
 
@@ -163,8 +164,8 @@
       - same-account 在“直连未就绪即回退 relay”时，现已写回 direct fallback attempt
     - 已完成补充步：预发布 TURN / same-account 真实链路复核
       - 预发布 `health`、`rtc-config`、远端 smoke 与 Dockerized 浏览器 smoke 已继续通过
-      - 一次性 real-browser 探针已确认当前 same-account 双页真实传输最终仍收口 `relay`
-      - 下一步要解决的是“稳定直连命中”，不是“能否完成传输”
+      - 最新远端 real-browser 探针已确认当前 same-account 双页真实传输可直接收口 `direct`
+      - 下一步要解决的是“扩大不同网络条件下的稳定直连命中率”，不是“这台测试机能否直连”
     - 已完成补充步：QuickDrop 页面级减法收口
       - `quickdrop.html` 首屏已继续去掉步骤条和大段解释
       - 临时互传与同账号发送都已改成“单入口选择内容”

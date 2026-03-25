@@ -43,6 +43,7 @@ Thumbs.db
 
 ### Local env ###
 .env
+DEPLOYED_COMMIT
 
 ### Node / E2E ###
 node_modules/

@@ -1,10 +1,32 @@
-# QuickShare 测试与验收流程（2026-03-21）
+# QuickShare 测试与验收流程（2026-03-26）
 
 本文件用于约定未来改动的默认测试方式，避免出现“代码改了，但没有重新验证、没有统一收口标准”的情况。
+
+## 当前默认环境
+
+- 当前默认采用“远端优先”流程：
+  - 本地负责编辑、提交、推送
+  - 远端测试机负责编译、测试、部署和验收
+- 当前已验证可用的远端基线：
+  - Debian 12
+  - `OpenJDK 17`
+  - `Maven 3.8.7`
+  - `Node 18.20.4` / `npm 9.2.0`
+  - Docker + `docker-compose`
+- 当前测试机资源有限，执行重建或浏览器回归前后都应检查：
+
+```bash
+df -h / /root
+free -h
+docker system df
+```
+
+- 如果这轮回归创建了临时 bundle、快照目录或产生了大量未使用镜像，验收后要立即清理，避免把测试机磁盘重新打满。
 
 ## 适用原则
 
 - 默认按“改动范围”选择测试，而不是所有改动都机械执行同一套命令。
+- 当前项目不再以本地机作为默认验收环境，除非这轮任务明确只影响本地开发体验。
 - 在当前 WSL2 环境下，不把 `mvn test` 作为唯一收口标准。
 - 任何可见功能、接口行为、运行时配置或导航逻辑的改动，至少要完成一轮可复现验证。
 - 小里程碑也要即时验证，不允许把多轮小改动一直堆到最后再统一试。
@@ -24,6 +46,17 @@
 4. 如果改动进入真实用户流程，补 `./scripts/quickshare-smoke.sh`
 5. 如果改动影响页面行为，补最接近的一条 Playwright 用例
 6. 同步更新 `README.md`、`docs/STATUS.md`、`docs/PLAN.md`、`docs/CHANGELOG.md`，必要时补 `docs/archive/`
+
+当前远端默认命令序列：
+
+```bash
+./scripts/check-js.sh
+./mvnw -q -DskipTests compile
+./mvnw -q -Dtest=PlanControllerTest,PaymentServiceImplTest,AdminServiceImplTest,FileControllerTest,FileServiceImplTest,HealthControllerTest,LocalStorageRuntimeInspectorTest,AdminPolicyServiceImplTest,QuickDropServiceImplTest,QuickDropPairingServiceImplTest,UserServiceImplTest test
+docker-compose up --build -d --remove-orphans
+./scripts/quickshare-smoke.sh
+./scripts/quickshare-playwright-smoke.sh
+```
 
 ## 推荐分级
 
@@ -208,7 +241,7 @@ PLAYWRIGHT_TEST_TARGET=tests/e2e/quickdrop.spec.js ./scripts/quickshare-playwrig
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 ./scripts/quickshare-playwright-smoke.sh
 ```
 
-预发布部署验证现已统一为 GitHub 拉取式：
+部署脚本支持 GitHub 拉取式，也支持远端无法直接拉私有仓库时的回退路径：
 
 ```bash
 ./scripts/deploy-preprod.sh
@@ -218,10 +251,11 @@ DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 
 说明：
 
-- 服务器会在 `/root/quickshare` 内 `git fetch/reset` 到目标分支，然后执行 `docker compose up --build -d`
+- 服务器在具备仓库读取权限时，会在 `/root/quickshare` 内 `git fetch/reset` 到目标分支，然后执行 `docker compose up --build -d`
 - 默认部署当前本地分支名；如需强制部署 `main`，显式传 `DEPLOY_GIT_BRANCH=main`
 - 若当前环境到测试机的 SSH 会话存在卡住风险，可显式传 `DEPLOY_SSH_TIMEOUT_SECONDS`
 - 真实 QuickDrop 浏览器回归继续在服务器本机网络中执行，而不是依赖当前环境直连公网 `:8080`
+- 若远端暂时不能直接读取私有 Git 仓库，保持 `DEPLOY_ENABLE_SNAPSHOT_FALLBACK=1`，或者维护服务器本地 git mirror / bare repo，再从该镜像更新工作副本
 
 当前这组用例覆盖：
 - 管理台注册设置保存、provider 切换和公开设置同步

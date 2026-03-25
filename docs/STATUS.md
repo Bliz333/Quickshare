@@ -1,4 +1,4 @@
-# QuickShare 当前状态（2026-03-25）
+# QuickShare 当前状态（2026-03-26）
 
 顶层状态文档从今天开始只保留“当前真实状态”。历史分阶段记录继续保存在 `docs/archive/`，不再把旧里程碑和现状混写在一起。
 
@@ -16,6 +16,26 @@
 
 ## 今日已完成
 
+- 远端测试机基线已重建并验证通过：
+  - 已在 Debian 12 测试机安装 `OpenJDK 17`、`Maven 3.8.7`、`Node 18.20.4` 和 `npm 9.2.0`
+  - 已将 `/root/quickshare` 从“无 `.git` 的源码快照目录”收口成正式 git 工作副本，并新增服务器本地 bare repo `/root/quickshare.git`
+  - 现有 `.env` 已保留，远端工作树当前检出提交为 `36591ea`
+  - `docker-compose up --build -d --remove-orphans` 已通过，`quickshare_app_1`、`mysql`、`redis` 当前都处于 `Up` / `healthy`
+- 远端回归已经形成可复现基线：
+  - `./scripts/check-js.sh` 已通过
+  - `./mvnw -q -DskipTests compile` 已通过
+  - 定向 JUnit 已通过：`PlanControllerTest`、`PaymentServiceImplTest`、`AdminServiceImplTest`、`FileControllerTest`、`FileServiceImplTest`、`HealthControllerTest`、`LocalStorageRuntimeInspectorTest`、`AdminPolicyServiceImplTest`、`QuickDropServiceImplTest`、`QuickDropPairingServiceImplTest`、`UserServiceImplTest`
+  - `./scripts/quickshare-smoke.sh` 已在远端通过
+  - `./scripts/quickshare-playwright-smoke.sh` 已在远端通过，默认执行的 `tests/e2e/quickdrop-real.spec.js` 本轮真实命中 `direct`
+- QuickDrop 远端真实链路已完成新一轮复核：
+  - same-account 双页真实浏览器传输本轮最终任务为 `transferMode=direct`、`currentTransferMode=direct`
+  - `rtcHasTurn=true`、`rtcHasStun=true`，`signalDirectState=ready`
+  - 本轮选中的 candidate pair 为 `local host -> remote srflx`，协议为 `udp -> udp`
+  - 这说明当前测试机不再只是“能传但收口 relay”，而是已确认存在稳定的 TURN/公网条件下直连命中样本
+- 远端资源治理已执行一轮：
+  - 清理了本轮上传的 bundle、临时快照目录和未使用 Docker 镜像
+  - 磁盘占用已从 `96%` 降到 `60%`，可用空间从 `620MB` 恢复到 `6.2GB`
+  - 当前内存快照为 `1.9Gi` 总量、约 `594Mi` 可用；后续远端回归仍需持续关注磁盘和内存余量
 - 本地运行态基线已恢复：
   - 排查确认此前 `quickshare-app-1` 重启循环不是 `compose.yaml` 配错，而是运行中的 app 容器丢失了 `quickshare_default` 网络 attachment
   - `docker compose up -d --force-recreate app` 后，`GET /api/health` 恢复 `UP`
@@ -42,16 +62,6 @@
   - 当前 canonical 路由改为 `quickdrop.html?view=temporary-history|account-history`
   - 旧的 `#temporary-history / #account-history` 仍兼容，但页面会自动收口到 query route
   - 浏览器返回主页面的页面级回归已同步通过
-- 内部预发布部署链路已开始去 GitHub 凭据依赖：
-  - `deploy-preprod.sh` 现在支持“源码快照上传 + 远端保留 `.env` + 时间戳回退目录”的 fallback 路径
-  - 这条路径适合当前私有/internal 测试阶段，不要求预发布机先具备 GitHub deploy key / token
-  - 本轮准备继续用新脚本做二次预发布验证时，目标机 `22/8080` 同时超时；当前阻塞已变成主机不可达
-- 预发布 TURN / 公网验证已继续推进一轮：
-  - 实测确认当前预发布机 `/root/quickshare` 还不是 git 仓库，且没有可拉取私有 GitHub 仓库的远端凭据，所以 `deploy-preprod.sh` 在这台机器上暂时仍无法直接走 GitHub 拉取式部署
-  - 为完成本轮验证，已改走“源码快照上传 + 保留 `.env` + 时间戳回退目录”的临时部署路径，预发布机当前源码已切到 `fd0ff0f`
-  - `GET /api/health` 返回 `UP`，`GET /api/public/quickdrop/rtc-config` 继续下发 `STUN + TURN(udp/tcp)` 与凭据
-  - 远端 `./scripts/quickshare-smoke.sh` 通过，Dockerized `./scripts/quickshare-playwright-smoke.sh` 通过
-  - 已补 same-account 一次性 real-browser 探针并确认：当前预发布环境下真实双页传输最终仍收口到 `relay`，还没有稳定命中 `direct`
 - QuickDrop 生命周期与任务详情已补到同一套任务语义：
   - same-account `task` 与 public `pair task` 现在都会返回 `attemptStatus`、开始/结束/失败原因，以及 `start / fallback / failed / completed / saved` 关键时间戳
   - `quickdrop.html` 和配对直传详情弹窗已显示 direct / relay attempt 时间线、fallback 原因和“已转存到网盘”反馈，不再只有粗粒度进度
@@ -217,12 +227,12 @@
   - 已实现 direct / relay attempt 生命周期摘要、失败原因与保存反馈的统一详情视图
   - 已实现直连诊断快照、selected candidate pair 观测和 “直连未就绪即回退” 的 direct fallback 写回
   - 本地工作区前端现在也能直接对真实后端执行 real-browser 探针，不必等 Docker 镜像重建完成
-  - 当前预发布机已经继续验证到“真实双页可传输，但最终模式仍主要收口 `relay`”；下一步仍是提高公网/TURN 下的稳定直传命中率，并继续统一 same-account `task` / public `pair task`
+  - 当前预发布机已经验证到“真实双页 same-account 传输可直接收口 `direct`”；下一步从“证明能直连”切换到“扩大不同 NAT / 网络条件下的直连命中率样本”，并继续统一 same-account `task` / public `pair task`
   - 页面层已继续朝 Snapdrop / PairDrop 风格收口，但还没到最终形态：
     - 首屏仍有进一步减少辅助文案和标签的空间
     - 历史页当前已从 hash 收口到 query route；后续仍可继续评估独立 URL
 - Docker 验收现在不再只靠零散手工 `curl`，而是已有仓库内脚本基线可直接重复执行。
-- 预发布部署现在也不再依赖本地打包上传，而是统一收口到 GitHub 拉取 + Docker Compose 构建。
+- 当前测试机已从源码快照目录收口为 git 工作副本，并已验证 `docker-compose + smoke + browser smoke` 这条远端入口；若后续要恢复纯 GitHub 拉取式部署，仍需补远端仓库读取凭据或把本地 bare mirror 同步机制产品化。
 - repo 内基础 smoke 已经覆盖到部分真实写路径，不再只是只读接口探针。
 - repo 内基础 smoke 已继续覆盖文件上传与真实下载，不再只停留在目录级写路径。
 - repo 内基础 smoke 已继续覆盖公开分享与公开下载的核心行为。
@@ -506,17 +516,16 @@
 - 容器回退模式当前还未覆盖文件传输类校验；这部分仍以主机模式 smoke 为主。
 - 当前浏览器自动化已覆盖管理台注册设置、通知中心、拖拽移动、选择模式批量操作弹窗、浏览器历史返回、套餐页、支付结果页、网盘配额侧栏和注册页 provider 切换，但还没有覆盖真实公网商户回跳和更广的登录后 CRUD 页面行为。
 - 当前 QuickDrop 已有同账号中转、公开分享和配对直传三条页面级自动化，但还没有覆盖“真实浏览器间大文件直传到完成下载”的整条路径。
-- 当前 QuickDrop 现已补一条本地真实双页浏览器回归，但它验证的是“真实两页传输与统一任务收口”；并没有把“headless 下稳定保持 direct 而不回退 relay”锁成通过门槛。
+- 当前 QuickDrop 已在远端 Dockerized Playwright 中命中过一次真实 `direct`；但这还不是“所有公网/NAT 条件都稳定直连”的证明，后续仍需要扩大网络样本，而不是把单机命中结果过度外推。
 - 当前 public / anonymous 直传虽然已有 server-first `pair task` 页面视图，但还没有和 same-account `task` 收敛成同一套顶层模型与操作语义。
 - 当前 QuickDrop 的公开取件页“已登录后直接显示保存控件”浏览器 mock 用例仍待继续收口；对应业务能力已通过运行态 API 验证。
 - 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架、public pair task 页面级任务视图，以及 direct / relay attempt 生命周期摘要；下一步重点转向真实双端公网/TURN 验证和顶层模型进一步统一。
-- 当前预发布机虽然已经能继续下发真实 TURN，并完成 same-account 双页真实传输，但这轮实测最终任务模式仍是 `relay`；说明“能传”已验证，“稳定直连命中”仍未验证通过。
-- 当前 `deploy-preprod.sh` 的 GitHub 拉取式部署在预发布机上还缺远端仓库凭据；若不补 deploy key / token，就仍需保留源码快照上传作为临时部署回退路径。
-- 当前准备继续做第二轮预发布验证时，目标机 `22/8080` 同时超时；在主机恢复前，这部分只能先停在本地回归与脚本收口。
+- 当前预发布机已经命中过 same-account `direct`，说明这台服务器上的 TURN / WebRTC 链路不再停留在“只会回退 relay”的状态；后续重点是扩大网络条件覆盖，而不是继续证明本机可直连。
+- 当前 `deploy-preprod.sh` 的 GitHub 拉取式路径仍需要远端仓库读取凭据；在凭据未补前，当前服务器的稳定入口是“git 工作副本 + 服务器本地 bare repo + docker-compose”。
 - 当前服务器还只是预发布环境：
   - 还没有 HTTPS / 证书
   - 还没有正式发布前的最终脱敏提交流程
-  - 还没跑完整服务器版 smoke 脚本和更长链路的 QuickDrop 真实文件传输验证
+  - 还没把更广的服务器端浏览器回归和更长链路的 QuickDrop 大文件直传验证补全
 - 当前 CI 仍以构建和语法检查为主，还没有把 Docker smoke 和选定 Playwright 用例作为默认门槛串起来；这属于下一步回归基线增强。
 - 当前 `downloads` 套餐口径是“登录用户自己的下载次数”；若未来要把匿名分享访问也计入套餐额度，需要重新定义扣减主体。
 - 当前存储策略还没有自动扩容、冷热分层、对象生命周期和容量告警；这些属于后续部署与运维增强。

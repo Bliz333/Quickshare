@@ -109,6 +109,7 @@ test.describe('Netdisk CRUD dialogs', () => {
       const createdFolder = await readJson(createFolderResponse);
       folderId = createdFolder.id;
 
+      await page.locator('.view-btn').first().click();
       await expect(page.locator('#listContent')).toBeVisible();
       await expect(listRow(page, folderName)).toBeVisible();
 
@@ -133,6 +134,7 @@ test.describe('Netdisk CRUD dialogs', () => {
       fileId = uploadedFile.id;
 
       await page.reload();
+      await page.locator('.view-btn').first().click();
       await expect(page.locator('#listContent')).toBeVisible();
       await expect(listRow(page, fileName)).toBeVisible();
 

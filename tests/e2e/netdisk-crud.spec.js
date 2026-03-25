@@ -157,6 +157,11 @@ test.describe('Netdisk CRUD dialogs', () => {
       const renameFileResponse = await renameFilePromise;
       expect(renameFileResponse.ok()).toBeTruthy();
       expect((await renameFileResponse.json()).code).toBe(200);
+      await page.evaluate(async () => {
+        if (typeof loadFiles === 'function') {
+          await loadFiles();
+        }
+      });
       const renamedFileItem = await getVisibleNetdiskItem(page, renamedFileName);
       await expect(renamedFileItem).toBeVisible();
 

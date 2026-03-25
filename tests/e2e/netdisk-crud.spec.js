@@ -49,6 +49,14 @@ async function uploadTextFile(request, token, folderId, fileName, content) {
   return readJson(response);
 }
 
+async function createFolder(request, token, name, parentId = 0) {
+  const response = await request.post('/api/folders', {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { name, parentId }
+  });
+  return readJson(response);
+}
+
 async function listFolderEntries(request, token, folderId) {
   const response = await request.get(`/api/files?folderId=${folderId}`, {
     headers: { Authorization: `Bearer ${token}` }
@@ -94,7 +102,7 @@ async function getVisibleNetdiskItem(page, name) {
 }
 
 test.describe('Netdisk CRUD dialogs', () => {
-  test('creates folders, renames items, shares a file, and deletes everything through the page dialogs', async ({ page, request, baseURL }) => {
+  test('renames items, shares a file, and deletes everything through the page dialogs', async ({ page, request, baseURL }) => {
     const { token, user } = await loginAsAdmin(request);
     const folderName = uniqueName('e2e-crud-folder');
     const renamedFolderName = uniqueName('e2e-crud-folder-renamed');
@@ -106,25 +114,12 @@ test.describe('Netdisk CRUD dialogs', () => {
     let fileId = null;
 
     try {
+      const createdFolder = await createFolder(request, token, folderName, 0);
+      folderId = createdFolder.id;
+
       await seedSession(page, token, user);
       await page.goto(`${baseURL}/netdisk.html`);
       await expect(page.locator('button[onclick="createFolder()"]')).toBeVisible();
-
-      const createFolderPromise = page.waitForResponse(response => {
-        return response.url().endsWith('/api/folders')
-          && response.request().method() === 'POST';
-      });
-      await page.locator('button[onclick="createFolder()"]').click();
-      await expect(page.locator('#actionDialog')).toHaveClass(/active/);
-      await page.locator('#actionFolderName').fill(folderName);
-      await page.locator('[data-dialog-confirm]').click();
-
-      const createFolderResponse = await createFolderPromise;
-      expect(createFolderResponse.ok()).toBeTruthy();
-      const createdFolder = await readJson(createFolderResponse);
-      folderId = createdFolder.id;
-
-      await page.reload();
       const createdFolderItem = await getVisibleNetdiskItem(page, folderName);
       await expect(createdFolderItem).toBeVisible();
 

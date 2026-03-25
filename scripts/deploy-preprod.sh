@@ -30,6 +30,7 @@ DEPLOY_MIN_DISK_MB="${DEPLOY_MIN_DISK_MB:-2048}"
 DEPLOY_MIN_MEM_MB="${DEPLOY_MIN_MEM_MB:-256}"
 DEPLOY_PRUNE_DOCKER_ON_LOW_DISK="${DEPLOY_PRUNE_DOCKER_ON_LOW_DISK:-1}"
 DEPLOY_CLEANUP_REMOTE_ARTIFACTS="${DEPLOY_CLEANUP_REMOTE_ARTIFACTS:-1}"
+DEPLOY_TIMEOUT_BIN="${DEPLOY_TIMEOUT_BIN:-}"
 
 LOCAL_HEAD="$(git rev-parse HEAD)"
 LOCAL_REMOTE_HEAD="$(git rev-parse --verify "${DEPLOY_GIT_REMOTE}/${DEPLOY_GIT_BRANCH}" 2>/dev/null || true)"
@@ -68,7 +69,15 @@ if ! command -v "$DEPLOY_SCP_BIN" >/dev/null 2>&1; then
         fail "missing command: $DEPLOY_SCP_BIN"
     fi
 fi
-require_cmd timeout
+if [[ -z "$DEPLOY_TIMEOUT_BIN" ]]; then
+    if command -v timeout >/dev/null 2>&1; then
+        DEPLOY_TIMEOUT_BIN="timeout"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        DEPLOY_TIMEOUT_BIN="gtimeout"
+    else
+        log "timeout command not found; remote deploy wrapper will run without a local timeout guard"
+    fi
+fi
 
 SSH_CMD=("$DEPLOY_SSH_BIN")
 if [[ "$(basename "$DEPLOY_SSH_BIN")" == "ssh" ]]; then
@@ -99,8 +108,12 @@ fi
 
 log "deploying branch ${DEPLOY_GIT_BRANCH} on ${DEPLOY_TARGET}"
 set +e
-timeout --signal=TERM --kill-after=10 "${DEPLOY_SSH_TIMEOUT_SECONDS}" \
-    "${SSH_CMD[@]}" bash -s -- \
+REMOTE_EXEC_CMD=("${SSH_CMD[@]}")
+if [[ -n "$DEPLOY_TIMEOUT_BIN" ]]; then
+    REMOTE_EXEC_CMD=("$DEPLOY_TIMEOUT_BIN" --signal=TERM --kill-after=10 "${DEPLOY_SSH_TIMEOUT_SECONDS}" "${SSH_CMD[@]}")
+fi
+
+"${REMOTE_EXEC_CMD[@]}" bash -s -- \
     "$DEPLOY_REMOTE_DIR" \
     "$DEPLOY_REMOTE_MIRROR_DIR" \
     "$DEPLOY_GIT_REMOTE" \

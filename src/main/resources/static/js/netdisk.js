@@ -805,7 +805,7 @@ function openCreateFolderDialog() {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ name, parentId: currentFolder })
+                    body: JSON.stringify({ name, parentId: currentFolder == null ? 0 : currentFolder })
                 });
                 const result = await response.json();
 

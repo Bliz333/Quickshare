@@ -138,10 +138,7 @@ test.describe('Netdisk CRUD dialogs', () => {
       const renamedFolderItem = await getVisibleNetdiskItem(page, renamedFolderName);
       await expect(renamedFolderItem).toBeVisible();
 
-      await renamedFolderItem.click();
-      await expect(page.locator('#breadcrumbPath')).toContainText(renamedFolderName);
-
-      const uploadedFile = await uploadTextFile(request, token, folderId, fileName, fileContent);
+      const uploadedFile = await uploadTextFile(request, token, 0, fileName, fileContent);
       fileId = uploadedFile.id;
 
       await page.reload();

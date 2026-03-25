@@ -81,15 +81,11 @@ async function deleteFolderIfExists(request, token, folderId) {
 }
 
 function listRow(page, name) {
-  return page.locator('#listContent > div').filter({
-    has: page.getByText(name, { exact: true })
-  }).first();
+  return page.locator('#listContent > div', { hasText: name }).first();
 }
 
 function gridCard(page, name) {
-  return page.locator('#gridView > div').filter({
-    has: page.getByText(name, { exact: true })
-  }).first();
+  return page.locator('#gridView > div', { hasText: name }).first();
 }
 
 async function getVisibleNetdiskItem(page, name) {

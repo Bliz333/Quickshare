@@ -218,6 +218,44 @@ test.describe('Pricing and payment pages', () => {
     await expect(page.locator('#paymentRefreshBtn')).toHaveCount(0);
   });
 
+  test('payment result page manual refresh updates a pending order to refunded', async ({ page, request, baseURL }) => {
+    const { token, user } = await loginAsAdmin(request);
+    let requestCount = 0;
+
+    await page.route('**/api/payment/order/QS-MANUAL-E2E', async route => {
+      requestCount += 1;
+      const status = requestCount === 1 ? 'pending' : 'refunded';
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            orderNo: 'QS-MANUAL-E2E',
+            planName: 'E2E Manual Refresh Plan',
+            amount: 9.99,
+            status
+          }
+        })
+      });
+    });
+
+    await seedSession(page, token, user);
+    await page.goto(`${baseURL}/payment-result.html?order_no=QS-MANUAL-E2E`);
+
+    const refreshButton = page.locator('#paymentRefreshBtn');
+    await expect(page.locator('.result-icon')).toHaveClass(/pending/);
+    await expect(refreshButton).toBeVisible();
+    await refreshButton.click();
+
+    await expect.poll(() => requestCount).toBeGreaterThan(1);
+    await expect(page.locator('.result-icon')).toHaveClass(/refunded/);
+    await expect(page.locator('#resultContent')).toContainText('QS-MANUAL-E2E');
+    await expect(refreshButton).toHaveCount(0);
+  });
+
   test('pricing page opens pay modal and redirects after create-order success', async ({ page, request, baseURL }) => {
     const { token, user } = await loginAsAdmin(request);
     const plans = await readJson(await request.get('/api/public/plans'));

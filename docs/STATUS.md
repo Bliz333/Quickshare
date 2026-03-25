@@ -1,4 +1,4 @@
-# QuickShare 当前状态（2026-03-24）
+# QuickShare 当前状态（2026-03-25）
 
 顶层状态文档从今天开始只保留“当前真实状态”。历史分阶段记录继续保存在 `docs/archive/`，不再把旧里程碑和现状混写在一起。
 
@@ -16,6 +16,24 @@
 
 ## 今日已完成
 
+- 本地运行态基线已恢复：
+  - 排查确认此前 `quickshare-app-1` 重启循环不是 `compose.yaml` 配错，而是运行中的 app 容器丢失了 `quickshare_default` 网络 attachment
+  - `docker compose up -d --force-recreate app` 后，`GET /api/health` 恢复 `UP`
+  - `./scripts/quickshare-smoke.sh` 重新通过，本地 `health -> smoke` 验收入口已恢复
+- QuickDrop same-account 发送前已补短暂直连重试：
+  - `quickdrop.js` 现在会对“直连信令暂时未就绪”的 `ensurePairWithDevice` 错误补一小段重试，不再第一次失败就立刻回退 relay
+  - 已补页面级回归，覆盖“第一次报目标设备信令未连上，第二次重试成功，最终仍走 direct”
+- QuickDrop 工作区静态前端已能连真实后端信令：
+  - `quickdrop-signal.js` 现在会优先按 `AppConfig.API_BASE` 解析 `/ws/quickdrop` 的 host/protocol
+  - 本地 `localhost:8081` 静态页面不再把 QuickDrop WebSocket 错误地连到 `localhost:8081`，而会随 `API_BASE` 连到 `localhost:8080`
+- QuickDrop real-browser 探针已支持拆分页面地址与 API 地址：
+  - `tests/e2e/quickdrop-real.spec.js` 现已支持 `PLAYWRIGHT_BASE_URL + PLAYWRIGHT_API_BASE_URL`
+  - 额外输出 `signalConnected / signalDirectState / signalPeerDeviceId`
+  - 最新本地探针已确认：
+    - updated 前端已能连上真实后端信令
+    - 当前 `rtcHasTurn=false`、`rtcHasStun=true`
+    - 链路会进入 `negotiating`
+    - 但 candidate 统计仍全 0，最终仍收口 `relay`
 - QuickDrop 真实直连诊断已继续补强：
   - `quickdrop-signal.js` 现在会保留 `rtcHasTurn / rtcHasStun`、candidate type 统计、selected candidate pair、ICE/connection state 和 ready-timeout 事件
   - `tests/e2e/quickdrop-real.spec.js` 现已打印最终 `transferMode / currentTransferMode / attemptStatus` 和直连诊断快照，不再只知道“测试通过”
@@ -198,6 +216,7 @@
   - 已实现同账号发送端在直传中途失败时自动切到服务器中转
   - 已实现 direct / relay attempt 生命周期摘要、失败原因与保存反馈的统一详情视图
   - 已实现直连诊断快照、selected candidate pair 观测和 “直连未就绪即回退” 的 direct fallback 写回
+  - 本地工作区前端现在也能直接对真实后端执行 real-browser 探针，不必等 Docker 镜像重建完成
   - 当前预发布机已经继续验证到“真实双页可传输，但最终模式仍主要收口 `relay`”；下一步仍是提高公网/TURN 下的稳定直传命中率，并继续统一 same-account `task` / public `pair task`
   - 页面层已继续朝 Snapdrop / PairDrop 风格收口，但还没到最终形态：
     - 首屏仍有进一步减少辅助文案和标签的空间

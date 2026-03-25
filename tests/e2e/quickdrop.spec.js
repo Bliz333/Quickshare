@@ -460,6 +460,175 @@ test.describe('QuickDrop pages', () => {
     expect(relayTransferCreated).toBe(false);
   });
 
+  test('same-account send retries transient direct-session signaling errors before falling back to relay', async ({ page, baseURL }) => {
+    await stubQuickDropRealtime(page, { lang: 'en' });
+    await page.addInitScript(() => {
+      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('user', JSON.stringify({
+        id: 1,
+        username: 'admin',
+        nickname: 'QuickShare Admin',
+        role: 'ADMIN'
+      }));
+    });
+
+    await page.route('**/api/profile', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            id: 1,
+            username: 'admin',
+            nickname: 'QuickShare Admin',
+            role: 'ADMIN'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/quickdrop/sync', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            currentDevice: {
+              deviceId: 'device-a',
+              deviceName: 'My Desktop',
+              deviceType: 'Windows',
+              current: true,
+              online: true,
+              lastSeenAt: '2026-03-21T10:00:00'
+            },
+            devices: [
+              {
+                deviceId: 'device-a',
+                deviceName: 'My Desktop',
+                deviceType: 'Windows',
+                current: true,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              },
+              {
+                deviceId: 'device-b',
+                deviceName: 'My Laptop',
+                deviceType: 'Mac',
+                current: false,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              }
+            ],
+            incomingTransfers: [],
+            outgoingTransfers: [],
+            recommendedChunkSize: 2097152
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/folders/all', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: []
+        })
+      });
+    });
+
+    let relayTransferCreated = false;
+    await page.route('**/api/quickdrop/direct-sessions', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            pairSessionId: 'pair-same-account-retry',
+            selfChannelId: 'user:1:device:device-a',
+            selfDeviceId: 'device-a',
+            peerChannelId: 'user:1:device:device-b',
+            peerDeviceId: 'device-b',
+            peerLabel: 'My Laptop'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/quickdrop/transfers', async route => {
+      if (route.request().method() === 'POST') {
+        relayTransferCreated = true;
+      }
+      await route.fallback();
+    });
+
+    await gotoQuickDropPage(page, baseURL);
+
+    await page.evaluate(() => {
+      window.__quickDropDirectChoice = null;
+      window.__quickDropEnsurePairAttempts = 0;
+      window.__quickDropPeerReady = false;
+
+      QuickDropSignalManager.ensurePairWithDevice = async () => {
+        window.__quickDropEnsurePairAttempts += 1;
+        if (window.__quickDropEnsurePairAttempts === 1) {
+          throw new Error('目标设备当前没有连上直连信令');
+        }
+        window.__quickDropPeerReady = true;
+        return {
+          pairSessionId: 'pair-same-account-retry',
+          peerChannelId: 'user:1:device:device-b',
+          peerDeviceId: 'device-b',
+          peerLabel: 'My Laptop'
+        };
+      };
+      QuickDropSignalManager.waitForDirectReady = async () => window.__quickDropPeerReady;
+      QuickDropSignalManager.isDirectReady = () => window.__quickDropPeerReady;
+      QuickDropSignalManager.getState = () => ({
+        connected: true,
+        latestPeerLabel: window.__quickDropPeerReady ? 'My Laptop' : '',
+        latestPeerChannelId: window.__quickDropPeerReady ? 'user:1:device:device-b' : '',
+        latestPeerDeviceId: window.__quickDropPeerReady ? 'device-b' : '',
+        directState: window.__quickDropPeerReady ? 'ready' : 'idle',
+        directDiagnostics: {
+          rtcHasTurn: false
+        }
+      });
+
+      QuickDropDirectTransfer.canSendToPeerDevice = deviceId => deviceId === 'device-b';
+      QuickDropDirectTransfer.sendFile = async (file, options) => {
+        window.__quickDropDirectChoice = {
+          fileName: file.name,
+          expectedPeerDeviceId: options.expectedPeerDeviceId
+        };
+        return { transferId: 'direct-same-account-retry-1' };
+      };
+    });
+
+    await page.locator('[data-quickdrop-device="device-b"]').click();
+    await page.setInputFiles('#quickDropFileInput', {
+      name: 'retry-direct.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('hello')
+    });
+    await page.locator('#quickDropSendBtn').click();
+
+    await expect.poll(() => page.evaluate(() => window.__quickDropEnsurePairAttempts)).toBe(2);
+    expect(await page.evaluate(() => window.__quickDropDirectChoice)).toEqual({
+      fileName: 'retry-direct.txt',
+      expectedPeerDeviceId: 'device-b'
+    });
+    expect(relayTransferCreated).toBe(false);
+  });
+
   test('supports public share create flow', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
       localStorage.setItem('quickshare-lang', 'en');

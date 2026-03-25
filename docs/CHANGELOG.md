@@ -2,6 +2,17 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-25 (QuickDrop 本地基线恢复、直连重试与信令地址收口)
+
+- 详细记录：`docs/archive/2026-03-25-quickdrop-local-signal-origin-and-baseline-recovery.md`
+- 核心变更：
+  - 本地 `quickshare-app-1` 运行态已恢复：之前容器丢失 `quickshare_default` 网络 attachment，`docker compose up -d --force-recreate app` 后 `health` 与 `quickshare-smoke.sh` 再次通过
+  - `quickdrop.js` 已为 same-account 发送前的 `ensurePairWithDevice` 补短暂重试，避免对端信令刚起时第一次失败就立刻回退 relay
+  - `quickdrop-signal.js` 现在会优先按 `AppConfig.API_BASE` 解析 WebSocket host/protocol；工作区静态前端 (`localhost:8081`) 也能把 QuickDrop 信令连到真实后端 (`localhost:8080`)
+  - `tests/e2e/quickdrop.spec.js` 已新增“短暂信令错误后重试成功，最终仍走 direct”页面回归；整份 `quickdrop.spec.js` 当前在 `localhost:8081` 基线上通过 (`16 passed, 1 skipped`)
+  - `tests/e2e/quickdrop-real.spec.js` 已支持 `PLAYWRIGHT_API_BASE_URL`，并输出 `signalConnected / signalDirectState / signalPeerDeviceId`
+  - 最新 real-browser 探针确认：updated 前端已能连上真实后端信令，但当前链路仍是 `rtcHasTurn=false`、停在 `negotiating` 后最终回退 `relay`
+
 ## 2026-03-24 (QuickDrop 直连诊断、历史页 route 与内部部署回退)
 
 - 详细记录：`docs/archive/2026-03-24-quickdrop-direct-observability-and-snapshot-deploy-fallback.md`

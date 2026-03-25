@@ -949,6 +949,24 @@ function getQuickDropDirectReadyWaitMs(baseMs) {
     return Number(baseMs) || 0;
 }
 
+function waitQuickDropMs(delayMs) {
+    return new Promise(resolve => {
+        window.setTimeout(resolve, Math.max(0, Number(delayMs) || 0));
+    });
+}
+
+function isQuickDropRetryableDirectRouteError(error) {
+    const message = String(error?.message || '').trim();
+    if (!message) {
+        return false;
+    }
+    const normalizedMessage = message.toLowerCase();
+    return message.includes('直连信令')
+        || normalizedMessage.includes('signaling offline')
+        || normalizedMessage.includes('signaling is still offline')
+        || normalizedMessage.includes('direct session failed');
+}
+
 function resolveQuickDropDirectFallbackReason(receiverDeviceId) {
     const signalState = quickDropSignalState();
     const diagnostics = signalState.directDiagnostics || {};
@@ -1016,13 +1034,24 @@ async function maybeEnsureSelectedDeviceDirectRoute(options = {}) {
     if (!canReuseAttempt || !quickDropDirectMatchesSelectedDevice()) {
         quickDropState.directSessionTargetDeviceId = targetDevice.deviceId;
         quickDropState.directSessionLastAttemptAt = now;
-        try {
-            await QuickDropSignalManager.ensurePairWithDevice(targetDevice.deviceId, { force });
-        } catch (error) {
-            if (!options.silent) {
-                showToast(error.message, 'warning');
+        const pairRetryCount = Math.max(0, Number(options.pairRetryCount) || 0);
+        const pairRetryDelayMs = Math.max(0, Number(options.pairRetryDelayMs) || 0);
+        for (let attemptIndex = 0; attemptIndex <= pairRetryCount; attemptIndex += 1) {
+            try {
+                await QuickDropSignalManager.ensurePairWithDevice(targetDevice.deviceId, { force });
+                break;
+            } catch (error) {
+                const retryable = attemptIndex < pairRetryCount
+                    && isQuickDropRetryableDirectRouteError(error);
+                if (retryable) {
+                    await waitQuickDropMs(pairRetryDelayMs * (attemptIndex + 1));
+                    continue;
+                }
+                if (!options.silent) {
+                    showToast(error.message, 'warning');
+                }
+                return false;
             }
-            return false;
         }
     }
 
@@ -1857,7 +1886,9 @@ async function sendSingleQuickDropFile(selectedItem, batchIndex, batchTotal) {
             silent: true,
             waitForReadyMs: 1800,
             settleWaitMs: 4200,
-            forceOnUnavailable: true
+            forceOnUnavailable: true,
+            pairRetryCount: 2,
+            pairRetryDelayMs: 450
         });
         if (directReady
             && window.QuickDropDirectTransfer

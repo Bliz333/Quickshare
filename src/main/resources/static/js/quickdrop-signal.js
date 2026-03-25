@@ -256,8 +256,22 @@ const QuickDropSignalManager = (() => {
         return `${owner} · ${detectDeviceType()}`;
     }
 
-    function getWsUrl() {
+    function getWsOrigin() {
+        const configuredApiBase = window.AppConfig?.API_BASE || '';
+        if (configuredApiBase) {
+            try {
+                const apiUrl = new URL(configuredApiBase, window.location.href);
+                const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+                return `${protocol}//${apiUrl.host}`;
+            } catch (error) {
+                // fall back to the current page origin
+            }
+        }
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${protocol}//${window.location.host}`;
+    }
+
+    function getWsUrl() {
         const params = new URLSearchParams();
         params.set('deviceId', getDeviceId());
         params.set('deviceName', getDeviceName());
@@ -267,7 +281,7 @@ const QuickDropSignalManager = (() => {
         } else {
             params.set('guestId', getGuestId());
         }
-        return `${protocol}//${window.location.host}/ws/quickdrop?${params.toString()}`;
+        return `${getWsOrigin()}/ws/quickdrop?${params.toString()}`;
     }
 
     function extractDeviceId(channelId) {

@@ -194,6 +194,7 @@ npx playwright test tests/e2e/netdisk-drag.spec.js
 npx playwright test tests/e2e/netdisk-quota.spec.js
 npx playwright test tests/e2e/quickdrop.spec.js
 npx playwright test tests/e2e/quickdrop-real.spec.js
+PLAYWRIGHT_BASE_URL=http://localhost:8081 PLAYWRIGHT_API_BASE_URL=http://localhost:8080/api npx playwright test tests/e2e/quickdrop-real.spec.js
 ./scripts/quickshare-playwright-smoke.sh
 ./scripts/deploy-preprod.sh
 DEPLOY_GIT_BRANCH=main DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
@@ -249,6 +250,7 @@ DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 - QuickDrop 同账号页在服务端 `incomingTasks / outgoingTasks` 存在时，会优先按统一任务列表渲染和删除
 - QuickDrop 本地真实双页浏览器传输可把同账号任务落到统一任务列表
 - Dockerized Playwright smoke 可在无本地 Node 的预发布机上直接复用 `quickdrop-real.spec.js`，不再依赖手工装浏览器
+- 本地若需要用工作区静态前端验证真实后端，可起一个 `localhost:8081` 静态服务器，再配合 `PLAYWRIGHT_API_BASE_URL=http://localhost:8080/api` 运行 `quickdrop-real.spec.js`
 - QuickDrop 公开配对直传会把 attempt 写回服务端 `pair task`
 - QuickDrop 公开配对页现已优先按服务端 `pair task` 渲染页面级任务视图，而不只看浏览器本地 incoming 记录
 - QuickDrop 公开配对页的任务详情弹窗会显示 `pairTaskId / pairSessionId`，且 server-only pair task 也可页内删除

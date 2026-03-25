@@ -6,11 +6,19 @@ async function readJson(response) {
   return body.data;
 }
 
-async function loginAsAdmin(request) {
+function resolveApiBaseUrl(baseURL) {
+  const explicit = (process.env.PLAYWRIGHT_API_BASE_URL || '').trim();
+  if (explicit) {
+    return explicit.replace(/\/$/, '');
+  }
+  return `${String(baseURL || '').replace(/\/$/, '')}/api`;
+}
+
+async function loginAsAdmin(request, apiBaseUrl) {
   const username = process.env.E2E_ADMIN_USERNAME || 'admin';
   const password = process.env.E2E_ADMIN_PASSWORD || 'ChangeMeAdmin123!';
 
-  const response = await request.post('/api/auth/login', {
+  const response = await request.post(`${apiBaseUrl}/auth/login`, {
     data: { username, password }
   });
   expect(response.ok()).toBeTruthy();
@@ -38,8 +46,8 @@ async function seedQuickDropSession(context, token, user, deviceId, deviceName) 
   );
 }
 
-async function registerDevice(request, token, deviceId, deviceName) {
-  const response = await request.post('/api/quickdrop/sync', {
+async function registerDevice(request, apiBaseUrl, token, deviceId, deviceName) {
+  const response = await request.post(`${apiBaseUrl}/quickdrop/sync`, {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       deviceId,
@@ -55,9 +63,10 @@ test.describe('QuickDrop real browser flow', () => {
   test('same-account real two-page transfer lands in unified task list', async ({ browser, request, baseURL }) => {
     test.setTimeout(120000);
 
-    const { token, user } = await loginAsAdmin(request);
-    await registerDevice(request, token, 'device-sender-real', 'Sender Browser');
-    await registerDevice(request, token, 'device-receiver-real', 'Receiver Browser');
+    const apiBaseUrl = resolveApiBaseUrl(baseURL);
+    const { token, user } = await loginAsAdmin(request, apiBaseUrl);
+    await registerDevice(request, apiBaseUrl, token, 'device-sender-real', 'Sender Browser');
+    await registerDevice(request, apiBaseUrl, token, 'device-receiver-real', 'Receiver Browser');
 
     const senderContext = await browser.newContext();
     const receiverContext = await browser.newContext();
@@ -105,6 +114,7 @@ test.describe('QuickDrop real browser flow', () => {
       finalSnapshot = await senderPage.evaluate(() => {
         const item = window.quickDropState?.displayOutgoingTransfers?.[0] || null;
         const task = item?.task || null;
+        const signalLoaded = Boolean(window.QuickDropSignalManager);
         const signal = window.QuickDropSignalManager?.getState?.() || {};
         return {
           taskId: task?.taskId || task?.id || item?.taskId || null,
@@ -122,6 +132,10 @@ test.describe('QuickDrop real browser flow', () => {
             failureReason: attempt.failureReason,
             updateTime: attempt.updateTime
           })),
+          signalLoaded,
+          signalConnected: Boolean(signal.connected),
+          signalDirectState: signal.directState || null,
+          signalPeerDeviceId: signal.latestPeerDeviceId || null,
           directDiagnostics: signal.directDiagnostics || null
         };
       });
@@ -134,7 +148,7 @@ test.describe('QuickDrop real browser flow', () => {
       }
     } finally {
       if (createdTaskId) {
-        await request.delete(`/api/quickdrop/tasks/${createdTaskId}?deviceId=device-sender-real`, {
+        await request.delete(`${apiBaseUrl}/quickdrop/tasks/${createdTaskId}?deviceId=device-sender-real`, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }

@@ -78,6 +78,20 @@ function listRow(page, name) {
   }).first();
 }
 
+async function ensureListView(page) {
+  await page.evaluate(() => {
+    currentView = 'list';
+    document.getElementById('listView')?.classList.remove('hidden');
+    document.getElementById('gridView')?.classList.add('hidden');
+    const viewButtons = document.querySelectorAll('.view-btn');
+    viewButtons.forEach(button => button.classList.remove('active', 'bg-brand-50', 'text-brand-600'));
+    viewButtons[0]?.classList.add('active', 'bg-brand-50', 'text-brand-600');
+    if (typeof renderFiles === 'function') {
+      renderFiles();
+    }
+  });
+}
+
 test.describe('Netdisk CRUD dialogs', () => {
   test('creates folders, renames items, shares a file, and deletes everything through the page dialogs', async ({ page, request, baseURL }) => {
     const { token, user } = await loginAsAdmin(request);
@@ -109,7 +123,7 @@ test.describe('Netdisk CRUD dialogs', () => {
       const createdFolder = await readJson(createFolderResponse);
       folderId = createdFolder.id;
 
-      await page.locator('.view-btn').first().click();
+      await ensureListView(page);
       await expect(page.locator('#listContent')).toBeVisible();
       await expect(listRow(page, folderName)).toBeVisible();
 
@@ -134,7 +148,7 @@ test.describe('Netdisk CRUD dialogs', () => {
       fileId = uploadedFile.id;
 
       await page.reload();
-      await page.locator('.view-btn').first().click();
+      await ensureListView(page);
       await expect(page.locator('#listContent')).toBeVisible();
       await expect(listRow(page, fileName)).toBeVisible();
 

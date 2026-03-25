@@ -23,6 +23,13 @@
   - 已在远端以等价真实流程验证：bare mirror 更新、worktree 切到 `030f67c`、`docker-compose up --build -d`、`quickshare-smoke.sh`、`quickshare-playwright-smoke.sh` 全部通过
   - 最新 `quickdrop-real` 本轮最终收口为 `relay`，说明部署链路已稳，但 `direct` 命中仍需在下一阶段继续专项收口
 
+## 2026-03-26 (支付结果页回归自包含化)
+
+- 核心变更：
+  - `tests/e2e/pricing-payment.spec.js` 中“已有订单详情展示”现已改成 mocked paid order，不再依赖测试环境预先存在订单
+  - 新增支付结果页手动刷新回归，覆盖 `pending -> refunded` 的结果切换
+  - 最新远端执行结果：`7 passed, 1 skipped`
+
 ## 2026-03-25 (QuickDrop 本地基线恢复、直连重试与信令地址收口)
 
 - 详细记录：`docs/archive/2026-03-25-quickdrop-local-signal-origin-and-baseline-recovery.md`

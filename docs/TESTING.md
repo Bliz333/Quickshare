@@ -300,6 +300,7 @@ DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 - 套餐页在“无商户”和“有订单历史”场景下的页面渲染
 - 支付结果页在“已有订单”和“缺少 order_no”场景下的页面渲染
 - 支付结果页 `pending -> paid` 自动轮询状态切换
+- 支付结果页手动刷新后的 `pending -> refunded` 状态切换
 - 真实默认商户创建订单后的跳转参数
 - 临时测试商户下 `pending -> paid -> refunded` 和配额回滚
 - 注册页 `reCAPTCHA` / `Turnstile` provider 切换

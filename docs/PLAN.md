@@ -21,6 +21,10 @@
   - same-account `task` 与 public `pair task` 已补统一的 attempt 生命周期摘要字段
   - `quickdrop.html` / 配对直传详情已显示开始/结束/失败原因、fallback 时间与转存反馈
   - 已补 QuickDrop 定向 service test 与 `tests/e2e/quickdrop.spec.js` 页面回归
+- 已完成阶段 E：远端部署基线第一轮固化
+  - 已新增 `scripts/quickshare-resource-check.sh`
+  - `deploy-preprod.sh` 已补原生 `ssh/scp` 回退、bundle mirror fallback 和远端资源预检
+  - 最新远端等价部署流程已在 `030f67c` 上通过 compose 重建、smoke 与 browser smoke
 
 ## 分阶段 Checklist（按风险优先级）
 
@@ -29,16 +33,16 @@
 - 当前状态：已完成新一轮远端基线重建。测试机现已具备 JDK/Maven/Node，`/root/quickshare` 已收口为 git 工作副本，远端 `smoke` 与 Dockerized `quickdrop-real` 已重新通过，而且本轮真实双页 same-account 传输最终命中 `direct`
 
 - 目标：
-  - 把当前“服务器本地 bare repo + git 工作副本”的更新路径整理成正式做法，避免再次退回无 `.git` 的源码快照目录
-  - 明确是否要为测试机补 GitHub 只读凭据；若不补，就把本地镜像同步路径文档化
+  - 把当前“服务器本地 bare repo + git 工作副本”的更新路径继续收口成真正的一键流程
+  - 明确是否要为测试机补 GitHub 只读凭据；若不补，就把本地镜像同步路径正式文档化
   - 在资源受限前提下继续保持 `health`、QuickDrop `sync`、`rtc-config`、公开分享创建和真实双页传输可复现
 - 建议提交边界：
-  - 远端部署基线、资源治理规则、主分支切换与文档同步一组提交
+  - 远端部署基线脚本、资源治理规则、运维文档同步一组提交
 - 验收：
   - 预发布机继续保持 git 工作副本，不再回退成纯源码快照目录
   - 远端磁盘与内存余量在一次完整回归后仍保持安全余量
   - `curl /api/health`、`curl /api/public/quickdrop/rtc-config` 正常
-  - same-account 真实双页验证继续可复现 `direct` 命中样本，或至少明确新失败来自哪类网络条件
+  - same-account 真实双页验证继续可复现 `direct` 命中样本，或至少明确最新 `relay` 回退来自哪类网络条件
   - 补一条新的 archive 记录远端重建、回归结果和资源清理结果
 
 ### Phase 2. QuickDrop 生命周期与任务语义补强
@@ -104,6 +108,7 @@
 - 条件允许时继续补浏览器自动化，而不是只依赖手工点击回归。
 - 当前 Playwright + Chromium 基线已经可用，下一步应继续扩大页面级覆盖面，优先补真实公网商户回跳场景、更多登录后网盘 CRUD 交互，以及把当前默认验收脚本同步进 CI。
 - 脚本层已经支持 GitHub 拉取式；但当前测试机的真实稳定底座是“git 工作副本 + 服务器本地 bare repo + docker-compose”。下一步更值得投入的是把这条远端基线固化，而不是再回到无版本信息的源码快照目录。
+- 这一轮远端部署基线已经补上资源检查和 bundle mirror fallback，因此下一阶段可以顺势转向“回归自动化扩展”，而不是继续反复手工重建同一条部署链路。
 
 ### 3. 部署与文档卫生
 
@@ -164,8 +169,8 @@
       - same-account 在“直连未就绪即回退 relay”时，现已写回 direct fallback attempt
     - 已完成补充步：预发布 TURN / same-account 真实链路复核
       - 预发布 `health`、`rtc-config`、远端 smoke 与 Dockerized 浏览器 smoke 已继续通过
-      - 最新远端 real-browser 探针已确认当前 same-account 双页真实传输可直接收口 `direct`
-      - 下一步要解决的是“扩大不同网络条件下的稳定直连命中率”，不是“这台测试机能否直连”
+      - 远端 real-browser 已经出现过 `direct` 命中样本，但最新一次又回到 `relay`
+      - 下一步要解决的是“扩大不同网络条件下的稳定直连命中率”，不是“这台测试机能否完成传输”
     - 已完成补充步：QuickDrop 页面级减法收口
       - `quickdrop.html` 首屏已继续去掉步骤条和大段解释
       - 临时互传与同账号发送都已改成“单入口选择内容”

@@ -120,6 +120,7 @@ The project now uses a remote-first validation workflow:
 Recommended acceptance flow:
 
 ```bash
+./scripts/quickshare-resource-check.sh --ensure
 ./scripts/check-js.sh
 ./mvnw -q -DskipTests compile
 # add the nearest targeted JUnit set for the change
@@ -131,14 +132,18 @@ docker-compose up --build -d --remove-orphans
 Notes:
 
 - The remote test machine has limited disk and memory, so resource checks matter.
+- `scripts/quickshare-resource-check.sh` is the repo-level resource snapshot / low-disk guard for the test server.
 - After heavy rebuilds, prune temporary artifacts and unused Docker images.
 - Full details live in [docs/README.md](docs/README.md) and [docs/TESTING.md](docs/TESTING.md).
 
 ## Deployment Notes
 
 - The application image is self-contained and can be built directly from a fresh git checkout.
-- `deploy-preprod.sh` supports a Git-based flow when the remote host can read the configured repository.
-- For private environments without direct repository access, the current stable alternative is a server-local git mirror / bare repo or the existing snapshot fallback path.
+- `deploy-preprod.sh` now:
+  - falls back to plain `ssh` / `scp` when local helper commands are absent
+  - prefers a git-bundle-to-remote-mirror path before dropping to raw snapshot extraction
+  - performs remote disk / memory checks before build and prints a resource summary after validation
+- For private environments without direct repository access, the current stable alternative is a server-local git mirror / bare repo, with snapshot fallback kept as the last resort.
 
 ## Project Docs
 

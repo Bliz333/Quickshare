@@ -50,12 +50,14 @@ docker system df
 当前远端默认命令序列：
 
 ```bash
+./scripts/quickshare-resource-check.sh --ensure
 ./scripts/check-js.sh
 ./mvnw -q -DskipTests compile
 ./mvnw -q -Dtest=PlanControllerTest,PaymentServiceImplTest,AdminServiceImplTest,FileControllerTest,FileServiceImplTest,HealthControllerTest,LocalStorageRuntimeInspectorTest,AdminPolicyServiceImplTest,QuickDropServiceImplTest,QuickDropPairingServiceImplTest,UserServiceImplTest test
 docker-compose up --build -d --remove-orphans
 ./scripts/quickshare-smoke.sh
 ./scripts/quickshare-playwright-smoke.sh
+./scripts/quickshare-resource-check.sh --report-only
 ```
 
 ## 推荐分级
@@ -252,10 +254,12 @@ DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 说明：
 
 - 服务器在具备仓库读取权限时，会在 `/root/quickshare` 内 `git fetch/reset` 到目标分支，然后执行 `docker compose up --build -d`
+- 如果本地不存在 `quickshare-test-ssh` / `quickshare-test-scp` 这类 helper，`deploy-preprod.sh` 现在会自动回退到原生 `ssh` / `scp`
 - 默认部署当前本地分支名；如需强制部署 `main`，显式传 `DEPLOY_GIT_BRANCH=main`
 - 若当前环境到测试机的 SSH 会话存在卡住风险，可显式传 `DEPLOY_SSH_TIMEOUT_SECONDS`
 - 真实 QuickDrop 浏览器回归继续在服务器本机网络中执行，而不是依赖当前环境直连公网 `:8080`
-- 若远端暂时不能直接读取私有 Git 仓库，保持 `DEPLOY_ENABLE_SNAPSHOT_FALLBACK=1`，或者维护服务器本地 git mirror / bare repo，再从该镜像更新工作副本
+- 若远端暂时不能直接读取私有 Git 仓库，优先使用新的 `git bundle -> 服务器本地 bare repo/worktree` 路径；`DEPLOY_ENABLE_SNAPSHOT_FALLBACK=1` 继续保留为最后兜底
+- `deploy-preprod.sh` 现在会在构建前检查远端磁盘和内存；若磁盘低于阈值，可自动清理传输产物并 prune 未使用镜像后再继续
 
 当前这组用例覆盖：
 - 管理台注册设置保存、provider 切换和公开设置同步

@@ -120,6 +120,7 @@ cp src/main/resources/application-local.example.yml src/main/resources/applicati
 推荐收口顺序：
 
 ```bash
+./scripts/quickshare-resource-check.sh --ensure
 ./scripts/check-js.sh
 ./mvnw -q -DskipTests compile
 # 按改动点补最近的一组定向 JUnit
@@ -131,14 +132,18 @@ docker-compose up --build -d --remove-orphans
 注意：
 
 - 远端测试机磁盘和内存有限，重建和浏览器回归前后都要关注资源余量。
+- `scripts/quickshare-resource-check.sh` 现在是仓库内统一的资源快照与低磁盘保护脚本。
 - 大量重建后应及时清理临时产物和未使用的 Docker 镜像。
 - 更细的流程说明见 [docs/README.zh-CN.md](docs/README.zh-CN.md) 和 [docs/TESTING.md](docs/TESTING.md)。
 
 ## 部署说明
 
 - 应用镜像支持从新鲜 git 工作副本直接构建。
-- `deploy-preprod.sh` 在远端具备仓库读取权限时可以走 Git 流程。
-- 对无法直接读取私有仓库的环境，当前更稳的做法是使用服务器本地 git mirror / bare repo，或者保留现有 snapshot fallback。
+- `deploy-preprod.sh` 现在已经补上：
+  - 本地 helper 缺失时回退到原生 `ssh` / `scp`
+  - 远端无法直接读仓库时，优先走 “git bundle -> 服务器本地 bare mirror/worktree” 路径
+  - 构建前资源检查和验收后的资源快照输出
+- 对无法直接读取私有仓库的环境，当前更稳的做法是使用服务器本地 git mirror / bare repo，snapshot fallback 只保留为最后兜底。
 
 ## 文档入口
 

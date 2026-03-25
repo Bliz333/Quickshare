@@ -12,6 +12,17 @@
   - `tests/e2e/quickdrop-real.spec.js` 本轮在测试服务器上真实命中 `direct`，不再只停留在“最终收口 relay”的结论
   - 清理了本轮 bundle、临时快照和未使用 Docker 镜像，磁盘占用从 `96%` 降到 `60%`
 
+## 2026-03-26 (远端部署基线固化、资源脚本与 bundle mirror fallback)
+
+- 详细记录：`docs/archive/2026-03-26-remote-deploy-baseline-hardening.md`
+- 核心变更：
+  - 新增 `scripts/quickshare-resource-check.sh`，统一输出磁盘 / 内存 / Docker 占用，并在低磁盘场景下执行清理保护
+  - `deploy-preprod.sh` 现已支持在本地 helper 不存在时自动回退到原生 `ssh` / `scp`
+  - `deploy-preprod.sh` 现已优先使用 `git bundle -> 服务器本地 bare repo/worktree` 的 fallback 路径，再退到源码快照
+  - `deploy-preprod.sh` 现已补远端资源预检与验收后资源摘要，避免在低资源测试机上盲目构建
+  - 已在远端以等价真实流程验证：bare mirror 更新、worktree 切到 `030f67c`、`docker-compose up --build -d`、`quickshare-smoke.sh`、`quickshare-playwright-smoke.sh` 全部通过
+  - 最新 `quickdrop-real` 本轮最终收口为 `relay`，说明部署链路已稳，但 `direct` 命中仍需在下一阶段继续专项收口
+
 ## 2026-03-25 (QuickDrop 本地基线恢复、直连重试与信令地址收口)
 
 - 详细记录：`docs/archive/2026-03-25-quickdrop-local-signal-origin-and-baseline-recovery.md`

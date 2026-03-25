@@ -16,6 +16,23 @@
 
 ## 今日已完成
 
+- 远端部署基线已继续收口：
+  - 新增 `scripts/quickshare-resource-check.sh`，用于统一输出磁盘 / 内存 / Docker 占用，并在低磁盘场景下做清理保护
+  - `deploy-preprod.sh` 现在会在本地 helper 缺失时自动回退到原生 `ssh` / `scp`
+  - `deploy-preprod.sh` 现已优先使用“git bundle -> 服务器本地 bare mirror/worktree” 路径，而不是一上来就退回纯源码快照目录
+  - `deploy-preprod.sh` 现已补远端资源预检和验收后资源摘要，避免在资源紧张机器上盲目重建
+- 最新远端部署基线已用等价真实流程复核：
+  - 服务器本地 bare repo `/root/quickshare.git` 已从最新 bundle 更新
+  - `/root/quickshare` 已切到最新提交 `030f67c`
+  - `./scripts/quickshare-resource-check.sh --ensure` 已在远端通过
+  - `docker-compose up --build -d --remove-orphans` 已在远端通过
+  - `./scripts/quickshare-smoke.sh` 已在远端通过
+  - `./scripts/quickshare-playwright-smoke.sh` 已在远端通过
+  - 本轮 `quickdrop-real` 真实链路最终收口为 `relay`，说明部署基线已稳定，但 `direct` 命中仍不稳定
+- 远端资源回收已再次执行：
+  - 本轮 bundle 和 snapshot 传输产物已清理
+  - 未使用 Docker 镜像已再次 prune
+  - 当前磁盘已回到约 `6.2GB` 可用、使用率约 `60%`
 - 远端测试机基线已重建并验证通过：
   - 已在 Debian 12 测试机安装 `OpenJDK 17`、`Maven 3.8.7`、`Node 18.20.4` 和 `npm 9.2.0`
   - 已将 `/root/quickshare` 从“无 `.git` 的源码快照目录”收口成正式 git 工作副本，并新增服务器本地 bare repo `/root/quickshare.git`
@@ -521,7 +538,9 @@
 - 当前 QuickDrop 的公开取件页“已登录后直接显示保存控件”浏览器 mock 用例仍待继续收口；对应业务能力已通过运行态 API 验证。
 - 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架、public pair task 页面级任务视图，以及 direct / relay attempt 生命周期摘要；下一步重点转向真实双端公网/TURN 验证和顶层模型进一步统一。
 - 当前预发布机已经命中过 same-account `direct`，说明这台服务器上的 TURN / WebRTC 链路不再停留在“只会回退 relay”的状态；后续重点是扩大网络条件覆盖，而不是继续证明本机可直连。
+- 最新同一台测试机上的 `quickdrop-real` 再次验证又回到 `relay`，进一步说明当前问题已经不是“能不能直连”，而是“直连命中是否稳定、受哪些网络条件影响”。
 - 当前 `deploy-preprod.sh` 的 GitHub 拉取式路径仍需要远端仓库读取凭据；在凭据未补前，当前服务器的稳定入口是“git 工作副本 + 服务器本地 bare repo + docker-compose”。
+- 当前远端部署基线已经补上资源检查和 bundle mirror 路径，下一轮应继续减少对手工 SSH 会话的依赖，把这条路径进一步产品化。
 - 当前服务器还只是预发布环境：
   - 还没有 HTTPS / 证书
   - 还没有正式发布前的最终脱敏提交流程

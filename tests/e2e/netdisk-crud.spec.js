@@ -78,18 +78,19 @@ function listRow(page, name) {
   }).first();
 }
 
-async function ensureListView(page) {
-  await page.evaluate(() => {
-    currentView = 'list';
-    document.getElementById('listView')?.classList.remove('hidden');
-    document.getElementById('gridView')?.classList.add('hidden');
-    const viewButtons = document.querySelectorAll('.view-btn');
-    viewButtons.forEach(button => button.classList.remove('active', 'bg-brand-50', 'text-brand-600'));
-    viewButtons[0]?.classList.add('active', 'bg-brand-50', 'text-brand-600');
-    if (typeof renderFiles === 'function') {
-      renderFiles();
-    }
-  });
+function gridCard(page, name) {
+  return page.locator('#gridView > div').filter({
+    has: page.getByText(name, { exact: true })
+  }).first();
+}
+
+async function getVisibleNetdiskItem(page, name) {
+  const listItem = listRow(page, name);
+  if (await listItem.isVisible().catch(() => false)) {
+    return listItem;
+  }
+
+  return gridCard(page, name);
 }
 
 test.describe('Netdisk CRUD dialogs', () => {
@@ -123,15 +124,14 @@ test.describe('Netdisk CRUD dialogs', () => {
       const createdFolder = await readJson(createFolderResponse);
       folderId = createdFolder.id;
 
-      await ensureListView(page);
-      await expect(page.locator('#listContent')).toBeVisible();
-      await expect(listRow(page, folderName)).toBeVisible();
+      const createdFolderItem = await getVisibleNetdiskItem(page, folderName);
+      await expect(createdFolderItem).toBeVisible();
 
       const renameFolderPromise = page.waitForResponse(response => {
         return response.url().includes(`/api/folders/${folderId}/rename`)
           && response.request().method() === 'PUT';
       });
-      await listRow(page, folderName).locator('button[onclick*="renameFolder"]').click();
+      await createdFolderItem.locator('button[onclick*="renameFolder"]').click();
       await expect(page.locator('#actionDialog')).toHaveClass(/active/);
       await page.locator('#actionRenameValue').fill(renamedFolderName);
       await page.locator('[data-dialog-confirm]').click();
@@ -139,24 +139,24 @@ test.describe('Netdisk CRUD dialogs', () => {
       const renameFolderResponse = await renameFolderPromise;
       expect(renameFolderResponse.ok()).toBeTruthy();
       expect((await renameFolderResponse.json()).code).toBe(200);
-      await expect(listRow(page, renamedFolderName)).toBeVisible();
+      const renamedFolderItem = await getVisibleNetdiskItem(page, renamedFolderName);
+      await expect(renamedFolderItem).toBeVisible();
 
-      await listRow(page, renamedFolderName).click();
+      await renamedFolderItem.click();
       await expect(page.locator('#breadcrumbPath')).toContainText(renamedFolderName);
 
       const uploadedFile = await uploadTextFile(request, token, folderId, fileName, fileContent);
       fileId = uploadedFile.id;
 
       await page.reload();
-      await ensureListView(page);
-      await expect(page.locator('#listContent')).toBeVisible();
-      await expect(listRow(page, fileName)).toBeVisible();
+      const uploadedFileItem = await getVisibleNetdiskItem(page, fileName);
+      await expect(uploadedFileItem).toBeVisible();
 
       const renameFilePromise = page.waitForResponse(response => {
         return response.url().includes(`/api/files/${fileId}/rename`)
           && response.request().method() === 'PUT';
       });
-      await listRow(page, fileName).locator('button[onclick*="renameFile"]').click();
+      await uploadedFileItem.locator('button[onclick*="renameFile"]').click();
       await expect(page.locator('#actionDialog')).toHaveClass(/active/);
       await page.locator('#actionRenameValue').fill(renamedFileName);
       await page.locator('[data-dialog-confirm]').click();
@@ -164,13 +164,14 @@ test.describe('Netdisk CRUD dialogs', () => {
       const renameFileResponse = await renameFilePromise;
       expect(renameFileResponse.ok()).toBeTruthy();
       expect((await renameFileResponse.json()).code).toBe(200);
-      await expect(listRow(page, renamedFileName)).toBeVisible();
+      const renamedFileItem = await getVisibleNetdiskItem(page, renamedFileName);
+      await expect(renamedFileItem).toBeVisible();
 
       const sharePromise = page.waitForResponse(response => {
         return response.url().endsWith('/api/share')
           && response.request().method() === 'POST';
       });
-      await listRow(page, renamedFileName).locator('button[onclick*="shareFile"]').click();
+      await renamedFileItem.locator('button[onclick*="shareFile"]').click();
       await expect(page.locator('#actionDialog')).toHaveClass(/active/);
       await page.locator('#actionShareExtractCode').fill('E2E1');
       await page.locator('#actionShareExpireDays').selectOption('7');
@@ -189,7 +190,7 @@ test.describe('Netdisk CRUD dialogs', () => {
         return response.url().includes(`/api/files/${fileId}`)
           && response.request().method() === 'DELETE';
       });
-      await listRow(page, renamedFileName).locator('button[onclick*="deleteFile"]').click();
+      await renamedFileItem.locator('button[onclick*="deleteFile"]').click();
       await expect(page.locator('#actionDialog')).toHaveClass(/active/);
       await page.locator('[data-dialog-confirm]').click();
 
@@ -198,20 +199,21 @@ test.describe('Netdisk CRUD dialogs', () => {
       expect((await deleteFileResponse.json()).code).toBe(200);
       fileId = null;
 
-      await expect(listRow(page, renamedFileName)).toHaveCount(0);
+      await expect((await getVisibleNetdiskItem(page, renamedFileName))).toHaveCount(0);
       await expect.poll(async () => {
         const entries = await listFolderEntries(request, token, folderId);
         return entries.some(entry => (entry.originalName || entry.fileName || entry.name) === renamedFileName);
       }).toBe(false);
 
       await page.locator('.netdisk-drop-root').click();
-      await expect(listRow(page, renamedFolderName)).toBeVisible();
+      const rootFolderItem = await getVisibleNetdiskItem(page, renamedFolderName);
+      await expect(rootFolderItem).toBeVisible();
 
       const deleteFolderPromise = page.waitForResponse(response => {
         return response.url().includes(`/api/folders/${folderId}`)
           && response.request().method() === 'DELETE';
       });
-      await listRow(page, renamedFolderName).locator('button[onclick*="deleteFolder"]').click();
+      await rootFolderItem.locator('button[onclick*="deleteFolder"]').click();
       await expect(page.locator('#actionDialog')).toHaveClass(/active/);
       await page.locator('[data-dialog-confirm]').click();
 
@@ -220,7 +222,7 @@ test.describe('Netdisk CRUD dialogs', () => {
       expect((await deleteFolderResponse.json()).code).toBe(200);
       folderId = null;
 
-      await expect(listRow(page, renamedFolderName)).toHaveCount(0);
+      await expect((await getVisibleNetdiskItem(page, renamedFolderName))).toHaveCount(0);
     } finally {
       await deleteFileIfExists(request, token, fileId);
       await deleteFolderIfExists(request, token, folderId);

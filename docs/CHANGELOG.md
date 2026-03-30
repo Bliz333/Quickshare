@@ -2,6 +2,16 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-30 (QuickDrop Phase 3 UI 收口)
+
+- 核心变更：
+  - 删除 `#quickDropModeGuide` 元素及 `renderQuickDropModeGuide()` 函数——模式切换按钮本身已足够清晰，不需要额外的引导说明文字
+  - 确认历史页冷启动 URL（`?view=account-history` / `?view=temporary-history`）直接可访问，`applyQuickDropSubpageFromLocation()` 已在渲染前正确读取 URL，无需额外修改
+  - relay 与 direct 两条路径下，转存成功的任务卡片现在均把"保存到网盘"按钮替换为"已存入网盘"badge + "在网盘中查看"链接（判断依据：`task.savedToNetdiskAt` / `transfer.savedToNetdiskAt`）
+  - 新增 i18n key：`quickDropSavedBadge`、`quickDropViewInNetdisk`（中英文）
+  - 删除已无引用的 i18n key：`quickDropModeGuideTemporary`、`quickDropModeGuideAccount`
+  - 更新 `CLAUDE.md`，补充完整的测试流程、存储后端、QuickDrop 架构、环境变量说明
+
 ## 2026-03-26 (远端基线重建、资源回收与 direct 验证)
 
 - 详细记录：`docs/archive/2026-03-26-remote-baseline-rebuild-and-direct-validation.md`

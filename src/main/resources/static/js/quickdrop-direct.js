@@ -1155,7 +1155,9 @@ const QuickDropDirectTransfer = (() => {
             const canDownload = transfer.direction === 'incoming'
                 && transfer.localTransferId
                 && (transfer.stage === 'ready' || transfer.stage === 'completed');
-            const canSave = canDownload
+            const alreadySaved = Boolean(transfer.savedToNetdiskAt);
+            const canSave = !alreadySaved
+                && canDownload
                 && typeof isLoggedIn === 'function'
                 && isLoggedIn();
             const deleteAttrs = transfer.deleteTransferId
@@ -1184,10 +1186,20 @@ const QuickDropDirectTransfer = (() => {
                             <i class="fa-solid fa-download"></i>
                             <span>${text('quickDropDownload', 'Download')}</span>
                         </button>
-                        <button class="btn btn-secondary" type="button" data-quickdrop-direct-save="${transfer.localTransferId}" ${canSave ? '' : 'disabled'}>
-                            <i class="fa-solid fa-hard-drive"></i>
-                            <span>${text('quickDropSaveToNetdisk', 'Save to Netdisk')}</span>
-                        </button>
+                        ${alreadySaved
+                            ? `<span class="btn btn-secondary" style="opacity:0.7;cursor:default;">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <span>${text('quickDropSavedBadge', 'Saved to Netdisk')}</span>
+                               </span>
+                               <a class="btn btn-secondary" href="netdisk.html">
+                                <i class="fa-solid fa-folder-open"></i>
+                                <span>${text('quickDropViewInNetdisk', 'View in Netdisk')}</span>
+                               </a>`
+                            : `<button class="btn btn-secondary" type="button" data-quickdrop-direct-save="${transfer.localTransferId}" ${canSave ? '' : 'disabled'}>
+                                <i class="fa-solid fa-hard-drive"></i>
+                                <span>${text('quickDropSaveToNetdisk', 'Save to Netdisk')}</span>
+                               </button>`
+                        }
                         <button class="btn btn-secondary" type="button" data-quickdrop-direct-detail="${transfer.detailId}">
                             <i class="fa-solid fa-circle-info"></i>
                             <span>${text('quickDropTaskDetails', 'Details')}</span>

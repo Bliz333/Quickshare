@@ -193,17 +193,6 @@ function setQuickDropMode(mode) {
         accountBtn.classList.toggle('active', normalizedMode === 'account');
         accountBtn.disabled = !quickDropState.accountMode;
     }
-    renderQuickDropModeGuide();
-}
-
-function renderQuickDropModeGuide() {
-    const guide = document.getElementById('quickDropModeGuide');
-    if (!guide) {
-        return;
-    }
-    guide.textContent = quickDropState.currentMode === 'account'
-        ? quickDropText('quickDropModeGuideAccount', 'My devices: choose one of your devices first, then send files or a folder.')
-        : quickDropText('quickDropModeGuideTemporary', 'Temporary transfer: get a match code first, then choose files or a folder and send.');
 }
 
 function renderQuickDropSubpage() {
@@ -1435,18 +1424,27 @@ function renderQuickDropTransferList(transfers, container, empty, direction) {
             : '';
 
         const saveAction = direction === 'incoming' && readyForDownload
-            ? `<button class="btn btn-secondary" type="button" ${
-                isDirect
-                    ? `data-quickdrop-direct-save="${directAttemptId || ''}"`
-                    : isHybrid && relayAttemptId
-                        ? `data-quickdrop-save="${relayAttemptId}"`
-                        : isHybrid && directAttemptId
-                            ? `data-quickdrop-direct-save="${directAttemptId}"`
-                            : `data-quickdrop-save="${transfer.id}"`
-            }>
-                    <i class="fa-solid fa-hard-drive"></i>
-                    <span>${quickDropText('quickDropSaveToNetdisk', 'Save to Netdisk')}</span>
-               </button>`
+            ? task.savedToNetdiskAt
+                ? `<span class="btn btn-secondary" style="opacity:0.7;cursor:default;">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>${quickDropText('quickDropSavedBadge', 'Saved to Netdisk')}</span>
+                   </span>
+                   <a class="btn btn-secondary" href="netdisk.html">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <span>${quickDropText('quickDropViewInNetdisk', 'View in Netdisk')}</span>
+                   </a>`
+                : `<button class="btn btn-secondary" type="button" ${
+                    isDirect
+                        ? `data-quickdrop-direct-save="${directAttemptId || ''}"`
+                        : isHybrid && relayAttemptId
+                            ? `data-quickdrop-save="${relayAttemptId}"`
+                            : isHybrid && directAttemptId
+                                ? `data-quickdrop-direct-save="${directAttemptId}"`
+                                : `data-quickdrop-save="${transfer.id}"`
+                }>
+                        <i class="fa-solid fa-hard-drive"></i>
+                        <span>${quickDropText('quickDropSaveToNetdisk', 'Save to Netdisk')}</span>
+                   </button>`
             : '';
 
         const deleteAttrs = task.taskId

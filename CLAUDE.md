@@ -4,138 +4,180 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## QuickShare - File Sharing System
 
-QuickShare is a Spring Boot-based file sharing and storage system that allows users to upload, organize, and share files with secure links. It supports both authenticated users and guests, with features like extraction codes, expiration times, and download limits.
+Spring Boot 3.2.0 / Java 17 file-sharing platform. Users can upload, organize, and share files via secure links. Supports authenticated users, guests, QuickDrop device-to-device transfers, subscription plans, and an admin console.
 
-## Common Development Commands
+## Development Commands
 
-### Building and Running
 ```bash
-# Build the project
-mvn clean compile
+# Build (compile only, no tests)
+./mvnw -q -DskipTests compile
 
-# Run tests
+# Run all tests (see WSL2 note below)
 mvn test
 
-# Run the application (development)
-mvn spring-boot:run
+# Run targeted tests
+./mvnw -q -Dtest=FileServiceImplTest,FileControllerTest test
 
-# Package for deployment
+# Run the application (local profile)
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+# Package
 mvn clean package
-
-# Run the packaged jar
 java -jar target/quickshare-1.0.0.jar
+
+# Docker Compose (recommended for full-stack testing)
+docker compose up --build -d
+docker compose up --build -d app   # rebuild app only
 ```
 
-### Database Setup
+**Local dev setup:**
+1. Copy `.env.example` → `.env`, set `JWT_SECRET` (min 32 chars) and `SETTING_ENCRYPT_KEY`
+2. Copy `src/main/resources/application-local.example.yml` → `src/main/resources/application-local.yml` and fill in settings
+3. Ensure MySQL (create `quickshare` db with utf8mb4) and Redis are running
+
+## Testing & Milestone Gates
+
+**WSL2 note:** Full `mvn test` may fail due to Mockito/ByteBuddy self-attach limitations. Default local strategy is compile + targeted tests + Docker smoke, not `mvn test` as sole gate.
+
+**Small milestone default gate** (run in this order):
+
 ```bash
-# Connect to MySQL (ensure MySQL is running on localhost:3306)
-mysql -u root -p
-
-# Create database (if not exists)
-CREATE DATABASE quickshare;
-
-# The application will auto-create tables using MyBatis Plus
+./scripts/check-js.sh                    # JS syntax check for all static JS
+./mvnw -q -DskipTests compile            # Java compile
+# targeted tests matching the change (see below)
+docker compose up --build -d
+./scripts/quickshare-smoke.sh            # API + flow smoke
 ```
 
-### Redis Setup
+**Smoke script variants:**
 ```bash
-# Start Redis server (required for caching and session management)
-redis-server
-
-# Verify Redis is running
-redis-cli ping
+./scripts/quickshare-smoke.sh
+SMOKE_UP=1 ./scripts/quickshare-smoke.sh
+SMOKE_MODE=container SMOKE_DOCKER_CONTAINER=quickshare-app-1 ./scripts/quickshare-smoke.sh
 ```
 
-## Project Architecture
+**Playwright (browser automation):**
+```bash
+npm install && npx playwright install chromium
+npx playwright test tests/e2e
+npx playwright test tests/e2e/quickdrop.spec.js
+npx playwright test tests/e2e/quickdrop-real.spec.js
+EXPECT_QUICKDROP_FINAL_MODE=direct ./scripts/quickshare-playwright-smoke.sh
+# Dockerized (no local Node/Chromium needed):
+./scripts/quickshare-playwright-smoke.sh
+PLAYWRIGHT_TEST_TARGET=tests/e2e/quickdrop.spec.js ./scripts/quickshare-playwright-smoke.sh
+```
 
-### Technology Stack
-- **Backend**: Spring Boot 3.2.0, Java 17
-- **Database**: MySQL with MyBatis Plus 3.5.9
-- **Cache**: Redis for session management
-- **Authentication**: JWT tokens (24-hour expiration)
-- **Email**: Spring Mail with Gmail SMTP
-- **File Storage**: Local filesystem (configurable path)
-- **Frontend**: Vanilla JavaScript with responsive design
+**Targeted test sets by change area:**
 
-### Core Components
+| Area | Test classes |
+|------|-------------|
+| File upload/download/quota | `FileControllerTest,FileServiceImplTest` |
+| Payment & orders | `PlanControllerTest,PaymentServiceImplTest,AdminServiceImplTest` |
+| Health & local storage | `LocalStorageRuntimeInspectorTest,AdminPolicyServiceImplTest,HealthControllerTest` |
+| QuickDrop same-account | `QuickDropServiceImplTest` |
+| QuickDrop pairing/direct | `QuickDropPairingServiceImplTest,QuickDropServiceImplTest` |
+| Users | `UserServiceImplTest` |
 
-#### API Structure
-- All APIs use `/api` prefix
-- Authentication endpoints: `/api/auth/*`
-- File management: `/api/files/*`
-- Folder operations: `/api/folders/*`
-- Share operations: `/api/share`
+**JS syntax check for individual files:**
+```bash
+node --check src/main/resources/static/js/<changed-file>.js
+```
 
-#### Key Services
-- `FileService`: Handles file uploads, downloads, organization
-- `UserService`: User management, authentication with email verification
-- `EmailService`: Sends verification codes and notifications
-- `VerificationCodeService`: Manages email-based verification codes
+**Remote deploy (preprod):**
+```bash
+./scripts/deploy-preprod.sh
+DEPLOY_GIT_BRANCH=main DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
+```
 
-#### Security Implementation
-- JWT-based stateless authentication
-- Password encryption using Spring Security Crypto
-- reCAPTCHA integration for bot protection
-- File access control through share links
+## Architecture
 
-#### File Management Features
-- Maximum file size: 10GB
-- Automatic image compression and thumbnail generation
-- Folder-based organization system
-- Share links with optional extraction codes
-- Configurable expiration times and download limits
+### Layer Structure
 
-### Configuration
+```
+controller/          → REST endpoints, extracts userId from JWT, returns Result<T>
+service/             → Interfaces
+service/impl/        → Business logic implementations
+mapper/              → MyBatis Plus mappers (extend BaseMapper<Entity>)
+entity/              → DB entities (@TableName, @TableLogic for soft delete)
+dto/                 → Request payloads
+vo/                  → Response value objects
+config/              → Spring configuration classes
+common/              → GlobalExceptionHandler, Result wrapper, UserRole enum
+utils/               → JwtUtil
+```
 
-#### Application Properties (application.yml)
-- Database connection to MySQL
-- Redis configuration for caching
-- File upload directory (default: `/Users/szhao/quickshare/uploads`)
-- Gmail SMTP settings for email verification
-- reCAPTCHA keys for security
-- JWT secret and expiration settings
+All responses use `Result<T>` wrapper `{ code, message, data }`. Global exception handling in `GlobalExceptionHandler` (`@RestControllerAdvice`).
 
-#### Important Configuration Classes
-- `FileConfig`: File upload settings and paths
-- `WebConfig`: CORS and web MVC configuration
-- `AppConfig`: Application-level beans and settings
+### API Routes
 
-### Database Schema
+- Public: `/api/auth/**`, `/api/public/**`, `/api/share`, `/api/download/**`, `/api/preview/**`, `/ws/quickdrop`
+- Authenticated: `/api/files/**`, `/api/folders/**`, `/api/quickdrop/**`
+- Admin: `/api/admin/**` (requires `ADMIN` role) + frontend at `/console/{ADMIN_CONSOLE_SLUG}`
 
-#### Core Entities
-- `User`: User accounts with email verification
-- `FileInfo`: File metadata and organization
-- `ShareLink`: Share configuration and access control
+### Security & Authentication
 
-### Frontend Architecture
-- Single-page application with multiple HTML views
-- Module-based JavaScript architecture
-- Responsive CSS with dark/light theme support
-- Multi-language support (English/Chinese)
-- Drag-and-drop file upload interface
+`JwtAuthenticationFilter` runs on every request, extracts the Bearer token from `Authorization` header or `?token=` query param, validates via `JwtUtil`, populates `SecurityContextHolder`. CSRF disabled; sessions stateless.
 
-### Development Notes
+Special token types: guest-upload tokens (15-min TTL, `purpose="guest-upload"`). Passwords use `BCryptPasswordEncoder`.
 
-#### Email Verification
-- Registration requires email verification
-- Verification codes are 6 digits, 10-minute expiry
-- Uses Redis for storing temporary codes
+### Storage Backend
 
-#### File Upload Process
-1. Client generates unique file ID
-2. File uploaded to configured upload directory
-3. Metadata stored in database
-4. Optional thumbnail generation for images
-5. Share link generation with access controls
+`StorageService` interface abstracts all file I/O. `DelegatingStorageService` dispatches to:
+- **Local**: files written to disk at `file.upload-dir`
+- **S3-compatible**: AWS SDK v2, supports MinIO / Cloudflare R2
 
-#### Authentication Flow
-1. User registers with email
-2. Email verification code sent
-3. Upon verification, account activated
-4. Login returns JWT token for API access
+Backend is switchable at runtime from the admin console without restart.
 
-#### Testing
-- Basic Spring Boot test class exists
-- Add integration tests for file operations
-- Test email service with mock SMTP
-- Verify JWT token generation and validation
+**Upload deduplication**: MD5-based — identical content in the same folder returns the existing record; identical content elsewhere reuses the storage block.
+
+### Database & Migrations
+
+Schema managed by **Flyway** (`db/migration/V1__initial_schema.sql` through V10). Key tables:
+- `user` — accounts, roles, quotas (`storageLimit`, `storageUsed`, `downloadLimit`, VIP expiry)
+- `file_info` — file metadata + folder hierarchy (`isFolder`, `parentId`); soft-deleted via `@TableLogic`
+- `share_link` — shareCode, extractCode, expiration, download count/limit
+- `system_setting` — key/value runtime config (SMTP, storage type, policies, rate limits)
+- `plan`, `payment_provider`, `payment_order` — subscription & payment
+- `quickdrop_device`, `quickdrop_transfer`, `quickdrop_task`, `quickdrop_pair_task`, `quickdrop_public_share` — device transfer
+
+### Runtime Configuration
+
+`SystemSettingService` + `SystemSettingOverrideService` cache `system_setting` rows in memory with TTL. Admins can update SMTP, storage backends, email templates, and rate-limit policies live without restarting. Sensitive values are AES-encrypted via `SETTING_ENCRYPT_KEY`.
+
+### QuickDrop (Device-to-Device Transfer)
+
+WebSocket signaling endpoint: `ws://host/ws/quickdrop`
+
+Flows: same-account direct (WebRTC via `quickdrop_task` + `direct-attempts` write-back), anonymous public pairing via pair codes (`quickdrop_pair_task`), server relay fallback, save-to-netdisk.
+
+Key env vars: `QUICKDROP_DIRECT_TRANSFER_ENABLED`, `QUICKDROP_STUN_URLS`, `QUICKDROP_TURN_URLS`, `QUICKDROP_TURN_USERNAME`, `QUICKDROP_TURN_PASSWORD`.
+
+### Frontend
+
+Static HTML/JS/CSS served from `src/main/resources/static/`. No build step. JWT stored in `localStorage`; all API calls use `Authorization: Bearer <token>`. Language switching (`lang-switch.js`) and dark/light theme (`theme.js`) are runtime.
+
+Key pages: `netdisk.html` (file manager), `quickdrop.html` (device transfer — mode-first UI with center pairing stage and secondary history page), `admin.html` (console), `pricing.html`.
+
+### Key Environment Variables
+
+| Variable | Purpose |
+|---|---|
+| `JWT_SECRET` | HS256 signing key (required, ≥32 chars) |
+| `SETTING_ENCRYPT_KEY` | AES key for encrypting DB-stored secrets |
+| `ADMIN_CONSOLE_SLUG` | URL slug for admin console (default: `quickshare-admin`) |
+| `BOOTSTRAP_ADMIN_ENABLED` | Auto-creates admin on first startup |
+| `STORAGE_TYPE` | `local` or `s3` |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | S3 storage config |
+| `QUICKDROP_DIRECT_TRANSFER_ENABLED` | Enable WebRTC-based direct transfer |
+| `QUICKDROP_STUN_URLS` / `QUICKDROP_TURN_URLS` | ICE servers for QuickDrop |
+
+Full variable list: see `.env.example`.
+
+## Delivery Checklist
+
+Every milestone must:
+1. Execute the matching verification commands (see Testing section above)
+2. State which commands ran and what the results were
+3. Sync `README.md`, `docs/STATUS.md`, `docs/PLAN.md`, `docs/CHANGELOG.md` if behavior changed
+4. Add a `docs/archive/` record for significant changes

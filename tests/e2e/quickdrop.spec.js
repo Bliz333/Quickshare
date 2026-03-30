@@ -210,6 +210,109 @@ test.describe('QuickDrop pages', () => {
     expect(saveRequestFolderId).toBe(301);
   });
 
+  test('shows saved badge and view-in-netdisk link when incoming task was already saved', async ({ page, baseURL }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('user', JSON.stringify({
+        id: 1,
+        username: 'admin',
+        nickname: 'QuickShare Admin',
+        role: 'ADMIN'
+      }));
+    });
+
+    await page.route('**/api/profile', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: { id: 1, username: 'admin', nickname: 'QuickShare Admin', role: 'ADMIN' }
+        })
+      });
+    });
+
+    await page.route('**/api/quickdrop/sync', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            currentDevice: {
+              deviceId: 'device-a',
+              deviceName: 'My Desktop',
+              deviceType: 'Windows',
+              current: true,
+              online: true,
+              lastSeenAt: '2026-03-21T10:00:00'
+            },
+            devices: [
+              {
+                deviceId: 'device-a',
+                deviceName: 'My Desktop',
+                deviceType: 'Windows',
+                current: true,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              },
+              {
+                deviceId: 'device-b',
+                deviceName: 'My Laptop',
+                deviceType: 'Mac',
+                current: false,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              }
+            ],
+            incomingTransfers: [
+              {
+                id: 12,
+                senderDeviceId: 'device-b',
+                receiverDeviceId: 'device-a',
+                fileName: 'draft.pdf',
+                fileSize: 2048,
+                contentType: 'application/pdf',
+                chunkSize: 1024,
+                totalChunks: 2,
+                uploadedChunks: 2,
+                uploadedChunkIndexes: [0, 1],
+                status: 'ready',
+                ready: true,
+                updateTime: '2026-03-21T10:00:00',
+                savedToNetdiskAt: '2026-03-26T10:00:00'
+              }
+            ],
+            outgoingTransfers: [],
+            recommendedChunkSize: 2097152
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/folders/all', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: [{ id: 301, name: 'Projects' }]
+        })
+      });
+    });
+
+    await gotoQuickDropPage(page, baseURL);
+    await openQuickDropAccountHistory(page);
+
+    await expect(page.locator('#quickDropIncomingList')).toContainText('draft.pdf');
+    await expect(page.locator('#quickDropIncomingList [data-quickdrop-save]')).toHaveCount(0);
+    await expect(page.locator('#quickDropIncomingList')).toContainText('Saved to Netdisk');
+    await expect(page.locator('#quickDropIncomingList a[href="netdisk.html"]')).toBeVisible();
+  });
+
   test('same-account history page uses route navigation and browser back returns to the main stage', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
       localStorage.setItem('token', 'quickdrop-token');

@@ -73,7 +73,7 @@
   - `docs/ops/capacity.md`：磁盘风险阈值、health check 字段解读、Docker/日志/上传目录清理 SOP
   - `docs/ops/https-proxy.md`：nginx 反向代理配置（含 WebSocket upgrade）、Let's Encrypt / Certbot 集成、安全 header
   - `docs/ops/prod-preprod.md`：环境职责边界、配置差异清单、发布前 7 步检查清单
-  - 待续：docker-compose 日志轮转配置落地、告警脚本集成、备份策略
+  - 已完成（2026-04-01）：docker-compose 日志轮转、`quickshare-alert.sh`、`quickshare-backup.sh`
 
 ## 当前目标
 

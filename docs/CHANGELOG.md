@@ -2,6 +2,31 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-04-01 (七阶段加固计划)
+
+- 运维加固：
+  - `compose.yaml` 全部服务补 `json-file` 日志轮转配置（max-size 10m / max-file 3）
+  - 新增 `scripts/quickshare-alert.sh`：健康检查 + 磁盘告警 + 容器状态监控（支持 webhook）
+  - 新增 `scripts/quickshare-backup.sh`：MySQL dump + uploads 增量备份 + retention 策略
+  - 更新 `docs/ops/capacity.md` 和 `docs/ops/prod-preprod.md` 补 crontab 示例
+- UX 一致性：
+  - `netdisk.js` deleteFile 补 404 处理（与 deleteFolder 一致）
+  - `pricing.js` loadPlans/loadPaymentOptions 补加载状态与错误提示
+  - 新增 3 个 i18n key（zh/en）
+- CI 扩展：
+  - `.github/workflows/ci.yml` 新增 playwright-mock job（5 个 mock-only spec）
+- 网盘分页：
+  - 后端 `GET /api/files` 支持可选 `pageNum`/`pageSize` 参数（向后兼容）
+  - 前端 `netdisk.js` 改为分页加载 + "加载更多"按钮
+  - 新增 `PageVO<T>` 通用分页包装类
+- QuickDrop 产品化：
+  - 任务列表 LIMIT 从 20 提升至 50，改为可配置（`app.quickdrop.sync-task-limit`）
+  - 浏览器直传缓存 TTL 改为通过 `AppConfig` 可配置
+  - 新增每小时定期清理（不再仅 init 时清理）
+- 匿名分享配额：
+  - 新增 `app.share.anonymous-download-deducts-owner-quota` 开关（默认关闭）
+  - 启用后匿名下载会扣减文件上传者的月度下载配额
+
 ## 2026-03-30 (Phase 4 回归扩展 + Phase 5 运维文档)
 
 - 核心变更：

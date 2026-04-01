@@ -546,11 +546,12 @@ public class QuickDropServiceImpl implements QuickDropService {
     }
 
     private List<QuickDropTaskVO> loadTasks(Long userId, String column, String deviceId, Map<String, String> deviceNameLookup) {
+        int limit = quickDropProperties.getSyncTaskLimit();
         return quickDropTaskMapper.selectList(new QueryWrapper<QuickDropTask>()
                         .eq("user_id", userId)
                         .eq(column, deviceId)
                         .orderByDesc("update_time")
-                        .last("LIMIT 20"))
+                        .last("LIMIT " + limit))
                 .stream()
                 .filter(task -> !isExpired(task))
                 .map(task -> toTaskVO(task, deviceId, deviceNameLookup))
@@ -563,11 +564,12 @@ public class QuickDropServiceImpl implements QuickDropService {
                                                     boolean includeChunkIndexes,
                                                     String direction,
                                                     Map<String, String> deviceNameLookup) {
+        int limit = quickDropProperties.getSyncTaskLimit();
         return quickDropTransferMapper.selectList(new QueryWrapper<QuickDropTransfer>()
                         .eq("user_id", userId)
                         .eq(column, deviceId)
                         .orderByDesc("update_time")
-                        .last("LIMIT 20"))
+                        .last("LIMIT " + limit))
                 .stream()
                 .filter(transfer -> !isExpired(transfer))
                 .map(transfer -> {

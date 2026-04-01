@@ -16,6 +16,7 @@ public class QuickDropProperties {
     private int transferTtlHours = 72;
     private int chunkSizeBytes = 2 * 1024 * 1024;
     private int pairCodeTtlMinutes = 10;
+    private int syncTaskLimit = 50;
     private boolean directTransferEnabled = true;
     private List<String> stunUrls = new ArrayList<>(List.of("stun:stun.l.google.com:19302"));
     private List<String> turnUrls = new ArrayList<>();

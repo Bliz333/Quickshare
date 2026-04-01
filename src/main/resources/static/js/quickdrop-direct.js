@@ -6,8 +6,9 @@ const QUICKDROP_DIRECT_DEVICE_ID_KEY = 'quickdrop-device-id';
 const QUICKDROP_DIRECT_CHUNK_SIZE = 64 * 1024;
 const QUICKDROP_DIRECT_MAX_BUFFERED_AMOUNT = 512 * 1024;
 const QUICKDROP_DIRECT_ACCEPT_TIMEOUT_MS = 15000;
-const QUICKDROP_DIRECT_COMPLETED_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const QUICKDROP_DIRECT_SAVED_RETENTION_MS = 24 * 60 * 60 * 1000;
+const QUICKDROP_DIRECT_COMPLETED_RETENTION_MS = (window.AppConfig?.QUICKDROP_DIRECT_COMPLETED_RETENTION_DAYS || 7) * 24 * 60 * 60 * 1000;
+const QUICKDROP_DIRECT_SAVED_RETENTION_MS = (window.AppConfig?.QUICKDROP_DIRECT_SAVED_RETENTION_HOURS || 24) * 60 * 60 * 1000;
+const QUICKDROP_DIRECT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // hourly
 const QUICKDROP_DIRECT_PAIR_TASK_POLL_INTERVAL_MS = 5000;
 
 const QuickDropDirectTransfer = (() => {
@@ -2492,6 +2493,7 @@ const QuickDropDirectTransfer = (() => {
         await refreshStoredTransfers();
         syncPublicPairTaskPolling();
         render();
+        setInterval(() => cleanupStoredTransfers().catch(() => {}), QUICKDROP_DIRECT_CLEANUP_INTERVAL_MS);
     }
 
     return {

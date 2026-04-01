@@ -58,21 +58,14 @@ No automated purge is implemented yet — cross-reference against `file_info` ta
 ### Log rotation
 Spring Boot writes to stdout by default when run inside Docker. Logs are managed by Docker's log driver.
 
+`compose.yaml` already configures automatic log rotation for all services (`json-file`, `max-size: 10m`, `max-file: 3`). Each container keeps at most ~30 MB of logs.
+
 ```bash
-# Check log size
-docker inspect --format='{{.LogPath}}' quickshare-app | xargs du -sh
+# Check current log size
+docker inspect --format='{{.LogPath}}' quickshare-app-1 | xargs du -sh
 
-# Truncate if needed (zero-downtime safe)
-docker inspect --format='{{.LogPath}}' quickshare-app | xargs truncate -s 0
-```
-
-To enable automatic rotation, add to `docker-compose.yml`:
-```yaml
-logging:
-  driver: "json-file"
-  options:
-    max-size: "50m"
-    max-file: "5"
+# Truncate if needed (zero-downtime safe, rarely necessary with rotation enabled)
+docker inspect --format='{{.LogPath}}' quickshare-app-1 | xargs truncate -s 0
 ```
 
 ## Monitoring frequency

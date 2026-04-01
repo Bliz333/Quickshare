@@ -76,6 +76,20 @@ Run these steps in order before promoting a build to production:
 
 7. **Post-deploy smoke** — repeat steps 1–2 against the production URL.
 
+## Ongoing monitoring & backup
+
+After deployment, set up crontab for automated health checks and backups:
+
+```
+# Health & disk alert every 10 minutes
+*/10 * * * * /root/quickshare/scripts/quickshare-alert.sh >> /var/log/quickshare-alert.log 2>&1
+
+# Daily MySQL + uploads backup at 03:00
+0 3 * * * /root/quickshare/scripts/quickshare-backup.sh >> /var/log/quickshare-backup.log 2>&1
+```
+
+See `docs/ops/capacity.md` for threshold details and cleanup procedures.
+
 ## Rollback
 
 The deploy script auto-rolls back if health check fails after startup. To manually roll back:

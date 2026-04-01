@@ -68,6 +68,39 @@ docker inspect --format='{{.LogPath}}' quickshare-app-1 | xargs du -sh
 docker inspect --format='{{.LogPath}}' quickshare-app-1 | xargs truncate -s 0
 ```
 
+## Automated monitoring and backup
+
+### Alert script
+
+`scripts/quickshare-alert.sh` checks app health, container status, and system disk usage.
+
+```bash
+./scripts/quickshare-alert.sh                    # stdout report
+./scripts/quickshare-alert.sh --webhook URL      # POST to webhook on alert
+./scripts/quickshare-alert.sh --dry-run          # show what would alert
+```
+
+Crontab (every 10 minutes):
+```
+*/10 * * * * /root/quickshare/scripts/quickshare-alert.sh >> /var/log/quickshare-alert.log 2>&1
+```
+
+### Backup script
+
+`scripts/quickshare-backup.sh` dumps MySQL + tars the uploads volume with incremental support and retention.
+
+```bash
+./scripts/quickshare-backup.sh                   # full backup
+./scripts/quickshare-backup.sh --dry-run         # preview
+```
+
+Crontab (daily at 03:00):
+```
+0 3 * * * /root/quickshare/scripts/quickshare-backup.sh >> /var/log/quickshare-backup.log 2>&1
+```
+
+Environment overrides: `BACKUP_DIR` (default `/root/quickshare-backups`), `BACKUP_RETAIN_DAYS` (default 7).
+
 ## Monitoring frequency
 
 - Run `curl /api/health` after every deployment.

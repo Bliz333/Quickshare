@@ -345,11 +345,16 @@ function openOrderStatus(orderNo) {
 }
 
 async function loadPlans() {
+    const grid = document.getElementById('plansGrid');
+    if (grid) grid.innerHTML = `<div class="empty-panel" style="grid-column:1/-1;">${esc(t('pricingPlansLoading') || '...')}</div>`;
     try {
         allPlans = await apiRequest('/public/plans') || [];
         renderPlans();
     } catch (error) {
         console.error('Failed to load plans:', error);
+        allPlans = [];
+        renderPlans();
+        showToast(t('pricingPlansLoadFailed') || error.message, 'error');
     }
 }
 
@@ -368,6 +373,7 @@ async function loadPaymentOptions() {
         currentPaymentOptions = null;
         selectedProviderId = null;
         availablePayTypes = [];
+        showToast(t('pricingPaymentOptionsLoadFailed') || error.message, 'error');
     }
     renderPaymentOptionsNotice();
     renderPlans();

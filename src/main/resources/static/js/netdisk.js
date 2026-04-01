@@ -2082,6 +2082,14 @@ async function deleteFile(index) {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+
+                if (res.status === 404) {
+                    close();
+                    showToast(t('deleteDialogAlreadyGone'), 'error');
+                    await loadFiles();
+                    return;
+                }
+
                 const result = await res.json();
 
                 if (result.code === 200) {

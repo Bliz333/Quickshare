@@ -178,7 +178,11 @@ Full variable list: see `.env.example`.
 
 ### CI
 
-GitHub Actions workflow (`.github/workflows/ci.yml`) runs build, test, and JS syntax check on push/PR.
+GitHub Actions workflow (`.github/workflows/ci.yml`) runs two jobs on push/PR:
+1. **build-and-test**: JUnit tests, JS syntax check (`check-js.sh`), Maven package
+2. **playwright-mock**: Mock-only Playwright e2e tests (no backend needed) — covers `home-notifications`, `netdisk-quota`, `pricing-payment`, `quickdrop`, `register-captcha`
+
+Tests requiring a live backend (admin-*, netdisk-drag/nav, quickdrop-real) run only in the preprod deploy pipeline.
 
 ## Delivery Checklist
 

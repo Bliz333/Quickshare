@@ -2,6 +2,7 @@ package com.finalpre.quickshare.service;
 
 import com.finalpre.quickshare.dto.ShareRequestDTO;
 import com.finalpre.quickshare.vo.FileInfoVO;
+import com.finalpre.quickshare.vo.PageVO;
 import com.finalpre.quickshare.vo.ShareLinkVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -72,6 +73,11 @@ public interface FileService {
      * @param userId 用户ID
      */
     List<FileInfoVO> getFilesByFolder(Long parentId, Long userId);
+
+    /**
+     * 分页获取文件列表
+     */
+    PageVO<FileInfoVO> getFilesByFolderPaged(Long parentId, Long userId, int pageNum, int pageSize);
 
     /**
      * 获取用户的所有文件夹

@@ -18,6 +18,10 @@ let actionDialogEventsBound = false;
 let netdiskHistoryEventsBound = false;
 let selectionModeEnabled = false;
 let draggedNetdiskItems = null;
+const NETDISK_PAGE_SIZE = 50;
+let _filesPageNum = 1;
+let _filesTotalPages = 1;
+let _filesLoading = false;
 
 const NETDISK_CATEGORIES = new Set(['all', 'image', 'document', 'video', 'audio', 'other']);
 
@@ -1791,6 +1795,17 @@ function saveFiles() {
 
 let _loadFilesSeq = 0;
 async function loadFiles() {
+    _filesPageNum = 1;
+    _filesTotalPages = 1;
+    await _fetchFilesPage(1, false);
+}
+
+async function loadMoreFiles() {
+    if (_filesLoading || _filesPageNum >= _filesTotalPages) return;
+    await _fetchFilesPage(_filesPageNum + 1, true);
+}
+
+async function _fetchFilesPage(pageNum, append) {
     const seq = ++_loadFilesSeq;
     const token = localStorage.getItem('token');
     if (!token || token === 'test-token-12345') {
@@ -1800,33 +1815,43 @@ async function loadFiles() {
         return;
     }
 
+    _filesLoading = true;
     try {
         const cacheBuster = `_=${Date.now()}`;
-        let filesUrl = `${API_BASE}/files?${cacheBuster}`;
+        let filesUrl = `${API_BASE}/files?${cacheBuster}&pageNum=${pageNum}&pageSize=${NETDISK_PAGE_SIZE}`;
         if (currentFolder !== null) filesUrl += `&folderId=${currentFolder}`;
 
-        const [foldersResponse, filesResponse] = await Promise.all([
-            fetch(`${API_BASE}/folders/all?${cacheBuster}`, {
-                method: 'GET',
-                cache: 'no-store',
-                headers: { 'Authorization': `Bearer ${token}` }
-            }),
+        const fetches = [
             fetch(filesUrl, {
                 method: 'GET',
                 cache: 'no-store',
                 headers: { 'Authorization': `Bearer ${token}` }
             })
-        ]);
-        const [foldersResult, result] = await Promise.all([
-            foldersResponse.json(),
-            filesResponse.json()
-        ]);
-
-        if (seq !== _loadFilesSeq) {
-            return;
+        ];
+        if (!append) {
+            fetches.unshift(
+                fetch(`${API_BASE}/folders/all?${cacheBuster}`, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            );
         }
 
-        if (foldersResult.code === 401 || result.code === 401) {
+        const responses = await Promise.all(fetches);
+        const jsonResults = await Promise.all(responses.map(r => r.json()));
+
+        if (seq !== _loadFilesSeq) return;
+
+        let foldersResult, result;
+        if (!append) {
+            foldersResult = jsonResults[0];
+            result = jsonResults[1];
+        } else {
+            result = jsonResults[0];
+        }
+
+        if ((foldersResult && foldersResult.code === 401) || result.code === 401) {
             await showAppAlert(t('loginExpired'), {
                 tone: 'danger',
                 icon: 'fa-user-clock'
@@ -1836,52 +1861,99 @@ async function loadFiles() {
             return;
         }
 
-        folders = foldersResult.code === 200 && foldersResult.data ? foldersResult.data : [];
+        if (foldersResult) {
+            folders = foldersResult.code === 200 && foldersResult.data ? foldersResult.data : [];
+        }
 
-        const navigationChanged = rebuildFolderPathFromCurrentFolder();
-        updateSidebarSelection();
-        if (navigationChanged) {
-            syncNetdiskHistoryState('replace');
+        if (!append) {
+            const navigationChanged = rebuildFolderPathFromCurrentFolder();
+            updateSidebarSelection();
+            if (navigationChanged) {
+                syncNetdiskHistoryState('replace');
+            }
         }
 
         if (result.code === 200 && result.data) {
-            let allData = result.data;
-            allData.forEach(item => {
+            let pageData;
+            // Support both paginated response (object with records) and legacy array response
+            if (Array.isArray(result.data)) {
+                pageData = result.data;
+                _filesTotalPages = 1;
+                _filesPageNum = 1;
+            } else {
+                pageData = result.data.records || [];
+                _filesTotalPages = result.data.pages || 1;
+                _filesPageNum = result.data.current || 1;
+            }
+
+            pageData.forEach(item => {
                 if (item.isFolder === 1 || item.fileType === 'folder') {
                     item.name = item.originalName || item.fileName;
                     if (!folders.find(f => f.id === item.id)) folders.push(item);
                 }
             });
-            files = allData.filter(item => item.isFolder !== 1 && item.fileType !== 'folder');
-            files.forEach(file => {
+
+            const newFiles = pageData.filter(item => item.isFolder !== 1 && item.fileType !== 'folder');
+            newFiles.forEach(file => {
                 if (!file.type) file.type = getFileType(file.originalName || file.fileName || file.name);
             });
+
+            if (append) {
+                files = files.concat(newFiles);
+            } else {
+                files = newFiles;
+            }
+
             saveFiles();
             pruneNetdiskSelection();
             rerenderNetdiskCurrentView();
+            renderLoadMoreButton();
         } else {
             throw new Error(result.message || '加载失败');
         }
     } catch (error) {
         console.error('加载文件失败:', error);
-        const saved = localStorage.getItem(getUserStorageKey());
-        if (saved) {
-            const savedData = JSON.parse(saved);
-            files = savedData.files || [];
-            folders = savedData.folders || [];
-            rebuildFolderPathFromCurrentFolder();
-            files.forEach(file => {
-                if (!file.type) file.type = getFileType(file.originalName || file.fileName || file.name);
-            });
-        } else {
-            files = [];
-            folders = [];
-            folderPath = [];
+        if (!append) {
+            const saved = localStorage.getItem(getUserStorageKey());
+            if (saved) {
+                const savedData = JSON.parse(saved);
+                files = savedData.files || [];
+                folders = savedData.folders || [];
+                rebuildFolderPathFromCurrentFolder();
+                files.forEach(file => {
+                    if (!file.type) file.type = getFileType(file.originalName || file.fileName || file.name);
+                });
+            } else {
+                files = [];
+                folders = [];
+                folderPath = [];
+            }
+            pruneNetdiskSelection();
+            updateSidebarSelection();
+            rerenderNetdiskCurrentView();
         }
-        pruneNetdiskSelection();
-        updateSidebarSelection();
-        rerenderNetdiskCurrentView();
+    } finally {
+        _filesLoading = false;
     }
+}
+
+function renderLoadMoreButton() {
+    let btn = document.getElementById('netdiskLoadMore');
+    if (_filesPageNum >= _filesTotalPages) {
+        if (btn) btn.remove();
+        return;
+    }
+    const container = document.getElementById('listContent') || document.getElementById('gridView');
+    if (!container) return;
+    if (!btn) {
+        btn = document.createElement('div');
+        btn.id = 'netdiskLoadMore';
+        btn.style.cssText = 'text-align:center; padding:16px 0;';
+        btn.innerHTML = `<button class="toolbar-btn" onclick="loadMoreFiles()" style="min-width:200px;">
+            <i class="fa-solid fa-chevron-down"></i> <span>${t('netdiskLoadMore') || 'Load more'}</span>
+        </button>`;
+    }
+    container.parentElement.appendChild(btn);
 }
 
 

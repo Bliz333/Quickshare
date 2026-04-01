@@ -18,6 +18,7 @@ import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.FileInfoVO;
 import com.finalpre.quickshare.vo.FilePreviewPolicyVO;
+import com.finalpre.quickshare.vo.PageVO;
 import com.finalpre.quickshare.vo.ShareLinkVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -114,14 +115,25 @@ public class FileController {
     }
 
     /**
-     * 获取当前用户当前目录的文件列表
+     * 获取当前用户当前目录的文件列表（支持可选分页）
+     * 不传 pageSize 时返回全量 List，传 pageSize 时返回分页结果
      */
     @GetMapping("/files")
-    public Result<List<FileInfoVO>> getUserFiles(
+    public Result<?> getUserFiles(
             @RequestParam(required = false) Long folderId,
+            @RequestParam(required = false) Integer pageNum,
+            @RequestParam(required = false) Integer pageSize,
             Authentication authentication) {
         Long userId = requireUserId(authentication);
         Long targetFolderId = folderId == null ? 0L : folderId;
+
+        if (pageSize != null && pageSize > 0) {
+            int page = (pageNum != null && pageNum > 0) ? pageNum : 1;
+            int size = Math.min(pageSize, 200);
+            PageVO<FileInfoVO> result = fileService.getFilesByFolderPaged(targetFolderId, userId, page, size);
+            return Result.success(result);
+        }
+
         List<FileInfoVO> fileList = fileService.getFilesByFolder(targetFolderId, userId);
         return Result.success(fileList);
     }

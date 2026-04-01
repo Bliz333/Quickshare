@@ -289,6 +289,9 @@ public class FileController {
     /**
      * 下载文件（不需要认证）
      */
+    @Value("${app.share.anonymous-download-deducts-owner-quota:false}")
+    private boolean anonymousDownloadDeductsOwnerQuota;
+
     @GetMapping("/download/{shareCode}")
     public void downloadFile(
             @PathVariable String shareCode,
@@ -298,12 +301,19 @@ public class FileController {
             HttpServletResponse response) {
         requestRateLimitService.checkPublicDownloadAllowed(resolveClientIp(request));
         Long userId = extractAuthenticatedUserId(authentication);
-        if (userId != null) {
-            quotaService.checkDownloadQuota(userId);
+        Long quotaUserId = userId;
+
+        // When anonymous download, optionally deduct from the file owner's quota
+        if (quotaUserId == null && anonymousDownloadDeductsOwnerQuota) {
+            quotaUserId = fileService.getFileOwnerByShareCode(shareCode);
+        }
+
+        if (quotaUserId != null) {
+            quotaService.checkDownloadQuota(quotaUserId);
         }
         fileService.downloadFile(shareCode, extractCode, response);
-        if (userId != null) {
-            quotaService.recordDownload(userId);
+        if (quotaUserId != null) {
+            quotaService.recordDownload(quotaUserId);
         }
     }
 

@@ -329,6 +329,14 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    public Long getFileOwnerByShareCode(String shareCode) {
+        ShareLink link = shareLinkMapper.selectOne(new QueryWrapper<ShareLink>().eq("share_code", shareCode));
+        if (link == null) return null;
+        FileInfo file = fileInfoMapper.selectById(link.getFileId());
+        return file != null ? file.getUserId() : null;
+    }
+
+    @Override
     public void downloadFile(String shareCode, String extractCode, HttpServletResponse response) {
         // Validate share info (checks expiration, extract code, status, file exists)
         ShareLinkVO shareInfo = getShareInfo(shareCode, extractCode);

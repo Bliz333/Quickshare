@@ -28,6 +28,11 @@ public interface FileService {
     ShareLinkVO getShareInfo(String shareCode, String extractCode);
 
     /**
+     * 获取分享链接对应的文件上传者 ID
+     */
+    Long getFileOwnerByShareCode(String shareCode);
+
+    /**
      * 下载文件
      */
     void downloadFile(String shareCode, String extractCode, HttpServletResponse response);

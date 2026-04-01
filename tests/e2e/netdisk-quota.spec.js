@@ -74,6 +74,16 @@ function expectedStorageWidth(profile) {
   return `${percentage}%`;
 }
 
+function mockProfile(page, profileOverrides) {
+  return page.route('**/api/profile', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 200, data: profileOverrides })
+    });
+  });
+}
+
 test.describe('Netdisk quota sidebar', () => {
   test('renders current user quota, VIP status, and upgrade entry', async ({ page, request, baseURL }) => {
     const { token, user } = await loginAsAdmin(request);
@@ -107,5 +117,61 @@ test.describe('Netdisk quota sidebar', () => {
     const upgradeEntry = page.locator('#quotaSection a[href="pricing.html"]');
     await expect(upgradeEntry).toBeVisible();
     await expect(upgradeEntry).toHaveText('Upgrade');
+  });
+
+  test('shows danger bar color when storage is near limit (>90%)', async ({ page, request, baseURL }) => {
+    const { token, user } = await loginAsAdmin(request);
+
+    // 95% used: 950 MB of 1 GB
+    const storageLimit = 1024 * 1024 * 1024;
+    const storageUsed  = Math.round(storageLimit * 0.95);
+
+    await mockProfile(page, {
+      username: user.username,
+      nickname: user.nickname,
+      storageUsed,
+      storageLimit,
+      downloadUsed: 0,
+      downloadLimit: 0
+    });
+
+    await seedSession(page, token, user);
+    await page.goto(`${baseURL}/netdisk.html`);
+    await expect(page.locator('#listContent')).toBeVisible();
+
+    // Bar width should be 95%
+    await expect
+      .poll(async () => page.locator('#quotaStorageBar').evaluate(el => el.style.width))
+      .toBe('95%');
+
+    // Bar background should use --danger variable (danger color applied for >90%)
+    const barBg = await page.locator('#quotaStorageBar').evaluate(el => el.style.background);
+    expect(barBg).toContain('var(--danger)');
+  });
+
+  test('shows VIP Expired when vipExpireTime is in the past', async ({ page, request, baseURL }) => {
+    const { token, user } = await loginAsAdmin(request);
+
+    // Expire date 30 days in the past
+    const pastExpiry = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    await mockProfile(page, {
+      username: user.username,
+      nickname: user.nickname,
+      vipExpireTime: pastExpiry,
+      storageUsed: 0,
+      storageLimit: 0,
+      downloadUsed: 0,
+      downloadLimit: 0
+    });
+
+    await seedSession(page, token, user);
+    await page.goto(`${baseURL}/netdisk.html`);
+    await expect(page.locator('#listContent')).toBeVisible();
+
+    // VIP status should show expired text in danger color
+    await expect(page.locator('#userVipStatus')).toHaveText('VIP Expired', { timeout: 5000 });
+    const color = await page.locator('#userVipStatus').evaluate(el => el.style.color);
+    expect(color).toContain('var(--danger)');
   });
 });

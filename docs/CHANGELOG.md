@@ -2,6 +2,15 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-03-30 (Phase 4 回归扩展 + Phase 5 运维文档)
+
+- 核心变更：
+  - 新增 `tests/e2e/netdisk-nav.spec.js`：覆盖文件夹导航（点击进入子文件夹 → URL 变为 `?folder={id}`、面包屑更新）和浏览器返回（URL 清除 `?folder=`、面包屑恢复）及冷启动 URL 直接打开子文件夹两个用例
+  - 扩展 `tests/e2e/netdisk-quota.spec.js`：新增存储近满（>90%，进度条变红 `var(--danger)`）与 VIP 已过期（`vipExpireTime` 过期，状态文字变红）两个 mock 驱动用例
+  - 新增 `docs/ops/capacity.md`：磁盘风险阈值（WARNING 15% / CRITICAL 5%）、health check 字段解读、Docker 镜像/日志/上传目录清理 SOP
+  - 新增 `docs/ops/https-proxy.md`：nginx 反向代理配置（含 WebSocket upgrade for `/ws/quickdrop`）、Let's Encrypt / Certbot 集成、安全 header 建议
+  - 新增 `docs/ops/prod-preprod.md`：预发布与生产环境职责边界、配置差异清单（JWT、存储、TURN、邮件等）、发布前 7 步检查清单
+
 ## 2026-03-30 (QuickDrop Phase 3 UI 收口)
 
 - 核心变更：

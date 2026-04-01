@@ -60,25 +60,20 @@
 
 ### Phase 4. 回归与 smoke 自动化扩展
 
-- 目标：
-  - 把当前默认验收组合继续固定成标准操作序列
-  - 继续补真实公网 / 支付回跳 / 登录后网盘 CRUD 等高价值页面级回归
-- 建议提交边界：
-  - CI / 脚本 / Playwright / smoke 变更单独提交
-- 验收：
-  - 默认小里程碑入口保持 `check-js -> compile -> targeted tests -> smoke -> nearest Playwright`
-  - 至少新增一条覆盖真实用户主路径的自动化
+- 当前状态：已完成（2026-03-30）
+- 结果：
+  - 新增 `tests/e2e/netdisk-nav.spec.js`：文件夹导航进入子目录（URL `?folder={id}` + 面包屑）、浏览器返回（URL 清除 + 面包屑还原）、冷启动 URL 直接打开子文件夹
+  - 扩展 `tests/e2e/netdisk-quota.spec.js`：存储近满（>90%）进度条变红 + VIP 已过期状态文字变红两个 mock 驱动用例
+  - 待续：真实公网商户回跳、更多登录后网盘 CRUD 操作回归
 
 ### Phase 5. 运行态与运维加固
 
-- 目标：
-  - 补容量告警、备份 / 生命周期、HTTPS / 反向代理、部署可恢复性
-  - 明确预发布与生产环境的职责边界
-- 建议提交边界：
-  - 运维文档、compose/systemd/nginx、监控项配置分开提交
-- 验收：
-  - 文档能独立指导复现
-  - 关键运维风险有明确的检测或恢复动作
+- 当前状态：文档层已完成（2026-03-30）
+- 结果：
+  - `docs/ops/capacity.md`：磁盘风险阈值、health check 字段解读、Docker/日志/上传目录清理 SOP
+  - `docs/ops/https-proxy.md`：nginx 反向代理配置（含 WebSocket upgrade）、Let's Encrypt / Certbot 集成、安全 header
+  - `docs/ops/prod-preprod.md`：环境职责边界、配置差异清单、发布前 7 步检查清单
+  - 待续：docker-compose 日志轮转配置落地、告警脚本集成、备份策略
 
 ## 当前目标
 

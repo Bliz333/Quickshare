@@ -94,6 +94,8 @@ DEPLOY_GIT_BRANCH=main DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/d
 
 ### Layer Structure
 
+Base package: `com.finalpre.quickshare`
+
 ```
 controller/          → REST endpoints, extracts userId from JWT, returns Result<T>
 service/             → Interfaces
@@ -133,7 +135,7 @@ Backend is switchable at runtime from the admin console without restart.
 
 ### Database & Migrations
 
-Schema managed by **Flyway** (`db/migration/V1__initial_schema.sql` through V10). Key tables:
+Schema managed by **Flyway** (`src/main/resources/db/migration/V*.sql`). Key tables:
 - `user` — accounts, roles, quotas (`storageLimit`, `storageUsed`, `downloadLimit`, VIP expiry)
 - `file_info` — file metadata + folder hierarchy (`isFolder`, `parentId`); soft-deleted via `@TableLogic`
 - `share_link` — shareCode, extractCode, expiration, download count/limit
@@ -173,6 +175,10 @@ Key pages: `netdisk.html` (file manager), `quickdrop.html` (device transfer — 
 | `QUICKDROP_STUN_URLS` / `QUICKDROP_TURN_URLS` | ICE servers for QuickDrop |
 
 Full variable list: see `.env.example`.
+
+### CI
+
+GitHub Actions workflow (`.github/workflows/ci.yml`) runs build, test, and JS syntax check on push/PR.
 
 ## Delivery Checklist
 

@@ -149,14 +149,20 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
     @Override
     public String getRoomId(String clientIp) {
         if (clientIp == null || clientIp.isBlank() || "unknown".equals(clientIp)) {
-            return "room:unknown";
+            // Unknown IP: each connection gets an isolated room (no cross-user leakage)
+            return "room:isolated:" + java.util.UUID.randomUUID().toString().replace("-", "");
         }
-        // For IPv4: group by /24 (first 3 octets) — same as Snapdrop
-        String[] parts = clientIp.split("\\.");
-        if (parts.length == 4) {
-            return "room:" + parts[0] + "." + parts[1] + "." + parts[2];
+        // Group by EXACT IP address, not /24 subnet.
+        //
+        // Rationale: on a public server, /24 grouping would expose devices to
+        // strangers sharing the same ISP subnet (e.g. 1.2.3.4 and 1.2.3.200).
+        // With exact-IP grouping, only devices behind the SAME NAT router
+        // (identical public IP) share a room — matching real-world LAN semantics.
+        //
+        // Localhost is kept as a shared room to allow multi-tab testing in dev.
+        if ("127.0.0.1".equals(clientIp) || "::1".equals(clientIp)) {
+            return "room:localhost";
         }
-        // IPv6 or other: use the full IP as the room key
         return "room:" + clientIp;
     }
 

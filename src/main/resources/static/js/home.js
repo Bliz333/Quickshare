@@ -281,7 +281,20 @@ function onDeviceClick(channelId, label) {
     if (homeState.transferState !== 'idle') return;
     homeState.pendingTargetChannelId = channelId;
     homeState.transferFile = null;
-    document.getElementById('homeFileInput')?.click();
+    showSendModal(label);
+}
+
+function showSendModal(label) {
+    const modal = document.getElementById('sendModal');
+    const target = document.getElementById('sendModalTarget');
+    if (target) target.textContent = `发送给：${label}`;
+    if (modal) modal.classList.add('visible');
+}
+
+function closeSendModal() {
+    const modal = document.getElementById('sendModal');
+    if (modal) modal.classList.remove('visible');
+    homeState.pendingTargetChannelId = null;
 }
 
 function initiateTransfer(targetChannelId, label, file) {
@@ -516,6 +529,7 @@ window.addEventListener('load', async () => {
     const fileInput = document.getElementById('homeFileInput');
     if (fileInput) {
         fileInput.addEventListener('change', (e) => {
+            closeSendModal();
             const file = e.target.files[0];
             if (file && homeState.pendingTargetChannelId) {
                 initiateTransfer(homeState.pendingTargetChannelId, null, file);

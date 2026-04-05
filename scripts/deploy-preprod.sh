@@ -197,6 +197,13 @@ fi
 
 if [[ "$DEPLOY_MODE" == "git" ]]; then
     TARGET_COMMIT="$(git rev-parse "$TARGET_REF")"
+    # If the server's bare repo is behind (e.g. not yet synced with GitHub),
+    # the resolved commit will differ from what we intend to deploy.
+    # Fall back to the uploaded snapshot which always carries the correct HEAD.
+    if [[ "$TARGET_COMMIT" != "$LOCAL_HEAD" && "$ENABLE_SNAPSHOT_FALLBACK" == "1" ]]; then
+        log "remote git has ${TARGET_COMMIT}, expected ${LOCAL_HEAD}; using uploaded snapshot instead"
+        deploy_from_snapshot "$(date +%Y%m%d-%H%M%S)"
+    fi
 fi
 ROLLBACK_NEEDED=0
 

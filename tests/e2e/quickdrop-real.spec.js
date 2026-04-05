@@ -28,14 +28,14 @@ async function loginAsAdmin(request, apiBaseUrl) {
   return { token: user.token, user };
 }
 
-async function seedQuickDropSession(context, token, user, deviceId, deviceName) {
+async function seedTransferSession(context, token, user, deviceId, deviceName) {
   await context.addInitScript(
     ({ storedToken, storedUser, storedDeviceId, storedDeviceName }) => {
       localStorage.setItem('token', storedToken);
       localStorage.setItem('user', JSON.stringify(storedUser));
       localStorage.setItem('quickshare-lang', 'en');
-      localStorage.setItem('quickdrop-device-id', storedDeviceId);
-      localStorage.setItem('quickdrop-device-name', storedDeviceName);
+      localStorage.setItem('transfer-device-id', storedDeviceId);
+      localStorage.setItem('transfer-device-name', storedDeviceName);
     },
     {
       storedToken: token,
@@ -47,7 +47,7 @@ async function seedQuickDropSession(context, token, user, deviceId, deviceName) 
 }
 
 async function registerDevice(request, apiBaseUrl, token, deviceId, deviceName) {
-  const response = await request.post(`${apiBaseUrl}/quickdrop/sync`, {
+  const response = await request.post(`${apiBaseUrl}/transfer/sync`, {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       deviceId,
@@ -59,7 +59,7 @@ async function registerDevice(request, apiBaseUrl, token, deviceId, deviceName) 
   await readJson(response);
 }
 
-test.describe('QuickDrop real browser flow', () => {
+test.describe('Transfer real browser flow', () => {
   test('same-account real two-page transfer lands in unified task list', async ({ browser, request, baseURL }) => {
     test.setTimeout(120000);
 
@@ -70,8 +70,8 @@ test.describe('QuickDrop real browser flow', () => {
 
     const senderContext = await browser.newContext();
     const receiverContext = await browser.newContext();
-    await seedQuickDropSession(senderContext, token, user, 'device-sender-real', 'Sender Browser');
-    await seedQuickDropSession(receiverContext, token, user, 'device-receiver-real', 'Receiver Browser');
+    await seedTransferSession(senderContext, token, user, 'device-sender-real', 'Sender Browser');
+    await seedTransferSession(receiverContext, token, user, 'device-receiver-real', 'Receiver Browser');
 
     const senderPage = await senderContext.newPage();
     const receiverPage = await receiverContext.newPage();
@@ -80,42 +80,42 @@ test.describe('QuickDrop real browser flow', () => {
     let finalSnapshot = null;
     try {
       await Promise.all([
-        senderPage.goto(`${baseURL}/quickdrop.html`, { waitUntil: 'domcontentloaded' }),
-        receiverPage.goto(`${baseURL}/quickdrop.html`, { waitUntil: 'domcontentloaded' })
+        senderPage.goto(`${baseURL}/transfer.html`, { waitUntil: 'domcontentloaded' }),
+        receiverPage.goto(`${baseURL}/transfer.html`, { waitUntil: 'domcontentloaded' })
       ]);
 
       await Promise.all([
-        senderPage.evaluate(() => window.syncQuickDrop()),
-        receiverPage.evaluate(() => window.syncQuickDrop())
+        senderPage.evaluate(() => window.syncTransfer()),
+        receiverPage.evaluate(() => window.syncTransfer())
       ]);
 
-      await expect(senderPage.locator('[data-quickdrop-device="device-receiver-real"]')).toBeVisible();
-      await expect(receiverPage.locator('[data-quickdrop-device="device-sender-real"]')).toBeVisible();
+      await expect(senderPage.locator('[data-transfer-device="device-receiver-real"]')).toBeVisible();
+      await expect(receiverPage.locator('[data-transfer-device="device-sender-real"]')).toBeVisible();
 
-      await senderPage.locator('[data-quickdrop-device="device-receiver-real"]').click();
+      await senderPage.locator('[data-transfer-device="device-receiver-real"]').click();
 
-      await senderPage.locator('#quickDropFileInput').setInputFiles({
+      await senderPage.locator('#transferFileInput').setInputFiles({
         name: 'real-direct-e2e.txt',
         mimeType: 'text/plain',
-        buffer: Buffer.from('real direct transfer through quickdrop')
+        buffer: Buffer.from('real direct transfer through transfer')
       });
-      await senderPage.locator('#quickDropSendBtn').click();
+      await senderPage.locator('#transferSendBtn').click();
 
-      await expect(receiverPage.locator('#quickDropIncomingList')).toContainText('real-direct-e2e.txt', {
+      await expect(receiverPage.locator('#transferIncomingList')).toContainText('real-direct-e2e.txt', {
         timeout: 30000
       });
-      await expect(senderPage.locator('#quickDropOutgoingList')).toContainText('real-direct-e2e.txt', {
+      await expect(senderPage.locator('#transferOutgoingList')).toContainText('real-direct-e2e.txt', {
         timeout: 30000
       });
-      await expect(senderPage.locator('#quickDropOutgoingList')).toContainText(/Direct|Relay/, {
+      await expect(senderPage.locator('#transferOutgoingList')).toContainText(/Direct|Relay/, {
         timeout: 30000
       });
 
       finalSnapshot = await senderPage.evaluate(() => {
-        const item = window.quickDropState?.displayOutgoingTransfers?.[0] || null;
+        const item = window.transferState?.displayOutgoingTransfers?.[0] || null;
         const task = item?.task || null;
-        const signalLoaded = Boolean(window.QuickDropSignalManager);
-        const signal = window.QuickDropSignalManager?.getState?.() || {};
+        const signalLoaded = Boolean(window.TransferSignalManager);
+        const signal = window.TransferSignalManager?.getState?.() || {};
         return {
           taskId: task?.taskId || task?.id || item?.taskId || null,
           transferMode: task?.transferMode || item?.transferMode || null,
@@ -141,14 +141,14 @@ test.describe('QuickDrop real browser flow', () => {
       });
       createdTaskId = finalSnapshot?.taskId || null;
       expect(createdTaskId).toBeTruthy();
-      console.log('[quickdrop-real] final_snapshot=' + JSON.stringify(finalSnapshot));
+      console.log('[transfer-real] final_snapshot=' + JSON.stringify(finalSnapshot));
       const expectedMode = process.env.EXPECT_QUICKDROP_FINAL_MODE || '';
       if (expectedMode) {
         expect(finalSnapshot?.transferMode).toBe(expectedMode);
       }
     } finally {
       if (createdTaskId) {
-        await request.delete(`${apiBaseUrl}/quickdrop/tasks/${createdTaskId}?deviceId=device-sender-real`, {
+        await request.delete(`${apiBaseUrl}/transfer/tasks/${createdTaskId}?deviceId=device-sender-real`, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }

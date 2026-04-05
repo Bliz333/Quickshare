@@ -125,7 +125,7 @@ app:
       enabled: ${PUBLIC_SHARE_EXTRACT_CODE_ERROR_RATE_LIMIT_ENABLED:true}
       max-requests: ${PUBLIC_SHARE_EXTRACT_CODE_ERROR_RATE_LIMIT_MAX_REQUESTS:5}
       window-seconds: ${PUBLIC_SHARE_EXTRACT_CODE_ERROR_RATE_LIMIT_WINDOW_SECONDS:600}
-  quickdrop:
+  transfer:
     presence-timeout-seconds: ${QUICKDROP_PRESENCE_TIMEOUT_SECONDS:45}
     transfer-ttl-hours: ${QUICKDROP_TRANSFER_TTL_HOURS:72}
     chunk-size-bytes: ${QUICKDROP_CHUNK_SIZE_BYTES:2097152}

@@ -29,7 +29,7 @@ function renderLoggedInState(user) {
     const logoutText = lang === 'zh' ? '退出' : 'Logout';
     const netdiskText = lang === 'zh' ? '网盘主页' : 'My Netdisk';
     const upgradeText = lang === 'zh' ? '升级套餐' : 'Upgrade';
-    const quickDropText = lang === 'zh' ? '设备快传' : 'QuickDrop';
+    const transferText = lang === 'zh' ? '快传' : 'Quick Transfer';
     const authButtons = document.getElementById('authButtons');
 
     if (!authButtons) {
@@ -44,8 +44,8 @@ function renderLoggedInState(user) {
             <button onclick="location.href='pricing.html'" class="btn-auth btn-login" style="padding: 8px 20px;">
                 <i class="fa-solid fa-tags"></i> ${upgradeText}
             </button>
-            <button onclick="location.href='quickdrop.html'" class="btn-auth btn-login" style="padding: 8px 20px;">
-                <i class="fa-solid fa-wifi"></i> ${quickDropText}
+            <button onclick="location.href='transfer.html'" class="btn-auth btn-login" style="padding: 8px 20px;">
+                <i class="fa-solid fa-wifi"></i> ${transferText}
             </button>
             <div style="display:flex; align-items:center; gap:8px; background: rgba(255, 255, 255, 0.05); padding: 6px 12px; border-radius: 50px; border: 1px solid var(--glass-border);">
                 <div style="width:30px; height:30px; background: linear-gradient(45deg, #6d28d9, #06b6d4); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size: 0.9rem;">

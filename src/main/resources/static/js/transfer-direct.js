@@ -41,6 +41,7 @@ const TransferDirectTransfer = (() => {
         acceptWaiters: new Map(),
         receivingSessions: new Map(),
         receiveQueue: Promise.resolve(),
+        announcedIncomingTransfers: new Set(),
         dbPromise: null
     };
 
@@ -2228,6 +2229,9 @@ const TransferDirectTransfer = (() => {
                 receivedCount
             });
             showToast(text('transferDirectReceiveReady', 'Direct transfer is ready to download'), 'success');
+            presentIncomingArrivalDialog(header.transferId).catch(error => {
+                console.warn('Failed to show incoming transfer dialog:', error);
+            });
         }
     }
 
@@ -2316,6 +2320,55 @@ const TransferDirectTransfer = (() => {
         });
         showToast(text('transferSavedToNetdisk', 'Saved to your netdisk'), 'success');
         return result.data;
+    }
+
+    function shouldShowIncomingArrivalDialog() {
+        const loggedIn = typeof isLoggedIn === 'function' && isLoggedIn();
+        if (!loggedIn) {
+            return true;
+        }
+        return window.transferState?.currentMode === 'temporary' || window.transferState?.accountMode === false;
+    }
+
+    async function presentIncomingArrivalDialog(transferId) {
+        if (!shouldShowIncomingArrivalDialog() || state.announcedIncomingTransfers.has(transferId)) {
+            return;
+        }
+        state.announcedIncomingTransfers.add(transferId);
+
+        const transfer = await getStoredTransfer(transferId);
+        if (!transfer) {
+            return;
+        }
+
+        const previewKind = getTransferPreviewKind(transfer);
+        const canPreview = Boolean(previewKind);
+        const message = [
+            `${text('transferSender', 'Sender')}: ${transfer.peerLabel || text('transferDirectPeerFallback', 'Paired peer')}`,
+            `${text('transferTaskFileLabel', 'File')}: ${transfer.fileName || '-'}`,
+            `${text('transferTaskSizeLabel', 'Size')}: ${formatSize(transfer.fileSize)}`,
+            `${text('transferTaskStatusLabel', 'Status')}: ${transferStatusLabel(transfer.status || '')}`
+        ].join('\n');
+
+        if (typeof showAppConfirm !== 'function') {
+            showToast(text('transferDirectReceiveReady', 'Direct transfer is ready to download'), 'success');
+            return;
+        }
+
+        const confirmed = await showAppConfirm(message, {
+            title: text('transferIncomingNoticeSingle', 'A file arrived on this device'),
+            icon: 'fa-file-arrow-down',
+            confirmText: canPreview ? text('previewBtn', 'Preview') : text('transferDownload', 'Download'),
+            cancelText: text('transferClose', 'Close')
+        });
+        if (!confirmed) {
+            return;
+        }
+        if (canPreview) {
+            await openPreviewWindow(transferId);
+            return;
+        }
+        await downloadTransfer(transferId);
     }
 
     async function openPreviewWindow(transferId) {

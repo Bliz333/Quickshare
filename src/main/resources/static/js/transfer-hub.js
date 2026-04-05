@@ -66,6 +66,12 @@ function transferText(key, fallback) {
     return typeof t === 'function' ? t(key) : fallback;
 }
 
+function transferEscapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+}
+
 function normalizeTransferPreviewExtension(fileName) {
     const rawName = String(fileName || '').trim().toLowerCase();
     const dotIndex = rawName.lastIndexOf('.');
@@ -981,6 +987,38 @@ function renderTransferTargetStage() {
     if (targetChip) {
         targetChip.classList.toggle('selected', Boolean(selectedDevice));
     }
+}
+
+function renderTransferLanDevices() {
+    const list = document.getElementById('transferLanDeviceList');
+    const empty = document.getElementById('transferLanDeviceEmpty');
+    if (!list || !empty) {
+        return;
+    }
+
+    const signalState = transferSignalState();
+    const devices = Array.isArray(signalState.roomDevices)
+        ? signalState.roomDevices.filter(device => !device?.isMe)
+        : [];
+
+    if (!devices.length) {
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+
+    empty.classList.add('hidden');
+    list.innerHTML = devices.map(device => {
+        const label = device?.label || transferText('transferDirectPeerFallback', 'Paired device');
+        const channelId = device?.channelId || '';
+        const selected = channelId && channelId === signalState.latestPeerChannelId;
+        return `
+            <button class="btn btn-secondary ${selected ? 'active' : ''}" type="button" data-transfer-lan-device="${transferEscapeHtml(channelId)}" style="justify-content:flex-start;">
+                <i class="fa-solid fa-display"></i>
+                <span>${transferEscapeHtml(label)}</span>
+            </button>
+        `;
+    }).join('');
 }
 
 function transferSignalState() {
@@ -1930,6 +1968,7 @@ async function previewTransferItem(direction, index) {
 function renderTransferPage() {
     updateTransferCurrentDeviceCard();
     renderTransferDevices();
+    renderTransferLanDevices();
     renderTransferTargetStage();
     renderTransferPickerMenu();
     renderTransferFolderSelect();
@@ -1951,6 +1990,13 @@ async function syncTransfer(silent = false) {
         transferState.incomingTransfers = [];
         transferState.outgoingTransfers = [];
         transferState.selectedReceiverDeviceId = '';
+        if (window.TransferSignalManager?.refreshRoomDevices) {
+            try {
+                window.TransferSignalManager.refreshRoomDevices();
+            } catch (error) {
+                // ignore signal refresh failures in guest mode
+            }
+        }
         setTransferAccountMode(false);
         renderTransferPage();
         return;
@@ -2384,6 +2430,7 @@ function bindTransferEvents() {
     const incomingNoticeOpenBtn = document.getElementById('transferIncomingNoticeOpenBtn');
     const historyBackBtn = document.getElementById('transferHistoryBackBtn');
     const deviceList = document.getElementById('transferDeviceList');
+    const lanDeviceList = document.getElementById('transferLanDeviceList');
     const incomingList = document.getElementById('transferIncomingList');
     const outgoingList = document.getElementById('transferOutgoingList');
 
@@ -2440,6 +2487,30 @@ function bindTransferEvents() {
             renderTransferDevices();
             renderTransferActiveUpload();
             maybeEnsureSelectedDeviceDirectRoute({ silent: true, waitForReadyMs: 1200, force: true }).catch(() => {});
+        });
+    }
+
+    if (lanDeviceList) {
+        lanDeviceList.addEventListener('click', async event => {
+            const button = event.target.closest('[data-transfer-lan-device]');
+            if (!button) {
+                return;
+            }
+            const targetChannelId = button.getAttribute('data-transfer-lan-device') || '';
+            const targetLabel = button.textContent?.trim() || transferText('transferDirectPeerFallback', 'Paired device');
+            if (!targetChannelId || !window.TransferSignalManager?.requestRoomTransfer) {
+                return;
+            }
+            try {
+                TransferSignalManager.requestRoomTransfer(targetChannelId);
+                showToast(
+                    transferText('transferLanConnecting', 'Connecting to {name}')
+                        .replace('{name}', targetLabel),
+                    'success'
+                );
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         });
     }
 
@@ -2542,6 +2613,7 @@ function bindTransferEvents() {
     });
 
     document.addEventListener('transfer:direct-statechange', () => {
+        renderTransferLanDevices();
         renderTransferActiveUpload();
         renderTransferDisclosure();
     });

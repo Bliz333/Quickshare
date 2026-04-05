@@ -73,6 +73,8 @@ const TransferSignalManager = (() => {
         socket: null,
         connected: false,
         channelId: '',
+        roomId: '',
+        roomDevices: [],
         pairSessionId: '',
         latestCode: '',
         latestPeerLabel: '',
@@ -364,12 +366,18 @@ const TransferSignalManager = (() => {
         emit('transfer:direct-statechange', {
             directState: state.directState,
             connected: state.connected,
+            roomId: state.roomId,
+            roomDevices: [...(state.roomDevices || [])],
             pairSessionId: state.pairSessionId,
             peerLabel: state.latestPeerLabel,
             peerChannelId: state.latestPeerChannelId,
             peerDeviceId: state.latestPeerDeviceId,
             diagnostics: cloneDirectDiagnostics(state.directDiagnostics)
         });
+    }
+
+    function requestRoomDevices() {
+        send({ type: 'room-devices' });
     }
 
     function getNegotiationContextKey(pairSessionId = state.pairSessionId, peerChannelId = state.latestPeerChannelId) {
@@ -995,6 +1003,7 @@ const TransferSignalManager = (() => {
         state.socket.addEventListener('open', () => {
             state.connected = true;
             updateStatusUi();
+            requestRoomDevices();
             if (state.pingTimer) {
                 clearInterval(state.pingTimer);
             }
@@ -1013,6 +1022,13 @@ const TransferSignalManager = (() => {
 
             if (payload.type === 'welcome') {
                 state.channelId = payload.channelId || '';
+                updateStatusUi();
+                requestRoomDevices();
+            }
+
+            if (payload.type === 'room-update') {
+                state.roomId = payload.roomId || '';
+                state.roomDevices = Array.isArray(payload.devices) ? payload.devices : [];
                 updateStatusUi();
             }
 
@@ -1038,11 +1054,17 @@ const TransferSignalManager = (() => {
                 });
             }
 
+            if (payload.type === 'error') {
+                showToast(payload.message || text('transferSignalDisconnected', 'Signaling Offline'), 'error');
+            }
+
             emit('transfer:signal-message', payload);
         });
 
         state.socket.addEventListener('close', () => {
             state.connected = false;
+            state.roomId = '';
+            state.roomDevices = [];
             if (state.pingTimer) {
                 clearInterval(state.pingTimer);
                 state.pingTimer = null;
@@ -1053,6 +1075,8 @@ const TransferSignalManager = (() => {
 
         state.socket.addEventListener('error', () => {
             state.connected = false;
+            state.roomId = '';
+            state.roomDevices = [];
             cleanupPeerConnection('idle');
             updateStatusUi();
         });
@@ -1167,6 +1191,25 @@ const TransferSignalManager = (() => {
         },
         ensurePairWithDevice(targetDeviceId, options) {
             return ensurePairWithDevice(targetDeviceId, options);
+        },
+        requestRoomTransfer(targetChannelId) {
+            const normalizedTargetChannelId = String(targetChannelId || '').trim();
+            if (!normalizedTargetChannelId) {
+                throw new Error(text('transferChooseDeviceFirst', 'Choose a target device first'));
+            }
+            if (!state.connected) {
+                throw new Error(text('transferSignalDisconnected', 'Signaling Offline'));
+            }
+            send({
+                type: 'request-transfer',
+                targetChannelId: normalizedTargetChannelId
+            });
+            return {
+                targetChannelId: normalizedTargetChannelId
+            };
+        },
+        refreshRoomDevices() {
+            requestRoomDevices();
         },
         waitForDirectReady(expectedPeerDeviceId, timeoutMs) {
             return waitForDirectReady(expectedPeerDeviceId, timeoutMs);

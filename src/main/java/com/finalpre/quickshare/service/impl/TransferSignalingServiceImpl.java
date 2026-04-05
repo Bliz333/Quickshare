@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 import java.io.IOException;
 import java.util.*;
@@ -15,6 +16,9 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class TransferSignalingServiceImpl implements TransferSignalingService {
+
+    private static final int SEND_TIME_LIMIT_MS = 10_000;
+    private static final int BUFFER_SIZE_LIMIT_BYTES = 512 * 1024;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -35,7 +39,7 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
 
     @Override
     public void registerSession(String channelId, String label, String clientIp, WebSocketSession session) throws IOException {
-        sessions.put(channelId, session);
+        sessions.put(channelId, decorateSession(session));
         labels.put(channelId, label);
 
         // Join IP-based room
@@ -81,20 +85,8 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
     @Override
     public void bindPairSession(String pairSessionId, String leftChannelId, String rightChannelId) throws IOException {
         pairs.put(pairSessionId, new PairBinding(leftChannelId, rightChannelId));
-        send(leftChannelId, Map.of(
-                "type", "pair-ready",
-                "pairSessionId", pairSessionId,
-                "peerChannelId", rightChannelId,
-                "peerDeviceId", extractDeviceId(rightChannelId),
-                "peerLabel", labels.getOrDefault(rightChannelId, rightChannelId)
-        ));
-        send(rightChannelId, Map.of(
-                "type", "pair-ready",
-                "pairSessionId", pairSessionId,
-                "peerChannelId", leftChannelId,
-                "peerDeviceId", extractDeviceId(leftChannelId),
-                "peerLabel", labels.getOrDefault(leftChannelId, leftChannelId)
-        ));
+        send(leftChannelId, buildPairReadyPayload(pairSessionId, rightChannelId));
+        send(rightChannelId, buildPairReadyPayload(pairSessionId, leftChannelId));
     }
 
     @Override
@@ -224,12 +216,29 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
         session.sendMessage(new TextMessage(objectMapper.writeValueAsString(payload)));
     }
 
+    private WebSocketSession decorateSession(WebSocketSession session) {
+        if (session instanceof ConcurrentWebSocketSessionDecorator) {
+            return session;
+        }
+        return new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, BUFFER_SIZE_LIMIT_BYTES);
+    }
+
+    private Map<String, Object> buildPairReadyPayload(String pairSessionId, String peerChannelId) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "pair-ready");
+        payload.put("pairSessionId", pairSessionId);
+        payload.put("peerChannelId", peerChannelId == null ? "" : peerChannelId);
+        payload.put("peerDeviceId", extractDeviceId(peerChannelId));
+        payload.put("peerLabel", labels.getOrDefault(peerChannelId, peerChannelId == null ? "" : peerChannelId));
+        return payload;
+    }
+
     private String extractDeviceId(String channelId) {
-        if (channelId == null) return null;
+        if (channelId == null) return "";
         int marker = channelId.indexOf(":device:");
-        if (marker < 0) return null;
+        if (marker < 0) return "";
         String value = channelId.substring(marker + ":device:".length()).trim();
-        return value.isBlank() ? null : value;
+        return value.isBlank() ? "" : value;
     }
 
     private record PairBinding(String leftChannelId, String rightChannelId) {

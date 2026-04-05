@@ -84,6 +84,8 @@ const TransferSignalManager = (() => {
         controlChannel: null,
         fileChannel: null,
         directState: 'idle',
+        negotiationContextKey: '',
+        negotiationPromise: null,
         pendingRemoteCandidates: [],
         pairSessionRequest: null,
         directDiagnostics: createDirectDiagnostics()
@@ -370,6 +372,19 @@ const TransferSignalManager = (() => {
         });
     }
 
+    function getNegotiationContextKey(pairSessionId = state.pairSessionId, peerChannelId = state.latestPeerChannelId) {
+        const normalizedPairSessionId = String(pairSessionId || '').trim();
+        const normalizedPeerChannelId = String(peerChannelId || '').trim();
+        if (!normalizedPairSessionId || !normalizedPeerChannelId) {
+            return '';
+        }
+        return `${normalizedPairSessionId}::${normalizedPeerChannelId}`;
+    }
+
+    function isNegotiationContextCurrent(contextKey) {
+        return Boolean(contextKey) && contextKey === state.negotiationContextKey;
+    }
+
     function send(payload) {
         if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
             return;
@@ -464,6 +479,9 @@ const TransferSignalManager = (() => {
         state.fileChannel = null;
         state.peerConnection = null;
         state.pendingRemoteCandidates = [];
+        if (nextDirectState !== 'negotiating') {
+            state.negotiationContextKey = '';
+        }
         state.directDiagnostics.controlChannelState = 'closed';
         state.directDiagnostics.fileChannelState = 'closed';
         state.directDiagnostics.connectionState = '';
@@ -592,107 +610,152 @@ const TransferSignalManager = (() => {
         }
     }
 
-    async function beginRtcNegotiation() {
-        const rtcConfig = await fetchRtcConfig().catch(() => ({ directTransferEnabled: false, iceServers: [] }));
-        if (!rtcConfig.directTransferEnabled || typeof RTCPeerConnection !== 'function') {
-            setDirectState('unavailable');
-            return;
-        }
-        if (!state.pairSessionId || !state.latestPeerChannelId) {
+    async function beginRtcNegotiation(options = {}) {
+        const contextKey = getNegotiationContextKey();
+        if (!contextKey) {
             return;
         }
 
-        cleanupPeerConnection('negotiating');
-        state.directDiagnostics = {
-            ...createDirectDiagnostics(state.directDiagnostics),
-            negotiationId: Number(state.directDiagnostics.negotiationId || 0) + 1,
-            rtcFetchedAt: state.directDiagnostics.rtcFetchedAt,
-            rtcHasTurn: state.directDiagnostics.rtcHasTurn,
-            rtcHasStun: state.directDiagnostics.rtcHasStun,
-            iceServerUrls: [...(state.directDiagnostics.iceServerUrls || [])],
-            lastReadyAt: state.directDiagnostics.lastReadyAt,
-            lastUnavailableAt: state.directDiagnostics.lastUnavailableAt
-        };
-        state.directDiagnostics.negotiationStartedAt = nowIso();
-        recordDirectEvent('negotiation_start', {
-            pairSessionId: state.pairSessionId,
-            peerDeviceId: state.latestPeerDeviceId,
-            rtcHasTurn: state.directDiagnostics.rtcHasTurn
-        });
-
-        const pc = new RTCPeerConnection({
-            iceServers: rtcConfig.iceServers || []
-        });
-        state.peerConnection = pc;
-        updatePeerConnectionDiagnostics(pc);
-
-        pc.onicecandidate = event => {
-            if (!event.candidate) {
-                recordDirectEvent('local_candidate_complete', {
-                    iceGatheringState: pc.iceGatheringState || ''
-                });
+        const activePeerConnection = state.peerConnection
+            && (state.directState === 'negotiating' || state.directState === 'ready');
+        if (!options.force && isNegotiationContextCurrent(contextKey)) {
+            if (state.negotiationPromise) {
+                return state.negotiationPromise;
+            }
+            if (activePeerConnection) {
                 return;
             }
-            const candidatePayload = event.candidate.toJSON ? event.candidate.toJSON() : event.candidate;
-            recordDirectCandidate('local', candidatePayload);
-            TransferSignalManager.sendSignal('candidate', candidatePayload);
-        };
+        }
 
-        pc.oniceconnectionstatechange = () => {
-            updatePeerConnectionDiagnostics(pc);
-            recordDirectEvent('ice_connection_state', {
-                value: pc.iceConnectionState || ''
-            });
-            if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-                refreshSelectedCandidatePair(pc).catch(() => {});
+        state.negotiationContextKey = contextKey;
+        const negotiationPromise = (async () => {
+            const rtcConfig = await fetchRtcConfig().catch(() => ({ directTransferEnabled: false, iceServers: [] }));
+            if (!isNegotiationContextCurrent(contextKey)) {
+                return;
             }
-            updateDirectChannelState();
-        };
-
-        pc.onicegatheringstatechange = () => {
-            updatePeerConnectionDiagnostics(pc);
-            recordDirectEvent('ice_gathering_state', {
-                value: pc.iceGatheringState || ''
-            });
-        };
-
-        pc.onsignalingstatechange = () => {
-            updatePeerConnectionDiagnostics(pc);
-            recordDirectEvent('signaling_state', {
-                value: pc.signalingState || ''
-            });
-        };
-
-        pc.onconnectionstatechange = () => {
-            updatePeerConnectionDiagnostics(pc);
-            recordDirectEvent('connection_state', {
-                value: pc.connectionState || ''
-            });
-            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+            if (!rtcConfig.directTransferEnabled || typeof RTCPeerConnection !== 'function') {
                 setDirectState('unavailable');
                 return;
             }
-            if (pc.connectionState === 'connected') {
-                refreshSelectedCandidatePair(pc).catch(() => {});
-            }
-            updateDirectChannelState();
-        };
-
-        pc.ondatachannel = event => {
-            if (event.channel.label === 'transfer-file') {
-                bindFileChannel(event.channel);
+            if (!state.pairSessionId || !state.latestPeerChannelId) {
                 return;
             }
-            bindControlChannel(event.channel);
-        };
 
-        const initiator = state.channelId && state.latestPeerChannelId && state.channelId < state.latestPeerChannelId;
-        if (initiator) {
-            bindControlChannel(pc.createDataChannel('transfer-control', { ordered: true }));
-            bindFileChannel(pc.createDataChannel('transfer-file', { ordered: true }));
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            TransferSignalManager.sendSignal('offer', offer);
+            cleanupPeerConnection('negotiating');
+            state.negotiationContextKey = contextKey;
+            state.directDiagnostics = {
+                ...createDirectDiagnostics(state.directDiagnostics),
+                negotiationId: Number(state.directDiagnostics.negotiationId || 0) + 1,
+                rtcFetchedAt: state.directDiagnostics.rtcFetchedAt,
+                rtcHasTurn: state.directDiagnostics.rtcHasTurn,
+                rtcHasStun: state.directDiagnostics.rtcHasStun,
+                iceServerUrls: [...(state.directDiagnostics.iceServerUrls || [])],
+                lastReadyAt: state.directDiagnostics.lastReadyAt,
+                lastUnavailableAt: state.directDiagnostics.lastUnavailableAt
+            };
+            state.directDiagnostics.negotiationStartedAt = nowIso();
+            recordDirectEvent('negotiation_start', {
+                pairSessionId: state.pairSessionId,
+                peerDeviceId: state.latestPeerDeviceId,
+                rtcHasTurn: state.directDiagnostics.rtcHasTurn
+            });
+
+            const pc = new RTCPeerConnection({
+                iceServers: rtcConfig.iceServers || []
+            });
+            if (!isNegotiationContextCurrent(contextKey)) {
+                try {
+                    pc.close();
+                } catch (error) {
+                    // ignore
+                }
+                return;
+            }
+            state.peerConnection = pc;
+            updatePeerConnectionDiagnostics(pc);
+
+            pc.onicecandidate = event => {
+                if (!event.candidate) {
+                    recordDirectEvent('local_candidate_complete', {
+                        iceGatheringState: pc.iceGatheringState || ''
+                    });
+                    return;
+                }
+                const candidatePayload = event.candidate.toJSON ? event.candidate.toJSON() : event.candidate;
+                recordDirectCandidate('local', candidatePayload);
+                TransferSignalManager.sendSignal('candidate', candidatePayload);
+            };
+
+            pc.oniceconnectionstatechange = () => {
+                updatePeerConnectionDiagnostics(pc);
+                recordDirectEvent('ice_connection_state', {
+                    value: pc.iceConnectionState || ''
+                });
+                if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                    refreshSelectedCandidatePair(pc).catch(() => {});
+                }
+                updateDirectChannelState();
+            };
+
+            pc.onicegatheringstatechange = () => {
+                updatePeerConnectionDiagnostics(pc);
+                recordDirectEvent('ice_gathering_state', {
+                    value: pc.iceGatheringState || ''
+                });
+            };
+
+            pc.onsignalingstatechange = () => {
+                updatePeerConnectionDiagnostics(pc);
+                recordDirectEvent('signaling_state', {
+                    value: pc.signalingState || ''
+                });
+            };
+
+            pc.onconnectionstatechange = () => {
+                updatePeerConnectionDiagnostics(pc);
+                recordDirectEvent('connection_state', {
+                    value: pc.connectionState || ''
+                });
+                if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+                    setDirectState('unavailable');
+                    return;
+                }
+                if (pc.connectionState === 'connected') {
+                    refreshSelectedCandidatePair(pc).catch(() => {});
+                }
+                updateDirectChannelState();
+            };
+
+            pc.ondatachannel = event => {
+                if (event.channel.label === 'transfer-file') {
+                    bindFileChannel(event.channel);
+                    return;
+                }
+                bindControlChannel(event.channel);
+            };
+
+            const initiator = state.channelId && state.latestPeerChannelId && state.channelId < state.latestPeerChannelId;
+            if (initiator) {
+                bindControlChannel(pc.createDataChannel('transfer-control', { ordered: true }));
+                bindFileChannel(pc.createDataChannel('transfer-file', { ordered: true }));
+                const offer = await pc.createOffer();
+                if (!isNegotiationContextCurrent(contextKey)) {
+                    return;
+                }
+                await pc.setLocalDescription(offer);
+                if (!isNegotiationContextCurrent(contextKey)) {
+                    return;
+                }
+                TransferSignalManager.sendSignal('offer', offer);
+            }
+        })();
+        state.negotiationPromise = negotiationPromise;
+        try {
+            return await negotiationPromise;
+        } finally {
+            if (state.negotiationPromise === negotiationPromise) {
+                state.negotiationPromise = null;
+            }
         }
     }
 

@@ -2,6 +2,31 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-04-05 (Transfer 重命名 + LAN 传输修复 + 首页重设计)
+
+- **后端重命名（QuickDrop → Transfer）**：
+  - 所有 Java 层（config / controller / dto / entity / mapper / service / vo）统一改名为 Transfer*
+  - WebSocket 端点：`/ws/quickdrop` → `/ws/transfer`
+  - API 前缀：`/api/quickdrop/**` → `/api/transfer/**`、`/api/public/transfer/**`
+  - 配置属性前缀：`app.quickdrop` → `app.transfer`
+  - DB 迁移 V11：`RENAME TABLE quickdrop_* → transfer_*`
+  - 静态资源：`quickdrop.html` → `transfer.html`，`quickdrop*.js` → `transfer*.js`
+- **新增 TransferSignalingServiceImpl**：
+  - IP /24 子网分组（Snapdrop 同款）实现局域网设备自动发现
+  - `requestRoomTransfer` 支持无需配对码的同局域网快速配对
+- **修复 LAN 传输接收方零响应 Bug（关键 Bug）**：
+  - 发送方完成上传后，通过 WS `forwardSignal` 发送 `relay-done` 信令给接收方
+  - 接收方收到信令后弹出下载卡片
+  - 改用 `/api/public/transfer/shares`（无需登录），游客也可发送文件
+- **首页 (index.html) 全面重设计**：
+  - 全视口设备环（两圈旋转轨道 + 自身中心 80px 脉冲圆）
+  - 设备节点：根据 UA 自动识别类型图标（手机 / 平板 / 笔记本）
+  - 接收文件：底部滑出 receive card，含文件名、大小、下载按钮
+  - 发送进度：渐显进度条 + 状态文字
+  - 背景：轻量柔和模糊色块，替换原有重动画
+  - 深色模式全面适配
+- **新增 nav.js**：统一导航栏公共组件
+
 ## 2026-04-01 (七阶段加固计划)
 
 - 运维加固：

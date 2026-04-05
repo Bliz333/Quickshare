@@ -1,8 +1,16 @@
-# QuickShare 后续计划（2026-03-26）
+# QuickShare 后续计划（2026-04-05）
 
-旧的阶段式路线图已经完成。当前计划不再按“从 0 到 6 的大阶段”推进，而是围绕维护、体验和回归质量继续收口。
+旧的阶段式路线图已经完成。当前计划不再按”从 0 到 6 的大阶段”推进，而是围绕维护、体验和回归质量继续收口。
 
 ## 当前阶段进度
+
+- 已完成（2026-04-05）：Transfer 重命名 + LAN 传输功能修复 + 首页重设计
+  - QuickDrop → Transfer 全栈重命名（Java / DB / 前端）
+  - 修复 LAN 接收方无响应 Bug：relay-done 信令 + 接收卡片弹窗
+  - 改用 `/api/public/transfer/shares` 实现无需登录的 LAN 传输
+  - `index.html` 全面重设计（设备环 + 接收弹窗 + 深色模式）
+  - 新增 `TransferSignalingServiceImpl`（IP /24 房间分组）
+  - DB 迁移 V11
 
 - 已完成阶段 A：QuickDrop 页面收口基线固化
   - 已重新验收未提交的 QuickDrop UI 改动

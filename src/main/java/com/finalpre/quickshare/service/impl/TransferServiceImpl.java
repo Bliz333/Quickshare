@@ -294,6 +294,21 @@ public class TransferServiceImpl implements TransferService {
     }
 
     @Override
+    public TransferRelay openPreview(Long userId, Long transferId, String deviceId) {
+        requireOwnedDevice(userId, deviceId);
+        TransferRelay transfer = requireOwnedTransfer(userId, transferId);
+        if (transfer.getAssembledPath() == null || transfer.getAssembledPath().isBlank()) {
+            throw new IllegalArgumentException("文件仍在上传中");
+        }
+
+        Path assembledPath = Path.of(transfer.getAssembledPath());
+        if (!Files.exists(assembledPath)) {
+            throw new ResourceNotFoundException("传输文件不存在或已过期");
+        }
+        return transfer;
+    }
+
+    @Override
     public TransferRelay openDownload(Long userId, Long transferId, String deviceId) {
         requireOwnedDevice(userId, deviceId);
         TransferRelay transfer = requireOwnedTransfer(userId, transferId);

@@ -8,6 +8,27 @@ const TRANSFER_HASH_ACCOUNT_HISTORY = '#account-history';
 const TRANSFER_ROUTE_VIEW_KEY = 'view';
 const TRANSFER_ROUTE_TEMPORARY_HISTORY = 'temporary-history';
 const TRANSFER_ROUTE_ACCOUNT_HISTORY = 'account-history';
+const TRANSFER_TEXT_PREVIEW_EXTENSIONS = new Set([
+    'txt', 'md', 'markdown', 'csv', 'log', 'json', 'xml', 'yaml', 'yml',
+    'properties', 'ini', 'conf', 'sql', 'sh', 'bat', 'java', 'js', 'ts',
+    'tsx', 'jsx', 'css', 'html', 'htm'
+]);
+const TRANSFER_TEXT_PREVIEW_MIME_TYPES = new Set([
+    'application/json', 'application/xml', 'application/javascript', 'application/x-javascript',
+    'application/yaml', 'application/x-yaml', 'application/sql'
+]);
+const TRANSFER_OFFICE_PREVIEW_EXTENSIONS = new Set(['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp']);
+const TRANSFER_OFFICE_PREVIEW_MIME_TYPES = new Set([
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.oasis.opendocument.spreadsheet',
+    'application/vnd.oasis.opendocument.presentation'
+]);
 
 const transferState = {
     profile: null,
@@ -43,6 +64,49 @@ const transferState = {
 
 function transferText(key, fallback) {
     return typeof t === 'function' ? t(key) : fallback;
+}
+
+function normalizeTransferPreviewExtension(fileName) {
+    const rawName = String(fileName || '').trim().toLowerCase();
+    const dotIndex = rawName.lastIndexOf('.');
+    if (dotIndex < 0 || dotIndex === rawName.length - 1) {
+        return '';
+    }
+    return rawName.slice(dotIndex + 1);
+}
+
+function normalizeTransferPreviewContentType(contentType) {
+    const value = String(contentType || '').trim().toLowerCase();
+    if (!value) {
+        return '';
+    }
+    const semicolonIndex = value.indexOf(';');
+    return semicolonIndex >= 0 ? value.slice(0, semicolonIndex).trim() : value;
+}
+
+function getTransferPreviewKind(fileName, contentType) {
+    const extension = normalizeTransferPreviewExtension(fileName);
+    const normalizedContentType = normalizeTransferPreviewContentType(contentType);
+
+    if (normalizedContentType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
+        return 'image';
+    }
+    if (normalizedContentType.startsWith('video/')) {
+        return 'video';
+    }
+    if (normalizedContentType.startsWith('audio/')) {
+        return 'audio';
+    }
+    if (normalizedContentType === 'application/pdf' || extension === 'pdf') {
+        return 'pdf';
+    }
+    if (normalizedContentType.startsWith('text/') || TRANSFER_TEXT_PREVIEW_MIME_TYPES.has(normalizedContentType) || TRANSFER_TEXT_PREVIEW_EXTENSIONS.has(extension)) {
+        return 'text';
+    }
+    if (TRANSFER_OFFICE_PREVIEW_MIME_TYPES.has(normalizedContentType) || TRANSFER_OFFICE_PREVIEW_EXTENSIONS.has(extension)) {
+        return 'office';
+    }
+    return null;
 }
 
 function transferRequest(path, options = {}) {
@@ -1412,6 +1476,129 @@ function renderTransferIncomingNotice() {
     button.innerHTML = `<i class="fa-solid fa-inbox"></i><span>${transferText('transferOpenInbox', 'Open Inbox')}</span>`;
 }
 
+function getTransferPreviewSource(transfer, task) {
+    const previewKind = getTransferPreviewKind(task?.fileName, task?.contentType);
+    if (!previewKind) {
+        return null;
+    }
+
+    const directTransferId = transfer?.directTransferId || getTransferLatestTaskAttemptId(task, 'direct');
+    const relayTransferId = transfer?.relayTransferId || getTransferLatestTaskAttemptId(task, 'relay') || transfer?.id;
+
+    if (task?.transferMode === 'direct' && directTransferId) {
+        if (previewKind === 'office') {
+            return null;
+        }
+        return {
+            source: 'direct',
+            transferId: directTransferId,
+            kind: previewKind
+        };
+    }
+
+    if (task?.transferMode === 'relay' && relayTransferId) {
+        return {
+            source: 'relay',
+            transferId: relayTransferId,
+            kind: previewKind
+        };
+    }
+
+    if (task?.transferMode === 'hybrid') {
+        if (relayTransferId) {
+            return {
+                source: 'relay',
+                transferId: relayTransferId,
+                kind: previewKind
+            };
+        }
+        if (directTransferId && previewKind !== 'office') {
+            return {
+                source: 'direct',
+                transferId: directTransferId,
+                kind: previewKind
+            };
+        }
+    }
+
+    return null;
+}
+
+function canTransferPreview(transfer, task) {
+    return Boolean(getTransferPreviewSource(transfer, task));
+}
+
+function buildRelayTransferPreviewUrl(transferId) {
+    return `${API_BASE}/transfer/transfers/${transferId}/preview?deviceId=${encodeURIComponent(getTransferDeviceId())}`;
+}
+
+function buildRelayTransferDownloadUrl(transferId) {
+    return `${API_BASE}/transfer/transfers/${transferId}/download?deviceId=${encodeURIComponent(getTransferDeviceId())}`;
+}
+
+async function openTransferPreviewItem(transfer) {
+    const task = buildTransferTaskFromTransfer(transfer, 'incoming');
+    const previewSource = getTransferPreviewSource(transfer, task);
+    if (!previewSource) {
+        throw new Error(transferText('cannotPreview', 'This file type cannot be previewed'));
+    }
+
+    if (previewSource.source === 'direct') {
+        if (!window.TransferDirectTransfer?.openPreviewWindow) {
+            throw new Error(transferText('cannotPreview', 'This file type cannot be previewed'));
+        }
+        await TransferDirectTransfer.openPreviewWindow(previewSource.transferId);
+        return;
+    }
+
+    const previewUrl = buildRelayTransferPreviewUrl(previewSource.transferId);
+    const downloadUrl = buildRelayTransferDownloadUrl(previewSource.transferId);
+    if (previewSource.kind === 'pdf' || previewSource.kind === 'office') {
+        const viewerUrl = `pdf-viewer.html?file=${encodeURIComponent(previewUrl)}&download=${encodeURIComponent(downloadUrl)}&name=${encodeURIComponent(task.fileName || 'preview')}&kind=${previewSource.kind === 'office' ? 'office' : 'pdf'}`;
+        window.open(viewerUrl, '_blank', 'noopener');
+        return;
+    }
+    window.open(previewUrl, '_blank', 'noopener');
+}
+
+function queueTransferIncomingPopup(transfer, task) {
+    const ready = task.stage === 'ready' || task.stage === 'completed';
+    const canPreview = ready && canTransferPreview(transfer, task);
+    const message = [
+        `${transferText('transferSender', 'Sender')}: ${task.peerLabel || '-'}`,
+        `${transferText('transferTaskFileLabel', 'File')}: ${task.fileName || '-'}`,
+        `${transferText('transferTaskSizeLabel', 'Size')}: ${formatTransferSize(task.fileSize)}`,
+        `${transferText('transferTaskStatusLabel', 'Status')}: ${formatTransferStatus(task.stage || '')}`
+    ].join('\n');
+
+    if (typeof showAppConfirm === 'function') {
+        showAppConfirm(message, {
+            title: transferText('transferIncomingNoticeSingle', 'A file arrived on this device'),
+            icon: 'fa-file-arrow-down',
+            confirmText: canPreview
+                ? transferText('previewBtn', 'Preview')
+                : transferText('transferOpenInbox', 'Open Inbox'),
+            cancelText: transferText('transferClose', 'Close')
+        }).then(confirmed => {
+            if (!confirmed) {
+                return;
+            }
+            if (canPreview) {
+                openTransferPreviewItem(transfer).catch(error => showToast(error.message, 'error'));
+                return;
+            }
+            openTransferHistoryPage('accountHistory');
+        }).catch(() => {});
+        return;
+    }
+
+    showToast(
+        transferText('transferIncomingToastReady', '{file} is ready on this device')
+            .replace('{file}', task.fileName || transferText('transferSelectedFileLabel', 'file')),
+        'success'
+    );
+}
+
 function syncTransferIncomingAlerts() {
     if (!transferState.accountMode) {
         transferState.incomingNoticeCache.clear();
@@ -1424,7 +1611,7 @@ function syncTransferIncomingAlerts() {
             transfer,
             task: buildTransferTaskFromTransfer(transfer, 'incoming')
         }))
-        .filter(item => item.task && item.task.transferMode !== 'direct');
+        .filter(item => item.task);
 
     incomingItems.forEach(item => {
         const task = item.task;
@@ -1442,12 +1629,16 @@ function syncTransferIncomingAlerts() {
         const readyNow = stage === 'ready' || stage === 'completed';
         const readyBefore = previous ? previous.startsWith('ready|') || previous.startsWith('completed|') : false;
         if (!previous) {
-            showToast(
-                transferText('transferIncomingToastArrived', '{name} sent {file} to this device')
-                    .replace('{name}', task.peerLabel || transferText('transferSender', 'Sender'))
-                    .replace('{file}', task.fileName || transferText('transferSelectedFileLabel', 'file')),
-                'success'
-            );
+            if (readyNow) {
+                queueTransferIncomingPopup(item.transfer, task);
+            } else {
+                showToast(
+                    transferText('transferIncomingToastArrived', '{name} sent {file} to this device')
+                        .replace('{name}', task.peerLabel || transferText('transferSender', 'Sender'))
+                        .replace('{file}', task.fileName || transferText('transferSelectedFileLabel', 'file')),
+                    'success'
+                );
+            }
             return;
         }
         if (readyNow && !readyBefore) {
@@ -1456,6 +1647,7 @@ function syncTransferIncomingAlerts() {
                     .replace('{file}', task.fileName || transferText('transferSelectedFileLabel', 'file')),
                 'success'
             );
+            queueTransferIncomingPopup(item.transfer, task);
         }
     });
 
@@ -1507,6 +1699,12 @@ function renderTransferTransferList(transfers, container, empty, direction) {
             : `${transferText('transferReceiver', 'Receiver')}: ${peerName}`;
 
         const readyForDownload = task.stage === 'ready' || task.stage === 'completed';
+        const previewAction = direction === 'incoming' && readyForDownload && canTransferPreview(transfer, task)
+            ? `<button class="btn btn-secondary" type="button" data-transfer-preview="${direction}:${index}">
+                    <i class="fa-solid fa-eye"></i>
+                    <span>${transferText('previewBtn', 'Preview')}</span>
+               </button>`
+            : '';
         const primaryAction = readyForDownload
             ? `<button class="btn btn-primary" type="button" ${
                 isDirect
@@ -1571,6 +1769,7 @@ function renderTransferTransferList(transfers, container, empty, direction) {
                     · ${transferText('transferUpdatedAt', 'Updated')}: ${formatTransferTime(task.updateTime)}
                 </p>
                 <div class="actions">
+                    ${previewAction}
                     ${primaryAction}
                     ${saveAction}
                     <button class="btn btn-secondary" type="button" data-transfer-detail="${direction}:${index}">
@@ -1715,6 +1914,17 @@ async function showTransferTransferDetails(direction, index) {
         title: transferText('transferTaskDetailsTitle', 'Task Details'),
         icon: 'fa-circle-info'
     });
+}
+
+async function previewTransferItem(direction, index) {
+    const transfers = direction === 'incoming'
+        ? transferState.displayIncomingTransfers
+        : transferState.displayOutgoingTransfers;
+    const transfer = transfers[Number(index)];
+    if (!transfer) {
+        return;
+    }
+    await openTransferPreviewItem(transfer);
 }
 
 function renderTransferPage() {
@@ -2244,6 +2454,13 @@ function bindTransferEvents() {
             return;
         }
         container.addEventListener('click', event => {
+            const previewButton = event.target.closest('[data-transfer-preview]');
+            if (previewButton) {
+                const [directionKey, index] = String(previewButton.getAttribute('data-transfer-preview') || '').split(':');
+                previewTransferItem(directionKey, index).catch(error => showToast(error.message, 'error'));
+                return;
+            }
+
             const downloadButton = event.target.closest('[data-transfer-download]');
             if (downloadButton) {
                 downloadTransfer(downloadButton.getAttribute('data-transfer-download'));

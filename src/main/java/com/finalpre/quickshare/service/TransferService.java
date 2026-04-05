@@ -24,6 +24,8 @@ public interface TransferService {
 
     TransferTaskVO syncDirectAttempt(Long userId, TransferDirectAttemptSyncRequest request);
 
+    TransferRelay openPreview(Long userId, Long transferId, String deviceId);
+
     TransferRelay openDownload(Long userId, Long transferId, String deviceId);
 
     FileInfoVO saveTransferToNetdisk(Long userId, Long transferId, String deviceId, Long folderId);

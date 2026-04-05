@@ -10,6 +10,15 @@ const TRANSFER_DIRECT_COMPLETED_RETENTION_MS = (window.AppConfig?.TRANSFER_DIREC
 const TRANSFER_DIRECT_SAVED_RETENTION_MS = (window.AppConfig?.TRANSFER_DIRECT_SAVED_RETENTION_HOURS || 24) * 60 * 60 * 1000;
 const TRANSFER_DIRECT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // hourly
 const TRANSFER_DIRECT_PAIR_TASK_POLL_INTERVAL_MS = 5000;
+const TRANSFER_DIRECT_TEXT_PREVIEW_EXTENSIONS = new Set([
+    'txt', 'md', 'markdown', 'csv', 'log', 'json', 'xml', 'yaml', 'yml',
+    'properties', 'ini', 'conf', 'sql', 'sh', 'bat', 'java', 'js', 'ts',
+    'tsx', 'jsx', 'css', 'html', 'htm'
+]);
+const TRANSFER_DIRECT_TEXT_PREVIEW_MIME_TYPES = new Set([
+    'application/json', 'application/xml', 'application/javascript', 'application/x-javascript',
+    'application/yaml', 'application/x-yaml', 'application/sql'
+]);
 
 const TransferDirectTransfer = (() => {
     const memoryStore = {
@@ -319,6 +328,47 @@ const TransferDirectTransfer = (() => {
             hour: '2-digit',
             minute: '2-digit'
         });
+    }
+
+    function normalizePreviewExtension(fileName) {
+        const rawName = String(fileName || '').trim().toLowerCase();
+        const dotIndex = rawName.lastIndexOf('.');
+        if (dotIndex < 0 || dotIndex === rawName.length - 1) {
+            return '';
+        }
+        return rawName.slice(dotIndex + 1);
+    }
+
+    function normalizePreviewContentType(contentType) {
+        const value = String(contentType || '').trim().toLowerCase();
+        if (!value) {
+            return '';
+        }
+        const semicolonIndex = value.indexOf(';');
+        return semicolonIndex >= 0 ? value.slice(0, semicolonIndex).trim() : value;
+    }
+
+    function getTransferPreviewKind(transfer) {
+        const fileName = transfer?.fileName || '';
+        const extension = normalizePreviewExtension(fileName);
+        const contentType = normalizePreviewContentType(transfer?.contentType || '');
+
+        if (contentType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
+            return 'image';
+        }
+        if (contentType.startsWith('video/')) {
+            return 'video';
+        }
+        if (contentType.startsWith('audio/')) {
+            return 'audio';
+        }
+        if (contentType === 'application/pdf' || extension === 'pdf') {
+            return 'pdf';
+        }
+        if (contentType.startsWith('text/') || TRANSFER_DIRECT_TEXT_PREVIEW_MIME_TYPES.has(contentType) || TRANSFER_DIRECT_TEXT_PREVIEW_EXTENSIONS.has(extension)) {
+            return 'text';
+        }
+        return null;
     }
 
     function pendingSessions() {
@@ -2268,6 +2318,37 @@ const TransferDirectTransfer = (() => {
         return result.data;
     }
 
+    async function openPreviewWindow(transferId) {
+        const transfer = await getStoredTransfer(transferId);
+        if (!transfer || (transfer.status !== 'ready' && transfer.status !== 'completed')) {
+            throw new Error(text('transferDirectNotReady', 'The direct transfer is not ready yet'));
+        }
+
+        const previewKind = getTransferPreviewKind(transfer);
+        if (!previewKind) {
+            throw new Error(text('cannotPreview', 'This file type cannot be previewed'));
+        }
+
+        const chunks = await loadStoredChunks(transferId);
+        if (chunks.length < transfer.totalChunks) {
+            throw new Error(text('transferDirectCorrupt', 'Some chunks are still missing'));
+        }
+
+        const blob = new Blob(chunks, {
+            type: transfer.contentType || 'application/octet-stream'
+        });
+        const blobUrl = URL.createObjectURL(blob);
+        const fileName = transfer.fileName || `transfer-${transferId}`;
+
+        if (previewKind === 'pdf') {
+            const viewerUrl = `pdf-viewer.html?file=${encodeURIComponent(blobUrl)}&name=${encodeURIComponent(fileName)}&kind=pdf`;
+            window.open(viewerUrl, '_blank', 'noopener');
+        } else {
+            window.open(blobUrl, '_blank', 'noopener');
+        }
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5 * 60 * 1000);
+    }
+
     async function deleteServerPairTaskSnapshot(snapshot, options = {}) {
         if (!snapshot?.pairTaskId || !snapshot?.deleteServerTransferId) {
             return;
@@ -2537,6 +2618,7 @@ const TransferDirectTransfer = (() => {
         },
         recordSameAccountRelayFallbackAttempt,
         downloadTransfer,
+        openPreviewWindow,
         deleteTransfer,
         saveTransferToNetdisk,
         // Exposed for browser automation and packet compatibility checks.

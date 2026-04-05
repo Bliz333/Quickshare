@@ -39,8 +39,9 @@ cp .env.example .env
 docker compose up --build -d
 # Open http://localhost:8080
 # Admin (hidden path, not linked from public UI): set BOOTSTRAP_ADMIN_* in .env first, then open /console/{ADMIN_CONSOLE_SLUG}
-# QuickDrop (same-account device transfer): http://localhost:8080/quickdrop.html
-# QuickDrop Share (public pickup link): http://localhost:8080/quickdrop-share.html
+# Transfer (same-account device transfer): http://localhost:8080/transfer.html
+# Transfer Share (public pickup link): http://localhost:8080/transfer-share.html
+# Legacy aliases still work: /quickdrop.html and /quickdrop-share.html
 ```
 
 ### Local Development
@@ -209,24 +210,25 @@ Capabilities:
 | `POST /api/payment/create` | Yes | Create a payment order and receive the provider redirect URL |
 | `GET /api/payment/order/{orderNo}` | Yes | Query the current user's order status for the payment result page |
 | `GET /api/payment/orders` | Yes | List the current user's own orders |
-| `POST /api/quickdrop/sync` | Yes | Refresh the current device presence and list same-account devices plus QuickDrop transfer/task state |
-| `POST /api/quickdrop/transfers` | Yes | Create a same-account QuickDrop transfer session |
-| `PUT /api/quickdrop/transfers/{id}/chunks/{chunkIndex}` | Yes | Upload or resume a QuickDrop chunk |
-| `GET /api/quickdrop/transfers/{id}/download` | Yes | Download a completed QuickDrop transfer addressed to the current account |
-| `POST /api/quickdrop/transfers/{id}/save` | Yes | Save an incoming QuickDrop transfer into the current user's netdisk |
-| `POST /api/quickdrop/tasks/direct-attempts` | Yes | Write back same-account browser direct-attempt state into the unified QuickDrop task |
-| `DELETE /api/quickdrop/tasks/{id}` | Yes | Delete a unified QuickDrop task and its relay-side records |
-| `DELETE /api/quickdrop/tasks/{id}/direct-attempts/{clientTransferId}` | Yes | Remove one direct-attempt record from a unified QuickDrop task |
-| `POST /api/quickdrop/direct-sessions` | Yes | Create or reuse a same-account direct-link session between two devices |
-| `POST /api/public/quickdrop/shares` | No | Create a public QuickDrop pickup session without logging in |
-| `PUT /api/public/quickdrop/shares/{token}/chunks/{chunkIndex}` | No | Upload or resume a chunk for a public QuickDrop share |
-| `GET /api/public/quickdrop/shares/{token}` | No | Query public QuickDrop share status for the pickup page |
-| `POST /api/public/quickdrop/pair-tasks/direct-attempts` | No | Write back public / anonymous paired direct-transfer state into a server-side pair task |
-| `DELETE /api/public/quickdrop/pair-tasks/{id}/direct-attempts/{clientTransferId}` | No | Remove one public paired direct-attempt record from a pair task |
-| `POST /api/public/quickdrop/pair-codes` | Optional | Create a temporary QuickDrop match code for direct pairing |
-| `POST /api/public/quickdrop/pair-codes/{code}/claim` | Optional | Claim a QuickDrop match code and bind the pair session |
-| `GET /api/public/quickdrop/rtc-config` | No | Fetch the current STUN/TURN config for QuickDrop direct transfer |
-| `POST /api/quickdrop/public-shares/{token}/save` | Yes | Save a public QuickDrop share into the current user's netdisk |
+| `POST /api/transfer/sync` | Yes | Refresh the current device presence and list same-account devices plus transfer/task state |
+| `POST /api/transfer/transfers` | Yes | Create a same-account transfer session |
+| `PUT /api/transfer/transfers/{id}/chunks/{chunkIndex}` | Yes | Upload or resume a transfer chunk |
+| `GET /api/transfer/transfers/{id}/download` | Yes | Download a completed transfer addressed to the current account |
+| `POST /api/transfer/transfers/{id}/save` | Yes | Save an incoming transfer into the current user's netdisk |
+| `POST /api/transfer/tasks/direct-attempts` | Yes | Write back same-account browser direct-attempt state into the unified transfer task |
+| `DELETE /api/transfer/tasks/{id}` | Yes | Delete a unified transfer task and its relay-side records |
+| `DELETE /api/transfer/tasks/{id}/direct-attempts/{clientTransferId}` | Yes | Remove one direct-attempt record from a unified transfer task |
+| `POST /api/transfer/direct-sessions` | Yes | Create or reuse a same-account direct-link session between two devices |
+| `POST /api/public/transfer/shares` | No | Create a public pickup session without logging in |
+| `PUT /api/public/transfer/shares/{token}/chunks/{chunkIndex}` | No | Upload or resume a chunk for a public share |
+| `GET /api/public/transfer/shares/{token}` | No | Query public share status for the pickup page |
+| `POST /api/public/transfer/pair-tasks/direct-attempts` | No | Write back public / anonymous paired direct-transfer state into a server-side pair task |
+| `DELETE /api/public/transfer/pair-tasks/{id}/direct-attempts/{clientTransferId}` | No | Remove one public paired direct-attempt record from a pair task |
+| `POST /api/public/transfer/pair-codes` | Optional | Create a temporary match code for direct pairing |
+| `POST /api/public/transfer/pair-codes/{code}/claim` | Optional | Claim a match code and bind the pair session |
+| `GET /api/public/transfer/rtc-config` | No | Fetch the current STUN/TURN config for direct transfer |
+| `POST /api/transfer/public-shares/{token}/save` | Yes | Save a public share into the current user's netdisk |
+| Legacy aliases | Mixed | `/api/quickdrop/**`, `/api/public/quickdrop/**`, and `/ws/quickdrop` remain supported for backward compatibility |
 | `GET /api/health` | No | Health check (DB, Redis, storage mode, and local upload-dir / disk metrics / risk level when using local storage) |
 | `GET /api/admin/*` | Admin | Admin management endpoints |
 

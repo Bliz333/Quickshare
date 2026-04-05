@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/public/transfer/pair-codes")
+@RequestMapping({"/api/public/transfer/pair-codes", "/api/public/quickdrop/pair-codes"})
 public class TransferPairingController {
 
     private final TransferPairingService transferPairingService;

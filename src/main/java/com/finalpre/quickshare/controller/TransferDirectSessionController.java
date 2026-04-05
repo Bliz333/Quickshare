@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/transfer/direct-sessions")
+@RequestMapping({"/api/transfer/direct-sessions", "/api/quickdrop/direct-sessions"})
 public class TransferDirectSessionController {
 
     private final TransferPairingService transferPairingService;

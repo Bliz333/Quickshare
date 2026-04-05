@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/public/transfer")
+@RequestMapping({"/api/public/transfer", "/api/public/quickdrop"})
 public class TransferRtcController {
 
     private final TransferProperties transferProperties;

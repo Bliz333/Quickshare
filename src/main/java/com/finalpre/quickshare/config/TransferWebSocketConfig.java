@@ -20,7 +20,7 @@ public class TransferWebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(handler, "/ws/transfer")
+        registry.addHandler(handler, "/ws/transfer", "/ws/quickdrop")
                 .addInterceptors(interceptor)
                 .setAllowedOriginPatterns("*");
     }

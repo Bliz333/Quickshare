@@ -45,6 +45,7 @@ public class SecurityConfig {
                                 "/api/payment/notify",
                                 "/api/public/transfer/**",
                                 "/ws/transfer",
+                                "/ws/quickdrop",
                                 "/error"
                         ).permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
@@ -58,6 +59,8 @@ public class SecurityConfig {
                                 "/netdisk.html",
                                 "/transfer.html",
                                 "/transfer-share.html",
+                                "/quickdrop.html",
+                                "/quickdrop-share.html",
                                 "/pdf-viewer.html",
                                 "/drive.html",
                                 "/test.html",

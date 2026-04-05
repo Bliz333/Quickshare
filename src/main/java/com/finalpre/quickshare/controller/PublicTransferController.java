@@ -40,7 +40,7 @@ import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 
 @RestController
-@RequestMapping("/api/public/transfer")
+@RequestMapping({"/api/public/transfer", "/api/public/quickdrop"})
 public class PublicTransferController {
 
     @Autowired

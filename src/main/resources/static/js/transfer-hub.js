@@ -1363,6 +1363,53 @@ function renderTransferActiveUpload() {
     sendBtn.disabled = transferState.sending || !transferState.selectedFiles.length || !transferState.selectedReceiverDeviceId;
 }
 
+function getTransferIncomingNoticeItems() {
+    const items = transferState.displayIncomingTransfers.length
+        ? transferState.displayIncomingTransfers
+        : buildTransferDisplayTransfers('incoming');
+    return items
+        .map(transfer => ({
+            transfer,
+            task: buildTransferTaskFromTransfer(transfer, 'incoming')
+        }))
+        .filter(item => item.task && !item.task.savedToNetdiskAt);
+}
+
+function renderTransferIncomingNotice() {
+    const card = document.getElementById('transferIncomingNoticeCard');
+    const title = document.getElementById('transferIncomingNoticeTitle');
+    const meta = document.getElementById('transferIncomingNoticeMeta');
+    const hint = document.getElementById('transferIncomingNoticeHint');
+    const status = document.getElementById('transferIncomingNoticeStatus');
+    const button = document.getElementById('transferIncomingNoticeOpenBtn');
+
+    if (!card || !title || !meta || !hint || !status || !button) {
+        return;
+    }
+
+    const items = getTransferIncomingNoticeItems();
+    if (!transferState.accountMode || !items.length) {
+        card.classList.add('hidden');
+        return;
+    }
+
+    const primary = items[0].task;
+    const primaryStage = primary.stage || '';
+    const senderLabel = primary.peerLabel || transferText('transferSender', 'Sender');
+    const ready = primaryStage === 'ready' || primaryStage === 'completed';
+
+    card.classList.remove('hidden');
+    title.textContent = items.length > 1
+        ? transferText('transferIncomingNoticeMany', '{count} files arrived on this device').replace('{count}', String(items.length))
+        : transferText('transferIncomingNoticeSingle', 'A file arrived on this device');
+    meta.textContent = `${transferText('transferSender', 'Sender')}: ${senderLabel} · ${primary.fileName} · ${formatTransferSize(primary.fileSize)}`;
+    hint.textContent = ready
+        ? transferText('transferIncomingNoticeReadyHint', 'Open the inbox to download it or save it to netdisk.')
+        : transferText('transferIncomingNoticePendingHint', 'The file is still arriving. Open the inbox to watch progress.');
+    status.textContent = formatTransferStatus(primaryStage);
+    button.innerHTML = `<i class="fa-solid fa-inbox"></i><span>${transferText('transferOpenInbox', 'Open Inbox')}</span>`;
+}
+
 function renderTransferTransfers() {
     transferState.displayIncomingTransfers = buildTransferDisplayTransfers('incoming');
     transferState.displayOutgoingTransfers = buildTransferDisplayTransfers('outgoing');
@@ -1626,6 +1673,7 @@ function renderTransferPage() {
     renderTransferFolderSelect();
     renderTransferActiveUpload();
     renderTransferTransfers();
+    renderTransferIncomingNotice();
     setTransferMode(transferState.currentMode);
     renderTransferSubpage();
     renderTransferDisclosure();
@@ -2070,6 +2118,7 @@ function bindTransferEvents() {
     const directHistoryToggle = document.getElementById('transferDirectHistoryToggle');
     const accountHistoryToggle = document.getElementById('transferAccountHistoryToggle');
     const deviceSettingsToggle = document.getElementById('transferDeviceSettingsToggle');
+    const incomingNoticeOpenBtn = document.getElementById('transferIncomingNoticeOpenBtn');
     const historyBackBtn = document.getElementById('transferHistoryBackBtn');
     const deviceList = document.getElementById('transferDeviceList');
     const incomingList = document.getElementById('transferIncomingList');
@@ -2106,6 +2155,11 @@ function bindTransferEvents() {
         deviceSettingsToggle.addEventListener('click', () => {
             transferState.deviceSettingsExpanded = !transferState.deviceSettingsExpanded;
             renderTransferDisclosure();
+        });
+    }
+    if (incomingNoticeOpenBtn) {
+        incomingNoticeOpenBtn.addEventListener('click', () => {
+            openTransferHistoryPage('accountHistory');
         });
     }
     if (historyBackBtn) {

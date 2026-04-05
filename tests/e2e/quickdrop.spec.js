@@ -210,6 +210,119 @@ test.describe('Transfer pages', () => {
     expect(saveRequestFolderId).toBe(301);
   });
 
+  test('same-account main page shows an incoming notice card and can jump into the inbox', async ({ page, baseURL }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('token', 'transfer-token');
+      localStorage.setItem('user', JSON.stringify({
+        id: 1,
+        username: 'admin',
+        nickname: 'QuickShare Admin',
+        role: 'ADMIN'
+      }));
+    });
+
+    await page.route('**/api/profile', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            id: 1,
+            username: 'admin',
+            nickname: 'QuickShare Admin',
+            role: 'ADMIN'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/transfer/sync', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            currentDevice: {
+              deviceId: 'device-a',
+              deviceName: 'My Desktop',
+              deviceType: 'Windows',
+              current: true,
+              online: true,
+              lastSeenAt: '2026-03-21T10:00:00'
+            },
+            devices: [
+              {
+                deviceId: 'device-a',
+                deviceName: 'My Desktop',
+                deviceType: 'Windows',
+                current: true,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              },
+              {
+                deviceId: 'device-b',
+                deviceName: 'My Laptop',
+                deviceType: 'Mac',
+                current: false,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              }
+            ],
+            incomingTransfers: [
+              {
+                id: 18,
+                senderDeviceId: 'device-b',
+                receiverDeviceId: 'device-a',
+                fileName: 'arrival.zip',
+                fileSize: 8192,
+                contentType: 'application/zip',
+                chunkSize: 1024,
+                totalChunks: 8,
+                uploadedChunks: 8,
+                uploadedChunkIndexes: [0, 1, 2, 3, 4, 5, 6, 7],
+                status: 'ready',
+                ready: true,
+                updateTime: '2026-03-21T10:00:00'
+              }
+            ],
+            outgoingTransfers: [],
+            recommendedChunkSize: 2097152
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/folders/all', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: [
+            { id: 301, name: 'Projects' },
+            { id: 302, name: 'Inbox' }
+          ]
+        })
+      });
+    });
+
+    await gotoTransferPage(page, baseURL);
+
+    await expect(page.locator('#transferIncomingNoticeCard')).toBeVisible();
+    await expect(page.locator('#transferIncomingNoticeCard')).toContainText('arrival.zip');
+    await expect(page.locator('#transferIncomingNoticeStatus')).toContainText(/Ready|待下载|已就绪/);
+
+    await page.locator('#transferIncomingNoticeOpenBtn').click();
+    await expect(page).toHaveURL(/[?&]view=account-history$/);
+    await expect(page.locator('#transferAccountHistoryPanel')).toBeVisible();
+    await expect(page.locator('#transferIncomingList')).toContainText('arrival.zip');
+  });
+
   test('shows saved badge and view-in-netdisk link when incoming task was already saved', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
       localStorage.setItem('token', 'transfer-token');

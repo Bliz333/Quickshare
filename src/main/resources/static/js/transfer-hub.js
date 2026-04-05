@@ -2,7 +2,7 @@ const TRANSFER_DEVICE_ID_KEY = 'transfer-device-id';
 const TRANSFER_DEVICE_NAME_KEY = 'transfer-device-name';
 const TRANSFER_PENDING_UPLOADS_KEY = 'transfer-pending-uploads';
 const TRANSFER_TASK_LINKS_KEY = 'transfer-task-links';
-const TRANSFER_SYNC_INTERVAL_MS = 15000;
+const TRANSFER_SYNC_INTERVAL_MS = 5000;
 const TRANSFER_HASH_TEMPORARY_HISTORY = '#temporary-history';
 const TRANSFER_HASH_ACCOUNT_HISTORY = '#account-history';
 const TRANSFER_ROUTE_VIEW_KEY = 'view';
@@ -31,6 +31,7 @@ const transferState = {
     syncTimer: null,
     directSessionTargetDeviceId: '',
     directSessionLastAttemptAt: 0,
+    incomingNoticeCache: new Map(),
     accountMode: false,
     currentMode: 'temporary',
     currentSubpage: 'main',
@@ -157,6 +158,7 @@ function setTransferAccountMode(enabled) {
         accountModeBtn.classList.toggle('hidden', !transferState.accountMode);
     }
     if (!transferState.accountMode) {
+        transferState.incomingNoticeCache.clear();
         transferState.deviceSettingsExpanded = false;
         transferState.pickerMenuExpanded = false;
         transferState.currentSubpage = 'main';
@@ -1410,6 +1412,56 @@ function renderTransferIncomingNotice() {
     button.innerHTML = `<i class="fa-solid fa-inbox"></i><span>${transferText('transferOpenInbox', 'Open Inbox')}</span>`;
 }
 
+function syncTransferIncomingAlerts() {
+    if (!transferState.accountMode) {
+        transferState.incomingNoticeCache.clear();
+        return;
+    }
+
+    const nextCache = new Map();
+    const incomingItems = buildTransferDisplayTransfers('incoming')
+        .map(transfer => ({
+            transfer,
+            task: buildTransferTaskFromTransfer(transfer, 'incoming')
+        }))
+        .filter(item => item.task && item.task.transferMode !== 'direct');
+
+    incomingItems.forEach(item => {
+        const task = item.task;
+        const key = task.taskKey || `${task.transferMode}:${task.taskId || task.id || task.fileName}`;
+        const stage = String(task.stage || '');
+        const statusSignature = [
+            stage,
+            Number(task.completedChunks || 0),
+            Number(task.totalChunks || 0),
+            task.savedToNetdiskAt ? 'saved' : ''
+        ].join('|');
+        const previous = transferState.incomingNoticeCache.get(key);
+        nextCache.set(key, statusSignature);
+
+        const readyNow = stage === 'ready' || stage === 'completed';
+        const readyBefore = previous ? previous.startsWith('ready|') || previous.startsWith('completed|') : false;
+        if (!previous) {
+            showToast(
+                transferText('transferIncomingToastArrived', '{name} sent {file} to this device')
+                    .replace('{name}', task.peerLabel || transferText('transferSender', 'Sender'))
+                    .replace('{file}', task.fileName || transferText('transferSelectedFileLabel', 'file')),
+                'success'
+            );
+            return;
+        }
+        if (readyNow && !readyBefore) {
+            showToast(
+                transferText('transferIncomingToastReady', '{file} is ready on this device')
+                    .replace('{file}', task.fileName || transferText('transferSelectedFileLabel', 'file')),
+                'success'
+            );
+        }
+    });
+
+    transferState.incomingNoticeCache = nextCache;
+}
+
 function renderTransferTransfers() {
     transferState.displayIncomingTransfers = buildTransferDisplayTransfers('incoming');
     transferState.displayOutgoingTransfers = buildTransferDisplayTransfers('outgoing');
@@ -1720,6 +1772,7 @@ async function syncTransfer(silent = false) {
         transferState.recommendedChunkSize = data.recommendedChunkSize || transferState.recommendedChunkSize;
         setTransferAccountMode(true);
         refreshTransferDirectTransfers();
+        syncTransferIncomingAlerts();
         transferState.currentSubpage = getTransferSubpageFromLocation();
         renderTransferPage();
         maybeEnsureSelectedDeviceDirectRoute({ silent: true, waitForReadyMs: 1200 }).catch(() => {});

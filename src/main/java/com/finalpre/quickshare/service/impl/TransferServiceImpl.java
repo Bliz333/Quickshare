@@ -460,6 +460,20 @@ public class TransferServiceImpl implements TransferService {
     }
 
     @Override
+    public TransferPublicShare openPublicSharePreview(String shareToken) {
+        TransferPublicShare share = requirePublicShare(shareToken);
+        if (share.getAssembledPath() == null || share.getAssembledPath().isBlank()) {
+            throw new IllegalArgumentException("文件仍在上传中");
+        }
+
+        Path assembledPath = Path.of(share.getAssembledPath());
+        if (!Files.exists(assembledPath)) {
+            throw new ResourceNotFoundException("分享文件不存在或已过期");
+        }
+        return share;
+    }
+
+    @Override
     public TransferPublicShare openPublicShareDownload(String shareToken) {
         TransferPublicShare share = requirePublicShare(shareToken);
         if (share.getAssembledPath() == null || share.getAssembledPath().isBlank()) {

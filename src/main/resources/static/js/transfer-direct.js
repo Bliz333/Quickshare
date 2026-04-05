@@ -6,6 +6,7 @@ const TRANSFER_DIRECT_DEVICE_ID_KEY = 'transfer-device-id';
 const TRANSFER_DIRECT_CHUNK_SIZE = 64 * 1024;
 const TRANSFER_DIRECT_MAX_BUFFERED_AMOUNT = 512 * 1024;
 const TRANSFER_DIRECT_ACCEPT_TIMEOUT_MS = 15000;
+const TRANSFER_GUEST_RELAY_CHUNK_SIZE = 2 * 1024 * 1024;
 const TRANSFER_DIRECT_COMPLETED_RETENTION_MS = (window.AppConfig?.TRANSFER_DIRECT_COMPLETED_RETENTION_DAYS || 7) * 24 * 60 * 60 * 1000;
 const TRANSFER_DIRECT_SAVED_RETENTION_MS = (window.AppConfig?.TRANSFER_DIRECT_SAVED_RETENTION_HOURS || 24) * 60 * 60 * 1000;
 const TRANSFER_DIRECT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // hourly
@@ -18,6 +19,18 @@ const TRANSFER_DIRECT_TEXT_PREVIEW_EXTENSIONS = new Set([
 const TRANSFER_DIRECT_TEXT_PREVIEW_MIME_TYPES = new Set([
     'application/json', 'application/xml', 'application/javascript', 'application/x-javascript',
     'application/yaml', 'application/x-yaml', 'application/sql'
+]);
+const TRANSFER_DIRECT_OFFICE_PREVIEW_EXTENSIONS = new Set(['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp']);
+const TRANSFER_DIRECT_OFFICE_PREVIEW_MIME_TYPES = new Set([
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.oasis.opendocument.spreadsheet',
+    'application/vnd.oasis.opendocument.presentation'
 ]);
 
 const TransferDirectTransfer = (() => {
@@ -42,6 +55,7 @@ const TransferDirectTransfer = (() => {
         receivingSessions: new Map(),
         receiveQueue: Promise.resolve(),
         announcedIncomingTransfers: new Set(),
+        announcedRelayShares: new Set(),
         dbPromise: null
     };
 
@@ -53,6 +67,10 @@ const TransferDirectTransfer = (() => {
         return window.TransferSignalManager && typeof TransferSignalManager.isDirectReady === 'function'
             ? TransferSignalManager.isDirectReady()
             : false;
+    }
+
+    function isSignedInTransferUser() {
+        return typeof isLoggedIn === 'function' ? isLoggedIn() : false;
     }
 
     function getSignalState() {
@@ -101,6 +119,26 @@ const TransferDirectTransfer = (() => {
 
     function getSelectionDisplayName(file) {
         return file?.webkitRelativePath || file?.name || '';
+    }
+
+    function transferPublicRequest(path, options = {}, withAuth = false) {
+        const headers = {
+            ...(options.headers || {})
+        };
+        if (withAuth && typeof getAuthHeaders === 'function') {
+            Object.assign(headers, getAuthHeaders());
+        }
+        return fetch(`${API_BASE}${path}`, {
+            ...options,
+            headers
+        }).then(async response => {
+            const textBody = await response.text();
+            const result = textBody ? JSON.parse(textBody) : null;
+            if (!response.ok || !result || result.code !== 200) {
+                throw new Error(result?.message || 'Transfer public request failed');
+            }
+            return result.data;
+        });
     }
 
     function normalizeBatchFileName(file) {
@@ -368,6 +406,31 @@ const TransferDirectTransfer = (() => {
         }
         if (contentType.startsWith('text/') || TRANSFER_DIRECT_TEXT_PREVIEW_MIME_TYPES.has(contentType) || TRANSFER_DIRECT_TEXT_PREVIEW_EXTENSIONS.has(extension)) {
             return 'text';
+        }
+        return null;
+    }
+
+    function getGuestRelayPreviewKind(fileName, contentType) {
+        const extension = normalizePreviewExtension(fileName);
+        const normalizedContentType = normalizePreviewContentType(contentType);
+
+        if (normalizedContentType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
+            return 'image';
+        }
+        if (normalizedContentType.startsWith('video/')) {
+            return 'video';
+        }
+        if (normalizedContentType.startsWith('audio/')) {
+            return 'audio';
+        }
+        if (normalizedContentType === 'application/pdf' || extension === 'pdf') {
+            return 'pdf';
+        }
+        if (normalizedContentType.startsWith('text/') || TRANSFER_DIRECT_TEXT_PREVIEW_MIME_TYPES.has(normalizedContentType) || TRANSFER_DIRECT_TEXT_PREVIEW_EXTENSIONS.has(extension)) {
+            return 'text';
+        }
+        if (TRANSFER_DIRECT_OFFICE_PREVIEW_MIME_TYPES.has(normalizedContentType) || TRANSFER_DIRECT_OFFICE_PREVIEW_EXTENSIONS.has(extension)) {
+            return 'office';
         }
         return null;
     }
@@ -1164,7 +1227,9 @@ const TransferDirectTransfer = (() => {
         const peer = document.getElementById('transferDirectPeer');
         const sendButton = document.getElementById('transferDirectSendBtn');
         const sendLabel = document.getElementById('transferDirectSendBtnLabel');
-        const peerLabel = getSignalState().latestPeerLabel || '';
+        const signalState = getSignalState();
+        const peerLabel = signalState.latestPeerLabel || '';
+        const canGuestRelaySend = !isSignedInTransferUser() && Boolean(signalState.pairSessionId);
         if (peer) {
             peer.textContent = peerLabel || text('transferDirectNoPeer', 'Waiting for a paired peer');
         }
@@ -1174,7 +1239,7 @@ const TransferDirectTransfer = (() => {
                 : text('transferDirectSendNow', 'Start transfer');
         }
         if (sendButton) {
-            sendButton.disabled = !state.selectedFiles.length || !directReady();
+            sendButton.disabled = !state.selectedFiles.length || (!directReady() && !canGuestRelaySend);
         }
     }
 
@@ -1910,15 +1975,135 @@ const TransferDirectTransfer = (() => {
         }
     }
 
+    async function sendGuestRelayFile(file, options = {}) {
+        const currentFile = file || state.selectedFile;
+        if (!currentFile) {
+            const error = new Error(text('transferDirectChooseFileFirst', 'Choose a file first'));
+            if (!options.silentError) {
+                showToast(error.message, 'error');
+            }
+            throw error;
+        }
+
+        const signalContext = getDirectSignalContext();
+        if (!signalContext.pairSessionId) {
+            const error = new Error(text('transferDirectNoPeer', 'Waiting for a paired peer'));
+            if (!options.silentError) {
+                showToast(error.message, 'error');
+            }
+            throw error;
+        }
+
+        const created = await transferPublicRequest('/public/transfer/shares', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                senderLabel: resolveLocalLabel(),
+                fileName: currentFile.name,
+                fileSize: currentFile.size,
+                contentType: currentFile.type || 'application/octet-stream',
+                chunkSize: TRANSFER_GUEST_RELAY_CHUNK_SIZE
+            })
+        }, isSignedInTransferUser());
+
+        const chunkSize = Number(created.chunkSize || TRANSFER_GUEST_RELAY_CHUNK_SIZE);
+        const totalChunks = Number(created.totalChunks || Math.max(1, Math.ceil(currentFile.size / chunkSize)));
+        state.activeSend = {
+            transferId: created.shareToken,
+            fileName: currentFile.name,
+            fileSize: currentFile.size,
+            contentType: currentFile.type || 'application/octet-stream',
+            progress: 0,
+            status: 'sending',
+            statusText: text('transferRelayFallback', 'Direct link is not ready yet, falling back to server relay'),
+            totalChunks,
+            sentChunks: 0,
+            acknowledgedChunks: 0,
+            pairSessionId: signalContext.pairSessionId,
+            selfChannelId: signalContext.selfChannelId,
+            selfLabel: signalContext.selfLabel,
+            peerLabel: getSignalState().latestPeerLabel || text('transferDirectPeerFallback', 'Paired peer'),
+            guestRelay: true
+        };
+        render();
+
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+            const start = chunkIndex * chunkSize;
+            const end = Math.min(currentFile.size, start + chunkSize);
+            const chunk = currentFile.slice(start, end);
+            const response = await fetch(`${API_BASE}/public/transfer/shares/${encodeURIComponent(created.shareToken)}/chunks/${chunkIndex}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/octet-stream',
+                    ...(isSignedInTransferUser() && typeof getAuthHeaders === 'function' ? getAuthHeaders() : {})
+                },
+                body: chunk
+            });
+            const textBody = await response.text();
+            const result = textBody ? JSON.parse(textBody) : null;
+            if (!response.ok || !result || result.code !== 200) {
+                throw new Error(result?.message || 'Transfer relay upload failed');
+            }
+            const uploadedChunks = Number(result.data?.uploadedChunks || (chunkIndex + 1));
+            state.activeSend = {
+                ...state.activeSend,
+                progress: Math.round((uploadedChunks / totalChunks) * 100),
+                sentChunks: uploadedChunks,
+                statusText: `${uploadedChunks}/${totalChunks} ${text('transferChunkProgress', 'chunks')}`
+            };
+            render();
+        }
+
+        if (window.TransferSignalManager?.sendSignal) {
+            TransferSignalManager.sendSignal('relay-done', {
+                shareToken: created.shareToken,
+                fileName: currentFile.name,
+                fileSize: currentFile.size,
+                contentType: currentFile.type || 'application/octet-stream',
+                senderLabel: resolveLocalLabel()
+            });
+        }
+        state.activeSend = {
+            ...state.activeSend,
+            progress: 100,
+            status: 'completed',
+            statusText: text('transferSendSuccess', 'File is ready on the target device')
+        };
+        render();
+        showToast(text('transferSendSuccess', 'File is ready on the target device'), 'success');
+        return created;
+    }
+
     async function sendDirectFile() {
         try {
             if (!state.selectedFiles.length) {
+                if (!isSignedInTransferUser() && !directReady()) {
+                    return await sendGuestRelayFile(state.selectedFile);
+                }
                 return await sendFile(state.selectedFile);
             }
             state.batchSending = state.selectedFiles.length > 1;
             let lastResult = null;
             for (const item of state.selectedFiles) {
-                lastResult = await sendFile(item.file);
+                if (isSignedInTransferUser()) {
+                    lastResult = await sendFile(item.file);
+                    continue;
+                }
+                try {
+                    if (!directReady()) {
+                        throw new Error(text('transferRelayFallback', 'Direct link is not ready yet, falling back to server relay'));
+                    }
+                    lastResult = await sendFile(item.file, {
+                        silentError: true
+                    });
+                } catch (error) {
+                    showToast(text('transferRelayFallback', 'Direct link is not ready yet, falling back to server relay'), 'warning');
+                    lastResult = await sendGuestRelayFile(item.file, {
+                        silentError: true
+                    });
+                }
             }
             clearAllSelectedFiles();
             render();
@@ -2402,6 +2587,69 @@ const TransferDirectTransfer = (() => {
         window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5 * 60 * 1000);
     }
 
+    function buildPublicShareDownloadUrl(shareToken) {
+        return `${API_BASE}/public/transfer/shares/${encodeURIComponent(shareToken)}/download`;
+    }
+
+    function buildPublicSharePreviewUrl(shareToken) {
+        return `${API_BASE}/public/transfer/shares/${encodeURIComponent(shareToken)}/preview`;
+    }
+
+    function openPublicSharePreviewWindow(shareToken, fileName, contentType) {
+        const previewKind = getGuestRelayPreviewKind(fileName, contentType);
+        if (!previewKind) {
+            throw new Error(text('cannotPreview', 'This file type cannot be previewed'));
+        }
+        const previewUrl = buildPublicSharePreviewUrl(shareToken);
+        const downloadUrl = buildPublicShareDownloadUrl(shareToken);
+        if (previewKind === 'pdf' || previewKind === 'office') {
+            const viewerUrl = `pdf-viewer.html?file=${encodeURIComponent(previewUrl)}&download=${encodeURIComponent(downloadUrl)}&name=${encodeURIComponent(fileName || 'preview')}&kind=${previewKind === 'office' ? 'office' : 'pdf'}`;
+            window.open(viewerUrl, '_blank', 'noopener');
+            return;
+        }
+        window.open(previewUrl, '_blank', 'noopener');
+    }
+
+    async function presentRelayShareArrivalDialog(payload) {
+        const shareToken = String(payload?.shareToken || '').trim();
+        if (!shareToken || state.announcedRelayShares.has(shareToken)) {
+            return;
+        }
+        state.announcedRelayShares.add(shareToken);
+
+        const fileName = payload?.fileName || 'transfer-file';
+        const fileSize = Number(payload?.fileSize || 0);
+        const contentType = payload?.contentType || 'application/octet-stream';
+        const senderLabel = payload?.senderLabel || text('transferDirectPeerFallback', 'Paired peer');
+        const canPreview = Boolean(getGuestRelayPreviewKind(fileName, contentType));
+        const message = [
+            `${text('transferSender', 'Sender')}: ${senderLabel}`,
+            `${text('transferTaskFileLabel', 'File')}: ${fileName}`,
+            `${text('transferTaskSizeLabel', 'Size')}: ${formatSize(fileSize)}`,
+            `${text('transferTaskStatusLabel', 'Status')}: ${text('transferStatusReady', 'Ready to Download')}`
+        ].join('\n');
+
+        if (typeof showAppConfirm !== 'function') {
+            showToast(text('transferSendSuccess', 'File is ready on the target device'), 'success');
+            return;
+        }
+
+        const confirmed = await showAppConfirm(message, {
+            title: text('transferIncomingNoticeSingle', 'A file arrived on this device'),
+            icon: 'fa-file-arrow-down',
+            confirmText: canPreview ? text('previewBtn', 'Preview') : text('transferDownload', 'Download'),
+            cancelText: text('transferClose', 'Close')
+        });
+        if (!confirmed) {
+            return;
+        }
+        if (canPreview) {
+            openPublicSharePreviewWindow(shareToken, fileName, contentType);
+            return;
+        }
+        window.location.href = buildPublicShareDownloadUrl(shareToken);
+    }
+
     async function deleteServerPairTaskSnapshot(snapshot, options = {}) {
         if (!snapshot?.pairTaskId || !snapshot?.deleteServerTransferId) {
             return;
@@ -2596,7 +2844,13 @@ const TransferDirectTransfer = (() => {
             render();
         });
 
-        document.addEventListener('transfer:signal-message', () => {
+        document.addEventListener('transfer:signal-message', event => {
+            const payload = event.detail || {};
+            if (payload.type === 'signal' && payload.signalType === 'relay-done' && payload.payload) {
+                presentRelayShareArrivalDialog(payload.payload).catch(error => {
+                    showToast(error.message, 'error');
+                });
+            }
             syncPublicPairTaskPolling();
             renderPeer();
         });

@@ -42,6 +42,8 @@ public interface TransferService {
 
     TransferPublicShareVO uploadPublicShareChunk(String shareToken, Integer chunkIndex, byte[] body);
 
+    TransferPublicShare openPublicSharePreview(String shareToken);
+
     TransferPublicShare openPublicShareDownload(String shareToken);
 
     FileInfoVO savePublicShareToNetdisk(Long userId, String shareToken, Long folderId);

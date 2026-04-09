@@ -1283,12 +1283,43 @@
                                 <span data-i18n="transferClaimPairCode">加入匹配</span>
                             </button>
                         </div>
+
+                        <div class="pair-divider"><span data-i18n="transferPairOr">或</span></div>
+
+                        <div class="pair-center-top">
+                            <h3 data-i18n="transferPublicRoomLabel">临时房间</h3>
+                        </div>
+                        <div class="pair-code-display">
+                            <div>
+                                <strong id="transferPublicRoomCodeDisplay">-</strong>
+                                <small data-i18n="transferPublicRoomHint">创建一个房间码，让不同网络里的设备进入同一房间。</small>
+                            </div>
+                        </div>
+                        <div class="pair-center-actions">
+                            <button id="transferCreatePublicRoomBtn" class="btn btn-secondary" type="button">
+                                <i class="fa-solid fa-users-viewfinder"></i>
+                                <span data-i18n="transferCreatePublicRoom">创建房间</span>
+                            </button>
+                            <button id="transferLeavePublicRoomBtn" class="btn btn-secondary hidden" type="button">
+                                <i class="fa-solid fa-right-from-bracket"></i>
+                                <span data-i18n="transferLeavePublicRoom">离开房间</span>
+                            </button>
+                        </div>
+
+                        <div class="pair-join-block">
+                            <h3 data-i18n="transferPublicRoomJoinLabel">加入房间</h3>
+                            <input id="transferPublicRoomInput" class="pair-join-input" type="text" data-i18n="transferPublicRoomInputPlaceholder" placeholder="输入 6 位房间码">
+                            <button id="transferJoinPublicRoomBtn" class="btn btn-primary" type="button">
+                                <i class="fa-solid fa-door-open"></i>
+                                <span data-i18n="transferJoinPublicRoom">加入房间</span>
+                            </button>
+                        </div>
                     </section>
 
                     <section class="pair-center-card">
                         <div class="pair-center-top">
-                            <h3 data-i18n="transferLanDevicesTitle">同网络设备</h3>
-                            <p class="section-note" data-i18n="transferLanDevicesHint">未登录时，也可以直接选择同一网络里的设备开始互传。</p>
+                            <h3 id="transferPeerDiscoveryTitle" data-i18n="transferLanDevicesTitle">同网络设备</h3>
+                            <p id="transferPeerDiscoveryHint" class="section-note" data-i18n="transferLanDevicesHint">未登录时，也可以直接选择同一网络里的设备开始互传。</p>
                         </div>
                         <div id="transferLanDeviceList" class="device-grid"></div>
                         <p id="transferLanDeviceEmpty" class="empty-state" data-i18n="transferLanDeviceEmpty">当前没有发现同网络里的其他设备。</p>

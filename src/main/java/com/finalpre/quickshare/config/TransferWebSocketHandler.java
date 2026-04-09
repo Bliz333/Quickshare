@@ -53,8 +53,7 @@ public class TransferWebSocketHandler extends TextWebSocketHandler {
 
             // Client requests the current room device list
             case "room-devices" -> {
-                String roomId = transferSignalingService.getRoomId(
-                        (String) session.getAttributes().getOrDefault("clientIp", "unknown"));
+                String roomId = transferSignalingService.getChannelRoomId(channelId);
                 List<Map<String, Object>> devices = transferSignalingService.getRoomDevices(roomId);
                 List<Map<String, Object>> personalised = devices.stream().map(d -> {
                     java.util.LinkedHashMap<String, Object> copy = new java.util.LinkedHashMap<>(d);
@@ -64,6 +63,8 @@ public class TransferWebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
                         "type", "room-update",
                         "roomId", roomId,
+                        "roomScope", roomId.startsWith("room:public:") ? "public" : "local",
+                        "roomCode", roomId.startsWith("room:public:") ? roomId.substring("room:public:".length()) : "",
                         "devices", personalised
                 ))));
             }
@@ -81,6 +82,51 @@ public class TransferWebSocketHandler extends TextWebSocketHandler {
                                 "message", e.getMessage()
                         ))));
                     }
+                }
+            }
+
+            case "create-public-room" -> {
+                try {
+                    String roomCode = transferSignalingService.createPublicRoom(channelId);
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
+                            "type", "public-room-created",
+                            "roomCode", roomCode
+                    ))));
+                } catch (IllegalStateException e) {
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
+                            "type", "error",
+                            "message", e.getMessage()
+                    ))));
+                }
+            }
+
+            case "join-public-room" -> {
+                String roomCode = payload.get("roomCode") == null ? "" : String.valueOf(payload.get("roomCode"));
+                try {
+                    String normalizedRoomCode = transferSignalingService.joinPublicRoom(channelId, roomCode);
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
+                            "type", "public-room-joined",
+                            "roomCode", normalizedRoomCode
+                    ))));
+                } catch (IllegalArgumentException | IllegalStateException e) {
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
+                            "type", "error",
+                            "message", e.getMessage()
+                    ))));
+                }
+            }
+
+            case "leave-public-room" -> {
+                try {
+                    transferSignalingService.leavePublicRoom(channelId);
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
+                            "type", "public-room-left"
+                    ))));
+                } catch (IllegalStateException e) {
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
+                            "type", "error",
+                            "message", e.getMessage()
+                    ))));
                 }
             }
 

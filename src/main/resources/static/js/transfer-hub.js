@@ -992,17 +992,34 @@ function renderTransferTargetStage() {
 function renderTransferLanDevices() {
     const list = document.getElementById('transferLanDeviceList');
     const empty = document.getElementById('transferLanDeviceEmpty');
+    const title = document.getElementById('transferPeerDiscoveryTitle');
+    const hint = document.getElementById('transferPeerDiscoveryHint');
     if (!list || !empty) {
         return;
     }
 
     const signalState = transferSignalState();
+    const inPublicRoom = signalState.roomScope === 'public' && signalState.publicRoomCode;
     const devices = Array.isArray(signalState.roomDevices)
         ? signalState.roomDevices.filter(device => !device?.isMe)
         : [];
 
+    if (title) {
+        title.textContent = inPublicRoom
+            ? transferText('transferPublicRoomDevicesTitle', 'Room Devices')
+            : transferText('transferLanDevicesTitle', 'Nearby Devices');
+    }
+    if (hint) {
+        hint.textContent = inPublicRoom
+            ? transferText('transferPublicRoomDevicesHint', 'Devices in the same temporary room appear here, even across different networks.')
+            : transferText('transferLanDevicesHint', 'Without signing in, you can still pick another device on the same network and start sending.');
+    }
+
     if (!devices.length) {
         list.innerHTML = '';
+        empty.textContent = inPublicRoom
+            ? transferText('transferPublicRoomEmpty', 'No other devices have joined this temporary room yet.')
+            : transferText('transferLanDeviceEmpty', 'No other devices were found on the same network.');
         empty.classList.remove('hidden');
         return;
     }

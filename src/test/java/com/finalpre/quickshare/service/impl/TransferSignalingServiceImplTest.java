@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
@@ -67,6 +68,76 @@ class TransferSignalingServiceImplTest {
             assertThat(message).containsEntry("peerDeviceId", "");
             assertThat(message).containsEntry("peerLabel", "Left Guest");
         });
+    }
+
+    @Test
+    void publicRoomShouldBroadcastJoinedPeers() throws Exception {
+        transferSignalingService.registerSession("guest:left", "Left Guest", "127.0.0.1", leftSession);
+        transferSignalingService.registerSession("guest:right", "Right Guest", "10.0.0.2", rightSession);
+        leftMessages.clear();
+        rightMessages.clear();
+
+        String roomCode = transferSignalingService.createPublicRoom("guest:left");
+        transferSignalingService.joinPublicRoom("guest:right", roomCode);
+
+        assertThat(transferSignalingService.getChannelRoomId("guest:left")).endsWith(roomCode);
+        assertThat(transferSignalingService.getChannelRoomId("guest:right")).endsWith(roomCode);
+        assertThat(leftMessages)
+                .filteredOn(message -> "room-update".equals(message.get("type")))
+                .last()
+                .satisfies(message -> {
+                    assertThat(message).containsEntry("roomScope", "public");
+                    assertThat(message).containsEntry("roomCode", roomCode);
+                    assertThat((List<?>) message.get("devices")).hasSize(2);
+                });
+        assertThat(rightMessages)
+                .filteredOn(message -> "room-update".equals(message.get("type")))
+                .last()
+                .satisfies(message -> {
+                    assertThat(message).containsEntry("roomScope", "public");
+                    assertThat(message).containsEntry("roomCode", roomCode);
+                    assertThat((List<?>) message.get("devices")).hasSize(2);
+                });
+    }
+
+    @Test
+    void leavingPublicRoomShouldReturnChannelToDefaultLanRoom() throws Exception {
+        transferSignalingService.registerSession("guest:left", "Left Guest", "127.0.0.1", leftSession);
+        transferSignalingService.registerSession("guest:right", "Right Guest", "10.0.0.2", rightSession);
+        leftMessages.clear();
+        rightMessages.clear();
+
+        String roomCode = transferSignalingService.createPublicRoom("guest:left");
+        transferSignalingService.joinPublicRoom("guest:right", roomCode);
+        transferSignalingService.leavePublicRoom("guest:right");
+
+        assertThat(transferSignalingService.getChannelRoomId("guest:right")).isEqualTo("room:10.0.0.2");
+        assertThat(rightMessages)
+                .filteredOn(message -> "room-update".equals(message.get("type")))
+                .last()
+                .satisfies(message -> {
+                    assertThat(message).containsEntry("roomScope", "local");
+                    assertThat(message).containsEntry("roomCode", "");
+                });
+        assertThat(leftMessages)
+                .filteredOn(message -> "room-update".equals(message.get("type")))
+                .last()
+                .satisfies(message -> {
+                    assertThat(message).containsEntry("roomScope", "public");
+                    assertThat(message).containsEntry("roomCode", roomCode);
+                    assertThat((List<?>) message.get("devices")).hasSize(1);
+                });
+    }
+
+    @Test
+    void requestRoomTransferShouldRejectChannelsInDifferentRooms() throws Exception {
+        transferSignalingService.registerSession("guest:left", "Left Guest", "127.0.0.1", leftSession);
+        transferSignalingService.registerSession("guest:right", "Right Guest", "10.0.0.2", rightSession);
+        transferSignalingService.createPublicRoom("guest:left");
+
+        assertThatThrownBy(() -> transferSignalingService.requestRoomTransfer("guest:left", "guest:right"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Both devices must be in the same discovery room");
     }
 
     private void stubSession(WebSocketSession session, List<Map<String, Object>> sink) throws Exception {

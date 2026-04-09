@@ -74,6 +74,8 @@ const TransferSignalManager = (() => {
         connected: false,
         channelId: '',
         roomId: '',
+        roomScope: 'local',
+        publicRoomCode: '',
         roomDevices: [],
         pairSessionId: '',
         latestCode: '',
@@ -328,6 +330,8 @@ const TransferSignalManager = (() => {
     function updateStatusUi() {
         const status = document.getElementById('transferSignalStatus');
         const code = document.getElementById('transferPairCodeDisplay');
+        const publicRoomCode = document.getElementById('transferPublicRoomCodeDisplay');
+        const leavePublicRoomButton = document.getElementById('transferLeavePublicRoomBtn');
         const meta = document.getElementById('transferPairingMeta');
         const directStatus = document.getElementById('transferDirectStatus');
 
@@ -342,9 +346,19 @@ const TransferSignalManager = (() => {
             code.textContent = state.latestCode || text('transferPairCodeEmpty', 'No active match code');
         }
 
+        if (publicRoomCode) {
+            publicRoomCode.textContent = state.publicRoomCode || text('transferPublicRoomCodeEmpty', 'No active room');
+        }
+
+        if (leavePublicRoomButton) {
+            leavePublicRoomButton.classList.toggle('hidden', state.roomScope !== 'public');
+        }
+
         if (meta) {
             if (state.pairSessionId) {
                 meta.textContent = `${text('transferPairReady', 'Paired with')}: ${state.latestPeerLabel || state.latestPeerChannelId || '-'}`;
+            } else if (state.roomScope === 'public' && state.publicRoomCode) {
+                meta.textContent = `${text('transferPublicRoomActive', 'Temporary room')}: ${state.publicRoomCode}`;
             } else if (state.channelId) {
                 meta.textContent = `${text('transferSignalChannel', 'Channel')}: ${state.channelId}`;
             } else {
@@ -367,6 +381,8 @@ const TransferSignalManager = (() => {
             directState: state.directState,
             connected: state.connected,
             roomId: state.roomId,
+            roomScope: state.roomScope,
+            publicRoomCode: state.publicRoomCode,
             roomDevices: [...(state.roomDevices || [])],
             pairSessionId: state.pairSessionId,
             peerLabel: state.latestPeerLabel,
@@ -378,6 +394,40 @@ const TransferSignalManager = (() => {
 
     function requestRoomDevices() {
         send({ type: 'room-devices' });
+    }
+
+    function waitForSignalMessage(match, timeoutMs = 2500) {
+        return new Promise((resolve, reject) => {
+            let finished = false;
+            const handler = event => {
+                const payload = event.detail || {};
+                if (payload.type === 'error') {
+                    finished = true;
+                    cleanup();
+                    reject(new Error(payload.message || text('transferSignalDisconnected', 'Signaling Offline')));
+                    return;
+                }
+                if (!match(payload)) {
+                    return;
+                }
+                finished = true;
+                cleanup();
+                resolve(payload);
+            };
+            const cleanup = () => {
+                document.removeEventListener('transfer:signal-message', handler);
+                clearTimeout(timer);
+            };
+            document.addEventListener('transfer:signal-message', handler);
+            const timer = window.setTimeout(() => {
+                if (finished) {
+                    return;
+                }
+                finished = true;
+                cleanup();
+                reject(new Error(text('transferSignalDisconnected', 'Signaling Offline')));
+            }, timeoutMs);
+        });
     }
 
     function getNegotiationContextKey(pairSessionId = state.pairSessionId, peerChannelId = state.latestPeerChannelId) {
@@ -893,6 +943,56 @@ const TransferSignalManager = (() => {
         return result.data || {};
     }
 
+    async function ensureSocketConnection() {
+        if (state.connected) {
+            return;
+        }
+        connect();
+        const connected = await waitForSignalConnection();
+        if (!connected) {
+            throw new Error(text('transferSignalDisconnected', 'Signaling Offline'));
+        }
+    }
+
+    async function createPublicRoom() {
+        await ensureSocketConnection();
+        const reply = waitForSignalMessage(payload => payload.type === 'public-room-created');
+        send({ type: 'create-public-room' });
+        const payload = await reply;
+        state.roomScope = 'public';
+        state.publicRoomCode = payload.roomCode || state.publicRoomCode;
+        updateStatusUi();
+        return payload;
+    }
+
+    async function joinPublicRoom(roomCode) {
+        const normalizedRoomCode = String(roomCode || '').trim().toUpperCase();
+        if (!normalizedRoomCode) {
+            throw new Error(text('transferPublicRoomRequired', 'Temporary room code is required'));
+        }
+        await ensureSocketConnection();
+        const reply = waitForSignalMessage(payload => payload.type === 'public-room-joined');
+        send({
+            type: 'join-public-room',
+            roomCode: normalizedRoomCode
+        });
+        const payload = await reply;
+        state.roomScope = 'public';
+        state.publicRoomCode = payload.roomCode || normalizedRoomCode;
+        updateStatusUi();
+        return payload;
+    }
+
+    async function leavePublicRoom() {
+        await ensureSocketConnection();
+        const reply = waitForSignalMessage(payload => payload.type === 'public-room-left');
+        send({ type: 'leave-public-room' });
+        await reply;
+        state.roomScope = 'local';
+        state.publicRoomCode = '';
+        updateStatusUi();
+    }
+
     async function ensurePairWithDevice(targetDeviceId, options = {}) {
         const normalizedTargetDeviceId = String(targetDeviceId || '').trim();
         if (!normalizedTargetDeviceId) {
@@ -901,13 +1001,7 @@ const TransferSignalManager = (() => {
         if (!(typeof getAuthToken === 'function' && getAuthToken())) {
             throw new Error(text('transferLoginRequired', 'Please sign in before using Transfer'));
         }
-        if (!state.connected) {
-            connect();
-            const connected = await waitForSignalConnection();
-            if (!connected) {
-                throw new Error(text('transferSignalDisconnected', 'Signaling Offline'));
-            }
-        }
+        await ensureSocketConnection();
         if (!options.force
             && state.latestPeerDeviceId === normalizedTargetDeviceId
             && state.pairSessionId
@@ -1028,6 +1122,8 @@ const TransferSignalManager = (() => {
 
             if (payload.type === 'room-update') {
                 state.roomId = payload.roomId || '';
+                state.roomScope = payload.roomScope || 'local';
+                state.publicRoomCode = payload.roomCode || '';
                 state.roomDevices = Array.isArray(payload.devices) ? payload.devices : [];
                 updateStatusUi();
             }
@@ -1064,6 +1160,8 @@ const TransferSignalManager = (() => {
         state.socket.addEventListener('close', () => {
             state.connected = false;
             state.roomId = '';
+            state.roomScope = 'local';
+            state.publicRoomCode = '';
             state.roomDevices = [];
             if (state.pingTimer) {
                 clearInterval(state.pingTimer);
@@ -1076,6 +1174,8 @@ const TransferSignalManager = (() => {
         state.socket.addEventListener('error', () => {
             state.connected = false;
             state.roomId = '';
+            state.roomScope = 'local';
+            state.publicRoomCode = '';
             state.roomDevices = [];
             cleanupPeerConnection('idle');
             updateStatusUi();
@@ -1086,6 +1186,10 @@ const TransferSignalManager = (() => {
         const createButton = document.getElementById('transferCreatePairCodeBtn');
         const claimButton = document.getElementById('transferClaimPairCodeBtn');
         const input = document.getElementById('transferPairCodeInput');
+        const createPublicRoomButton = document.getElementById('transferCreatePublicRoomBtn');
+        const joinPublicRoomButton = document.getElementById('transferJoinPublicRoomBtn');
+        const leavePublicRoomButton = document.getElementById('transferLeavePublicRoomBtn');
+        const publicRoomInput = document.getElementById('transferPublicRoomInput');
 
         if (createButton) {
             createButton.addEventListener('click', async () => {
@@ -1106,6 +1210,46 @@ const TransferSignalManager = (() => {
                     const code = input ? input.value : '';
                     await claimPairCode(code);
                     showToast(text('transferPairCodeClaimed', 'Joined match code'), 'success');
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        }
+
+        if (createPublicRoomButton) {
+            createPublicRoomButton.addEventListener('click', async () => {
+                try {
+                    const payload = await createPublicRoom();
+                    showToast(text('transferPublicRoomCreated', 'Temporary room created'), 'success');
+                    if (publicRoomInput) {
+                        publicRoomInput.value = payload.roomCode || '';
+                    }
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        }
+
+        if (joinPublicRoomButton) {
+            joinPublicRoomButton.addEventListener('click', async () => {
+                try {
+                    const roomCode = publicRoomInput ? publicRoomInput.value : '';
+                    const payload = await joinPublicRoom(roomCode);
+                    showToast(text('transferPublicRoomJoined', 'Joined the temporary room'), 'success');
+                    if (publicRoomInput) {
+                        publicRoomInput.value = payload.roomCode || roomCode;
+                    }
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        }
+
+        if (leavePublicRoomButton) {
+            leavePublicRoomButton.addEventListener('click', async () => {
+                try {
+                    await leavePublicRoom();
+                    showToast(text('transferPublicRoomLeft', 'Returned to local discovery'), 'success');
                 } catch (error) {
                     showToast(error.message, 'error');
                 }
@@ -1191,6 +1335,15 @@ const TransferSignalManager = (() => {
         },
         ensurePairWithDevice(targetDeviceId, options) {
             return ensurePairWithDevice(targetDeviceId, options);
+        },
+        createPublicRoom() {
+            return createPublicRoom();
+        },
+        joinPublicRoom(roomCode) {
+            return joinPublicRoom(roomCode);
+        },
+        leavePublicRoom() {
+            return leavePublicRoom();
         },
         requestRoomTransfer(targetChannelId) {
             const normalizedTargetChannelId = String(targetChannelId || '').trim();

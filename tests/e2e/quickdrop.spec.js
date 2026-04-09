@@ -39,6 +39,97 @@ async function stubTransferRealtime(page, { lang = 'en' } = {}) {
   }, { currentLang: lang });
 }
 
+async function stubTransferRealtimeWithPublicRoom(page, { lang = 'en' } = {}) {
+  await page.addInitScript(({ currentLang }) => {
+    localStorage.setItem('quickshare-lang', currentLang);
+    window.__transferSocketSends = [];
+
+    class FakeWebSocket extends EventTarget {
+      static CONNECTING = 0;
+      static OPEN = 1;
+      static CLOSING = 2;
+      static CLOSED = 3;
+
+      constructor(url) {
+        super();
+        this.url = url;
+        this.readyState = FakeWebSocket.CONNECTING;
+        setTimeout(() => {
+          this.readyState = FakeWebSocket.OPEN;
+          this.dispatchEvent(new Event('open'));
+          this.dispatchEvent(new MessageEvent('message', {
+            data: JSON.stringify({
+              type: 'welcome',
+              channelId: 'guest:test-device',
+              label: 'Test Device'
+            })
+          }));
+          this.dispatchEvent(new MessageEvent('message', {
+            data: JSON.stringify({
+              type: 'room-update',
+              roomId: 'room:localhost',
+              roomScope: 'local',
+              roomCode: '',
+              devices: [
+                { channelId: 'guest:test-device', label: 'Test Device', isMe: true }
+              ]
+            })
+          }));
+        }, 0);
+      }
+
+      send(raw) {
+        const payload = JSON.parse(raw);
+        window.__transferSocketSends.push(payload);
+
+        if (payload.type === 'create-public-room') {
+          setTimeout(() => {
+            this.dispatchEvent(new MessageEvent('message', {
+              data: JSON.stringify({
+                type: 'public-room-created',
+                roomCode: 'ROOM42'
+              })
+            }));
+            this.dispatchEvent(new MessageEvent('message', {
+              data: JSON.stringify({
+                type: 'room-update',
+                roomId: 'room:public:ROOM42',
+                roomScope: 'public',
+                roomCode: 'ROOM42',
+                devices: [
+                  { channelId: 'guest:test-device', label: 'Test Device', isMe: true },
+                  { channelId: 'guest:peer-device', label: 'Peer Device', isMe: false }
+                ]
+              })
+            }));
+          }, 0);
+        }
+
+        if (payload.type === 'request-transfer') {
+          setTimeout(() => {
+            this.dispatchEvent(new MessageEvent('message', {
+              data: JSON.stringify({
+                type: 'pair-ready',
+                pairSessionId: 'pair-room-1',
+                peerChannelId: 'guest:peer-device',
+                peerDeviceId: '',
+                peerLabel: 'Peer Device'
+              })
+            }));
+          }, 0);
+        }
+      }
+
+      close() {
+        this.readyState = FakeWebSocket.CLOSED;
+        this.dispatchEvent(new Event('close'));
+      }
+    }
+
+    window.WebSocket = FakeWebSocket;
+  }, { currentLang: lang });
+}
+
 async function gotoTransferPage(page, baseURL) {
   await page.goto(`${baseURL}/transfer.html`, { waitUntil: 'commit' });
   await expect(page.locator('#transferModeSwitch')).toBeVisible();
@@ -73,6 +164,27 @@ test.describe('Transfer pages', () => {
     await expect(page.locator('#transferSignalStatus')).toBeHidden();
     await expect(page.locator('#transferDirectChooseBtn')).toBeVisible();
     await expect(page.locator('#transferAccountPanels')).toBeHidden();
+  });
+
+  test('temporary mode can create a public room and request a transfer from a room peer', async ({ page, baseURL }) => {
+    await stubTransferRealtimeWithPublicRoom(page, { lang: 'en' });
+
+    await gotoTransferPage(page, baseURL);
+    await page.locator('#transferCreatePublicRoomBtn').click();
+
+    await expect(page.locator('#transferPublicRoomCodeDisplay')).toHaveText('ROOM42');
+    await expect(page.locator('#transferPeerDiscoveryTitle')).toHaveText('Room Devices');
+    await expect(page.locator('#transferLanDeviceList')).toContainText('Peer Device');
+
+    await page.locator('[data-transfer-lan-device="guest:peer-device"]').click();
+
+    await expect(page.locator('#transferDirectPeer')).toContainText('Peer Device');
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__transferSocketSends);
+    }).toContainEqual(expect.objectContaining({
+      type: 'request-transfer',
+      targetChannelId: 'guest:peer-device'
+    }));
   });
 
   test('renders same-account device transfer view and saves incoming transfer to netdisk', async ({ page, baseURL }) => {

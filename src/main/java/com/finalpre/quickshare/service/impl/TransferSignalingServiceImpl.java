@@ -9,6 +9,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -19,8 +20,11 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
 
     private static final int SEND_TIME_LIMIT_MS = 10_000;
     private static final int BUFFER_SIZE_LIMIT_BYTES = 512 * 1024;
+    private static final String PUBLIC_ROOM_PREFIX = "room:public:";
+    private static final char[] ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final SecureRandom secureRandom = new SecureRandom();
 
     // channelId → session
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
@@ -32,6 +36,12 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
     private final Map<String, Set<String>> rooms = new ConcurrentHashMap<>();
     // channelId → roomId (reverse index)
     private final Map<String, String> channelRooms = new ConcurrentHashMap<>();
+    // channelId → default LAN roomId
+    private final Map<String, String> defaultRooms = new ConcurrentHashMap<>();
+    // public room code → roomId
+    private final Map<String, String> publicRoomIdsByCode = new ConcurrentHashMap<>();
+    // roomId → public room code
+    private final Map<String, String> publicRoomCodesById = new ConcurrentHashMap<>();
 
     // -------------------------------------------------------------------------
     // Session lifecycle
@@ -44,8 +54,8 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
 
         // Join IP-based room
         String roomId = getRoomId(clientIp);
-        channelRooms.put(channelId, roomId);
-        rooms.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(channelId);
+        defaultRooms.put(channelId, roomId);
+        joinRoom(channelId, roomId);
 
         // Send welcome first
         send(channelId, buildWelcomeMessage(channelId, label));
@@ -58,24 +68,8 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
     public void unregisterSession(String channelId) {
         sessions.remove(channelId);
         labels.remove(channelId);
-
-        String roomId = channelRooms.remove(channelId);
-        if (roomId != null) {
-            Set<String> roomMembers = rooms.get(roomId);
-            if (roomMembers != null) {
-                roomMembers.remove(channelId);
-                if (roomMembers.isEmpty()) {
-                    rooms.remove(roomId);
-                } else {
-                    // Broadcast updated list to remaining members
-                    try {
-                        broadcastRoomUpdate(roomId);
-                    } catch (IOException e) {
-                        log.warn("Failed to broadcast room-update after disconnect: {}", e.getMessage());
-                    }
-                }
-            }
-        }
+        defaultRooms.remove(channelId);
+        leaveRoom(channelId);
     }
 
     // -------------------------------------------------------------------------
@@ -173,13 +167,63 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
     }
 
     @Override
+    public String getChannelRoomId(String channelId) {
+        if (channelId == null || channelId.isBlank()) {
+            return "";
+        }
+        return channelRooms.getOrDefault(channelId, defaultRooms.getOrDefault(channelId, ""));
+    }
+
+    @Override
     public String requestRoomTransfer(String initiatorChannelId, String targetChannelId) throws IOException {
         if (!isConnected(initiatorChannelId) || !isConnected(targetChannelId)) {
             throw new IllegalStateException("Both devices must be online to initiate transfer");
         }
+        String initiatorRoomId = channelRooms.get(initiatorChannelId);
+        String targetRoomId = channelRooms.get(targetChannelId);
+        if (!Objects.equals(initiatorRoomId, targetRoomId)) {
+            throw new IllegalStateException("Both devices must be in the same discovery room");
+        }
         String pairSessionId = UUID.randomUUID().toString().replace("-", "");
         bindPairSession(pairSessionId, initiatorChannelId, targetChannelId);
         return pairSessionId;
+    }
+
+    @Override
+    public String createPublicRoom(String channelId) throws IOException {
+        requireConnectedChannel(channelId);
+        String currentRoomId = channelRooms.get(channelId);
+        if (isPublicRoom(currentRoomId)) {
+            return publicRoomCodesById.getOrDefault(currentRoomId, "");
+        }
+
+        String code = nextPublicRoomCode();
+        String roomId = PUBLIC_ROOM_PREFIX + code;
+        publicRoomCodesById.put(roomId, code);
+        switchRoom(channelId, roomId);
+        return code;
+    }
+
+    @Override
+    public String joinPublicRoom(String channelId, String roomCode) throws IOException {
+        requireConnectedChannel(channelId);
+        String normalizedCode = normalizeRoomCode(roomCode);
+        String roomId = publicRoomIdsByCode.get(normalizedCode);
+        if (roomId == null) {
+            throw new IllegalArgumentException("Temporary room does not exist or has expired");
+        }
+        switchRoom(channelId, roomId);
+        return normalizedCode;
+    }
+
+    @Override
+    public void leavePublicRoom(String channelId) throws IOException {
+        requireConnectedChannel(channelId);
+        String defaultRoomId = defaultRooms.get(channelId);
+        if (defaultRoomId == null || defaultRoomId.isBlank()) {
+            throw new IllegalStateException("Default discovery room is missing");
+        }
+        switchRoom(channelId, defaultRoomId);
     }
 
     // -------------------------------------------------------------------------
@@ -197,15 +241,21 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
                 return copy;
             }).collect(Collectors.toList());
             try {
-                send(channelId, Map.of(
-                        "type", "room-update",
-                        "roomId", roomId,
-                        "devices", personalised
-                ));
+                send(channelId, buildRoomUpdatePayload(roomId, personalised));
             } catch (IOException e) {
                 log.warn("room-update send failed for {}: {}", channelId, e.getMessage());
             }
         }
+    }
+
+    private Map<String, Object> buildRoomUpdatePayload(String roomId, List<Map<String, Object>> devices) {
+        return Map.of(
+                "type", "room-update",
+                "roomId", roomId == null ? "" : roomId,
+                "roomScope", isPublicRoom(roomId) ? "public" : "local",
+                "roomCode", publicRoomCodesById.getOrDefault(roomId, ""),
+                "devices", devices
+        );
     }
 
     private void send(String channelId, Map<String, Object> payload) throws IOException {
@@ -239,6 +289,91 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
         if (marker < 0) return "";
         String value = channelId.substring(marker + ":device:".length()).trim();
         return value.isBlank() ? "" : value;
+    }
+
+    private void requireConnectedChannel(String channelId) {
+        if (channelId == null || channelId.isBlank() || !isConnected(channelId)) {
+            throw new IllegalStateException("Signaling session is not connected");
+        }
+    }
+
+    private void joinRoom(String channelId, String roomId) {
+        channelRooms.put(channelId, roomId);
+        rooms.computeIfAbsent(roomId, key -> ConcurrentHashMap.newKeySet()).add(channelId);
+    }
+
+    private void switchRoom(String channelId, String nextRoomId) throws IOException {
+        String currentRoomId = channelRooms.get(channelId);
+        if (Objects.equals(currentRoomId, nextRoomId)) {
+            broadcastRoomUpdate(nextRoomId);
+            return;
+        }
+        leaveRoom(channelId);
+        joinRoom(channelId, nextRoomId);
+        broadcastRoomUpdate(nextRoomId);
+    }
+
+    private void leaveRoom(String channelId) {
+        String roomId = channelRooms.remove(channelId);
+        if (roomId == null) {
+            return;
+        }
+
+        Set<String> roomMembers = rooms.get(roomId);
+        if (roomMembers != null) {
+            roomMembers.remove(channelId);
+            if (roomMembers.isEmpty()) {
+                rooms.remove(roomId);
+                cleanupPublicRoom(roomId);
+            } else {
+                try {
+                    broadcastRoomUpdate(roomId);
+                } catch (IOException e) {
+                    log.warn("Failed to broadcast room-update after disconnect: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    private boolean isPublicRoom(String roomId) {
+        return roomId != null && roomId.startsWith(PUBLIC_ROOM_PREFIX);
+    }
+
+    private void cleanupPublicRoom(String roomId) {
+        if (!isPublicRoom(roomId)) {
+            return;
+        }
+        String roomCode = publicRoomCodesById.remove(roomId);
+        if (roomCode != null) {
+            publicRoomIdsByCode.remove(roomCode, roomId);
+        }
+    }
+
+    private String nextPublicRoomCode() {
+        for (int attempt = 0; attempt < 32; attempt += 1) {
+            String code = generateRoomCode();
+            String roomId = PUBLIC_ROOM_PREFIX + code;
+            if (publicRoomIdsByCode.putIfAbsent(code, roomId) == null) {
+                return code;
+            }
+        }
+        throw new IllegalStateException("Failed to allocate a temporary room code");
+    }
+
+    private String generateRoomCode() {
+        StringBuilder builder = new StringBuilder(6);
+        for (int index = 0; index < 6; index += 1) {
+            builder.append(ROOM_CODE_ALPHABET[secureRandom.nextInt(ROOM_CODE_ALPHABET.length)]);
+        }
+        return builder.toString();
+    }
+
+    private String normalizeRoomCode(String roomCode) {
+        String normalized = roomCode == null ? "" : roomCode.trim().toUpperCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            throw new IllegalArgumentException("Temporary room code is required");
+        }
+        return normalized;
     }
 
     private record PairBinding(String leftChannelId, String rightChannelId) {

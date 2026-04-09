@@ -41,8 +41,28 @@ public interface TransferSignalingService {
     List<Map<String, Object>> getRoomDevices(String roomId);
 
     /**
+     * Returns the current discovery room for the given channel.
+     */
+    String getChannelRoomId(String channelId);
+
+    /**
      * Auto-pair two room members without a manually exchanged pair code.
      * Generates a pairSessionId and calls bindPairSession internally.
      */
     String requestRoomTransfer(String initiatorChannelId, String targetChannelId) throws IOException;
+
+    /**
+     * Create a temporary public room, switch the channel into it, and return the public room code.
+     */
+    String createPublicRoom(String channelId) throws IOException;
+
+    /**
+     * Join an existing temporary public room and return the normalized room code.
+     */
+    String joinPublicRoom(String channelId, String roomCode) throws IOException;
+
+    /**
+     * Leave the current temporary public room and switch the channel back to its default LAN room.
+     */
+    void leavePublicRoom(String channelId) throws IOException;
 }

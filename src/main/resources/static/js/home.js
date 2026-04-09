@@ -33,6 +33,8 @@ const homeState = {
     transferState: 'idle',   // idle | pairing | paired | sending | done | error
     userId: null,
     token: null,
+    pairCode: null,
+    peerLabel: null,
 };
 
 // ─── 工具函数 ──────────────────────────────────────────────────────────────────
@@ -116,6 +118,10 @@ function authHeader() {
     return homeState.token ? { 'Authorization': 'Bearer ' + homeState.token } : {};
 }
 
+function homeText(key, fallback) {
+    return typeof t === 'function' ? t(key) : fallback;
+}
+
 // ─── WebSocket ─────────────────────────────────────────────────────────────────
 
 function buildWsUrl() {
@@ -151,7 +157,11 @@ function connectHomeWs() {
         setWsStatus('disconnected');
         homeState.selfChannelId = null;
         homeState.roomDevices = [];
+        homeState.pairSessionId = null;
+        homeState.peerChannelId = null;
+        homeState.peerLabel = null;
         renderRing();
+        renderPairState();
         setTimeout(connectHomeWs, 3000);
     });
 
@@ -180,7 +190,7 @@ function handleWsMessage(msg) {
         case 'pair-ready':
             homeState.pairSessionId = msg.pairSessionId;
             homeState.peerChannelId = msg.peerChannelId;
-            homeState.transferState = 'paired';
+            homeState.peerLabel = msg.peerLabel || homeState.peerLabel || msg.peerChannelId || null;
             onPairReady(msg);
             break;
 
@@ -236,25 +246,22 @@ function renderRing() {
     peersEl.innerHTML = '';
     if (others.length === 0) return;
 
-    const count = others.length;
-    const ringR = 42; // % of container
-
-    others.forEach((dev, i) => {
-        const angle = (360 / count) * i - 90;
-        const rad   = angle * Math.PI / 180;
-        const cx    = 50 + Math.cos(rad) * ringR;
-        const cy    = 50 + Math.sin(rad) * ringR;
-
-        const node = document.createElement('div');
+    others.forEach((dev) => {
+        const node = document.createElement('button');
+        node.type = 'button';
         node.className = 'peer-node';
-        node.style.left = cx + '%';
-        node.style.top  = cy + '%';
         node.dataset.channelId = dev.channelId;
         node.innerHTML = `
-            <div class="peer-icon-wrap">
+            <span class="peer-icon-wrap">
                 <i class="fa-solid ${deviceTypeIcon(dev.label)}"></i>
-            </div>
-            <span class="peer-label">${escapeHtml(dev.label)}</span>
+            </span>
+            <span class="peer-copy">
+                <strong class="peer-label">${escapeHtml(dev.label)}</strong>
+                <small class="peer-meta">${dev.channelId.startsWith('user:') ? 'Account Device' : 'Nearby Device'}</small>
+            </span>
+            <span class="peer-cta">
+                <i class="fa-solid fa-paperclip"></i>
+            </span>
         `;
 
         node.addEventListener('click', () => onDeviceClick(dev.channelId, dev.label));
@@ -281,7 +288,8 @@ function onDeviceClick(channelId, label) {
     if (homeState.transferState !== 'idle') return;
     homeState.pendingTargetChannelId = channelId;
     homeState.transferFile = null;
-    showSendModal(label);
+    showHomeToast(homeText('homeSelectFileForPeer', `选择文件并发送给 ${label}`).replace('{name}', label), 'info');
+    openHomeFilePicker();
 }
 
 function showSendModal(label) {
@@ -301,19 +309,26 @@ function initiateTransfer(targetChannelId, label, file) {
     if (homeState.transferState !== 'idle') return;
     homeState.transferFile = file;
     homeState.pendingTargetChannelId = targetChannelId;
+    homeState.peerLabel = label || homeState.peerLabel;
     homeState.transferState = 'pairing';
     showSendProgress(file.name, 0, '正在连接…');
     sendWs({ type: 'request-transfer', targetChannelId });
 }
 
 async function onPairReady(msg) {
+    homeState.pairSessionId = msg.pairSessionId || homeState.pairSessionId;
+    homeState.peerChannelId = msg.peerChannelId || homeState.peerChannelId;
+    homeState.peerLabel = msg.peerLabel || homeState.peerLabel || msg.peerChannelId || null;
+    homeState.transferState = homeState.transferFile ? 'paired' : 'idle';
+    renderPairState();
+
     if (!homeState.transferFile) {
         // 接收方：等待对方上传完毕的信令
         return;
     }
     // 发送方：开始上传
     try {
-        await sendViaPublicShare(homeState.transferFile, msg.pairSessionId);
+        await sendViaPublicShare(homeState.transferFile, homeState.pairSessionId);
         homeState.transferState = 'done';
         showSendProgress(homeState.transferFile.name, 100, '✓ 发送完成');
         showHomeToast(`已发送 "${homeState.transferFile.name}"`, 'success');
@@ -428,11 +443,8 @@ function resetTransferState() {
     homeState.transferState   = 'idle';
     homeState.transferFile    = null;
     homeState.pendingTargetChannelId = null;
-    homeState.pairSessionId   = null;
-    homeState.peerChannelId   = null;
     setTimeout(hideSendProgress, 800);
-    // remove visual sending state on peer nodes
-    document.querySelectorAll('.peer-node.sending').forEach(n => n.classList.remove('sending'));
+    renderPairState();
 }
 
 // ─── WS 状态 ──────────────────────────────────────────────────────────────────
@@ -441,7 +453,35 @@ function setWsStatus(status) {
     const dot  = document.getElementById('wsStatusDot');
     const text = document.getElementById('wsStatusText');
     if (dot)  dot.dataset.status = status;
-    if (text) text.textContent   = status === 'connected' ? '已连接' : '连接中…';
+    if (text) text.textContent   = status === 'connected'
+        ? homeText('homeWsConnected', '已连接')
+        : homeText('homeWsConnecting', '连接中…');
+}
+
+function renderPairState() {
+    const codeDisplay = document.getElementById('homePairCodeDisplay');
+    const peerLabel = document.getElementById('homeActivePeerLabel');
+    const pairMeta = document.getElementById('homePairStateMeta');
+    const sendButton = document.getElementById('homeSendToPeerBtn');
+    const copyButton = document.getElementById('homeCopyPairCodeBtn');
+
+    if (codeDisplay) {
+        codeDisplay.textContent = homeState.pairCode || '-';
+    }
+    if (copyButton) {
+        copyButton.disabled = !homeState.pairCode;
+    }
+    if (peerLabel) {
+        peerLabel.textContent = homeState.peerLabel || homeText('homeActivePeerEmpty', '未连接设备');
+    }
+    if (pairMeta) {
+        pairMeta.textContent = homeState.pairSessionId
+            ? homeText('homePairStateReady', '已建立配对会话，可以直接选文件发送')
+            : homeText('homeActivePeerHint', '生成配对码后，对方输入即可建立一条临时传输通道。');
+    }
+    if (sendButton) {
+        sendButton.disabled = !(homeState.pairSessionId && homeState.peerChannelId) || homeState.transferState === 'sending';
+    }
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -456,29 +496,92 @@ function showHomeToast(msg, type = 'info') {
 
 // ─── 配对码输入（跨网段） ──────────────────────────────────────────────────────
 
+async function createPairCode() {
+    try {
+        const res = await fetch(`${apiBase()}/api/public/transfer/pair-codes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            body: JSON.stringify({
+                deviceId: getHomeDeviceId(),
+                guestId: homeState.token ? null : getOrCreateGuestId(),
+                deviceName: getHomeDeviceName(),
+                deviceType: detectDeviceType()
+            }),
+        });
+        const body = await res.json();
+        if (!res.ok || body.code !== 200) {
+            showHomeToast(body?.message || homeText('homeCreatePairCodeFailed', '生成配对码失败'), 'error');
+            return;
+        }
+        homeState.pairCode = body.data?.code || null;
+        renderPairState();
+        showHomeToast(homeText('homePairCodeCreated', '配对码已生成'), 'success');
+    } catch (err) {
+        showHomeToast(`${homeText('homeCreatePairCodeFailed', '生成配对码失败')}：${err.message}`, 'error');
+    }
+}
+
+async function copyCurrentPairCode() {
+    if (!homeState.pairCode) {
+        showHomeToast(homeText('homePairCodeMissing', '当前还没有可复制的配对码'), 'warning');
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(homeState.pairCode);
+        showHomeToast(homeText('homePairCodeCopied', '配对码已复制'), 'success');
+    } catch (err) {
+        showHomeToast(homeText('homePairCodeCopyFailed', '复制失败，请手动复制'), 'warning');
+    }
+}
+
 async function joinByPairCode() {
     const input = document.getElementById('homePairCodeInput');
     const code  = input?.value?.trim().toUpperCase();
     if (!code || code.length < 4) {
-        showHomeToast('请输入有效的配对码', 'warning');
+        showHomeToast(homeText('homePairCodeInvalid', '请输入有效的配对码'), 'warning');
         return;
     }
     try {
         const res = await fetch(`${apiBase()}/api/public/transfer/pair-codes/${encodeURIComponent(code)}/claim`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authHeader() },
-            body: JSON.stringify({ guestId: getOrCreateGuestId(), deviceName: getHomeDeviceName() }),
+            body: JSON.stringify({
+                deviceId: getHomeDeviceId(),
+                guestId: homeState.token ? null : getOrCreateGuestId(),
+                deviceName: getHomeDeviceName(),
+                deviceType: detectDeviceType()
+            }),
         });
         const body = await res.json();
         if (!res.ok || body.code !== 200) {
-            showHomeToast(body?.message || '配对码无效或已过期', 'error');
+            showHomeToast(body?.message || homeText('homePairCodeExpired', '配对码无效或已过期'), 'error');
             return;
         }
+        homeState.pairSessionId = body.data?.pairSessionId || homeState.pairSessionId;
+        homeState.peerChannelId = body.data?.peerChannelId || homeState.peerChannelId;
+        homeState.peerLabel = body.data?.peerLabel || homeState.peerLabel;
         if (input) input.value = '';
-        showHomeToast('配对成功，等待对方操作…', 'success');
+        renderPairState();
+        showHomeToast(homeText('homePairCodeClaimed', '配对成功，等待对方操作…'), 'success');
     } catch (err) {
-        showHomeToast('配对失败：' + err.message, 'error');
+        showHomeToast(`${homeText('homePairCodeJoinFailed', '配对失败')}：${err.message}`, 'error');
     }
+}
+
+function openHomeFilePicker() {
+    const fileInput = document.getElementById('homeFileInput');
+    if (fileInput) {
+        fileInput.click();
+    }
+}
+
+function sendToPairedPeer() {
+    if (!homeState.pairSessionId || !homeState.peerChannelId) {
+        showHomeToast(homeText('homePairFirst', '请先完成配对'), 'warning');
+        return;
+    }
+    homeState.pendingTargetChannelId = homeState.peerChannelId;
+    openHomeFilePicker();
 }
 
 // ─── 账号设备同步（登录用户） ──────────────────────────────────────────────────
@@ -529,14 +632,41 @@ window.addEventListener('load', async () => {
     const fileInput = document.getElementById('homeFileInput');
     if (fileInput) {
         fileInput.addEventListener('change', (e) => {
-            closeSendModal();
             const file = e.target.files[0];
-            if (file && homeState.pendingTargetChannelId) {
-                initiateTransfer(homeState.pendingTargetChannelId, null, file);
+            const targetChannelId = homeState.pendingTargetChannelId || homeState.peerChannelId;
+            if (file && targetChannelId) {
+                if (homeState.pairSessionId && targetChannelId === homeState.peerChannelId) {
+                    homeState.transferFile = file;
+                    onPairReady({
+                        pairSessionId: homeState.pairSessionId,
+                        peerChannelId: homeState.peerChannelId,
+                        peerLabel: homeState.peerLabel
+                    });
+                } else {
+                    initiateTransfer(targetChannelId, null, file);
+                }
             }
             fileInput.value = '';
+            homeState.pendingTargetChannelId = null;
         });
     }
+
+    const createPairCodeButton = document.getElementById('homeCreatePairCodeBtn');
+    if (createPairCodeButton) {
+        createPairCodeButton.addEventListener('click', createPairCode);
+    }
+
+    const copyPairCodeButton = document.getElementById('homeCopyPairCodeBtn');
+    if (copyPairCodeButton) {
+        copyPairCodeButton.addEventListener('click', copyCurrentPairCode);
+    }
+
+    const sendToPeerButton = document.getElementById('homeSendToPeerBtn');
+    if (sendToPeerButton) {
+        sendToPeerButton.addEventListener('click', sendToPairedPeer);
+    }
+
+    renderPairState();
 
     // 整页拖拽（单一 peer 时自动目标）
     document.addEventListener('dragover', (e) => e.preventDefault());

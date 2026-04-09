@@ -665,6 +665,378 @@
         }
         .btn-close-receive:hover { background: var(--border-color); color: var(--text-main); }
 
+        .home-stage-hero {
+            max-width: 1120px;
+            padding-top: 110px;
+            padding-left: 24px;
+            padding-right: 24px;
+            text-align: left;
+        }
+
+        .stage-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 30px;
+            padding: 0 14px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.08);
+            color: var(--text-sub);
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        .dark-mode .stage-kicker {
+            background: rgba(148, 163, 184, 0.14);
+        }
+
+        .home-stage-hero .hero-title {
+            font-size: clamp(3.3rem, 8vw, 6rem);
+            line-height: 0.94;
+            letter-spacing: -0.05em;
+            max-width: 760px;
+        }
+
+        .home-stage-hero .hero-sub {
+            max-width: 680px;
+            margin-top: 16px;
+            font-size: 1.05rem;
+            line-height: 1.75;
+        }
+
+        .home-stage-hero .auth-group {
+            justify-content: flex-start;
+            margin-top: 24px;
+        }
+
+        .pairdrop-home-shell {
+            width: 100%;
+            max-width: 1120px;
+            padding: 26px 24px 12px;
+        }
+
+        .home-stage-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(320px, 420px);
+            gap: 22px;
+            align-items: start;
+        }
+
+        .presence-board,
+        .pairdrop-card,
+        .secondary-tools {
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.76);
+            box-shadow: var(--shadow-m);
+            backdrop-filter: blur(18px);
+        }
+
+        .dark-mode .presence-board,
+        .dark-mode .pairdrop-card,
+        .dark-mode .secondary-tools {
+            background: rgba(15, 23, 42, 0.82);
+        }
+
+        .presence-board {
+            border-radius: 30px;
+            padding: 24px;
+            display: grid;
+            gap: 18px;
+        }
+
+        .presence-board-head {
+            display: grid;
+            gap: 8px;
+        }
+
+        .presence-board-head h2 {
+            margin: 0;
+            font-size: clamp(1.35rem, 3vw, 2rem);
+            line-height: 1.15;
+        }
+
+        .presence-board-head p,
+        .presence-board-head h2 + p {
+            color: var(--text-sub);
+        }
+
+        .device-self {
+            position: relative;
+            left: auto;
+            top: auto;
+            transform: none;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: center;
+            gap: 16px;
+            padding: 18px 20px;
+            border-radius: 24px;
+            border: 1px solid rgba(14, 165, 233, 0.22);
+            background:
+                radial-gradient(circle at top right, rgba(14, 165, 233, 0.16), transparent 34%),
+                linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(14, 165, 233, 0.04));
+        }
+
+        .device-self-icon {
+            width: 72px;
+            height: 72px;
+            box-shadow: none;
+            animation: none;
+            font-size: 1.7rem;
+        }
+
+        .device-self-copy {
+            display: grid;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .device-self-kicker {
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-sub);
+        }
+
+        .device-self-name {
+            max-width: none;
+            text-align: left;
+            font-size: 1.05rem;
+            color: var(--text-main);
+        }
+
+        #peerDevices {
+            position: static;
+            inset: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        .peer-node {
+            position: relative;
+            transform: none;
+            left: auto;
+            top: auto;
+            width: 100%;
+            border: 1px solid var(--border-color);
+            border-radius: 22px;
+            background: var(--bg-card);
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            text-align: left;
+            box-shadow: var(--shadow-s);
+        }
+
+        .peer-node:hover,
+        .peer-node:focus-visible {
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(14, 165, 233, 0.14);
+        }
+
+        .peer-icon-wrap {
+            width: 52px;
+            height: 52px;
+            flex-shrink: 0;
+        }
+
+        .peer-copy {
+            display: grid;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .peer-label {
+            max-width: none;
+            text-align: left;
+            font-size: 0.92rem;
+            color: var(--text-main);
+        }
+
+        .peer-meta {
+            color: var(--text-sub);
+            font-size: 0.74rem;
+            font-weight: 600;
+        }
+
+        .peer-cta {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(14, 165, 233, 0.1);
+            color: var(--primary);
+        }
+
+        .no-peers-hint {
+            position: static;
+            inset: auto;
+            border: 1px dashed var(--border-color);
+            border-radius: 22px;
+            padding: 22px 20px;
+            gap: 10px;
+            background: rgba(148, 163, 184, 0.08);
+        }
+
+        .pairdrop-panel {
+            display: grid;
+            gap: 14px;
+        }
+
+        .pairdrop-card {
+            border-radius: 28px;
+            padding: 20px;
+            display: grid;
+            gap: 14px;
+        }
+
+        .pairdrop-card-primary {
+            background:
+                radial-gradient(circle at top right, rgba(14, 165, 233, 0.14), transparent 34%),
+                rgba(255, 255, 255, 0.82);
+        }
+
+        .dark-mode .pairdrop-card-primary {
+            background:
+                radial-gradient(circle at top right, rgba(129, 140, 248, 0.18), transparent 38%),
+                rgba(15, 23, 42, 0.88);
+        }
+
+        .pairdrop-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .pair-inline-action {
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-sub);
+            font: inherit;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .pair-inline-action:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .pair-code-output {
+            min-height: 108px;
+            border-radius: 24px;
+            border: 1px dashed rgba(14, 165, 233, 0.24);
+            background: rgba(14, 165, 233, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(2rem, 6vw, 3rem);
+            font-weight: 800;
+            letter-spacing: 0.22em;
+            padding-left: 0.22em;
+        }
+
+        .pair-main-action {
+            min-height: 52px;
+            border-radius: 18px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            font: inherit;
+            font-size: 0.92rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 18px 36px rgba(14, 165, 233, 0.2);
+        }
+
+        .pair-main-action:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .pair-main-action-secondary {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+        }
+
+        .dark-mode .pair-main-action-secondary {
+            background: linear-gradient(135deg, #334155, #0f172a);
+        }
+
+        .home-pair-input-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+        }
+
+        .home-pair-input-row input {
+            min-height: 52px;
+            border-radius: 18px;
+            border: 1px solid var(--border-color);
+            padding: 0 16px;
+            background: var(--bg-card);
+            color: var(--text-main);
+            font: inherit;
+            font-size: 0.94rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .home-pair-input-row .btn-join {
+            min-width: 110px;
+            border-radius: 18px;
+        }
+
+        .active-peer-label {
+            font-size: 1.08rem;
+            line-height: 1.35;
+        }
+
+        .home-progress-card {
+            width: 100%;
+            margin-top: 0;
+            display: grid;
+            gap: 10px;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+        }
+
+        .home-progress-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .secondary-tools {
+            width: min(1120px, calc(100vw - 40px));
+            margin: 0 auto 0;
+            padding: 0 0 8px;
+            border: none;
+            background: transparent;
+            box-shadow: none;
+            backdrop-filter: none;
+        }
+
         /* ═══════════════════════════════════════════════════════════
            分隔线
         ═══════════════════════════════════════════════════════════ */
@@ -902,11 +1274,61 @@
         ═══════════════════════════════════════════════════════════ */
         @media (max-width: 480px) {
             .hero-title { font-size: 2.1rem; }
-            .ring-container { width: min(340px, 88vw); height: min(340px, 88vw); }
-            .device-self-icon { width: 68px; height: 68px; font-size: 1.7rem; }
-            .peer-icon-wrap { width: 54px; height: 54px; font-size: 1.25rem; }
             .card { padding: 20px; }
             .top-buttons { top: 10px; right: 10px; }
+        }
+
+        @media (max-width: 900px) {
+            .home-stage-hero {
+                padding-top: 96px;
+            }
+
+            .home-stage-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .home-stage-hero {
+                padding-left: 18px;
+                padding-right: 18px;
+                text-align: center;
+            }
+
+            .home-stage-hero .auth-group {
+                justify-content: center;
+            }
+
+            .pairdrop-home-shell {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+            .device-self {
+                grid-template-columns: 1fr;
+                justify-items: center;
+                text-align: center;
+            }
+
+            .device-self-name {
+                text-align: center;
+            }
+
+            #peerDevices {
+                grid-template-columns: 1fr;
+            }
+
+            .peer-node {
+                grid-template-columns: auto minmax(0, 1fr);
+            }
+
+            .peer-cta {
+                display: none;
+            }
+
+            .home-pair-input-row {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -929,6 +1351,14 @@
         <i class="fa-regular fa-bell"></i>
         <span class="sr-only" data-i18n="homeNoticeButton">通知中心</span>
         <span id="homeNotificationBadge" class="notification-badge" style="display:none;"></span>
+    </button>
+    <button class="top-btn" type="button" onclick="location.href='transfer.html'">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span data-i18n="transferToDeviceTransfer">设备互传</span>
+    </button>
+    <button class="top-btn" type="button" onclick="location.href='netdisk.html'">
+        <i class="fa-solid fa-hard-drive"></i>
+        <span data-i18n="transferToNetdisk">网盘</span>
     </button>
     <button class="top-btn top-btn-icon" onclick="location.href='pricing.html'" title="套餐">
         <i class="fa-solid fa-tags"></i>
@@ -972,71 +1402,94 @@
 </section>
 
 <!-- Hero：Logo + 登录 -->
-<div class="hero-section">
+<div class="hero-section home-stage-hero">
+    <div class="stage-kicker">QuickDrop Home</div>
     <h1 class="hero-title" data-i18n="heading">QuickShare</h1>
-    <p class="hero-sub" data-i18n="subtitle">Next-Gen Secure File Sharing</p>
+    <p class="hero-sub" data-i18n="homeHeroLead">把临时互传放在首页第一屏。局域网自动发现，跨网络直接用配对码。</p>
     <div id="authButtons" class="auth-group">
         <button onclick="location.href='login.html'" class="btn-auth btn-login" data-i18n="loginBtn">登录</button>
         <button onclick="location.href='register.html'" class="btn-auth btn-register" data-i18n="registerBtn">注册账号</button>
     </div>
 </div>
 
-<!-- ═══ 传输区 ═══ -->
-<div class="transfer-arena">
-
-    <!-- WS 状态 -->
-    <div class="ws-status-bar">
-        <span class="ws-dot" id="wsStatusDot" data-status="disconnected"></span>
-        <span id="wsStatusText">连接中…</span>
-        <span style="margin:0 3px;opacity:0.35;">·</span>
-        <span data-i18n="homeRingHint">同网络设备自动出现，点击即传</span>
-    </div>
-
-    <!-- 设备环 -->
-    <div class="ring-container">
-        <div class="ring-orbit ring-orbit-1"></div>
-        <div class="ring-orbit ring-orbit-2"></div>
-
-        <!-- 自身（中心） -->
-        <div class="device-self">
-            <div class="device-self-icon">
-                <i class="fa-solid fa-laptop" id="selfDeviceIcon"></i>
+<!-- ═══ 快传首页 ═══ -->
+<section class="transfer-arena pairdrop-home-shell">
+    <div class="home-stage-grid">
+        <article class="presence-board">
+            <div class="presence-board-head">
+                <span class="stage-kicker" data-i18n="homeStageTitle">附近设备</span>
+                <h2 data-i18n="homeStageHint">同一 Wi‑Fi 下自动发现；不同网络时，用右侧配对码建立临时通道。</h2>
             </div>
-            <span class="device-self-name" id="selfDeviceLabel">此设备</span>
-        </div>
 
-        <!-- 周边设备（JS 动态渲染） -->
-        <div id="peerDevices"></div>
+            <div class="ws-status-bar">
+                <span class="ws-dot" id="wsStatusDot" data-status="disconnected"></span>
+                <span id="wsStatusText">连接中…</span>
+                <span style="margin:0 3px;opacity:0.35;">·</span>
+                <span data-i18n="homeRingHint">同网络设备自动出现，点击即传</span>
+            </div>
 
-        <!-- 无设备提示 -->
-        <div class="no-peers-hint" id="noDevicesHint">
-            <i class="fa-solid fa-wifi" style="opacity:0.3;"></i>
-            <p data-i18n="homeNoDevices">在同一局域网内，其他设备打开此页面将自动出现在这里</p>
-        </div>
+            <div class="device-self">
+                <div class="device-self-icon">
+                    <i class="fa-solid fa-laptop" id="selfDeviceIcon"></i>
+                </div>
+                <div class="device-self-copy">
+                    <span class="device-self-kicker" data-i18n="homeThisDeviceLabel">当前设备</span>
+                    <strong class="device-self-name" id="selfDeviceLabel">此设备</strong>
+                </div>
+            </div>
+
+            <div id="peerDevices" class="peer-grid"></div>
+
+            <div class="no-peers-hint" id="noDevicesHint">
+                <i class="fa-solid fa-wifi" style="opacity:0.3;"></i>
+                <p data-i18n="homeNoDevices">在同一局域网内，其他设备打开此页面将自动出现在这里</p>
+            </div>
+        </article>
+
+        <article class="pairdrop-panel">
+            <section class="pairdrop-card pairdrop-card-primary">
+                <div class="pairdrop-card-head">
+                    <span class="stage-kicker" data-i18n="homePairCodeLabel">配对码</span>
+                    <button id="homeCopyPairCodeBtn" class="pair-inline-action" type="button" data-i18n="homeCopyPairCode">复制</button>
+                </div>
+                <div id="homePairCodeDisplay" class="pair-code-output">-</div>
+                <button id="homeCreatePairCodeBtn" class="pair-main-action" type="button" data-i18n="homeCreatePairCode">生成配对码</button>
+                <p class="pair-code-hint" data-i18n="homePairCodeHintModern">一台设备生成配对码，另一台输入后即可开始临时互传。</p>
+            </section>
+
+            <section class="pairdrop-card">
+                <div class="pairdrop-card-head">
+                    <span class="stage-kicker" data-i18n="homeJoinPairTitle">输入配对码</span>
+                </div>
+                <div class="home-pair-input-row">
+                    <input id="homePairCodeInput" type="text" maxlength="6"
+                           placeholder="输入配对码" data-i18n="homePairCodePlaceholder">
+                    <button class="btn-join" onclick="joinByPairCode()" data-i18n="homePairCodeJoin">加入</button>
+                </div>
+                <p class="pair-code-hint" data-i18n="homePairCodeHint">跨网传输：在另一台设备上生成配对码，这里输入后即可连上</p>
+            </section>
+
+            <section class="pairdrop-card">
+                <div class="pairdrop-card-head">
+                    <span class="stage-kicker" data-i18n="homeActivePeerTitle">当前配对端</span>
+                </div>
+                <strong id="homeActivePeerLabel" class="active-peer-label" data-i18n="homeActivePeerEmpty">未连接设备</strong>
+                <p id="homePairStateMeta" class="pair-code-hint" data-i18n="homeActivePeerHint">生成配对码后，对方输入即可建立一条临时传输通道。</p>
+                <button id="homeSendToPeerBtn" class="pair-main-action pair-main-action-secondary" type="button" data-i18n="homeSendToPeer">给当前配对端发送文件</button>
+            </section>
+
+            <div id="homeTransferProgress" class="home-progress-card">
+                <div class="transfer-progress-header">
+                    <span id="homeTransferLabel"></span>
+                    <span id="homeTransferHint"></span>
+                </div>
+                <div class="progress-track"><div id="homeTransferBar"></div></div>
+            </div>
+
+            <input type="file" id="homeFileInput" style="display:none;">
+        </article>
     </div>
-
-    <!-- 发送进度 -->
-    <div id="homeTransferProgress">
-        <div class="transfer-progress-header">
-            <span id="homeTransferLabel"></span>
-            <span id="homeTransferHint"></span>
-        </div>
-        <div class="progress-track"><div id="homeTransferBar"></div></div>
-    </div>
-
-    <!-- 配对码（跨网段） -->
-    <div class="pair-code-wrap">
-        <div class="pair-code-row">
-            <input id="homePairCodeInput" type="text" maxlength="8"
-                   placeholder="输入配对码" data-i18n="homePairCodePlaceholder">
-            <button class="btn-join" onclick="joinByPairCode()" data-i18n="homePairCodeJoin">加入</button>
-        </div>
-        <p class="pair-code-hint" data-i18n="homePairCodeHint">跨网传输：在另一台设备上生成配对码，这里输入后即可连上</p>
-    </div>
-
-    <!-- 隐藏文件选择器 -->
-    <input type="file" id="homeFileInput" style="display:none;">
-</div>
+</section>
 
 <!-- 发送文件弹窗（点设备后弹出，让用户直接点按钮触发文件选择器） -->
 <div id="sendModal" role="dialog" aria-modal="true">
@@ -1075,6 +1528,8 @@
 </div>
 
 <!-- 快捷操作 -->
+<section id="otherToolsSection" class="secondary-tools">
+<div class="section-divider" style="margin-top:12px; margin-bottom:0;" data-i18n="homeOtherToolsTitle">其他功能</div>
 <div class="quick-actions">
     <button class="quick-btn" onclick="document.getElementById('shareCodeSection').scrollIntoView({behavior:'smooth'})">
         <i class="fa-solid fa-share-nodes"></i>
@@ -1089,9 +1544,7 @@
         <span data-i18n="homePublicDropBtn">公开投递</span>
     </a>
 </div>
-
-<!-- 分隔 -->
-<div class="section-divider" style="margin-top:12px; margin-bottom:0;">其他功能</div>
+</section>
 
 <!-- ═══ 分享码上传区 ═══ -->
 <div class="container" style="margin-top: 16px;" id="shareCodeSection">
@@ -1197,7 +1650,6 @@
 <!-- 加载 JS 文件 -->
 <script src="js/config.js"></script>
 <script src="js/session.js"></script>
-<script src="js/nav.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/lang-switch.js"></script>
 <script src="js/modal.js"></script>

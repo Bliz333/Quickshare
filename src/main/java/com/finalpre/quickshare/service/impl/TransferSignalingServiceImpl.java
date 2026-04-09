@@ -9,6 +9,9 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 import java.io.IOException;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -149,7 +152,15 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
         if ("127.0.0.1".equals(clientIp) || "::1".equals(clientIp)) {
             return "room:localhost";
         }
-        return "room:" + clientIp;
+        try {
+            InetAddress address = InetAddress.getByName(clientIp);
+            if (address instanceof Inet6Address) {
+                return "room:v6:" + toIpv6Prefix64Key(address.getAddress());
+            }
+            return "room:" + address.getHostAddress();
+        } catch (UnknownHostException ignored) {
+            return "room:" + clientIp;
+        }
     }
 
     @Override
@@ -374,6 +385,14 @@ public class TransferSignalingServiceImpl implements TransferSignalingService {
             throw new IllegalArgumentException("Temporary room code is required");
         }
         return normalized;
+    }
+
+    private String toIpv6Prefix64Key(byte[] bytes) {
+        StringBuilder builder = new StringBuilder(16);
+        for (int index = 0; index < 8 && index < bytes.length; index += 1) {
+            builder.append(String.format(Locale.ROOT, "%02x", bytes[index] & 0xff));
+        }
+        return builder.toString();
     }
 
     private record PairBinding(String leftChannelId, String rightChannelId) {

@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -140,9 +141,20 @@ class TransferSignalingServiceImplTest {
                 .hasMessage("Both devices must be in the same discovery room");
     }
 
+    @Test
+    void getRoomIdShouldGroupIpv6AddressesByShared64Prefix() {
+        String leftRoomId = transferSignalingService.getRoomId("240e:3a1:abcd:1200:1111:2222:3333:4444");
+        String rightRoomId = transferSignalingService.getRoomId("240e:3a1:abcd:1200:aaaa:bbbb:cccc:dddd");
+        String otherRoomId = transferSignalingService.getRoomId("240e:3a1:abcd:1201:1111:2222:3333:4444");
+
+        assertThat(leftRoomId).isEqualTo("room:v6:240e03a1abcd1200");
+        assertThat(rightRoomId).isEqualTo(leftRoomId);
+        assertThat(otherRoomId).isNotEqualTo(leftRoomId);
+    }
+
     private void stubSession(WebSocketSession session, List<Map<String, Object>> sink) throws Exception {
-        when(session.isOpen()).thenReturn(true);
-        doAnswer(invocation -> {
+        lenient().when(session.isOpen()).thenReturn(true);
+        lenient().doAnswer(invocation -> {
             TextMessage message = invocation.getArgument(0);
             sink.add(readPayload(message));
             return null;

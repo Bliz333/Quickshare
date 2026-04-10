@@ -140,9 +140,17 @@
             }
 
             .dark-mode .qs-modal-shell {
-                background: linear-gradient(180deg, rgba(28, 28, 31, 0.96), rgba(22, 22, 25, 0.98));
-                border-color: rgba(255, 255, 255, 0.1);
-                color: #ececf1;
+                background: #27272a !important;
+                background-color: #27272a !important;
+                border-color: rgba(255, 255, 255, 0.12) !important;
+                color: #e4e4e7 !important;
+                box-shadow: 0 34px 90px rgba(0, 0, 0, 0.6);
+            }
+            .dark-mode .qs-modal-title {
+                color: #fafafa !important;
+            }
+            .dark-mode .qs-modal-message {
+                color: #a1a1aa !important;
             }
 
             .qs-modal-root.${VISIBLE_CLASS} .qs-modal-shell {
@@ -385,9 +393,13 @@
             }
 
             .dark-mode .qs-modal-btn {
-                background: rgba(255, 255, 255, 0.06);
-                border-color: rgba(255, 255, 255, 0.1);
-                color: #ececf1;
+                background: #3f3f46 !important;
+                border-color: rgba(255, 255, 255, 0.12) !important;
+                color: #e4e4e7 !important;
+            }
+            .dark-mode .qs-modal-btn:hover:not(:disabled) {
+                background: #52525b !important;
+                border-color: rgba(255, 255, 255, 0.2) !important;
             }
 
             .qs-modal-btn:hover:not(:disabled) {

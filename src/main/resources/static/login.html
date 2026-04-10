@@ -23,7 +23,7 @@
             --text:#1a1a2e;--text2:#64748b;--text3:#94a3b8;
             --bg:#f0f4fa;--card:#ffffff;
             --border:rgba(148,163,184,.16);--border-s:rgba(148,163,184,.26);
-            --orb1:rgba(59,130,246,.18);--orb2:rgba(96,165,250,.14);--orb3:rgba(16,185,129,.10);
+            --orb1:rgba(59,130,246,.25);--orb2:rgba(96,165,250,.20);--orb3:rgba(16,185,129,.14);
             --sh:0 20px 60px rgba(15,23,42,.08)
         }
         .dark-mode{
@@ -228,8 +228,11 @@
 <script src="js/modal.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/login.js"></script>
+<script src="js/mascots.js"></script>
 
 <script>
+    initMascots();
+
     /* Mouse-following orbs */
     (function(){
         var orbs=document.querySelectorAll('.bg-orb');
@@ -239,7 +242,7 @@
             my=e.clientY/window.innerHeight;
         });
         function tick(){
-            var factors=[40,30,20];
+            var factors=[80,60,45];
             for(var i=0;i<orbs.length;i++){
                 var f=factors[i]||25;
                 orbs[i].style.transform='translate('+((mx-0.5)*f)+'px,'+((my-0.5)*f)+'px)';

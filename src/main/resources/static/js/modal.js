@@ -140,9 +140,9 @@
             }
 
             .dark-mode .qs-modal-shell {
-                background:
-                    linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.94));
-                border-color: var(--glass-border, rgba(255, 255, 255, 0.14));
+                background: linear-gradient(180deg, rgba(28, 28, 31, 0.96), rgba(22, 22, 25, 0.98));
+                border-color: rgba(255, 255, 255, 0.1);
+                color: #ececf1;
             }
 
             .qs-modal-root.${VISIBLE_CLASS} .qs-modal-shell {
@@ -165,7 +165,7 @@
             }
 
             .dark-mode .qs-modal-glow {
-                background: radial-gradient(circle, rgba(129, 140, 248, 0.3), transparent 72%);
+                background: radial-gradient(circle, rgba(124, 140, 245, 0.1), transparent 72%);
             }
 
             .qs-modal-close {
@@ -186,7 +186,9 @@
             }
 
             .dark-mode .qs-modal-close {
-                background: rgba(15, 23, 42, 0.56);
+                background: rgba(255, 255, 255, 0.06);
+                border-color: rgba(255, 255, 255, 0.1);
+                color: #8b8b97;
             }
 
             .qs-modal-close:hover {
@@ -219,8 +221,8 @@
             }
 
             .dark-mode .qs-modal-icon {
-                color: var(--primary-light, #818cf8);
-                background: rgba(99, 102, 241, 0.16);
+                color: var(--primary-light, #9ba5f8);
+                background: rgba(124, 140, 245, 0.12);
             }
 
             .qs-modal-shell[data-tone="danger"] .qs-modal-icon {
@@ -283,7 +285,9 @@
 
             .dark-mode .qs-modal-input,
             .dark-mode .qs-modal-textarea {
-                background: rgba(15, 23, 42, 0.58);
+                background: rgba(255, 255, 255, 0.05);
+                border-color: rgba(255, 255, 255, 0.1);
+                color: #ececf1;
             }
 
             .qs-modal-input:focus,
@@ -295,7 +299,8 @@
 
             .dark-mode .qs-modal-input:focus,
             .dark-mode .qs-modal-textarea:focus {
-                box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.18);
+                border-color: var(--primary, #7c8cf5);
+                box-shadow: 0 0 0 3px rgba(124, 140, 245, 0.15);
             }
 
             .qs-modal-textarea {
@@ -380,7 +385,9 @@
             }
 
             .dark-mode .qs-modal-btn {
-                background: rgba(15, 23, 42, 0.58);
+                background: rgba(255, 255, 255, 0.06);
+                border-color: rgba(255, 255, 255, 0.1);
+                color: #ececf1;
             }
 
             .qs-modal-btn:hover:not(:disabled) {

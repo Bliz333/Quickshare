@@ -3,1583 +3,796 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title data-i18n="title">QuickShare - 极速传送</title>
+    <title data-i18n="title">QuickShare</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- 防止主题闪烁 -->
     <script>
         (function() {
-            const saved = localStorage.getItem('quickshare-theme');
-            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            var s = localStorage.getItem('quickshare-theme');
+            if (s === 'dark' || (!s && window.matchMedia('(prefers-color-scheme: dark)').matches))
                 document.documentElement.classList.add('dark-mode');
-            }
         })();
     </script>
     <script>
         (function() {
-            const savedLang = localStorage.getItem('quickshare-lang');
             document.documentElement.classList.add('lang-pending');
-            if (savedLang === 'en' || savedLang === 'zh') {
-                document.documentElement.lang = savedLang === 'en' ? 'en' : 'zh-CN';
-            }
+            var l = localStorage.getItem('quickshare-lang');
+            if (l === 'en' || l === 'zh') document.documentElement.lang = l === 'en' ? 'en' : 'zh-CN';
         })();
     </script>
 
     <style>
         html.lang-pending body { opacity: 0; }
-        html.lang-ready body { opacity: 1; transition: opacity 0.16s ease; }
-        /* ═══════════════════════════════════════════════════════════
-           CSS 自定义属性（浅色主题）
-        ═══════════════════════════════════════════════════════════ */
+        html.lang-ready body  { opacity: 1; transition: opacity .15s ease; }
+
+        /* ═══ Theme tokens ═══ */
         :root {
-            --primary: #0ea5e9;
-            --primary-light: #38bdf8;
-            --primary-dark: #0284c7;
+            --primary: #3b82f6;
+            --primary-light: #60a5fa;
+            --primary-dark: #2563eb;
             --success: #10b981;
             --danger: #ef4444;
             --warning: #f59e0b;
-            --text-main: #0f172a;
-            --text-sub: #64748b;
-            --bg-page: #f0f7ff;
-            --bg-card: #ffffff;
-            --border-color: #e2e8f0;
-            --shadow-s: 0 2px 8px rgba(0,0,0,0.06);
-            --shadow-m: 0 8px 24px rgba(0,0,0,0.08);
-            --shadow-l: 0 20px 60px rgba(0,0,0,0.10);
-            --radius: 16px;
-            --mouse-x: 50%;
-            --mouse-y: 50%;
+            --text: #0f172a;
+            --text2: #64748b;
+            --text3: #94a3b8;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --sh-s: 0 1px 3px rgba(0,0,0,.06);
+            --sh-m: 0 4px 16px rgba(0,0,0,.08);
+            --sh-l: 0 12px 40px rgba(0,0,0,.12);
         }
         .dark-mode {
-            --primary: #6366f1;
-            --primary-light: #818cf8;
-            --primary-dark: #4f46e5;
-            --success: #10b981;
-            --danger: #f87171;
-            --text-main: #f1f5f9;
-            --text-sub: #94a3b8;
-            --bg-page: #0f172a;
-            --bg-card: #1e293b;
-            --border-color: #334155;
-            --shadow-s: 0 2px 8px rgba(0,0,0,0.3);
-            --shadow-m: 0 8px 24px rgba(0,0,0,0.4);
-            --shadow-l: 0 20px 60px rgba(0,0,0,0.5);
+            --primary: #818cf8;
+            --primary-light: #a5b4fc;
+            --primary-dark: #6366f1;
+            --text: #f1f5f9;
+            --text2: #94a3b8;
+            --text3: #64748b;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --border: #334155;
+            --sh-s: 0 1px 3px rgba(0,0,0,.25);
+            --sh-m: 0 4px 16px rgba(0,0,0,.35);
+            --sh-l: 0 12px 40px rgba(0,0,0,.45);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        /* ═══ Reset ═══ */
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background: var(--bg-page);
-            color: var(--text-main);
-            min-height: 100vh;
+            font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100dvh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            overflow-x: hidden;
-            transition: background 0.3s, color 0.3s;
-        }
-
-        /* 页面背景装饰 */
-        .bg-mesh {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
             overflow: hidden;
-            pointer-events: none;
-        }
-        .bg-blob {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(90px);
-            opacity: 0.22;
-            animation: blob-drift 25s ease-in-out infinite alternate;
-        }
-        .dark-mode .bg-blob { opacity: 0.18; }
-        .bg-blob-1 { width: 45vw; height: 45vw; background: #93c5fd; top: -10%; left: -8%; animation-delay: 0s; }
-        .bg-blob-2 { width: 40vw; height: 40vw; background: #6ee7b7; bottom: -8%; right: -8%; animation-delay: -8s; }
-        .bg-blob-3 { width: 28vw; height: 28vw; background: #a5b4fc; top: 38%; left: 42%; animation-delay: -15s; }
-        .dark-mode .bg-blob-1 { background: #4338ca; }
-        .dark-mode .bg-blob-2 { background: #0369a1; }
-        .dark-mode .bg-blob-3 { background: #7c3aed; }
-        @keyframes blob-drift {
-            0%   { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(40px, 30px) scale(1.08); }
+            transition: background .3s, color .3s;
         }
 
-        /* ═══════════════════════════════════════════════════════════
-           顶部按钮组
-        ═══════════════════════════════════════════════════════════ */
-        .top-buttons {
-            position: fixed;
-            top: 16px;
-            right: 16px;
+        /* ═══ Top bar ═══ */
+        .topbar {
+            height: 52px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            z-index: 250;
-            background: rgba(255,255,255,0.68);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
-            border-radius: 999px;
-            padding: 5px;
-            box-shadow: var(--shadow-s);
+            justify-content: space-between;
+            padding: 0 16px;
+            flex-shrink: 0;
+            z-index: 100;
         }
-        .dark-mode .top-buttons { background: rgba(15,23,42,0.72); }
-
-        .top-btn {
-            min-width: 38px;
-            height: 38px;
-            padding: 0 12px;
-            border: 1px solid transparent;
-            border-radius: 999px;
-            background: transparent;
-            color: var(--text-sub);
-            cursor: pointer;
-            font-size: 0.84rem;
-            font-weight: 600;
-            font-family: inherit;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-        .top-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
-        .top-btn.top-btn-icon { width: 38px; padding: 0; }
-
-        .notification-btn.has-unread { color: var(--primary-dark); box-shadow: 0 0 0 3px rgba(14,165,233,0.18); }
-        .dark-mode .notification-btn.has-unread { color: var(--primary-light); }
-        .notification-badge {
-            position: absolute; top: -3px; right: -3px;
-            min-width: 16px; height: 16px; padding: 0 4px;
-            border-radius: 999px; background: #f97316;
-            border: 2px solid var(--bg-page);
-            display: inline-flex; align-items: center; justify-content: center;
-            color: white; font-size: 0.6rem; font-weight: 700;
-        }
-        #darkModeToggle i { transition: transform 0.3s; }
-        #darkModeToggle:hover i { transform: rotate(20deg) scale(1.1); }
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-
-        /* ═══════════════════════════════════════════════════════════
-           通知面板（保留原样）
-        ═══════════════════════════════════════════════════════════ */
-        .home-notice-panel {
-            position: fixed; top: 68px; right: 16px;
-            width: min(420px, calc(100vw - 32px));
-            max-height: min(72vh, 600px);
-            padding: 22px;
-            border-radius: 22px; border: 1px solid var(--border-color);
-            background: rgba(255,255,255,0.9);
-            box-shadow: var(--shadow-l);
-            backdrop-filter: blur(18px);
-            z-index: 180;
-            opacity: 0; pointer-events: none;
-            transform: translateY(-8px) scale(0.98);
-            transition: opacity 0.22s, transform 0.22s;
-            overflow: hidden;
-        }
-        .home-notice-panel.open { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
-        .dark-mode .home-notice-panel { background: rgba(15,23,42,0.92); }
-        .home-notice-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
-        .home-notice-header-copy { min-width: 0; flex: 1; }
-        .home-notice-header-actions { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .home-notice-header h3 { font-size: 1.02rem; color: var(--text-main); margin-bottom: 4px; }
-        .home-notice-header p, .home-notice-login-hint, .home-notice-empty { color: var(--text-sub); font-size: 0.87rem; line-height: 1.7; }
-        .home-notice-close { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.7); color: var(--text-sub); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
-        .home-notice-close:hover { color: var(--text-main); border-color: var(--primary); }
-        .dark-mode .home-notice-close { background: rgba(15,23,42,0.7); }
-        .home-notice-action { min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.7); color: var(--text-sub); display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.78rem; font-weight: 700; white-space: nowrap; font-family: inherit; }
-        .home-notice-action:hover { color: var(--text-main); border-color: var(--primary); }
-        .home-notice-action:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
-        .dark-mode .home-notice-action { background: rgba(15,23,42,0.7); }
-        .home-notice-tabs { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-        .home-notice-tab { border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-sub); border-radius: 999px; padding: 7px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
-        .home-notice-tab.active { background: var(--primary); border-color: var(--primary); color: white; }
-        .home-notice-list { display: grid; gap: 12px; max-height: min(44vh, 360px); overflow-y: auto; padding-right: 4px; }
-        .home-notice-footer { margin-top: 12px; display: flex; justify-content: center; }
-        .home-notice-item { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 14px; }
-        .home-notice-item h3 { font-size: 0.96rem; color: var(--text-main); margin-bottom: 8px; }
-        .home-notice-item p { color: var(--text-sub); font-size: 0.88rem; line-height: 1.7; white-space: pre-wrap; }
-        .home-notice-body.collapsed { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-        .home-notice-meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; font-size: 0.74rem; color: var(--text-sub); }
-        .home-notice-meta-actions { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .home-notice-scope { display: inline-flex; align-items: center; justify-content: center; min-width: 68px; padding: 3px 9px; border-radius: 999px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
-        .home-notice-scope.all { color: #075985; background: rgba(14,165,233,0.12); }
-        .home-notice-scope.personal { color: #166534; background: rgba(16,185,129,0.14); }
-        .home-notice-item.read { opacity: 0.74; }
-        .home-notice-item.read h3 { color: var(--text-sub); }
-        .home-notice-mark-read { border: none; background: transparent; color: var(--primary-dark); font-size: 0.74rem; font-weight: 700; cursor: pointer; padding: 0; }
-        .home-notice-mark-read:hover { color: var(--primary); }
-        .dark-mode .home-notice-mark-read { color: var(--primary-light); }
-        .home-notice-read-state { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 700; color: var(--success); }
-        .home-notice-toggle-body { margin-top: 8px; border: none; background: transparent; color: var(--primary-dark); font-size: 0.76rem; font-weight: 700; cursor: pointer; padding: 0; }
-        .home-notice-toggle-body:hover { color: var(--primary); }
-        .dark-mode .home-notice-toggle-body { color: var(--primary-light); }
-
-        /* ═══════════════════════════════════════════════════════════
-           Hero 区：LOGO + 登录按钮
-        ═══════════════════════════════════════════════════════════ */
-        .hero-section {
-            width: 100%;
-            max-width: 540px;
-            padding: 90px 20px 0;
-            text-align: center;
-        }
-        .hero-title {
-            font-size: 2.6rem;
+        .brand {
+            font-size: 1.05rem;
             font-weight: 700;
             color: var(--primary-dark);
-            letter-spacing: -0.02em;
-            transition: color 0.3s;
+            letter-spacing: -.02em;
         }
-        .dark-mode .hero-title { color: var(--primary-light); }
-        .hero-sub {
-            font-size: 0.95rem;
-            color: var(--text-sub);
-            margin-top: 4px;
-        }
-        .auth-group {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 18px;
-            flex-wrap: wrap;
-        }
-        .btn-auth {
-            padding: 10px 24px;
-            border-radius: 999px;
-            font-size: 0.88rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.25s;
-            border: 1px solid var(--border-color);
-            font-family: inherit;
-        }
-        .btn-login { background: var(--bg-card); color: var(--text-main); }
-        .btn-login:hover { border-color: var(--primary); box-shadow: var(--shadow-s); }
-        .btn-register { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 14px rgba(14,165,233,0.3); }
-        .btn-register:hover { opacity: 0.88; }
-        .dark-mode .btn-register { box-shadow: 0 4px 14px rgba(99,102,241,0.3); }
+        .dark-mode .brand { color: var(--primary-light); }
 
-        /* ═══════════════════════════════════════════════════════════
-           传输区（设备环）
-        ═══════════════════════════════════════════════════════════ */
-        .transfer-arena {
-            width: 100%;
+        .topbar-right {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            padding: 32px 20px 12px;
+            gap: 2px;
         }
-
-        /* WS 状态 */
-        .ws-status-bar {
+        .t-btn {
+            width: 36px; height: 36px;
+            border: none; border-radius: 50%;
+            background: transparent;
+            color: var(--text2);
+            cursor: pointer;
+            font-size: .85rem;
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            font-size: 0.8rem;
-            color: var(--text-sub);
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 999px;
-            padding: 5px 14px;
-            margin-bottom: 20px;
-            box-shadow: var(--shadow-s);
+            justify-content: center;
+            transition: all .2s;
+            position: relative;
+            font-family: inherit;
+            font-weight: 600;
         }
-        .ws-dot {
+        .t-btn:hover { background: var(--primary); color: #fff; }
+        .t-btn.has-unread { color: var(--primary); }
+        .t-btn-label {
+            width: auto; padding: 0 12px;
+            border-radius: 999px;
+            font-size: .78rem;
+            gap: 5px;
+        }
+        #authButtons {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        #authButtons .t-btn-label { font-size: .78rem; }
+        .notif-dot {
+            position: absolute; top: 2px; right: 2px;
             width: 7px; height: 7px;
             border-radius: 50%;
-            background: #94a3b8;
-            transition: background 0.4s;
-            flex-shrink: 0;
+            background: #f97316;
+            border: 2px solid var(--bg);
+            display: none;
         }
-        .ws-dot[data-status="connected"]    { background: var(--success); box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
-        .ws-dot[data-status="disconnected"] { background: var(--danger); }
+        .notif-dot.on { display: block; }
+        .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
-        /* 设备环容器 */
-        .ring-container {
-            position: relative;
-            width: min(400px, 82vw);
-            height: min(400px, 82vw);
-        }
-
-        /* 旋转轨道环 */
-        .ring-orbit {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            border: 1.5px dashed var(--border-color);
-            animation: orbit-spin 40s linear infinite;
-            pointer-events: none;
-        }
-        .ring-orbit-2 {
-            inset: 16%;
-            animation-duration: 26s;
-            animation-direction: reverse;
-            opacity: 0.6;
-        }
-        @keyframes orbit-spin { to { transform: rotate(360deg); } }
-
-        /* 自身设备（中心） */
-        .device-self {
-            position: absolute;
-            left: 50%; top: 50%;
-            transform: translate(-50%, -50%);
+        /* ═══ Arena (main) ═══ */
+        .arena {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
-            z-index: 5;
+            justify-content: center;
+            padding: 0 20px;
+            gap: 28px;
+            min-height: 0;
+            overflow-y: auto;
         }
-        .device-self-icon {
-            width: 80px; height: 80px;
-            background: var(--primary);
+
+        /* ── Self device ── */
+        .self {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .self-icon {
+            width: 84px; height: 84px;
             border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 2rem;
-            animation: self-pulse 3.5s ease-in-out infinite;
-            cursor: default;
+            color: #fff;
+            font-size: 1.9rem;
+            animation: pulse 3s ease-in-out infinite;
         }
-        @keyframes self-pulse {
-            0%, 100% { box-shadow: 0 0 0 10px rgba(14,165,233,0.12), 0 6px 20px rgba(14,165,233,0.22); }
-            50%       { box-shadow: 0 0 0 18px rgba(14,165,233,0.06), 0 8px 28px rgba(14,165,233,0.30); }
+        @keyframes pulse {
+            0%,100% { box-shadow: 0 0 0 0 rgba(59,130,246,.28), 0 4px 18px rgba(59,130,246,.18); }
+            50%      { box-shadow: 0 0 0 14px rgba(59,130,246,0), 0 4px 18px rgba(59,130,246,.28); }
         }
-        .dark-mode .device-self-icon { animation-name: self-pulse-dark; }
-        @keyframes self-pulse-dark {
-            0%, 100% { box-shadow: 0 0 0 10px rgba(99,102,241,0.18), 0 6px 20px rgba(99,102,241,0.28); }
-            50%       { box-shadow: 0 0 0 18px rgba(99,102,241,0.08), 0 8px 28px rgba(99,102,241,0.38); }
+        .dark-mode .self-icon { animation-name: pulse-d; }
+        @keyframes pulse-d {
+            0%,100% { box-shadow: 0 0 0 0 rgba(129,140,248,.28), 0 4px 18px rgba(129,140,248,.18); }
+            50%      { box-shadow: 0 0 0 14px rgba(129,140,248,0), 0 4px 18px rgba(129,140,248,.28); }
         }
-        .device-self-name {
-            font-size: 0.76rem;
+        .self-name {
+            font-size: .95rem;
             font-weight: 600;
-            color: var(--text-sub);
-            max-width: 110px;
-            text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
+        .self-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: .76rem;
+            color: var(--text2);
+        }
+        .ws-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--text3);
+            transition: background .3s;
+        }
+        .ws-dot[data-status="connected"] { background: var(--success); }
+        .ws-dot[data-status="disconnected"] { background: var(--danger); }
 
-        /* 周边设备节点 */
-        #peerDevices {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-        }
-        .peer-node {
-            position: absolute;
-            transform: translate(-50%, -50%);
+        /* ── Peer grid ── */
+        .peers {
+            width: 100%;
+            max-width: 520px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
+            gap: 10px;
+        }
+        .peer-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+        }
+        .peer-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--card);
+            border: 1.5px solid var(--border);
+            border-radius: 16px;
             cursor: pointer;
-            pointer-events: auto;
-            animation: peer-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            transition: all .2s;
+            min-width: 170px;
+            max-width: 250px;
+            flex: 1 1 170px;
+            appearance: none;
+            -webkit-appearance: none;
+            font-family: inherit;
+            color: inherit;
+            text-align: left;
+            box-shadow: var(--sh-s);
         }
-        @keyframes peer-pop {
-            from { opacity: 0; transform: translate(-50%, -50%) scale(0.45); }
-            to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .peer-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 6px 20px rgba(59,130,246,.14);
+            transform: translateY(-2px);
         }
-        .peer-icon-wrap {
-            width: 62px; height: 62px;
-            border-radius: 50%;
-            background: var(--bg-card);
-            border: 2px solid var(--primary);
+        .dark-mode .peer-card:hover {
+            box-shadow: 0 6px 20px rgba(129,140,248,.18);
+        }
+        .peer-card:active { transform: translateY(0) scale(.98); }
+        .peer-card.drag-over { border-color: var(--success); background: rgba(16,185,129,.06); }
+        .peer-card.paired { border-color: var(--primary); background: rgba(59,130,246,.04); }
+        .dark-mode .peer-card.paired { background: rgba(129,140,248,.08); }
+        .peer-card-icon {
+            width: 42px; height: 42px;
+            border-radius: 12px;
+            background: rgba(59,130,246,.1);
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--primary);
-            font-size: 1.45rem;
-            transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 4px 16px rgba(14,165,233,0.14);
+            font-size: 1.05rem;
+            flex-shrink: 0;
         }
-        .peer-node:hover .peer-icon-wrap,
-        .peer-node:focus .peer-icon-wrap {
-            background: var(--primary);
-            color: white;
-            transform: scale(1.14);
-            box-shadow: 0 8px 24px rgba(14,165,233,0.3);
-        }
-        .peer-node.drag-over .peer-icon-wrap { background: var(--success); border-color: var(--success); color: white; }
-        .peer-node.sending .peer-icon-wrap { animation: sending-pulse 1s ease-in-out infinite; }
-        @keyframes sending-pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(14,165,233,0.5); }
-            50%       { box-shadow: 0 0 0 10px rgba(14,165,233,0); }
-        }
-        .peer-label {
-            font-size: 0.72rem;
+        .dark-mode .peer-card-icon { background: rgba(129,140,248,.14); }
+        .peer-card-info { min-width: 0; flex: 1; }
+        .peer-card-name {
+            font-size: .86rem;
             font-weight: 600;
-            color: var(--text-sub);
-            max-width: 78px;
-            text-align: center;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        .peer-card-meta {
+            font-size: .7rem;
+            color: var(--text2);
+            margin-top: 2px;
+        }
 
-        /* 无设备提示 */
-        .no-peers-hint {
-            position: absolute;
-            inset: 0;
+        /* No peers hint */
+        .no-peers {
             display: none;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 12px;
-            pointer-events: none;
+            gap: 8px;
             text-align: center;
-            padding: 0 70px;
+            padding: 20px;
+            color: var(--text3);
         }
-        .no-peers-hint i { font-size: 2rem; color: var(--border-color); }
-        .no-peers-hint p { font-size: 0.82rem; color: var(--text-sub); line-height: 1.6; }
+        .no-peers.show { display: flex; }
+        .no-peers i { font-size: 1.4rem; opacity: .4; }
+        .no-peers p { font-size: .82rem; line-height: 1.6; max-width: 260px; }
 
-        /* ═══════════════════════════════════════════════════════════
-           传输进度
-        ═══════════════════════════════════════════════════════════ */
-        #homeTransferProgress {
-            width: min(380px, 80vw);
-            margin-top: 18px;
-            opacity: 0;
-            transform: translateY(6px);
-            transition: opacity 0.3s, transform 0.3s;
-            pointer-events: none;
+        /* ═══ Pair footer ═══ */
+        .pair-footer {
+            flex-shrink: 0;
+            padding: 10px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
         }
-        #homeTransferProgress.visible {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
+        .pair-divider {
+            font-size: .72rem;
+            color: var(--text3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            max-width: 440px;
         }
-        .transfer-progress-header {
+        .pair-divider::before,.pair-divider::after {
+            content: ''; flex: 1; height: 1px; background: var(--border);
+        }
+
+        .pair-code-show {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 14px;
+            border-radius: 14px;
+            background: rgba(59,130,246,.08);
+            border: 1.5px solid rgba(59,130,246,.18);
+        }
+        .pair-code-show.visible { display: inline-flex; }
+        .pair-code-value {
+            font-size: 1.3rem;
+            font-weight: 800;
+            letter-spacing: .22em;
+            color: var(--primary-dark);
+            padding-left: .22em;
+        }
+        .dark-mode .pair-code-value { color: var(--primary-light); }
+        .pair-code-copy {
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text2);
+            font-size: .72rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all .2s;
+        }
+        .pair-code-copy:hover { border-color: var(--primary); color: var(--primary); }
+
+        .pair-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 440px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .pair-input {
+            flex: 1;
+            min-width: 100px;
+            max-width: 160px;
+            height: 40px;
+            padding: 0 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            background: var(--card);
+            color: var(--text);
+            font-family: inherit;
+            font-size: .88rem;
+            font-weight: 600;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            outline: none;
+            transition: border-color .2s;
+        }
+        .pair-input:focus { border-color: var(--primary); }
+        .pair-input::placeholder {
+            letter-spacing: normal;
+            text-transform: none;
+            font-weight: 400;
+            color: var(--text3);
+        }
+        .pair-btn {
+            height: 40px;
+            padding: 0 16px;
+            border: none;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: .82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pair-btn-fill {
+            background: var(--primary);
+            color: #fff;
+        }
+        .pair-btn-fill:hover { opacity: .88; }
+        .pair-btn-ghost {
+            background: var(--card);
+            color: var(--text2);
+            border: 1.5px solid var(--border);
+        }
+        .pair-btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+        .pair-sep {
+            color: var(--text3);
+            font-size: .72rem;
+            font-weight: 600;
+        }
+
+        /* ═══ Progress banner ═══ */
+        .progress-banner {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            padding: 14px 20px 18px;
+            background: var(--card);
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+            transform: translateY(100%);
+            transition: transform .3s ease;
+            z-index: 200;
+        }
+        .progress-banner.visible { transform: translateY(0); }
+        .progress-header {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-            margin-bottom: 7px;
             gap: 8px;
+            margin-bottom: 7px;
         }
-        #homeTransferLabel {
-            font-size: 0.83rem;
+        .progress-name {
+            font-size: .84rem;
             font-weight: 600;
-            color: var(--text-main);
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
             flex: 1;
         }
-        #homeTransferHint {
-            font-size: 0.77rem;
-            color: var(--text-sub);
+        .progress-hint {
+            font-size: .76rem;
+            color: var(--text2);
             flex-shrink: 0;
         }
         .progress-track {
-            height: 5px;
-            background: var(--border-color);
+            height: 4px;
+            background: var(--border);
             border-radius: 99px;
             overflow: hidden;
         }
-        #homeTransferBar {
+        .progress-bar {
             height: 100%;
             background: linear-gradient(90deg, var(--primary), var(--success));
             border-radius: 99px;
-            transition: width 0.35s ease;
             width: 0;
+            transition: width .35s ease;
         }
 
-        /* ═══════════════════════════════════════════════════════════
-           配对码行
-        ═══════════════════════════════════════════════════════════ */
-        .pair-code-wrap {
-            width: min(380px, 80vw);
-            margin-top: 20px;
+        /* ═══ Receive modal ═══ */
+        .recv-overlay {
+            position: fixed; inset: 0; z-index: 300;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 8px;
-        }
-        .pair-code-row {
-            display: flex;
-            gap: 8px;
-            width: 100%;
-        }
-        .pair-code-row input {
-            flex: 1;
-            padding: 11px 14px;
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            background: var(--bg-card);
-            color: var(--text-main);
-            font-size: 0.9rem;
-            font-family: inherit;
-            letter-spacing: 0.1em;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .pair-code-row input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14,165,233,0.12); }
-        .btn-join {
-            padding: 11px 20px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 0.88rem;
-            font-weight: 600;
-            font-family: inherit;
-            transition: opacity 0.2s, transform 0.1s;
-        }
-        .btn-join:hover { opacity: 0.88; }
-        .btn-join:active { transform: scale(0.97); }
-        .pair-code-hint {
-            font-size: 0.76rem;
-            color: var(--text-sub);
-            text-align: center;
-        }
-
-        /* ═══════════════════════════════════════════════════════════
-           快捷操作
-        ═══════════════════════════════════════════════════════════ */
-        .quick-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
             justify-content: center;
-            width: min(420px, 90vw);
-            margin: 20px auto 8px;
-        }
-        .quick-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 9px 16px;
-            border: 1px solid var(--border-color);
-            border-radius: 999px;
-            background: var(--bg-card);
-            color: var(--text-sub);
-            font-size: 0.83rem;
-            font-weight: 600;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            box-shadow: var(--shadow-s);
-        }
-        .quick-btn:hover { border-color: var(--primary); color: var(--primary); box-shadow: 0 2px 10px rgba(14,165,233,0.14); }
-
-        /* ═══════════════════════════════════════════════════════════
-           接收文件弹窗
-        ═══════════════════════════════════════════════════════════ */
-        #receiveModal {
-            position: fixed;
-            inset: 0;
-            z-index: 220;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding: 20px;
-            background: rgba(15,23,42,0.4);
+            background: rgba(15,23,42,.5);
             backdrop-filter: blur(8px);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
+            opacity: 0; pointer-events: none;
+            transition: opacity .25s;
+            padding: 20px;
         }
-        #receiveModal.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .receive-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 26px;
-            padding: 28px 24px 24px;
-            width: min(440px, 100%);
-            box-shadow: 0 28px 80px rgba(15,23,42,0.22);
-            transform: translateY(50px);
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        .recv-overlay.visible { opacity: 1; pointer-events: auto; }
+        .recv-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 26px;
+            width: 100%; max-width: 380px;
+            box-shadow: var(--sh-l);
+            transform: scale(.95) translateY(16px);
+            transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+            text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
-            text-align: center;
+            gap: 6px;
         }
-        #receiveModal.visible .receive-card { transform: translateY(0); }
-        .receive-icon-wrap {
-            width: 68px; height: 68px;
-            border-radius: 20px;
-            background: rgba(14,165,233,0.1);
+        .recv-overlay.visible .recv-card { transform: scale(1) translateY(0); }
+        .recv-icon {
+            width: 52px; height: 52px;
+            border-radius: 16px;
+            background: rgba(59,130,246,.1);
             color: var(--primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
-            margin-bottom: 2px;
+            font-size: 1.4rem;
+            margin-bottom: 4px;
         }
-        .receive-from {
-            font-size: 0.8rem;
-            color: var(--text-sub);
+        .recv-label {
+            font-size: .8rem;
+            color: var(--text2);
         }
-        #receiveFileName {
-            font-size: 1.05rem;
+        .recv-name {
+            font-size: 1rem;
             font-weight: 700;
-            color: var(--text-main);
             word-break: break-all;
-            max-width: 320px;
-            line-height: 1.4;
-        }
-        #receiveFileSize {
-            font-size: 0.83rem;
-            color: var(--text-sub);
-        }
-        .receive-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 8px;
-            width: 100%;
-            flex-wrap: wrap;
-        }
-        .btn-download-receive {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 13px 20px;
-            background: var(--primary);
-            color: white;
-            border-radius: 14px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.92rem;
-            transition: opacity 0.2s, transform 0.12s;
-            font-family: inherit;
-        }
-        .btn-download-receive:hover { opacity: 0.9; transform: scale(1.02); }
-        .btn-secondary-receive {
-            min-width: 120px;
-            min-height: 50px;
-            border-radius: 14px;
-            border: 1px solid var(--border-color);
-            background: transparent;
-            color: var(--text-main);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            cursor: pointer;
-            font: inherit;
-            font-weight: 700;
-            transition: all 0.2s;
-        }
-        .btn-secondary-receive:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-        .btn-close-receive {
-            width: 50px; height: 50px;
-            border-radius: 14px;
-            border: 1px solid var(--border-color);
-            background: transparent;
-            color: var(--text-sub);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 1.05rem;
-            transition: all 0.2s;
-            flex-shrink: 0;
-        }
-        .btn-close-receive:hover { background: var(--border-color); color: var(--text-main); }
-        .hidden { display: none !important; }
-
-        .home-stage-hero {
-            max-width: 1120px;
-            padding-top: 110px;
-            padding-left: 24px;
-            padding-right: 24px;
-            text-align: left;
-        }
-
-        .stage-kicker {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 30px;
-            padding: 0 14px;
-            border-radius: 999px;
-            background: rgba(15, 23, 42, 0.08);
-            color: var(--text-sub);
-            font-size: 0.74rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            margin-bottom: 14px;
-        }
-
-        .dark-mode .stage-kicker {
-            background: rgba(148, 163, 184, 0.14);
-        }
-
-        .home-stage-hero .hero-title {
-            font-size: clamp(3.3rem, 8vw, 6rem);
-            line-height: 0.94;
-            letter-spacing: -0.05em;
-            max-width: 760px;
-        }
-
-        .home-stage-hero .hero-sub {
-            max-width: 680px;
-            margin-top: 16px;
-            font-size: 1.05rem;
-            line-height: 1.75;
-        }
-
-        .home-stage-hero .auth-group {
-            justify-content: flex-start;
-            margin-top: 24px;
-        }
-
-        .pairdrop-home-shell {
-            width: 100%;
-            max-width: 1120px;
-            padding: 26px 24px 12px;
-        }
-
-        .home-stage-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.25fr) minmax(320px, 420px);
-            gap: 22px;
-            align-items: start;
-        }
-
-        .presence-board,
-        .pairdrop-card,
-        .secondary-tools {
-            border: 1px solid var(--border-color);
-            background: rgba(255, 255, 255, 0.76);
-            box-shadow: var(--shadow-m);
-            backdrop-filter: blur(18px);
-        }
-
-        .dark-mode .presence-board,
-        .dark-mode .pairdrop-card,
-        .dark-mode .secondary-tools {
-            background: rgba(15, 23, 42, 0.82);
-        }
-
-        .presence-board {
-            border-radius: 30px;
-            padding: 24px;
-            display: grid;
-            gap: 18px;
-        }
-
-        .presence-board-head {
-            display: grid;
-            gap: 8px;
-        }
-
-        .presence-board-head h2 {
-            margin: 0;
-            font-size: clamp(1.35rem, 3vw, 2rem);
-            line-height: 1.15;
-        }
-
-        .presence-board-head p,
-        .presence-board-head h2 + p {
-            color: var(--text-sub);
-        }
-
-        .device-self {
-            position: relative;
-            left: auto;
-            top: auto;
-            transform: none;
-            display: grid;
-            grid-template-columns: auto minmax(0, 1fr);
-            align-items: center;
-            gap: 16px;
-            padding: 18px 20px;
-            border-radius: 24px;
-            border: 1px solid rgba(14, 165, 233, 0.22);
-            background:
-                radial-gradient(circle at top right, rgba(14, 165, 233, 0.16), transparent 34%),
-                linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(14, 165, 233, 0.04));
-        }
-
-        .device-self-icon {
-            width: 72px;
-            height: 72px;
-            box-shadow: none;
-            animation: none;
-            font-size: 1.7rem;
-        }
-
-        .device-self-copy {
-            display: grid;
-            gap: 4px;
-            min-width: 0;
-        }
-
-        .device-self-kicker {
-            font-size: 0.74rem;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--text-sub);
-        }
-
-        .device-self-name {
-            max-width: none;
-            text-align: left;
-            font-size: 1.05rem;
-            color: var(--text-main);
-        }
-
-        #peerDevices {
-            position: static;
-            inset: auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 12px;
-            pointer-events: auto;
-        }
-
-        .peer-node {
-            position: relative;
-            transform: none;
-            left: auto;
-            top: auto;
-            animation: none;
-            appearance: none;
-            -webkit-appearance: none;
-            width: 100%;
-            border: 1px solid var(--border-color);
-            border-radius: 22px;
-            background: var(--bg-card);
-            display: grid;
-            grid-template-columns: auto minmax(0, 1fr) auto;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 16px;
-            text-align: left;
-            box-shadow: var(--shadow-s);
-        }
-
-        .peer-node:hover,
-        .peer-node:focus-visible {
-            border-color: var(--primary);
-            transform: translateY(-1px);
-            box-shadow: 0 14px 28px rgba(14, 165, 233, 0.14);
-        }
-
-        .peer-icon-wrap {
-            width: 52px;
-            height: 52px;
-            flex-shrink: 0;
-        }
-
-        .peer-copy {
-            display: grid;
-            gap: 4px;
-            min-width: 0;
-        }
-
-        .peer-label {
-            max-width: none;
-            text-align: left;
-            font-size: 0.92rem;
-            color: var(--text-main);
-        }
-
-        .peer-meta {
-            color: var(--text-sub);
-            font-size: 0.74rem;
-            font-weight: 600;
-        }
-
-        .peer-cta {
-            width: 36px;
-            height: 36px;
-            border-radius: 12px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(14, 165, 233, 0.1);
-            color: var(--primary);
-        }
-
-        .no-peers-hint {
-            position: static;
-            inset: auto;
-            border: 1px dashed var(--border-color);
-            border-radius: 22px;
-            padding: 22px 20px;
-            gap: 10px;
-            background: rgba(148, 163, 184, 0.08);
-        }
-
-        .pairdrop-panel {
-            display: grid;
-            gap: 14px;
-        }
-
-        .pairdrop-card {
-            border-radius: 28px;
-            padding: 20px;
-            display: grid;
-            gap: 14px;
-        }
-
-        .pairdrop-card-primary {
-            background:
-                radial-gradient(circle at top right, rgba(14, 165, 233, 0.14), transparent 34%),
-                rgba(255, 255, 255, 0.82);
-        }
-
-        .dark-mode .pairdrop-card-primary {
-            background:
-                radial-gradient(circle at top right, rgba(129, 140, 248, 0.18), transparent 38%),
-                rgba(15, 23, 42, 0.88);
-        }
-
-        .pairdrop-card-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .pair-inline-action {
-            min-height: 34px;
-            padding: 0 12px;
-            border-radius: 999px;
-            border: 1px solid var(--border-color);
-            background: transparent;
-            color: var(--text-sub);
-            font: inherit;
-            font-size: 0.78rem;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .pair-inline-action:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .pair-code-output {
-            min-height: 108px;
-            border-radius: 24px;
-            border: 1px dashed rgba(14, 165, 233, 0.24);
-            background: rgba(14, 165, 233, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: clamp(2rem, 6vw, 3rem);
-            font-weight: 800;
-            letter-spacing: 0.22em;
-            padding-left: 0.22em;
-        }
-
-        .pair-main-action {
-            min-height: 52px;
-            border-radius: 18px;
-            border: none;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            font: inherit;
-            font-size: 0.92rem;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 18px 36px rgba(14, 165, 233, 0.2);
-        }
-
-        .pair-main-action:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        .pair-main-action-secondary {
-            background: linear-gradient(135deg, #0f172a, #1e293b);
-            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
-        }
-
-        .dark-mode .pair-main-action-secondary {
-            background: linear-gradient(135deg, #334155, #0f172a);
-        }
-
-        .home-pair-input-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 10px;
-        }
-
-        .home-pair-input-row input {
-            min-height: 52px;
-            border-radius: 18px;
-            border: 1px solid var(--border-color);
-            padding: 0 16px;
-            background: var(--bg-card);
-            color: var(--text-main);
-            font: inherit;
-            font-size: 0.94rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-
-        .home-pair-input-row .btn-join {
-            min-width: 110px;
-            border-radius: 18px;
-        }
-
-        .active-peer-label {
-            font-size: 1.08rem;
+            max-width: 280px;
             line-height: 1.35;
         }
-
-        .home-progress-card {
-            width: 100%;
-            margin-top: 0;
-            display: grid;
-            gap: 10px;
-            opacity: 0;
-            transform: translateY(6px);
-            transition: opacity 0.3s, transform 0.3s;
-            pointer-events: none;
+        .recv-size {
+            font-size: .8rem;
+            color: var(--text2);
         }
-
-        .home-progress-card.visible {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-
-        .secondary-tools {
-            width: min(1120px, calc(100vw - 40px));
-            margin: 0 auto 0;
-            padding: 0 0 8px;
-            border: none;
-            background: transparent;
-            box-shadow: none;
-            backdrop-filter: none;
-        }
-
-        /* ═══════════════════════════════════════════════════════════
-           分隔线
-        ═══════════════════════════════════════════════════════════ */
-        .section-divider {
-            width: min(480px, 90vw);
-            margin: 10px auto;
+        .recv-actions {
             display: flex;
-            align-items: center;
-            gap: 12px;
-            color: var(--text-sub);
-            font-size: 0.78rem;
-        }
-        .section-divider::before,
-        .section-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border-color);
-        }
-
-        /* ═══════════════════════════════════════════════════════════
-           主 Card（上传 / 下载区）
-        ═══════════════════════════════════════════════════════════ */
-        .container {
-            width: 100%;
-            max-width: 540px;
-            padding: 0 20px;
-        }
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            padding: 28px;
-            box-shadow: var(--shadow-m);
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        .card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(14,165,233,0.06) 0%, transparent 60%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            border-radius: inherit;
-        }
-        .card:hover::before { opacity: 1; }
-
-        /* Upload area */
-        .upload-area {
-            border: 2px dashed var(--border-color);
-            border-radius: 12px;
-            padding: 28px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.25s;
-            background: var(--bg-page);
-        }
-        .upload-area:hover, .upload-area.drag-active { border-color: var(--primary); background: rgba(14,165,233,0.04); }
-        .upload-icon { font-size: 2.4rem; color: var(--primary); margin-bottom: 10px; opacity: 0.8; }
-        .upload-text { font-size: 0.9rem; color: var(--text-sub); line-height: 1.6; }
-        .upload-text small { display: block; font-size: 0.78rem; margin-top: 4px; opacity: 0.7; }
-
-        .file-list { margin-top: 16px; }
-        .file-list h4 { font-size: 0.88rem; color: var(--text-sub); margin-bottom: 10px; }
-        .file-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 7px; font-size: 0.84rem; }
-        .file-item-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1; }
-        .file-item-size { color: var(--text-sub); font-size: 0.78rem; flex-shrink: 0; }
-        .file-item-remove { background: none; border: none; color: var(--text-sub); cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: all 0.2s; }
-        .file-item-remove:hover { color: var(--danger); background: rgba(239,68,68,0.08); }
-
-        /* Form elements */
-        .input-group { margin-bottom: 16px; }
-        .input-group label { display: block; font-size: 0.84rem; color: var(--text-sub); margin-bottom: 6px; font-weight: 600; }
-        .input-group input, .input-group select {
-            width: 100%; padding: 11px 14px;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            background: var(--bg-card);
-            color: var(--text-main);
-            font-size: 0.9rem;
-            font-family: inherit;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .input-group input:focus, .input-group select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14,165,233,0.1); }
-
-        /* Action button */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
             gap: 8px;
-            width: 100%;
-            padding: 13px 20px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 0.92rem;
-            font-weight: 600;
-            font-family: inherit;
-            cursor: pointer;
-            transition: opacity 0.2s, transform 0.12s, box-shadow 0.2s;
-            box-shadow: 0 4px 14px rgba(14,165,233,0.28);
             margin-top: 8px;
+            width: 100%;
         }
-        .btn:hover:not(:disabled) { opacity: 0.88; }
-        .btn:active:not(:disabled) { transform: scale(0.98); }
-        .btn:disabled { opacity: 0.46; cursor: not-allowed; }
-
-        /* Result / download info */
-        .result-box { margin-top: 20px; }
-        .result-label { font-size: 0.82rem; color: var(--text-sub); margin-bottom: 8px; font-weight: 600; }
-        .result-value-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--bg-page); border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 8px; }
-        .result-key { font-size: 0.8rem; color: var(--text-sub); white-space: nowrap; }
-        .result-value { font-size: 0.88rem; font-weight: 600; color: var(--text-main); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1; }
-        .copy-btn { padding: 5px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-sub); cursor: pointer; font-size: 0.76rem; font-weight: 600; font-family: inherit; transition: all 0.2s; }
-        .copy-btn:hover { border-color: var(--primary); color: var(--primary); }
-        .copy-btn.copied { background: var(--success); color: white; border-color: var(--success); }
-        .qr-wrap { text-align: center; margin-top: 16px; }
-
-        .download-info { margin-top: 20px; padding: 16px; background: var(--bg-page); border: 1px solid var(--border-color); border-radius: 12px; }
-        .download-info h3 { font-size: 0.92rem; color: var(--text-main); margin-bottom: 10px; }
-        .download-info p { font-size: 0.86rem; color: var(--text-sub); margin-bottom: 6px; }
-        .download-info p strong { color: var(--text-main); margin-right: 6px; }
-
-        /* Toast */
-        .toast-container { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 999; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
-        .toast { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px 20px; border-radius: 12px; font-size: 0.87rem; font-weight: 500; box-shadow: var(--shadow-m); transform: translateY(16px); opacity: 0; transition: all 0.3s; pointer-events: auto; max-width: min(380px, 90vw); text-align: center; }
-        .toast.show { transform: translateY(0); opacity: 1; }
-        .toast.success { border-left: 3px solid var(--success); }
-        .toast.error { border-left: 3px solid var(--danger); }
-        .toast.warning { border-left: 3px solid var(--warning); }
-        .toast.info { border-left: 3px solid var(--primary); }
-
-        /* Send file modal */
-        #sendModal {
-            position: fixed;
-            inset: 0;
-            z-index: 220;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding: 20px;
-            background: rgba(15,23,42,0.4);
-            backdrop-filter: blur(8px);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.25s;
-        }
-        #sendModal.visible { opacity: 1; pointer-events: auto; }
-        .send-modal-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 26px;
-            padding: 24px;
-            width: min(440px, 100%);
-            box-shadow: 0 28px 80px rgba(15,23,42,0.22);
-            transform: translateY(50px);
-            transition: transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-        #sendModal.visible .send-modal-card { transform: translateY(0); }
-        .send-modal-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text-main);
-        }
-        .send-modal-to {
-            font-size: 0.83rem;
-            color: var(--text-sub);
-            margin-top: -8px;
-        }
-        .send-modal-actions {
-            display: flex;
-            gap: 10px;
-        }
-        .btn-send-file {
+        .recv-dl {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            padding: 13px 16px;
+            padding: 11px 16px;
             background: var(--primary);
-            color: white;
-            border: none;
+            color: #fff;
             border-radius: 14px;
-            font-size: 0.9rem;
+            text-decoration: none;
             font-weight: 600;
+            font-size: .88rem;
             font-family: inherit;
-            cursor: pointer;
-            transition: opacity 0.2s;
+            transition: opacity .2s;
         }
-        .btn-send-file:hover { opacity: 0.88; }
-        .btn-cancel-send {
-            width: 50px; height: 50px;
+        .recv-dl:hover { opacity: .88; }
+        .recv-sec {
+            width: 44px; height: 44px;
             border-radius: 14px;
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border);
             background: transparent;
-            color: var(--text-sub);
+            color: var(--text2);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.2s;
+            font-size: .95rem;
+            transition: all .2s;
             flex-shrink: 0;
         }
-        .btn-cancel-send:hover { background: var(--border-color); color: var(--text-main); }
+        .recv-sec:hover { border-color: var(--primary); color: var(--primary); }
 
-        /* Loading spinner */
-        .loading-spinner { width: 17px; height: 17px; border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; border-top-color: white; animation: spin 0.7s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Card section title */
-        .card-section-title {
-            font-size: 0.94rem;
-            color: var(--text-sub);
-            font-weight: 600;
-            margin-bottom: 18px;
+        /* ═══ Toast ═══ */
+        .toast-container {
+            position: fixed;
+            bottom: 24px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
             display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 8px;
+            align-items: center;
+            pointer-events: none;
         }
-        .card-section-title i { color: var(--primary); }
+        .toast {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: .84rem;
+            font-weight: 500;
+            box-shadow: var(--sh-m);
+            transform: translateY(16px);
+            opacity: 0;
+            transition: all .3s;
+            pointer-events: auto;
+            max-width: min(360px, 90vw);
+            text-align: center;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.error   { border-left: 3px solid var(--danger); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.info    { border-left: 3px solid var(--primary); }
 
-        /* ═══════════════════════════════════════════════════════════
-           响应式
-        ═══════════════════════════════════════════════════════════ */
+        /* ═══ Notification panel (compatibility) ═══ */
+        .home-notice-panel {
+            position: fixed; top: 56px; right: 12px;
+            width: min(400px, calc(100vw - 24px));
+            max-height: min(70vh, 500px);
+            padding: 18px;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            box-shadow: var(--sh-l);
+            z-index: 200;
+            opacity: 0; pointer-events: none;
+            transform: translateY(-6px) scale(.98);
+            transition: opacity .2s, transform .2s;
+            overflow: hidden;
+        }
+        .home-notice-panel.open { opacity: 1; pointer-events: auto; transform: none; }
+        .home-notice-header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+        .home-notice-header-copy { min-width: 0; flex: 1; }
+        .home-notice-header-actions { display: inline-flex; gap: 6px; flex-shrink: 0; }
+        .home-notice-header h3 { font-size: .95rem; margin-bottom: 2px; }
+        .home-notice-header p, .home-notice-login-hint, .home-notice-empty { color: var(--text2); font-size: .82rem; line-height: 1.6; }
+        .home-notice-close, .home-notice-action {
+            min-height: 32px; padding: 0 10px; border-radius: 8px;
+            border: 1px solid var(--border); background: transparent;
+            color: var(--text2); cursor: pointer; font-family: inherit;
+            font-size: .74rem; font-weight: 700;
+            display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+            transition: all .2s;
+        }
+        .home-notice-close:hover, .home-notice-action:hover { border-color: var(--primary); color: var(--primary); }
+        .home-notice-action:disabled { opacity: .4; cursor: not-allowed; }
+        .home-notice-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+        .home-notice-tab {
+            border: 1px solid var(--border); background: var(--card); color: var(--text2);
+            border-radius: 999px; padding: 6px 12px; font-size: .76rem;
+            font-weight: 600; cursor: pointer; font-family: inherit; transition: all .2s;
+        }
+        .home-notice-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .home-notice-list { display: grid; gap: 10px; max-height: min(40vh, 320px); overflow-y: auto; }
+        .home-notice-footer { margin-top: 10px; display: flex; justify-content: center; }
+        .home-notice-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+        .home-notice-item h3 { font-size: .9rem; margin-bottom: 6px; }
+        .home-notice-item p { color: var(--text2); font-size: .82rem; line-height: 1.6; white-space: pre-wrap; }
+        .home-notice-body.collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .home-notice-meta { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; font-size: .72rem; color: var(--text2); }
+        .home-notice-meta-actions { display: inline-flex; align-items: center; gap: 6px; }
+        .home-notice-scope { display: inline-flex; align-items: center; justify-content: center; min-width: 60px; padding: 2px 8px; border-radius: 999px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: .68rem; }
+        .home-notice-scope.all { color: #075985; background: rgba(14,165,233,.12); }
+        .home-notice-scope.personal { color: #166534; background: rgba(16,185,129,.14); }
+        .home-notice-item.read { opacity: .7; }
+        .home-notice-item.read h3 { color: var(--text2); }
+        .home-notice-mark-read { border: none; background: transparent; color: var(--primary-dark); font-size: .72rem; font-weight: 700; cursor: pointer; padding: 0; }
+        .home-notice-mark-read:hover { color: var(--primary); }
+        .dark-mode .home-notice-mark-read { color: var(--primary-light); }
+        .home-notice-read-state { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700; color: var(--success); }
+        .home-notice-toggle-body { margin-top: 6px; border: none; background: transparent; color: var(--primary-dark); font-size: .72rem; font-weight: 700; cursor: pointer; padding: 0; }
+        .dark-mode .home-notice-toggle-body { color: var(--primary-light); }
+
+        /* ═══ Utilities ═══ */
+        .hidden { display: none !important; }
+
+        /* ═══ Responsive ═══ */
         @media (max-width: 480px) {
-            .hero-title { font-size: 2.1rem; }
-            .card { padding: 20px; }
-            .top-buttons { top: 10px; right: 10px; }
-        }
-
-        @media (max-width: 900px) {
-            .home-stage-hero {
-                padding-top: 96px;
-            }
-
-            .home-stage-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .home-stage-hero {
-                padding-left: 18px;
-                padding-right: 18px;
-                text-align: center;
-            }
-
-            .home-stage-hero .auth-group {
-                justify-content: center;
-            }
-
-            .pairdrop-home-shell {
-                padding-left: 18px;
-                padding-right: 18px;
-            }
-
-            .device-self {
-                grid-template-columns: 1fr;
-                justify-items: center;
-                text-align: center;
-            }
-
-            .device-self-name {
-                text-align: center;
-            }
-
-            #peerDevices {
-                grid-template-columns: 1fr;
-            }
-
-            .peer-node {
-                grid-template-columns: auto minmax(0, 1fr);
-            }
-
-            .peer-cta {
-                display: none;
-            }
-
-            .home-pair-input-row {
-                grid-template-columns: 1fr;
-            }
+            .topbar { padding: 0 12px; }
+            .pair-row { flex-direction: column; align-items: stretch; }
+            .pair-input { max-width: none; }
+            .pair-sep { display: none; }
+            .peer-card { min-width: 0; max-width: none; flex-basis: 100%; }
         }
     </style>
 </head>
 <body>
 
-<!-- 背景装饰 -->
-<div class="bg-mesh" aria-hidden="true">
-    <div class="bg-blob bg-blob-1"></div>
-    <div class="bg-blob bg-blob-2"></div>
-    <div class="bg-blob bg-blob-3"></div>
-</div>
-
-<!-- Toast 容器 -->
+<!-- Toast container -->
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- 顶部按钮组 -->
-<div class="top-buttons">
-    <button class="top-btn top-btn-icon notification-btn" id="homeNotificationButton" type="button"
-            aria-haspopup="dialog" aria-expanded="false" title="通知中心" style="position:relative;">
-        <i class="fa-regular fa-bell"></i>
-        <span class="sr-only" data-i18n="homeNoticeButton">通知中心</span>
-        <span id="homeNotificationBadge" class="notification-badge" style="display:none;"></span>
-    </button>
-    <button class="top-btn" type="button" onclick="location.href='transfer.html'">
-        <i class="fa-solid fa-clock-rotate-left"></i>
-        <span data-i18n="homeMyDevicesBtn">我的设备</span>
-    </button>
-    <button class="top-btn" type="button" onclick="location.href='share.html'">
-        <i class="fa-solid fa-share-nodes"></i>
-        <span data-i18n="homeShareCodeBtn">生成分享码</span>
-    </button>
-    <button class="top-btn" type="button" onclick="location.href='transfer-share.html'">
-        <i class="fa-solid fa-globe"></i>
-        <span data-i18n="homePublicDropBtn">公开投递</span>
-    </button>
-    <button class="top-btn" type="button" onclick="location.href='netdisk.html'">
-        <i class="fa-solid fa-hard-drive"></i>
-        <span data-i18n="transferToNetdisk">网盘</span>
-    </button>
-    <button class="top-btn top-btn-icon" onclick="location.href='pricing.html'" title="套餐">
-        <i class="fa-solid fa-tags"></i>
-    </button>
-    <button class="top-btn top-btn-icon" id="darkModeToggle" onclick="toggleTheme()" title="切换主题">
-        <i class="fa-solid fa-moon"></i>
-    </button>
-    <button class="top-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
-</div>
+<!-- ═══ Top bar ═══ -->
+<header class="topbar">
+    <span class="brand">QuickShare</span>
+    <nav class="topbar-right">
+        <button class="t-btn" id="homeNotificationButton" type="button" style="position:relative"
+                aria-haspopup="dialog" aria-expanded="false" title="Notifications">
+            <i class="fa-regular fa-bell"></i>
+            <span class="sr-only" data-i18n="homeNoticeButton">Notifications</span>
+            <span id="homeNotificationBadge" class="notif-dot"></span>
+        </button>
+        <button class="t-btn" onclick="location.href='netdisk.html'" title="Cloud Storage">
+            <i class="fa-solid fa-hard-drive"></i>
+        </button>
+        <button class="t-btn" id="darkModeToggle" onclick="toggleTheme()" title="Theme">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+        <button class="t-btn t-btn-label" id="langBtn" onclick="toggleLanguage()">EN</button>
+        <span id="authButtons">
+            <button class="t-btn t-btn-label" onclick="location.href='login.html'" data-i18n="loginBtn">Login</button>
+        </span>
+    </nav>
+</header>
 
-<!-- 通知面板 -->
+<!-- ═══ Notification panel ═══ -->
 <section id="homeNotificationsPanel" class="home-notice-panel" aria-hidden="true">
     <div class="home-notice-header">
         <div class="home-notice-header-copy">
-            <h3 data-i18n="homeNoticeTitle">通知中心</h3>
-            <p data-i18n="homeNoticeSubtitle">查看平台公告和与你相关的历史通知。</p>
+            <h3 data-i18n="homeNoticeTitle">Notifications</h3>
+            <p data-i18n="homeNoticeSubtitle">Platform announcements and personal messages.</p>
         </div>
         <div class="home-notice-header-actions">
             <button id="homeNoticeMarkAllBtn" class="home-notice-action" type="button">
                 <i class="fa-solid fa-check-double"></i>
-                <span data-i18n="homeNoticeMarkAllRead">全部已读</span>
+                <span data-i18n="homeNoticeMarkAllRead">Mark all read</span>
             </button>
-            <button id="homeNoticeCloseBtn" class="home-notice-close" type="button" title="关闭">
+            <button id="homeNoticeCloseBtn" class="home-notice-close" type="button" title="Close">
                 <i class="fa-solid fa-xmark"></i>
-                <span class="sr-only" data-i18n="close">关闭</span>
             </button>
         </div>
     </div>
     <div class="home-notice-tabs">
         <button id="homeNoticeTabAll" class="home-notice-tab active"
-                onclick="switchHomeNotificationTab('all')" data-i18n="homeNoticeTabAll">全部通知</button>
+                onclick="switchHomeNotificationTab('all')" data-i18n="homeNoticeTabAll">All</button>
         <button id="homeNoticeTabPersonal" class="home-notice-tab"
-                onclick="switchHomeNotificationTab('personal')" data-i18n="homeNoticeTabPersonal">我的通知</button>
+                onclick="switchHomeNotificationTab('personal')" data-i18n="homeNoticeTabPersonal">Personal</button>
     </div>
-    <p id="homeNoticeLoginHint" class="home-notice-login-hint" data-i18n="homeNoticeLoginHint">登录后可查看仅发给你的个人通知。</p>
+    <p id="homeNoticeLoginHint" class="home-notice-login-hint" data-i18n="homeNoticeLoginHint">Log in to see personal notifications.</p>
     <div id="homeNoticeList" class="home-notice-list"></div>
-    <div id="homeNoticeFooter" class="home-notice-footer" style="display:none;">
+    <div id="homeNoticeFooter" class="home-notice-footer" style="display:none">
         <button id="homeNoticeMoreBtn" class="home-notice-action" type="button"></button>
     </div>
-    <p id="homeNoticeEmpty" class="home-notice-empty" style="display:none;"></p>
+    <p id="homeNoticeEmpty" class="home-notice-empty" style="display:none"></p>
 </section>
 
-<!-- Hero：Logo + 登录 -->
-<div class="hero-section home-stage-hero">
-    <div class="stage-kicker">QuickDrop Home</div>
-    <h1 class="hero-title" data-i18n="heading">QuickShare</h1>
-    <p class="hero-sub" data-i18n="homeHeroLead">把临时互传放在首页第一屏。局域网自动发现，跨网络直接用配对码。</p>
-    <div id="authButtons" class="auth-group">
-        <button onclick="location.href='login.html'" class="btn-auth btn-login" data-i18n="loginBtn">登录</button>
-        <button onclick="location.href='register.html'" class="btn-auth btn-register" data-i18n="registerBtn">注册账号</button>
+<!-- ═══ Main arena ═══ -->
+<main class="arena">
+    <!-- Self device -->
+    <div class="self">
+        <div class="self-icon">
+            <i class="fa-solid fa-laptop" id="selfDeviceIcon"></i>
+        </div>
+        <strong class="self-name" id="selfDeviceLabel">This device</strong>
+        <span class="self-status">
+            <span class="ws-dot" id="wsStatusDot" data-status="disconnected"></span>
+            <span id="wsStatusText" data-i18n="homeWsConnecting">Connecting&hellip;</span>
+        </span>
     </div>
-</div>
 
-<!-- ═══ 快传首页 ═══ -->
-<section class="transfer-arena pairdrop-home-shell">
-    <div class="home-stage-grid">
-        <article class="presence-board">
-            <div class="presence-board-head">
-                <span class="stage-kicker" data-i18n="homeStageTitle">附近设备</span>
-                <h2 data-i18n="homeStageHint">同一 Wi‑Fi 下自动发现；不同网络时，用右侧配对码建立临时通道。</h2>
-            </div>
-
-            <div class="ws-status-bar">
-                <span class="ws-dot" id="wsStatusDot" data-status="disconnected"></span>
-                <span id="wsStatusText">连接中…</span>
-                <span style="margin:0 3px;opacity:0.35;">·</span>
-                <span data-i18n="homeRingHint">同网络设备自动出现，点击即传</span>
-            </div>
-
-            <div class="device-self">
-                <div class="device-self-icon">
-                    <i class="fa-solid fa-laptop" id="selfDeviceIcon"></i>
-                </div>
-                <div class="device-self-copy">
-                    <span class="device-self-kicker" data-i18n="homeThisDeviceLabel">当前设备</span>
-                    <strong class="device-self-name" id="selfDeviceLabel">此设备</strong>
-                </div>
-            </div>
-
-            <div id="peerDevices" class="peer-grid"></div>
-
-            <div class="no-peers-hint" id="noDevicesHint">
-                <i class="fa-solid fa-wifi" style="opacity:0.3;"></i>
-                <p data-i18n="homeNoDevices">在同一局域网内，其他设备打开此页面将自动出现在这里</p>
-            </div>
-        </article>
-
-        <article class="pairdrop-panel">
-            <section class="pairdrop-card pairdrop-card-primary">
-                <div class="pairdrop-card-head">
-                    <span class="stage-kicker" data-i18n="homePairCodeLabel">配对码</span>
-                    <button id="homeCopyPairCodeBtn" class="pair-inline-action" type="button" data-i18n="homeCopyPairCode">复制</button>
-                </div>
-                <div id="homePairCodeDisplay" class="pair-code-output">-</div>
-                <button id="homeCreatePairCodeBtn" class="pair-main-action" type="button" data-i18n="homeCreatePairCode">生成配对码</button>
-                <p class="pair-code-hint" data-i18n="homePairCodeHintModern">一台设备生成配对码，另一台输入后即可开始临时互传。</p>
-            </section>
-
-            <section class="pairdrop-card">
-                <div class="pairdrop-card-head">
-                    <span class="stage-kicker" data-i18n="homeJoinPairTitle">输入配对码</span>
-                </div>
-                <div class="home-pair-input-row">
-                    <input id="homePairCodeInput" type="text" maxlength="6"
-                           placeholder="输入配对码" data-i18n="homePairCodePlaceholder">
-                    <button class="btn-join" onclick="joinByPairCode()" data-i18n="homePairCodeJoin">加入</button>
-                </div>
-                <p class="pair-code-hint" data-i18n="homePairCodeHint">跨网传输：在另一台设备上生成配对码，这里输入后即可连上</p>
-            </section>
-
-            <section class="pairdrop-card">
-                <div class="pairdrop-card-head">
-                    <span class="stage-kicker" data-i18n="homeActivePeerTitle">当前配对端</span>
-                </div>
-                <strong id="homeActivePeerLabel" class="active-peer-label" data-i18n="homeActivePeerEmpty">未连接设备</strong>
-                <p id="homePairStateMeta" class="pair-code-hint" data-i18n="homeActivePeerHint">生成配对码后，对方输入即可建立一条临时传输通道。</p>
-                <button id="homeSendToPeerBtn" class="pair-main-action pair-main-action-secondary" type="button" data-i18n="homeSendToPeer">给当前配对端发送文件</button>
-            </section>
-
-            <div id="homeTransferProgress" class="home-progress-card">
-                <div class="transfer-progress-header">
-                    <span id="homeTransferLabel"></span>
-                    <span id="homeTransferHint"></span>
-                </div>
-                <div class="progress-track"><div id="homeTransferBar"></div></div>
-            </div>
-
-            <input type="file" id="homeFileInput" style="display:none;">
-        </article>
-    </div>
-</section>
-
-<!-- 发送文件弹窗（点设备后弹出，让用户直接点按钮触发文件选择器） -->
-<div id="sendModal" role="dialog" aria-modal="true">
-    <div class="send-modal-card">
-        <p class="send-modal-title">发送文件</p>
-        <p class="send-modal-to" id="sendModalTarget">选择目标设备后发送</p>
-        <div class="send-modal-actions">
-            <label class="btn-send-file" for="homeFileInput">
-                <i class="fa-solid fa-paperclip"></i>
-                <span>选择文件并发送</span>
-            </label>
-            <button class="btn-cancel-send" onclick="closeSendModal()" title="取消">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+    <!-- Peer devices -->
+    <div class="peers">
+        <div id="peerDevices" class="peer-grid"></div>
+        <div class="no-peers" id="noDevicesHint">
+            <i class="fa-solid fa-wifi"></i>
+            <p data-i18n="homeNoDevices">Open this page on another device on the same network</p>
         </div>
     </div>
+</main>
+
+<!-- ═══ Pair code footer ═══ -->
+<footer class="pair-footer">
+    <div class="pair-divider" data-i18n="homePairDivider">Different network? Use a pair code</div>
+
+    <div id="homePairCodeDisplay" class="pair-code-show">
+        <span id="homePairCodeValue" class="pair-code-value">-</span>
+        <button id="homeCopyPairCodeBtn" class="pair-code-copy" type="button" data-i18n="homeCopyPairCode">Copy</button>
+    </div>
+
+    <div class="pair-row">
+        <input id="homePairCodeInput" class="pair-input" type="text" maxlength="6"
+               placeholder="Pair code" data-i18n-placeholder="homePairCodePlaceholder">
+        <button class="pair-btn pair-btn-fill" onclick="joinByPairCode()" data-i18n="homePairCodeJoin">Join</button>
+        <span class="pair-sep" data-i18n="homePairOr">or</span>
+        <button id="homeCreatePairCodeBtn" class="pair-btn pair-btn-ghost" data-i18n="homeCreatePairCode">
+            <i class="fa-solid fa-plus"></i> Generate
+        </button>
+    </div>
+</footer>
+
+<!-- ═══ Transfer progress banner ═══ -->
+<div id="homeTransferProgress" class="progress-banner">
+    <div class="progress-header">
+        <span id="homeTransferLabel" class="progress-name"></span>
+        <span id="homeTransferHint" class="progress-hint"></span>
+    </div>
+    <div class="progress-track"><div id="homeTransferBar" class="progress-bar"></div></div>
 </div>
 
-<!-- 接收文件弹窗 -->
-<div id="receiveModal" role="dialog" aria-modal="true" aria-labelledby="receiveFileName">
-    <div class="receive-card">
-        <div class="receive-icon-wrap"><i class="fa-solid fa-file-arrow-down"></i></div>
-        <p class="receive-from" data-i18n="receiveFromLabel">收到文件</p>
-        <h3 id="receiveFileName">文件名</h3>
-        <p id="receiveFileSize"></p>
-        <div class="receive-actions">
-            <a id="receiveDownloadBtn" class="btn-download-receive" href="#" download>
+<!-- ═══ Receive file modal ═══ -->
+<div id="receiveModal" class="recv-overlay" role="dialog" aria-modal="true">
+    <div class="recv-card">
+        <div class="recv-icon"><i class="fa-solid fa-file-arrow-down"></i></div>
+        <p class="recv-label" data-i18n="receiveFromLabel">File received</p>
+        <h3 id="receiveFileName" class="recv-name">filename</h3>
+        <p id="receiveFileSize" class="recv-size"></p>
+        <div class="recv-actions">
+            <a id="receiveDownloadBtn" class="recv-dl" href="#" download>
                 <i class="fa-solid fa-download"></i>
-                <span data-i18n="downloadBtn">立即下载</span>
+                <span data-i18n="downloadBtn">Download</span>
             </a>
-            <button id="receiveCopyLinkBtn" class="btn-secondary-receive" type="button">
+            <button id="receiveCopyLinkBtn" class="recv-sec" type="button" title="Copy link">
                 <i class="fa-solid fa-link"></i>
-                <span data-i18n="homeReceiveCopyLink">复制链接</span>
             </button>
-            <button id="receiveSaveBtn" class="btn-secondary-receive hidden" type="button">
+            <button id="receiveSaveBtn" class="recv-sec hidden" type="button" title="Save to cloud">
                 <i class="fa-solid fa-hard-drive"></i>
-                <span data-i18n="transferSaveToNetdisk">保存到网盘</span>
             </button>
-            <button class="btn-close-receive" onclick="closeReceiveCard()" title="关闭">
+            <button class="recv-sec" onclick="closeReceiveCard()" title="Close">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
     </div>
 </div>
 
-<!-- 加载 JS 文件 -->
+<!-- Hidden file input -->
+<input type="file" id="homeFileInput" style="display:none">
+
+<!-- ═══ Scripts ═══ -->
 <script src="js/config.js"></script>
 <script src="js/session.js"></script>
 <script src="js/theme.js"></script>
@@ -1590,21 +803,25 @@
 <script src="js/home-notifications.js"></script>
 <script src="js/home.js"></script>
 
-<!-- 页面初始化 -->
 <script>
-    /* Fluid light effect on main card */
-    document.addEventListener('mousemove', (e) => {
-        const card = document.getElementById('mainCard');
-        if (!card) return;
-        const rect = card.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-        card.style.setProperty('--mouse-x', `${x}%`);
-        card.style.setProperty('--mouse-y', `${y}%`);
-    });
+    /* Override auth rendering for compact topbar */
+    (function() {
+        var _orig = window.renderLoggedInState;
+        window.renderLoggedInState = function(user) {
+            var el = document.getElementById('authButtons');
+            if (!el) return _orig ? _orig(user) : undefined;
+            var name = user.nickname || user.username || '';
+            var lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
+            el.innerHTML =
+                '<span style="font-size:.8rem;font-weight:600;padding:0 4px">' + name + '</span>' +
+                '<button class="t-btn t-btn-label" onclick="handleLogout()" title="' +
+                (lang === 'zh' ? '退出' : 'Logout') + '">' +
+                '<i class="fa-solid fa-right-from-bracket"></i></button>';
+        };
+    })();
 
-    window.addEventListener('load', () => {
-        Promise.resolve(checkLoginState()).finally(() => {
+    window.addEventListener('load', function() {
+        Promise.resolve(checkLoginState()).finally(function() {
             initHomeNotifications();
         });
     });

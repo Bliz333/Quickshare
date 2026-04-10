@@ -168,8 +168,9 @@ function connectHomeWs() {
 
     ws.addEventListener('error', () => { /* close will reconnect */ });
 
-    // keep-alive ping
-    setInterval(() => {
+    // keep-alive ping (clear previous to avoid leaks on reconnect)
+    if (homeState._pingTimer) clearInterval(homeState._pingTimer);
+    homeState._pingTimer = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }));
     }, 25000);
 }
@@ -240,29 +241,46 @@ function renderRing() {
         }
     }
 
+    // Include paired peer if not already in the list
+    if (homeState.peerChannelId && homeState.pairSessionId) {
+        if (!allDevices.find(d => d.channelId === homeState.peerChannelId)) {
+            allDevices.push({
+                channelId: homeState.peerChannelId,
+                label: homeState.peerLabel || 'Paired Device',
+                isMe: false,
+                isPaired: true
+            });
+        }
+    }
+
     const others = allDevices.filter(d => !d.isMe);
 
-    if (noHint) noHint.style.display = others.length === 0 ? 'flex' : 'none';
+    if (noHint) noHint.classList.toggle('show', others.length === 0);
 
     peersEl.innerHTML = '';
     if (others.length === 0) return;
 
     others.forEach((dev) => {
+        const isPaired = dev.isPaired || dev.channelId === homeState.peerChannelId;
+        const isAccount = dev.channelId.startsWith('user:');
+        const metaText = isPaired
+            ? homeText('homePeerPaired', 'Paired')
+            : isAccount
+                ? homeText('homePeerAccount', 'Account Device')
+                : homeText('homePeerNearby', 'Nearby');
+
         const node = document.createElement('button');
         node.type = 'button';
-        node.className = 'peer-node';
+        node.className = 'peer-card' + (isPaired ? ' paired' : '');
         node.dataset.channelId = dev.channelId;
         node.innerHTML = `
-            <span class="peer-icon-wrap">
+            <div class="peer-card-icon">
                 <i class="fa-solid ${deviceTypeIcon(dev.label)}"></i>
-            </span>
-            <span class="peer-copy">
-                <strong class="peer-label">${escapeHtml(dev.label)}</strong>
-                <small class="peer-meta">${dev.channelId.startsWith('user:') ? 'Account Device' : 'Nearby Device'}</small>
-            </span>
-            <span class="peer-cta">
-                <i class="fa-solid fa-paperclip"></i>
-            </span>
+            </div>
+            <div class="peer-card-info">
+                <div class="peer-card-name">${escapeHtml(dev.label)}</div>
+                <div class="peer-card-meta">${escapeHtml(metaText)}</div>
+            </div>
         `;
 
         node.addEventListener('click', () => onDeviceClick(dev.channelId, dev.label));
@@ -288,8 +306,8 @@ function renderRing() {
 function onDeviceClick(channelId, label) {
     if (homeState.transferState !== 'idle') return;
     homeState.pendingTargetChannelId = channelId;
+    homeState.peerLabel = label || homeState.peerLabel;
     homeState.transferFile = null;
-    showHomeToast(homeText('homeSelectFileForPeer', `选择文件并发送给 ${label}`).replace('{name}', label), 'info');
     openHomeFilePicker();
 }
 
@@ -321,23 +339,27 @@ async function onPairReady(msg) {
     homeState.peerChannelId = msg.peerChannelId || homeState.peerChannelId;
     homeState.peerLabel = msg.peerLabel || homeState.peerLabel || msg.peerChannelId || null;
     homeState.transferState = homeState.transferFile ? 'paired' : 'idle';
-    renderPairState();
+
+    // Always re-render so paired device shows in the peer grid
+    renderRing();
 
     if (!homeState.transferFile) {
-        // 接收方：等待对方上传完毕的信令
+        // Receiver: wait for relay-done signal
+        showHomeToast(homeText('homePairConnected', 'Paired! Waiting for file…'), 'success');
         return;
     }
-    // 发送方：开始上传
+    // Sender: start upload
     try {
         await sendViaPublicShare(homeState.transferFile, homeState.pairSessionId);
         homeState.transferState = 'done';
-        showSendProgress(homeState.transferFile.name, 100, '✓ 发送完成');
-        showHomeToast(`已发送 "${homeState.transferFile.name}"`, 'success');
+        const doneText = homeText('homeTransferDone', 'Sent');
+        showSendProgress(homeState.transferFile.name, 100, '✓ ' + doneText);
+        showHomeToast(homeText('homeTransferSentOk', 'File sent successfully'), 'success');
         setTimeout(resetTransferState, 3000);
     } catch (err) {
         homeState.transferState = 'error';
         hideSendProgress();
-        showHomeToast('发送失败：' + err.message, 'error');
+        showHomeToast(homeText('homeTransferFailed', 'Send failed') + ': ' + err.message, 'error');
         resetTransferState();
     }
 }
@@ -405,8 +427,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
     const copyBtn = document.getElementById('receiveCopyLinkBtn');
     const saveBtn = document.getElementById('receiveSaveBtn');
     if (!modal || !nameEl || !sizeEl || !btn) {
-        // fallback: browser prompt
-        showHomeToast(`收到文件：${fileName}，点击下载`, 'success');
+        showHomeToast(homeText('homeReceivedFallback', 'File received: ') + fileName, 'success');
         return;
     }
     homeState.lastReceivedShare = {
@@ -415,7 +436,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         fileSize,
         contentType: contentType || 'application/octet-stream'
     };
-    nameEl.textContent = fileName || '未知文件';
+    nameEl.textContent = fileName || homeText('homeUnknownFile', 'Unknown file');
     sizeEl.textContent = fileSize ? formatBytes(fileSize) : '';
     const url = `${apiBase()}/api/public/transfer/shares/${shareToken}/download`;
     btn.href = url;
@@ -428,7 +449,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         saveBtn.disabled = !shareToken || !isLoggedIn();
     }
     modal.classList.add('visible');
-    showHomeToast('收到文件，请查看下载卡片', 'success');
+    showHomeToast(homeText('homeFileReceived', 'File received!'), 'success');
 }
 
 function closeReceiveCard() {
@@ -491,13 +512,18 @@ function showSendProgress(fileName, pct, statusText) {
     if (!wrap) return;
     wrap.classList.add('visible');
     if (label) label.textContent = fileName || '';
-    if (bar)   bar.style.width = pct + '%';
+    if (bar)   bar.style.width = Math.min(pct, 100) + '%';
     if (hint)  hint.textContent = statusText || '';
+    // Push toast container up when progress is visible
+    const toast = document.getElementById('toastContainer');
+    if (toast) toast.style.bottom = '80px';
 }
 
 function hideSendProgress() {
     const wrap = document.getElementById('homeTransferProgress');
     if (wrap) wrap.classList.remove('visible');
+    const toast = document.getElementById('toastContainer');
+    if (toast) toast.style.bottom = '';
 }
 
 function resetTransferState() {
@@ -520,29 +546,25 @@ function setWsStatus(status) {
 }
 
 function renderPairState() {
-    const codeDisplay = document.getElementById('homePairCodeDisplay');
-    const peerLabel = document.getElementById('homeActivePeerLabel');
-    const pairMeta = document.getElementById('homePairStateMeta');
-    const sendButton = document.getElementById('homeSendToPeerBtn');
+    const codeWrap = document.getElementById('homePairCodeDisplay');
+    const codeValue = document.getElementById('homePairCodeValue');
     const copyButton = document.getElementById('homeCopyPairCodeBtn');
 
-    if (codeDisplay) {
-        codeDisplay.textContent = homeState.pairCode || '-';
+    if (codeWrap && codeValue) {
+        if (homeState.pairCode) {
+            codeValue.textContent = homeState.pairCode;
+            codeWrap.classList.add('visible');
+        } else {
+            codeValue.textContent = '';
+            codeWrap.classList.remove('visible');
+        }
     }
     if (copyButton) {
         copyButton.disabled = !homeState.pairCode;
     }
-    if (peerLabel) {
-        peerLabel.textContent = homeState.peerLabel || homeText('homeActivePeerEmpty', '未连接设备');
-    }
-    if (pairMeta) {
-        pairMeta.textContent = homeState.pairSessionId
-            ? homeText('homePairStateReady', '已建立配对会话，可以直接选文件发送')
-            : homeText('homeActivePeerHint', '生成配对码后，对方输入即可建立一条临时传输通道。');
-    }
-    if (sendButton) {
-        sendButton.disabled = !(homeState.pairSessionId && homeState.peerChannelId) || homeState.transferState === 'sending';
-    }
+
+    // Re-render peers to show/hide paired device
+    renderRing();
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────

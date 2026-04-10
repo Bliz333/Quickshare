@@ -263,11 +263,12 @@ function renderRing() {
     others.forEach((dev) => {
         const isPaired = dev.isPaired || dev.channelId === homeState.peerChannelId;
         const isAccount = dev.channelId.startsWith('user:');
+        const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
         const metaText = isPaired
-            ? homeText('homePeerPaired', 'Paired')
+            ? (lang === 'zh' ? '已配对' : 'Paired')
             : isAccount
-                ? homeText('homePeerAccount', 'Account Device')
-                : homeText('homePeerNearby', 'Nearby');
+                ? (lang === 'zh' ? '同账号设备' : 'My Device')
+                : (lang === 'zh' ? '附近' : 'Nearby');
 
         const node = document.createElement('button');
         node.type = 'button';
@@ -683,7 +684,7 @@ async function syncAccountDevices() {
         });
         if (!res.ok) return;
         const body = await res.json();
-        homeState.accountDevices = (body.data?.devices || []).filter(d => d.deviceId !== getHomeDeviceId());
+        homeState.accountDevices = (body.data?.devices || []).filter(d => d.deviceId !== getHomeDeviceId() && d.online);
         renderRing();
     } catch { /* ignore */ }
 }

@@ -96,6 +96,9 @@ public class TransferServiceImpl implements TransferService {
     @Autowired
     private FileService fileService;
 
+    @Autowired
+    private com.finalpre.quickshare.service.TransferSignalingService transferSignalingService;
+
     @Override
     public TransferSyncVO syncDevice(Long userId, TransferSyncRequest request) {
         String deviceId = normalizeDeviceId(request.getDeviceId());
@@ -612,8 +615,16 @@ public class TransferServiceImpl implements TransferService {
         TransferDeviceVO vo = new TransferDeviceVO();
         BeanUtils.copyProperties(device, vo);
         vo.setCurrent(Objects.equals(device.getDeviceId(), currentDeviceId));
-        vo.setOnline(device.getLastSeenAt() != null
-                && device.getLastSeenAt().isAfter(now.minusSeconds(transferProperties.getPresenceTimeoutSeconds())));
+
+        // Check actual WebSocket presence for accurate online status
+        boolean wsOnline = false;
+        if (device.getUserId() != null) {
+            String channelId = "user:" + device.getUserId() + ":device:" + device.getDeviceId();
+            wsOnline = transferSignalingService.isConnected(channelId);
+        }
+        boolean httpOnline = device.getLastSeenAt() != null
+                && device.getLastSeenAt().isAfter(now.minusSeconds(transferProperties.getPresenceTimeoutSeconds()));
+        vo.setOnline(wsOnline || httpOnline);
         return vo;
     }
 

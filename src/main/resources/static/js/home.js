@@ -331,8 +331,49 @@ function initiateTransfer(targetChannelId, label, file) {
     homeState.pendingTargetChannelId = targetChannelId;
     homeState.peerLabel = label || homeState.peerLabel;
     homeState.transferState = 'pairing';
-    showSendProgress(file.name, 0, '正在连接…');
-    sendWs({ type: 'request-transfer', targetChannelId });
+    const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
+    showSendProgress(file.name, 0, lang === 'zh' ? '正在连接…' : 'Connecting…');
+
+    // Account device (cross-network, same user) → use direct session API
+    // Room device (same network) → use WS request-transfer
+    if (homeState.token && targetChannelId.startsWith('user:')) {
+        initiateDirectSession(targetChannelId, file);
+    } else {
+        sendWs({ type: 'request-transfer', targetChannelId });
+    }
+}
+
+async function initiateDirectSession(targetChannelId) {
+    // Extract target deviceId from channelId format "user:{userId}:device:{deviceId}"
+    const deviceMatch = targetChannelId.match(/:device:(.+)$/);
+    if (!deviceMatch) {
+        homeState.transferState = 'error';
+        hideSendProgress();
+        showHomeToast('Invalid target device', 'error');
+        resetTransferState();
+        return;
+    }
+    const targetDeviceId = deviceMatch[1];
+    try {
+        const res = await fetch(`${apiBase()}/api/transfer/direct-sessions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            body: JSON.stringify({
+                deviceId: getHomeDeviceId(),
+                targetDeviceId: targetDeviceId,
+            }),
+        });
+        const body = await res.json();
+        if (!res.ok || body.code !== 200) {
+            throw new Error(body?.message || 'Direct session failed');
+        }
+        // pair-ready will arrive via WebSocket, triggering onPairReady → upload
+    } catch (err) {
+        homeState.transferState = 'error';
+        hideSendProgress();
+        showHomeToast(err.message, 'error');
+        resetTransferState();
+    }
 }
 
 async function onPairReady(msg) {

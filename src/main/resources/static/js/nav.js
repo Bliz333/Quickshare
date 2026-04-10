@@ -153,6 +153,12 @@
     `;
 
     function inject() {
+        // Skip pages that have their own navigation (sidebar-based layouts)
+        const page = currentPage();
+        if (page === 'netdisk.html' || page === 'admin.html') {
+            return;
+        }
+
         // Inject CSS once
         if (!document.getElementById('qs-nav-style')) {
             const style = document.createElement('style');

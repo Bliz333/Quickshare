@@ -35,6 +35,7 @@ const homeState = {
     token: null,
     pairCode: null,
     peerLabel: null,
+    lastReceivedShare: null,
 };
 
 // ─── 工具函数 ──────────────────────────────────────────────────────────────────
@@ -401,16 +402,31 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
     const nameEl = document.getElementById('receiveFileName');
     const sizeEl = document.getElementById('receiveFileSize');
     const btn    = document.getElementById('receiveDownloadBtn');
+    const copyBtn = document.getElementById('receiveCopyLinkBtn');
+    const saveBtn = document.getElementById('receiveSaveBtn');
     if (!modal || !nameEl || !sizeEl || !btn) {
         // fallback: browser prompt
         showHomeToast(`收到文件：${fileName}，点击下载`, 'success');
         return;
     }
+    homeState.lastReceivedShare = {
+        shareToken,
+        fileName,
+        fileSize,
+        contentType: contentType || 'application/octet-stream'
+    };
     nameEl.textContent = fileName || '未知文件';
     sizeEl.textContent = fileSize ? formatBytes(fileSize) : '';
     const url = `${apiBase()}/api/public/transfer/shares/${shareToken}/download`;
     btn.href = url;
     btn.download = fileName || 'download';
+    if (copyBtn) {
+        copyBtn.disabled = !shareToken;
+    }
+    if (saveBtn) {
+        saveBtn.classList.toggle('hidden', !isLoggedIn());
+        saveBtn.disabled = !shareToken || !isLoggedIn();
+    }
     modal.classList.add('visible');
     showHomeToast('收到文件，请查看下载卡片', 'success');
 }
@@ -418,6 +434,51 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
 function closeReceiveCard() {
     const modal = document.getElementById('receiveModal');
     if (modal) modal.classList.remove('visible');
+}
+
+async function copyReceivedShareLink() {
+    const share = homeState.lastReceivedShare;
+    if (!share?.shareToken) {
+        showHomeToast(homeText('homeReceiveCopyLinkMissing', '当前没有可复制的链接'), 'warning');
+        return;
+    }
+    const url = `${window.location.origin}/transfer-share.html?share=${encodeURIComponent(share.shareToken)}`;
+    try {
+        await navigator.clipboard.writeText(url);
+        showHomeToast(homeText('homeReceiveCopyLinkSuccess', '取件链接已复制'), 'success');
+    } catch (error) {
+        showHomeToast(homeText('homePairCodeCopyFailed', '复制失败，请手动复制'), 'warning');
+    }
+}
+
+async function saveReceivedShareToNetdisk() {
+    const share = homeState.lastReceivedShare;
+    if (!share?.shareToken) {
+        showHomeToast(homeText('homeReceiveSaveMissing', '当前没有可保存的文件'), 'warning');
+        return;
+    }
+    if (!isLoggedIn()) {
+        showHomeToast(homeText('transferLoginRequired', '请先登录后再使用设备快传'), 'warning');
+        return;
+    }
+    try {
+        const response = await fetch(`${API_BASE}/transfer/public-shares/${encodeURIComponent(share.shareToken)}/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
+            body: JSON.stringify({ folderId: 0 })
+        });
+        const text = await response.text();
+        const result = text ? JSON.parse(text) : null;
+        if (!response.ok || !result || result.code !== 200) {
+            throw new Error(result?.message || 'Save failed');
+        }
+        showHomeToast(homeText('transferSavedToNetdisk', '已保存到你的网盘'), 'success');
+    } catch (error) {
+        showHomeToast(error.message, 'error');
+    }
 }
 
 // ─── 进度 UI ──────────────────────────────────────────────────────────────────
@@ -664,6 +725,16 @@ window.addEventListener('load', async () => {
     const sendToPeerButton = document.getElementById('homeSendToPeerBtn');
     if (sendToPeerButton) {
         sendToPeerButton.addEventListener('click', sendToPairedPeer);
+    }
+
+    const copyReceivedLinkButton = document.getElementById('receiveCopyLinkBtn');
+    if (copyReceivedLinkButton) {
+        copyReceivedLinkButton.addEventListener('click', copyReceivedShareLink);
+    }
+
+    const saveReceivedButton = document.getElementById('receiveSaveBtn');
+    if (saveReceivedButton) {
+        saveReceivedButton.addEventListener('click', saveReceivedShareToNetdisk);
     }
 
     renderPairState();

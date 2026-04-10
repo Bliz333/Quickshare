@@ -642,6 +642,7 @@
             gap: 10px;
             margin-top: 8px;
             width: 100%;
+            flex-wrap: wrap;
         }
         .btn-download-receive {
             flex: 1;
@@ -660,6 +661,26 @@
             font-family: inherit;
         }
         .btn-download-receive:hover { opacity: 0.9; transform: scale(1.02); }
+        .btn-secondary-receive {
+            min-width: 120px;
+            min-height: 50px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-main);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        .btn-secondary-receive:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
         .btn-close-receive {
             width: 50px; height: 50px;
             border-radius: 14px;
@@ -675,6 +696,7 @@
             flex-shrink: 0;
         }
         .btn-close-receive:hover { background: var(--border-color); color: var(--text-main); }
+        .hidden { display: none !important; }
 
         .home-stage-hero {
             max-width: 1120px;
@@ -1368,7 +1390,15 @@
     </button>
     <button class="top-btn" type="button" onclick="location.href='transfer.html'">
         <i class="fa-solid fa-clock-rotate-left"></i>
-        <span data-i18n="transferToDeviceTransfer">设备互传</span>
+        <span data-i18n="homeMyDevicesBtn">我的设备</span>
+    </button>
+    <button class="top-btn" type="button" onclick="location.href='share.html'">
+        <i class="fa-solid fa-share-nodes"></i>
+        <span data-i18n="homeShareCodeBtn">生成分享码</span>
+    </button>
+    <button class="top-btn" type="button" onclick="location.href='transfer-share.html'">
+        <i class="fa-solid fa-globe"></i>
+        <span data-i18n="homePublicDropBtn">公开投递</span>
     </button>
     <button class="top-btn" type="button" onclick="location.href='netdisk.html'">
         <i class="fa-solid fa-hard-drive"></i>
@@ -1534,31 +1564,20 @@
                 <i class="fa-solid fa-download"></i>
                 <span data-i18n="downloadBtn">立即下载</span>
             </a>
+            <button id="receiveCopyLinkBtn" class="btn-secondary-receive" type="button">
+                <i class="fa-solid fa-link"></i>
+                <span data-i18n="homeReceiveCopyLink">复制链接</span>
+            </button>
+            <button id="receiveSaveBtn" class="btn-secondary-receive hidden" type="button">
+                <i class="fa-solid fa-hard-drive"></i>
+                <span data-i18n="transferSaveToNetdisk">保存到网盘</span>
+            </button>
             <button class="btn-close-receive" onclick="closeReceiveCard()" title="关闭">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
     </div>
 </div>
-
-<!-- 快捷操作 -->
-<section id="otherToolsSection" class="secondary-tools">
-<div class="section-divider" style="margin-top:12px; margin-bottom:0;" data-i18n="homeOtherToolsTitle">其他功能</div>
-<div class="quick-actions">
-    <a class="quick-btn" href="share.html">
-        <i class="fa-solid fa-share-nodes"></i>
-        <span data-i18n="homeShareCodeBtn">生成分享码</span>
-    </a>
-    <a class="quick-btn" href="share.html#downloadSection">
-        <i class="fa-solid fa-hashtag"></i>
-        <span data-i18n="homeDownloadCodeBtn">输入分享码下载</span>
-    </a>
-    <a class="quick-btn" href="transfer-share.html">
-        <i class="fa-solid fa-globe"></i>
-        <span data-i18n="homePublicDropBtn">公开投递</span>
-    </a>
-</div>
-</section>
 
 <!-- 加载 JS 文件 -->
 <script src="js/config.js"></script>

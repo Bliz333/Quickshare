@@ -3,547 +3,438 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title data-i18n="transferPublicPageTitle">QuickShare - 分享与取件</title>
+    <title data-i18n="transferPublicPageTitle">QuickShare - Share</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <script>
-        (function() {
-            const saved = localStorage.getItem('quickshare-theme');
-            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        (function(){
+            var s=localStorage.getItem('quickshare-theme');
+            if(s==='dark'||(!s&&window.matchMedia('(prefers-color-scheme:dark)').matches))
                 document.documentElement.classList.add('dark-mode');
-            }
         })();
     </script>
     <script>
-        (function() {
-            const savedLang = localStorage.getItem('quickshare-lang');
+        (function(){
             document.documentElement.classList.add('lang-pending');
-            if (savedLang === 'en' || savedLang === 'zh') {
-                document.documentElement.lang = savedLang === 'en' ? 'en' : 'zh-CN';
-            }
+            var l=localStorage.getItem('quickshare-lang');
+            if(l==='en'||l==='zh') document.documentElement.lang=l==='en'?'en':'zh-CN';
         })();
     </script>
+
     <style>
-        html.lang-pending body { opacity: 0; }
-        html.lang-ready body { opacity: 1; transition: opacity 0.16s ease; }
-        :root {
-            --primary: #0ea5e9;
-            --primary-dark: #0284c7;
-            --success: #10b981;
-            --text-main: #0f172a;
-            --text-sub: #64748b;
-            --bg-page: #eff6ff;
-            --bg-card: rgba(255,255,255,0.9);
-            --border-color: rgba(148,163,184,0.25);
-            --shadow-s: 0 6px 18px rgba(15,23,42,0.08);
-            --shadow-m: 0 20px 50px rgba(15,23,42,0.12);
-            --radius: 22px;
-            --mouse-x: 50%;
-            --mouse-y: 50%;
+        html.lang-pending body{opacity:0}
+        html.lang-ready body{opacity:1;transition:opacity .15s ease}
+
+        :root{
+            --primary:#3b82f6;--primary-light:#60a5fa;--primary-dark:#2563eb;
+            --success:#10b981;--danger:#ef4444;--warning:#f59e0b;
+            --text:#0f172a;--text2:#64748b;--text3:#94a3b8;
+            --bg:#f1f5f9;--card:#ffffff;--border:#e2e8f0;
+            --sh-s:0 1px 3px rgba(0,0,0,.06);--sh-m:0 4px 16px rgba(0,0,0,.08);--sh-l:0 12px 40px rgba(0,0,0,.12);
+            --mouse-x:50%;--mouse-y:50%
         }
-        .dark-mode {
-            --primary: #818cf8;
-            --primary-dark: #6366f1;
-            --text-main: #e2e8f0;
-            --text-sub: #94a3b8;
-            --bg-page: #020617;
-            --bg-card: rgba(15,23,42,0.88);
-            --border-color: rgba(148,163,184,0.18);
-            --shadow-s: 0 6px 18px rgba(2,6,23,0.25);
-            --shadow-m: 0 20px 50px rgba(2,6,23,0.45);
+        .dark-mode{
+            --primary:#818cf8;--primary-light:#a5b4fc;--primary-dark:#6366f1;
+            --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+            --bg:#0f172a;--card:#1e293b;--border:#334155;
+            --sh-s:0 1px 3px rgba(0,0,0,.25);--sh-m:0 4px 16px rgba(0,0,0,.35);--sh-l:0 12px 40px rgba(0,0,0,.45)
         }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: 'Outfit', sans-serif;
-            background:
-                radial-gradient(circle at top left, rgba(14,165,233,0.16), transparent 28%),
-                radial-gradient(circle at bottom right, rgba(16,185,129,0.14), transparent 26%),
-                var(--bg-page);
-            color: var(--text-main);
-            min-height: 100vh;
+
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+        body{
+            font-family:'Outfit',system-ui,-apple-system,sans-serif;
+            background:var(--bg);color:var(--text);
+            min-height:100dvh;display:flex;flex-direction:column;
+            transition:background .3s,color .3s
         }
-        .top-buttons {
-            position: fixed;
-            top: 16px;
-            right: 16px;
-            z-index: 40;
-            display: flex;
-            gap: 6px;
-            padding: 6px;
-            border-radius: 999px;
-            border: 1px solid var(--border-color);
-            background: rgba(255,255,255,0.7);
-            backdrop-filter: blur(16px);
-            box-shadow: var(--shadow-s);
+
+        /* ═══ Topbar ═══ */
+        .topbar{
+            height:52px;display:flex;align-items:center;justify-content:space-between;
+            padding:0 16px;flex-shrink:0;z-index:100
         }
-        .dark-mode .top-buttons {
-            background: rgba(15,23,42,0.78);
+        .brand{font-size:1.05rem;font-weight:700;color:var(--primary-dark);letter-spacing:-.02em;text-decoration:none}
+        .dark-mode .brand{color:var(--primary-light)}
+        .topbar-right{display:flex;align-items:center;gap:2px}
+        .t-btn{
+            width:36px;height:36px;border:none;border-radius:50%;background:transparent;
+            color:var(--text2);cursor:pointer;font-size:.85rem;
+            display:inline-flex;align-items:center;justify-content:center;
+            transition:all .2s;position:relative;font-family:inherit;font-weight:600
         }
-        .top-btn {
-            min-width: 40px;
-            height: 40px;
-            padding: 0 12px;
-            border: 1px solid transparent;
-            border-radius: 999px;
-            background: transparent;
-            color: var(--text-sub);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            cursor: pointer;
-            font: inherit;
-            font-weight: 700;
-            transition: all 0.2s ease;
+        .t-btn:hover{background:var(--primary);color:#fff}
+        .t-btn-label{width:auto;padding:0 12px;border-radius:999px;font-size:.78rem;gap:5px}
+        #authButtons{display:inline-flex;align-items:center;gap:4px}
+        .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+        /* ═══ Main shell ═══ */
+        .shell{
+            flex:1;display:flex;flex-direction:column;align-items:center;
+            padding:8px 16px 24px;overflow-y:auto
         }
-        .top-btn:hover {
-            background: var(--primary);
-            color: white;
+
+        /* ═══ Tab toggle ═══ */
+        .tab-bar{
+            display:inline-flex;border-radius:14px;padding:4px;
+            background:var(--card);border:1.5px solid var(--border);
+            box-shadow:var(--sh-s);margin-bottom:20px;flex-shrink:0
         }
-        .page {
-            width: min(1120px, calc(100vw - 40px));
-            margin: 0 auto;
-            padding: 108px 0 56px;
+        .tab{
+            min-height:38px;padding:0 20px;border:none;border-radius:11px;
+            background:transparent;color:var(--text2);font-family:inherit;
+            font-size:.84rem;font-weight:600;cursor:pointer;
+            display:inline-flex;align-items:center;gap:7px;transition:all .2s
         }
-        .hero {
-            display: grid;
-            gap: 16px;
-            margin-bottom: 24px;
-            padding: 28px 30px;
-            border-radius: 30px;
-            border: 1px solid var(--border-color);
-            background:
-                radial-gradient(circle at top right, rgba(14,165,233,0.12), transparent 30%),
-                var(--bg-card);
-            box-shadow: var(--shadow-m);
+        .tab:hover{color:var(--text)}
+        .tab.active{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.25)}
+        .dark-mode .tab.active{box-shadow:0 2px 8px rgba(129,140,248,.3)}
+
+        /* ═══ Tab content ═══ */
+        .tab-content{display:none;width:100%;max-width:520px;animation:fadeUp .3s ease}
+        .tab-content.active{display:block}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+        /* ═══ Card ═══ */
+        .card{
+            position:relative;overflow:hidden;border-radius:22px;
+            border:1.5px solid var(--border);background:var(--card);
+            box-shadow:var(--sh-m);padding:24px
         }
-        .hero-kicker {
-            display: inline-flex;
-            align-items: center;
-            min-height: 30px;
-            width: fit-content;
-            padding: 0 14px;
-            border-radius: 999px;
-            background: rgba(148,163,184,0.14);
-            color: var(--text-sub);
-            font-size: 0.74rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
+        .card::before{
+            content:'';position:absolute;inset:0;border-radius:inherit;
+            background:radial-gradient(circle at var(--mouse-x) var(--mouse-y),rgba(59,130,246,.06),transparent 60%);
+            opacity:0;transition:opacity .25s;pointer-events:none
         }
-        .hero h1 {
-            margin: 0;
-            font-size: clamp(2.2rem, 5vw, 4rem);
-            line-height: 0.96;
+        .card:hover::before{opacity:1}
+
+        /* ═══ Upload zone ═══ */
+        .upload-area{
+            border:2px dashed var(--border);border-radius:18px;
+            padding:36px 20px;text-align:center;cursor:pointer;
+            transition:all .25s;background:rgba(59,130,246,.03)
         }
-        .hero p {
-            margin: 0;
-            color: var(--text-sub);
-            max-width: 720px;
-            line-height: 1.7;
-            font-size: 1rem;
+        .upload-area:hover,.upload-area.dragover{
+            border-color:var(--primary);background:rgba(59,130,246,.07);
+            transform:scale(1.005)
         }
-        .auth-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+        .upload-area.dragover{border-style:solid}
+        .upload-icon{
+            width:56px;height:56px;margin:0 auto 14px;border-radius:16px;
+            background:rgba(59,130,246,.1);color:var(--primary);
+            display:flex;align-items:center;justify-content:center;font-size:1.5rem
         }
-        .btn-auth {
-            padding: 10px 22px;
-            border-radius: 999px;
-            border: 1px solid var(--border-color);
-            background: var(--bg-card);
-            color: var(--text-main);
-            font: inherit;
-            font-weight: 700;
-            cursor: pointer;
+        .dark-mode .upload-icon{background:rgba(129,140,248,.14)}
+        .upload-title{font-size:.95rem;font-weight:600;margin-bottom:4px}
+        .upload-hint{font-size:.78rem;color:var(--text3);line-height:1.5}
+
+        /* ═══ File list ═══ */
+        .file-list{margin-top:14px}
+        .file-list h4{font-size:.82rem;color:var(--text2);font-weight:600;margin-bottom:8px}
+        .file-item{
+            display:flex;justify-content:space-between;align-items:center;gap:10px;
+            padding:10px 12px;border-radius:12px;border:1px solid var(--border);margin-bottom:6px
         }
-        .btn-register {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
+        .file-item-info{display:grid;gap:2px;min-width:0}
+        .file-item-info strong,.file-item-info small{
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.82rem
         }
-        .quick-actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 22px;
+        .file-item-info small{color:var(--text3);font-size:.72rem}
+        .remove-file-btn{
+            border:none;background:transparent;color:var(--text3);cursor:pointer;
+            width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+            transition:all .2s;flex-shrink:0
         }
-        .quick-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 44px;
-            padding: 0 16px;
-            border-radius: 999px;
-            border: 1px solid var(--border-color);
-            background: var(--bg-card);
-            color: var(--text-sub);
-            text-decoration: none;
-            font: inherit;
-            font-size: 0.84rem;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: var(--shadow-s);
+        .remove-file-btn:hover{background:rgba(239,68,68,.1);color:var(--danger)}
+
+        /* ═══ Picker buttons ═══ */
+        .pick-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+        .pick-btn{
+            height:38px;padding:0 16px;border:1.5px solid var(--border);border-radius:12px;
+            background:var(--card);color:var(--text2);font-family:inherit;
+            font-size:.8rem;font-weight:600;cursor:pointer;
+            display:inline-flex;align-items:center;gap:6px;transition:all .2s
         }
-        .quick-btn:hover {
-            border-color: var(--primary);
-            color: var(--primary);
+        .pick-btn:hover{border-color:var(--primary);color:var(--primary)}
+
+        /* ═══ Settings ═══ */
+        .settings{margin-top:18px;display:grid;gap:12px}
+        .settings-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .field label{display:block;font-size:.76rem;font-weight:600;color:var(--text2);margin-bottom:5px}
+        .field input,.field select{
+            width:100%;height:42px;padding:0 12px;border:1.5px solid var(--border);
+            border-radius:12px;background:var(--card);color:var(--text);
+            font-family:inherit;font-size:.86rem;outline:none;transition:border-color .2s
         }
-        .layout {
-            display: grid;
-            grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-            gap: 20px;
-            align-items: start;
+        .field input:focus{border-color:var(--primary)}
+        .field input::placeholder{color:var(--text3)}
+
+        /* ═══ Action button ═══ */
+        .action-btn{
+            display:flex;align-items:center;justify-content:center;gap:8px;
+            width:100%;height:48px;border:none;border-radius:14px;
+            background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+            color:#fff;font-family:inherit;font-size:.9rem;font-weight:700;
+            cursor:pointer;transition:all .2s;
+            box-shadow:0 8px 24px rgba(59,130,246,.2)
         }
-        .card {
-            position: relative;
-            overflow: hidden;
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-            background: var(--bg-card);
-            box-shadow: var(--shadow-m);
-            padding: 24px;
+        .dark-mode .action-btn{box-shadow:0 8px 24px rgba(129,140,248,.2)}
+        .action-btn:hover:not(:disabled){opacity:.9;transform:translateY(-1px)}
+        .action-btn:active:not(:disabled){transform:translateY(0) scale(.99)}
+        .action-btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+        .action-btn.success-btn{
+            background:linear-gradient(135deg,var(--success),#059669);
+            box-shadow:0 8px 24px rgba(16,185,129,.2)
         }
-        .card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(14,165,233,0.08), transparent 58%);
-            opacity: 0;
-            transition: opacity 0.25s ease;
-            pointer-events: none;
+        .action-btn.ghost-btn{
+            background:var(--card);color:var(--text2);border:1.5px solid var(--border);
+            box-shadow:none
         }
-        .card:hover::before {
-            opacity: 1;
+        .action-btn.ghost-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+
+        /* ═══ Result box ═══ */
+        .result-box{margin-top:18px}
+        .result-box:empty{display:none}
+        .result-card-container{
+            padding:18px;border-radius:16px;border:1px solid var(--border);
+            background:rgba(59,130,246,.03);margin-bottom:12px
         }
-        .card-section-title {
-            margin: 0 0 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1rem;
+        .dark-mode .result-card-container{background:rgba(129,140,248,.05)}
+        .result-item{margin-bottom:12px}
+        .result-label{
+            display:flex;align-items:center;gap:6px;font-size:.74rem;font-weight:700;
+            color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em
         }
-        .upload-area {
-            border: 2px dashed var(--border-color);
-            border-radius: 18px;
-            padding: 28px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: rgba(148,163,184,0.08);
+        .result-value-row{
+            display:flex;align-items:center;gap:8px;padding:10px 12px;
+            border-radius:10px;border:1px solid var(--border);background:var(--card)
         }
-        .upload-area:hover,
-        .upload-area.dragover {
-            border-color: var(--primary);
-            background: rgba(14,165,233,0.08);
+        .result-value{
+            flex:1;font-size:.84rem;font-weight:600;overflow:hidden;
+            white-space:nowrap;text-overflow:ellipsis;min-width:0
         }
-        .upload-icon {
-            font-size: 2.6rem;
-            color: var(--primary);
-            margin-bottom: 10px;
+        .copy-btn{
+            height:30px;padding:0 10px;border:1px solid var(--border);border-radius:8px;
+            background:var(--card);color:var(--text2);font-family:inherit;
+            font-size:.72rem;font-weight:700;cursor:pointer;
+            display:inline-flex;align-items:center;gap:5px;transition:all .2s;flex-shrink:0
         }
-        .upload-text {
-            color: var(--text-sub);
-            line-height: 1.7;
+        .copy-btn:hover{border-color:var(--primary);color:var(--primary)}
+        .copy-btn.copied{background:var(--success);color:#fff;border-color:var(--success)}
+
+        /* ═══ Download info ═══ */
+        .download-info{
+            margin-top:16px;padding:18px;border-radius:16px;
+            border:1px solid var(--border);background:rgba(16,185,129,.04)
         }
-        .upload-text small {
-            display: block;
-            margin-top: 6px;
+        .dark-mode .download-info{background:rgba(16,185,129,.06)}
+        .download-info h3{font-size:.9rem;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .dl-meta{display:grid;gap:8px;margin-bottom:16px}
+        .dl-meta-row{
+            display:flex;justify-content:space-between;align-items:center;
+            padding:8px 12px;border-radius:10px;background:var(--card);
+            border:1px solid var(--border);font-size:.82rem
         }
-        .file-list { margin-top: 16px; }
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 10px 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 8px;
+        .dl-meta-row strong{color:var(--text2);font-weight:600;font-size:.76rem}
+        .dl-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+        /* ═══ Preview ═══ */
+        #sharePreviewContainer{
+            margin-top:14px;border-radius:14px;overflow:hidden;
+            border:1px solid var(--border)
         }
-        .file-item-info {
-            display: grid;
-            gap: 4px;
-            min-width: 0;
+        #sharePreviewIframe{width:100%;height:70vh;border:none}
+
+        /* ═══ Toast ═══ */
+        .toast-container{
+            position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+            z-index:999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none
         }
-        .file-item-info strong,
-        .file-item-info small {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+        .toast{
+            background:var(--card);border:1px solid var(--border);color:var(--text);
+            padding:10px 18px;border-radius:12px;font-size:.84rem;font-weight:500;
+            box-shadow:var(--sh-m);transform:translateY(16px);opacity:0;
+            transition:all .3s;pointer-events:auto;max-width:min(360px,90vw);text-align:center
         }
-        .remove-file-btn {
-            border: none;
-            background: transparent;
-            color: var(--text-sub);
-            cursor: pointer;
+        .toast.show{transform:translateY(0);opacity:1}
+        .toast.success{border-left:3px solid var(--success)}
+        .toast.error{border-left:3px solid var(--danger)}
+        .toast.warning{border-left:3px solid var(--warning)}
+        .toast.info{border-left:3px solid var(--primary)}
+
+        /* ═══ Spinner ═══ */
+        .loading-spinner{
+            width:17px;height:17px;border:2px solid rgba(255,255,255,.4);
+            border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite
         }
-        .input-group {
-            margin-bottom: 16px;
-        }
-        .input-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.84rem;
-            color: var(--text-sub);
-            font-weight: 700;
-        }
-        .input-group input {
-            width: 100%;
-            min-height: 46px;
-            padding: 0 14px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            background: var(--bg-card);
-            color: var(--text-main);
-            font: inherit;
-        }
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            min-height: 48px;
-            border: none;
-            border-radius: 14px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            font: inherit;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 12px 28px rgba(14,165,233,0.22);
-        }
-        .btn:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-        .result-box,
-        .download-info {
-            margin-top: 18px;
-        }
-        .download-info {
-            padding: 16px;
-            border-radius: 16px;
-            background: rgba(148,163,184,0.08);
-            border: 1px solid var(--border-color);
-        }
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-        }
-        .toast {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 12px 18px;
-            border-radius: 14px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: var(--shadow-m);
-            transform: translateY(-100px);
-            opacity: 0;
-            transition: all 0.25s ease;
-        }
-        .toast.show {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        .loading-spinner {
-            width: 17px;
-            height: 17px;
-            border: 2px solid rgba(255,255,255,0.4);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 900px) {
-            .layout {
-                grid-template-columns: 1fr;
-            }
-        }
-        @media (max-width: 640px) {
-            .page {
-                width: calc(100vw - 24px);
-                padding-top: 92px;
-            }
-            .hero,
-            .card {
-                padding: 20px;
-            }
-            .top-buttons {
-                top: 12px;
-                right: 12px;
-                left: 12px;
-                justify-content: flex-end;
-            }
-            .top-btn span {
-                display: none;
-            }
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* ═══ Utility ═══ */
+        .hidden{display:none!important}
+        @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+        /* ═══ Responsive ═══ */
+        @media(max-width:540px){
+            .shell{padding:8px 12px 24px}
+            .card{padding:18px}
+            .settings-row{grid-template-columns:1fr}
+            .tab{padding:0 14px;font-size:.8rem}
         }
     </style>
 </head>
 <body>
+
 <div class="toast-container" id="toastContainer"></div>
 
-<div class="top-buttons">
-    <button class="top-btn" type="button" onclick="location.href='index.html'">
-        <i class="fa-solid fa-bolt"></i>
-        <span data-i18n="transferBackHome">首页</span>
-    </button>
-    <button class="top-btn" type="button" onclick="location.href='transfer.html'">
-        <i class="fa-solid fa-clock-rotate-left"></i>
-        <span data-i18n="transferToDeviceTransfer">设备互传</span>
-    </button>
-    <button class="top-btn" type="button" onclick="location.href='netdisk.html'">
-        <i class="fa-solid fa-hard-drive"></i>
-        <span data-i18n="transferToNetdisk">网盘</span>
-    </button>
-    <button class="top-btn top-btn-icon" onclick="location.href='pricing.html'">
-        <i class="fa-solid fa-tags"></i>
-    </button>
-    <button class="top-btn top-btn-icon" id="darkModeToggle" onclick="toggleTheme()">
-        <i class="fa-solid fa-moon"></i>
-    </button>
-    <button class="top-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
-</div>
+<!-- ═══ Topbar ═══ -->
+<header class="topbar">
+    <a class="brand" href="index.html">QuickShare</a>
+    <nav class="topbar-right">
+        <button class="t-btn" onclick="location.href='netdisk.html'" title="Cloud Storage">
+            <i class="fa-solid fa-hard-drive"></i>
+        </button>
+        <button class="t-btn" id="darkModeToggle" onclick="toggleTheme()" title="Theme">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+        <button class="t-btn t-btn-label" id="langBtn" onclick="toggleLanguage()">EN</button>
+        <span id="authButtons">
+            <button class="t-btn t-btn-label" onclick="location.href='login.html'" data-i18n="loginBtn">Login</button>
+        </span>
+    </nav>
+</header>
 
-<main class="page">
-    <section class="hero">
-        <span class="hero-kicker">Share Tools</span>
-        <h1 data-i18n="transferPublicTitle">QuickShare</h1>
-        <p data-i18n="transferPublicSubtitle">上传文件生成分享码，或者输入分享码直接取件。首页现在只保留 Wi‑Fi / 配对码快传。</p>
-        <div id="authButtons" class="auth-group">
-            <button onclick="location.href='login.html'" class="btn-auth" data-i18n="loginBtn">登录</button>
-            <button onclick="location.href='register.html'" class="btn-auth btn-register" data-i18n="registerBtn">注册账号</button>
-        </div>
-    </section>
+<!-- ═══ Main ═══ -->
+<main class="shell">
 
-    <div class="quick-actions">
-        <a class="quick-btn" href="#shareCodeSection">
+    <!-- Tab toggle -->
+    <div class="tab-bar">
+        <button class="tab active" onclick="switchTab('upload')">
             <i class="fa-solid fa-cloud-arrow-up"></i>
-            <span data-i18n="homeShareCodeBtn">生成分享码</span>
-        </a>
-        <a class="quick-btn" href="#downloadSection">
+            <span data-i18n="uploadSectionTitle">Upload & Share</span>
+        </button>
+        <button class="tab" onclick="switchTab('download')">
             <i class="fa-solid fa-cloud-arrow-down"></i>
-            <span data-i18n="homeDownloadCodeBtn">输入分享码下载</span>
-        </a>
-        <a class="quick-btn" href="transfer-share.html">
-            <i class="fa-solid fa-globe"></i>
-            <span data-i18n="homePublicDropBtn">公开投递</span>
-        </a>
+            <span data-i18n="downloadSectionTitle">Download</span>
+        </button>
     </div>
 
-    <section class="layout">
+    <!-- ═══ Upload tab ═══ -->
+    <div id="upload-tab" class="tab-content active">
         <div class="card" id="mainCard">
-            <h3 class="card-section-title">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-                <span data-i18n="uploadSectionTitle">上传并生成分享码</span>
-            </h3>
 
+            <!-- Drop zone -->
             <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-                <div class="upload-icon"><i class="fa-solid fa-box-archive"></i></div>
-                <div class="upload-text" data-i18n="uploadAreaText">
-                    点击或拖拽文件至此
-                    <small>(支持多文件批量上传，最大 10GB)</small>
-                </div>
-                <input type="file" id="fileInput" style="display: none;" multiple onchange="handleFileSelect(event)">
-                <input type="file" id="folderInput" style="display: none;" webkitdirectory directory multiple onchange="handleFileSelect(event)">
+                <div class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                <p class="upload-title" data-i18n="uploadAreaTitle">Drop files here or click to browse</p>
+                <p class="upload-hint" data-i18n="uploadAreaHint">Supports multiple files, up to 10 GB each</p>
+                <input type="file" id="fileInput" style="display:none" multiple onchange="handleFileSelect(event)">
+                <input type="file" id="folderInput" style="display:none" webkitdirectory directory multiple onchange="handleFileSelect(event)">
             </div>
 
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
-                <button class="btn" type="button" onclick="document.getElementById('fileInput').click()"
-                        style="width:auto; padding: 0 18px;" data-i18n="transferSelectFiles">
-                    <span>选择文件</span> <i class="fa-solid fa-paperclip"></i>
+            <!-- Pick buttons -->
+            <div class="pick-row">
+                <button class="pick-btn" type="button" onclick="document.getElementById('fileInput').click()">
+                    <i class="fa-solid fa-paperclip"></i>
+                    <span data-i18n="transferSelectFiles">Files</span>
                 </button>
-                <button class="btn" type="button" onclick="openFolderPicker()"
-                        style="width:auto; padding: 0 18px; background: rgba(148,163,184,0.16); color: var(--text-main); box-shadow:none; border:1px solid var(--border-color);" data-i18n="transferChooseFolder">
-                    <span>选择文件夹</span> <i class="fa-solid fa-folder-tree"></i>
+                <button class="pick-btn" type="button" onclick="openFolderPicker()">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span data-i18n="transferChooseFolder">Folder</span>
                 </button>
             </div>
 
-            <div class="file-list" id="fileList" style="display: none;">
-                <h4 data-i18n="selectedFiles">待上传列表:</h4>
+            <!-- Selected file list -->
+            <div class="file-list" id="fileList" style="display:none">
+                <h4 data-i18n="selectedFiles">Selected files:</h4>
                 <div id="fileItems"></div>
             </div>
 
-            <div style="margin-top: 22px;">
-                <div class="input-group">
-                    <label data-i18n="extractCodeLabel">提取码 (可选)</label>
-                    <input type="text" id="extractCode" data-i18n="extractCodePlaceholder" placeholder="4-6位数字或字母" maxlength="6">
+            <!-- Settings -->
+            <div class="settings">
+                <div class="field">
+                    <label data-i18n="extractCodeLabel">Extract code (optional)</label>
+                    <input type="text" id="extractCode" placeholder="4-6 characters" data-i18n-placeholder="extractCodePlaceholder" maxlength="6">
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="input-group">
-                        <label data-i18n="expireHoursLabel">有效期 (小时)</label>
+                <div class="settings-row">
+                    <div class="field">
+                        <label data-i18n="expireHoursLabel">Expires in (hours)</label>
                         <input type="number" id="expireHours" placeholder="24" value="24" min="1">
                     </div>
-                    <div class="input-group">
-                        <label data-i18n="maxDownloadLabel">最大次数</label>
-                        <input type="number" id="maxDownload" data-i18n="maxDownloadPlaceholder" placeholder="无限制" min="1">
+                    <div class="field">
+                        <label data-i18n="maxDownloadLabel">Max downloads</label>
+                        <input type="number" id="maxDownload" placeholder="Unlimited" data-i18n-placeholder="maxDownloadPlaceholder" min="1">
                     </div>
                 </div>
-                <button class="btn" id="uploadBtn" onclick="uploadAndShare()" disabled data-i18n="uploadAndShareBtn">
-                    <span>开始上传并分享</span> <i class="fa-solid fa-share-nodes"></i>
+                <button class="action-btn" id="uploadBtn" onclick="uploadAndShare()" disabled>
+                    <i class="fa-solid fa-share-nodes"></i>
+                    <span data-i18n="uploadAndShareBtn">Upload & Get Link</span>
                 </button>
             </div>
 
+            <!-- Result -->
             <div class="result-box" id="resultBox"></div>
         </div>
+    </div>
 
-        <div class="card" id="downloadSection">
-            <h3 class="card-section-title">
-                <i class="fa-solid fa-cloud-arrow-down"></i>
-                <span data-i18n="downloadSectionTitle">输入分享码下载</span>
-            </h3>
+    <!-- ═══ Download tab ═══ -->
+    <div id="download-tab" class="tab-content">
+        <div class="card">
 
-            <div class="input-group">
-                <label data-i18n="shareCodeLabel">分享码</label>
-                <input type="text" id="downloadShareCode" data-i18n="downloadShareCodePlaceholder" placeholder="请输入8位分享码">
+            <div class="field" style="margin-bottom:12px">
+                <label data-i18n="shareCodeLabel">Share code</label>
+                <input type="text" id="downloadShareCode" placeholder="8-character code" data-i18n-placeholder="downloadShareCodePlaceholder">
             </div>
-            <div class="input-group">
-                <label data-i18n="extractCodeLabel2">提取码 (如有)</label>
-                <input type="text" id="downloadExtractCode" data-i18n="downloadExtractCodePlaceholder" placeholder="请输入提取码">
+            <div class="field" style="margin-bottom:14px">
+                <label data-i18n="extractCodeLabel2">Extract code (if any)</label>
+                <input type="text" id="downloadExtractCode" placeholder="Enter extract code" data-i18n-placeholder="downloadExtractCodePlaceholder">
             </div>
-            <button class="btn" onclick="getShareInfo()" data-i18n="viewFileInfoBtn">
-                <span>查看文件信息</span> <i class="fa-solid fa-magnifying-glass"></i>
+            <button class="action-btn" onclick="getShareInfo()">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <span data-i18n="viewFileInfoBtn">Look up file</span>
             </button>
 
-            <div class="download-info" id="downloadInfo" style="display: none;">
-                <h3 data-i18n="fileInfoTitle">文件详情</h3>
-                <p><strong data-i18n="fileName">文件名</strong> <span id="downloadFileName"></span></p>
-                <p><strong data-i18n="expireTime">过期时间</strong> <span id="downloadExpireTime"></span></p>
-                <p><strong data-i18n="remainingDownloads">剩余次数</strong> <span id="downloadRemaining"></span></p>
-                <div style="margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn" onclick="downloadFile()"
-                            style="width:auto; padding:0 20px; background: var(--success); box-shadow: 0 12px 24px rgba(16,185,129,0.24);"
-                            data-i18n="downloadBtn">
-                        <span>立即下载</span> <i class="fa-solid fa-download"></i>
+            <div class="download-info" id="downloadInfo" style="display:none">
+                <h3>
+                    <i class="fa-solid fa-file-circle-check" style="color:var(--success)"></i>
+                    <span data-i18n="fileInfoTitle">File ready</span>
+                </h3>
+                <div class="dl-meta">
+                    <div class="dl-meta-row">
+                        <strong data-i18n="fileName">Name</strong>
+                        <span id="downloadFileName"></span>
+                    </div>
+                    <div class="dl-meta-row">
+                        <strong data-i18n="expireTime">Expires</strong>
+                        <span id="downloadExpireTime"></span>
+                    </div>
+                    <div class="dl-meta-row">
+                        <strong data-i18n="remainingDownloads">Remaining</strong>
+                        <span id="downloadRemaining"></span>
+                    </div>
+                </div>
+                <div class="dl-actions">
+                    <button class="action-btn success-btn" onclick="downloadFile()" style="flex:1">
+                        <i class="fa-solid fa-download"></i>
+                        <span data-i18n="downloadBtn">Download</span>
                     </button>
-                    <button class="btn" id="previewShareBtn" onclick="previewShareFile()"
-                            style="display:none; width:auto; padding:0 20px;"
-                            data-i18n="previewBtn">
-                        <span>在线预览</span> <i class="fa-solid fa-eye"></i>
+                    <button class="action-btn ghost-btn" id="previewShareBtn" onclick="previewShareFile()" style="display:none;flex:1">
+                        <i class="fa-solid fa-eye"></i>
+                        <span data-i18n="previewBtn">Preview</span>
                     </button>
                 </div>
-                <div id="sharePreviewContainer" style="display:none; margin-top: 14px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color);">
-                    <iframe id="sharePreviewIframe" style="width:100%; height: 70vh; border: none;"></iframe>
+                <div id="sharePreviewContainer" style="display:none">
+                    <iframe id="sharePreviewIframe"></iframe>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+
 </main>
 
+<!-- ═══ Scripts ═══ -->
 <script src="js/config.js"></script>
 <script src="js/session.js"></script>
 <script src="js/theme.js"></script>
@@ -554,24 +445,40 @@
 <script src="js/qrcode-handler.js"></script>
 <script src="js/upload.js"></script>
 <script src="js/download.js"></script>
+
 <script>
-    document.addEventListener('mousemove', (e) => {
-        const card = document.getElementById('mainCard');
-        if (!card) return;
-        const rect = card.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-        card.style.setProperty('--mouse-x', `${x}%`);
-        card.style.setProperty('--mouse-y', `${y}%`);
+    /* Compact auth override (same as homepage) */
+    (function(){
+        var _orig=window.renderLoggedInState;
+        window.renderLoggedInState=function(user){
+            var el=document.getElementById('authButtons');
+            if(!el) return _orig?_orig(user):undefined;
+            var name=user.nickname||user.username||'';
+            var lang=typeof getCurrentLanguage==='function'?getCurrentLanguage():'zh';
+            el.innerHTML=
+                '<span style="font-size:.8rem;font-weight:600;padding:0 4px">'+name+'</span>'+
+                '<button class="t-btn t-btn-label" onclick="handleLogout()" title="'+
+                (lang==='zh'?'退出':'Logout')+'">'+
+                '<i class="fa-solid fa-right-from-bracket"></i></button>';
+        };
+    })();
+
+    /* Mouse light effect */
+    document.addEventListener('mousemove',function(e){
+        var card=document.getElementById('mainCard');
+        if(!card) return;
+        var r=card.getBoundingClientRect();
+        card.style.setProperty('--mouse-x',((e.clientX-r.left)/r.width*100)+'%');
+        card.style.setProperty('--mouse-y',((e.clientY-r.top)/r.height*100)+'%');
     });
 
-    window.addEventListener('load', () => {
+    window.addEventListener('load',function(){
         Promise.resolve(checkLoginState());
         initUploadArea();
 
-        const { shareCode, extractCode } = parseShareParams();
-        if (shareCode) {
-            initGuestMode(shareCode, extractCode);
+        var p=parseShareParams();
+        if(p.shareCode){
+            initGuestMode(p.shareCode,p.extractCode);
         }
     });
 </script>

@@ -18,8 +18,19 @@
             }
         })();
     </script>
+    <script>
+        (function() {
+            const savedLang = localStorage.getItem('quickshare-lang');
+            document.documentElement.classList.add('lang-pending');
+            if (savedLang === 'en' || savedLang === 'zh') {
+                document.documentElement.lang = savedLang === 'en' ? 'en' : 'zh-CN';
+            }
+        })();
+    </script>
 
     <style>
+        html.lang-pending body { opacity: 0; }
+        html.lang-ready body { opacity: 1; transition: opacity 0.16s ease; }
         /* ═══════════════════════════════════════════════════════════
            CSS 自定义属性（浅色主题）
         ═══════════════════════════════════════════════════════════ */
@@ -1534,121 +1545,20 @@
 <section id="otherToolsSection" class="secondary-tools">
 <div class="section-divider" style="margin-top:12px; margin-bottom:0;" data-i18n="homeOtherToolsTitle">其他功能</div>
 <div class="quick-actions">
-    <button class="quick-btn" onclick="document.getElementById('shareCodeSection').scrollIntoView({behavior:'smooth'})">
+    <a class="quick-btn" href="share.html">
         <i class="fa-solid fa-share-nodes"></i>
         <span data-i18n="homeShareCodeBtn">生成分享码</span>
-    </button>
-    <button class="quick-btn" onclick="document.getElementById('downloadSection').scrollIntoView({behavior:'smooth'})">
+    </a>
+    <a class="quick-btn" href="share.html#downloadSection">
         <i class="fa-solid fa-hashtag"></i>
         <span data-i18n="homeDownloadCodeBtn">输入分享码下载</span>
-    </button>
+    </a>
     <a class="quick-btn" href="transfer-share.html">
         <i class="fa-solid fa-globe"></i>
         <span data-i18n="homePublicDropBtn">公开投递</span>
     </a>
 </div>
 </section>
-
-<!-- ═══ 分享码上传区 ═══ -->
-<div class="container" style="margin-top: 16px;" id="shareCodeSection">
-    <div class="card" id="mainCard">
-        <h3 class="card-section-title">
-            <i class="fa-solid fa-cloud-arrow-up"></i>
-            <span data-i18n="uploadSectionTitle">上传并生成分享码</span>
-        </h3>
-
-        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-            <div class="upload-icon"><i class="fa-solid fa-box-archive"></i></div>
-            <div class="upload-text" data-i18n="uploadAreaText">
-                点击或拖拽文件至此
-                <small>(支持多文件批量上传，最大 10GB)</small>
-            </div>
-            <input type="file" id="fileInput" style="display: none;" multiple onchange="handleFileSelect(event)">
-            <input type="file" id="folderInput" style="display: none;" webkitdirectory directory multiple onchange="handleFileSelect(event)">
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
-            <button class="btn" type="button" onclick="document.getElementById('fileInput').click()"
-                    style="width:auto; padding: 11px 18px;" data-i18n="transferSelectFiles">
-                <span>选择文件</span> <i class="fa-solid fa-paperclip"></i>
-            </button>
-            <button class="btn" type="button" onclick="openFolderPicker()"
-                    style="width:auto; padding: 11px 18px; background: rgba(148,163,184,0.14); color: var(--text-main); box-shadow:none; border:1px solid var(--border-color);" data-i18n="transferChooseFolder">
-                <span>选择文件夹</span> <i class="fa-solid fa-folder-tree"></i>
-            </button>
-        </div>
-
-        <div class="file-list" id="fileList" style="display: none;">
-            <h4 data-i18n="selectedFiles"><i class="fa-solid fa-list-check"></i> 待上传列表:</h4>
-            <div id="fileItems"></div>
-        </div>
-
-        <div style="margin-top: 22px;">
-            <div class="input-group">
-                <label data-i18n="extractCodeLabel"><i class="fa-solid fa-key"></i> 提取码 (可选)</label>
-                <input type="text" id="extractCode" data-i18n="extractCodePlaceholder" placeholder="4-6位数字或字母" maxlength="6">
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="input-group">
-                    <label data-i18n="expireHoursLabel"><i class="fa-regular fa-clock"></i> 有效期 (小时)</label>
-                    <input type="number" id="expireHours" placeholder="24" value="24" min="1">
-                </div>
-                <div class="input-group">
-                    <label data-i18n="maxDownloadLabel"><i class="fa-solid fa-download"></i> 最大次数</label>
-                    <input type="number" id="maxDownload" data-i18n="maxDownloadPlaceholder" placeholder="无限制" min="1">
-                </div>
-            </div>
-            <button class="btn" id="uploadBtn" onclick="uploadAndShare()" disabled data-i18n="uploadAndShareBtn">
-                <span>开始上传并分享</span> <i class="fa-solid fa-share-nodes"></i>
-            </button>
-        </div>
-        <div class="result-box" id="resultBox"></div>
-    </div>
-</div>
-
-<!-- ═══ 分享码下载区 ═══ -->
-<div class="container" style="margin-top: 20px; margin-bottom: 60px;" id="downloadSection">
-    <div class="card">
-        <h3 class="card-section-title">
-            <i class="fa-solid fa-cloud-arrow-down"></i>
-            <span data-i18n="downloadSectionTitle">输入分享码下载</span>
-        </h3>
-
-        <div class="input-group">
-            <label data-i18n="shareCodeLabel"><i class="fa-solid fa-hashtag"></i> 分享码</label>
-            <input type="text" id="downloadShareCode" data-i18n="downloadShareCodePlaceholder" placeholder="请输入8位分享码">
-        </div>
-        <div class="input-group">
-            <label data-i18n="extractCodeLabel2"><i class="fa-solid fa-lock"></i> 提取码 (如有)</label>
-            <input type="text" id="downloadExtractCode" data-i18n="downloadExtractCodePlaceholder" placeholder="请输入提取码">
-        </div>
-        <button class="btn" onclick="getShareInfo()" data-i18n="viewFileInfoBtn">
-            <span>查看文件信息</span> <i class="fa-solid fa-magnifying-glass"></i>
-        </button>
-
-        <div class="download-info" id="downloadInfo" style="display: none;">
-            <h3 data-i18n="fileInfoTitle"><i class="fa-regular fa-file-lines"></i> 文件详情</h3>
-            <p><strong data-i18n="fileName">文件名</strong> <span id="downloadFileName"></span></p>
-            <p><strong data-i18n="expireTime">过期时间</strong> <span id="downloadExpireTime"></span></p>
-            <p><strong data-i18n="remainingDownloads">剩余次数</strong> <span id="downloadRemaining"></span></p>
-            <div style="margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn" onclick="downloadFile()"
-                        style="width:auto; padding:11px 20px; background: var(--success); box-shadow: 0 4px 14px rgba(16,185,129,0.32);"
-                        data-i18n="downloadBtn">
-                    <span>立即下载</span> <i class="fa-solid fa-download"></i>
-                </button>
-                <button class="btn" id="previewShareBtn" onclick="previewShareFile()"
-                        style="display:none; width:auto; padding:11px 20px;"
-                        data-i18n="previewBtn">
-                    <span>在线预览</span> <i class="fa-solid fa-eye"></i>
-                </button>
-            </div>
-            <div id="sharePreviewContainer" style="display:none; margin-top: 14px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color);">
-                <iframe id="sharePreviewIframe" style="width:100%; height: 70vh; border: none;"></iframe>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- 加载 JS 文件 -->
 <script src="js/config.js"></script>
@@ -1659,9 +1569,6 @@
 <script src="js/ui.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/home-notifications.js"></script>
-<script src="js/qrcode-handler.js"></script>
-<script src="js/upload.js"></script>
-<script src="js/download.js"></script>
 <script src="js/home.js"></script>
 
 <!-- 页面初始化 -->
@@ -1681,12 +1588,6 @@
         Promise.resolve(checkLoginState()).finally(() => {
             initHomeNotifications();
         });
-        initUploadArea();
-
-        const { shareCode, extractCode } = parseShareParams();
-        if (shareCode) {
-            initGuestMode(shareCode, extractCode);
-        }
     });
 </script>
 </body>

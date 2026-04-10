@@ -16,7 +16,18 @@
             }
         })();
     </script>
+    <script>
+        (function() {
+            const savedLang = localStorage.getItem('quickshare-lang');
+            document.documentElement.classList.add('lang-pending');
+            if (savedLang === 'en' || savedLang === 'zh') {
+                document.documentElement.lang = savedLang === 'en' ? 'en' : 'zh-CN';
+            }
+        })();
+    </script>
     <style>
+        html.lang-pending body { opacity: 0; }
+        html.lang-ready body { opacity: 1; transition: opacity 0.16s ease; }
         :root {
             --primary: #0ea5e9;
             --primary-dark: #0369a1;

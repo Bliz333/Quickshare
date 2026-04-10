@@ -1904,6 +1904,7 @@ function t(key) {
 function setLanguage(lang) {
     currentLang = lang;
     localStorage.setItem(LANG_STORAGE_KEY, lang);
+    document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
 
     document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
@@ -1965,6 +1966,9 @@ function setLanguage(lang) {
     document.dispatchEvent(new CustomEvent('quickshare:languagechange', {
         detail: { lang }
     }));
+
+    document.documentElement.classList.remove('lang-pending');
+    document.documentElement.classList.add('lang-ready');
 }
 /**
  * 更新传输面板的语言文本

@@ -54,6 +54,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/",
                                 "/index.html",
+                                "/share.html",
                                 "/login.html",
                                 "/register.html",
                                 "/netdisk.html",

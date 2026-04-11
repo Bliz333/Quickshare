@@ -82,52 +82,57 @@
     const SCENES = {
         login: {
             idleKey: 'loginIdle',
+            idleBubble: true,
             bubbleLeader: 'purple',
             layout: {
-                orange: { x: 0.12, y: 0.98, size: 260, z: 42 },
-                purple: { x: 0.23, y: 0.88, size: 176, z: 44 },
-                black: { x: 0.78, y: 0.89, size: 132, z: 43 },
-                yellow: { x: 0.89, y: 0.97, size: 158, z: 44 }
+                orange: { x: 0.13, y: 0.95, size: 250, z: 42 },
+                purple: { x: 0.24, y: 0.85, size: 170, z: 44 },
+                black: { x: 0.77, y: 0.86, size: 126, z: 43 },
+                yellow: { x: 0.88, y: 0.95, size: 150, z: 44 }
             }
         },
         register: {
             idleKey: 'registerIdle',
+            idleBubble: true,
             bubbleLeader: 'purple',
             layout: {
-                orange: { x: 0.11, y: 0.98, size: 244, z: 42 },
-                purple: { x: 0.21, y: 0.9, size: 168, z: 44 },
-                black: { x: 0.8, y: 0.9, size: 128, z: 43 },
-                yellow: { x: 0.9, y: 0.98, size: 152, z: 44 }
+                orange: { x: 0.12, y: 0.95, size: 238, z: 42 },
+                purple: { x: 0.22, y: 0.86, size: 164, z: 44 },
+                black: { x: 0.79, y: 0.87, size: 124, z: 43 },
+                yellow: { x: 0.89, y: 0.95, size: 148, z: 44 }
             }
         },
         home: {
             idleKey: 'homeIdle',
+            idleBubble: false,
             bubbleLeader: 'yellow',
             layout: {
-                orange: { x: 0.12, y: 0.98, size: 230, z: 42 },
-                purple: { x: 0.2, y: 0.88, size: 160, z: 44 },
-                black: { x: 0.8, y: 0.87, size: 122, z: 43 },
-                yellow: { x: 0.89, y: 0.98, size: 148, z: 44 }
+                orange: { x: 0.13, y: 0.94, size: 220, z: 42 },
+                purple: { x: 0.21, y: 0.84, size: 154, z: 44 },
+                black: { x: 0.79, y: 0.84, size: 118, z: 43 },
+                yellow: { x: 0.88, y: 0.94, size: 142, z: 44 }
             }
         },
         share: {
             idleKey: 'shareIdle',
+            idleBubble: false,
             bubbleLeader: 'yellow',
             layout: {
-                orange: { x: 0.11, y: 0.98, size: 222, z: 42 },
-                purple: { x: 0.2, y: 0.89, size: 150, z: 44 },
-                black: { x: 0.8, y: 0.88, size: 118, z: 43 },
-                yellow: { x: 0.89, y: 0.98, size: 142, z: 44 }
+                orange: { x: 0.12, y: 0.94, size: 214, z: 42 },
+                purple: { x: 0.21, y: 0.85, size: 146, z: 44 },
+                black: { x: 0.79, y: 0.85, size: 114, z: 43 },
+                yellow: { x: 0.88, y: 0.94, size: 138, z: 44 }
             }
         },
         default: {
             idleKey: 'homeIdle',
+            idleBubble: false,
             bubbleLeader: 'purple',
             layout: {
-                orange: { x: 0.12, y: 0.98, size: 232, z: 42 },
-                purple: { x: 0.21, y: 0.89, size: 162, z: 44 },
-                black: { x: 0.8, y: 0.88, size: 122, z: 43 },
-                yellow: { x: 0.9, y: 0.98, size: 148, z: 44 }
+                orange: { x: 0.13, y: 0.95, size: 224, z: 42 },
+                purple: { x: 0.22, y: 0.85, size: 156, z: 44 },
+                black: { x: 0.79, y: 0.85, size: 118, z: 43 },
+                yellow: { x: 0.89, y: 0.95, size: 144, z: 44 }
             }
         }
     };
@@ -137,11 +142,11 @@
             id: 'orange',
             viewBox: '0 0 280 220',
             shadow: { cx: 140, cy: 208, rx: 92, ry: 17 },
-            eyeL: { cx: 112, cy: 122, er: 10, pr: 4.1 },
-            eyeR: { cx: 176, cy: 122, er: 10, pr: 4.1 },
-            browL: { x1: 97, y1: 103, x2: 123, y2: 104 },
-            browR: { x1: 163, y1: 104, x2: 189, y2: 103 },
-            mouth: { x: 144, y: 156, w: 22 },
+            eyeL: { cx: 110, cy: 126, er: 12, pr: 4.4 },
+            eyeR: { cx: 174, cy: 126, er: 12, pr: 4.4 },
+            browL: { x1: 95, y1: 106, x2: 123, y2: 107 },
+            browR: { x1: 161, y1: 107, x2: 189, y2: 106 },
+            mouth: { x: 144, y: 160, w: 22 },
             cheekL: { cx: 94, cy: 152, r: 8 },
             cheekR: { cx: 194, cy: 152, r: 8 },
             arms: {
@@ -180,11 +185,11 @@
             id: 'purple',
             viewBox: '0 0 160 340',
             shadow: { cx: 80, cy: 326, rx: 48, ry: 15 },
-            eyeL: { cx: 55, cy: 114, er: 8.3, pr: 3.4 },
-            eyeR: { cx: 105, cy: 114, er: 8.3, pr: 3.4 },
-            browL: { x1: 44, y1: 98, x2: 64, y2: 99 },
-            browR: { x1: 96, y1: 99, x2: 116, y2: 98 },
-            mouth: { x: 80, y: 150, w: 18 },
+            eyeL: { cx: 55, cy: 118, er: 9.8, pr: 3.8 },
+            eyeR: { cx: 105, cy: 118, er: 9.8, pr: 3.8 },
+            browL: { x1: 43, y1: 101, x2: 65, y2: 102 },
+            browR: { x1: 95, y1: 102, x2: 117, y2: 101 },
+            mouth: { x: 80, y: 154, w: 18 },
             cheekL: { cx: 41, cy: 145, r: 5.5 },
             cheekR: { cx: 119, cy: 145, r: 5.5 },
             arms: {
@@ -223,11 +228,11 @@
             id: 'yellow',
             viewBox: '0 0 150 270',
             shadow: { cx: 75, cy: 258, rx: 44, ry: 14 },
-            eyeL: { cx: 51, cy: 96, er: 7.6, pr: 3.2 },
-            eyeR: { cx: 99, cy: 96, er: 7.6, pr: 3.2 },
-            browL: { x1: 42, y1: 82, x2: 60, y2: 82.5 },
-            browR: { x1: 90, y1: 82.5, x2: 108, y2: 82 },
-            mouth: { x: 75, y: 130, w: 20 },
+            eyeL: { cx: 52, cy: 100, er: 8.7, pr: 3.4 },
+            eyeR: { cx: 98, cy: 100, er: 8.7, pr: 3.4 },
+            browL: { x1: 41, y1: 86, x2: 61, y2: 86.5 },
+            browR: { x1: 89, y1: 86.5, x2: 109, y2: 86 },
+            mouth: { x: 75, y: 136, w: 21 },
             cheekL: { cx: 38, cy: 124, r: 5.3 },
             cheekR: { cx: 112, cy: 124, r: 5.3 },
             arms: {
@@ -265,11 +270,11 @@
             id: 'black',
             viewBox: '0 0 120 300',
             shadow: { cx: 60, cy: 288, rx: 38, ry: 12 },
-            eyeL: { cx: 40, cy: 100, er: 7.1, pr: 2.95 },
-            eyeR: { cx: 80, cy: 100, er: 7.1, pr: 2.95 },
-            browL: { x1: 31, y1: 87, x2: 47, y2: 87.4 },
-            browR: { x1: 73, y1: 87.4, x2: 89, y2: 87 },
-            mouth: { x: 60, y: 136, w: 15 },
+            eyeL: { cx: 40, cy: 104, er: 8.2, pr: 3.15 },
+            eyeR: { cx: 80, cy: 104, er: 8.2, pr: 3.15 },
+            browL: { x1: 30, y1: 90, x2: 48, y2: 90.4 },
+            browR: { x1: 72, y1: 90.4, x2: 90, y2: 90 },
+            mouth: { x: 60, y: 142, w: 15 },
             cheekL: { cx: 28, cy: 130, r: 4.6 },
             cheekR: { cx: 92, cy: 130, r: 4.6 },
             arms: {
@@ -316,6 +321,7 @@
         burst: null,
         lastActionTarget: null,
         message: { text: '', until: 0 },
+        aim: { x: 0, y: 0, width: 0, height: 0, ready: false },
         reducedMotion: false,
         chars: [],
         root: null,
@@ -454,6 +460,23 @@
             rot: 0,
             sx: 1,
             sy: 1,
+            renderX: null,
+            renderY: null,
+            renderSize: null,
+            renderRot: 0,
+            renderSx: 1,
+            renderSy: 1,
+            renderLeftArm: 0,
+            renderRightArm: 0,
+            renderShadow: 1,
+            vx: 0,
+            vy: 0,
+            vrot: 0,
+            vsx: 0,
+            vsy: 0,
+            varmL: 0,
+            varmR: 0,
+            vshadow: 0,
             bubbleScore: 0,
             nextBlink: nowSeconds() + def.blinkBase * (0.5 + Math.random()),
             blinkStart: 0,
@@ -470,19 +493,22 @@
             ':root{--mc-orange:#fb923c;--mc-purple:#7367f0;--mc-yellow:#f2df4b;--mc-black:#24262d;--mc-face:#1e293b}',
             '.dark-mode{--mc-orange:#ff9557;--mc-purple:#8b7bff;--mc-yellow:#f0db4b;--mc-black:#cfd6e7;--mc-face:#111827}',
             '#mc-root{position:fixed;inset:0;z-index:36;pointer-events:none;overflow:hidden}',
-            '#mc-root .mc-backdrop{position:absolute;inset:0;opacity:.9}',
-            '#mc-root .mc-floor{position:absolute;left:50%;bottom:-44px;width:min(1180px,96vw);height:270px;transform:translateX(-50%);',
-            'background:radial-gradient(circle at 50% 35%,rgba(59,130,246,.18),rgba(59,130,246,.08) 34%,transparent 70%),',
-            'radial-gradient(circle at 18% 70%,rgba(251,146,60,.08),transparent 45%),',
-            'radial-gradient(circle at 82% 70%,rgba(242,223,75,.1),transparent 44%)}',
-            '.dark-mode #mc-root .mc-floor{background:radial-gradient(circle at 50% 35%,rgba(124,140,245,.18),rgba(124,140,245,.08) 34%,transparent 70%),',
-            'radial-gradient(circle at 18% 70%,rgba(249,115,22,.08),transparent 45%),',
-            'radial-gradient(circle at 82% 70%,rgba(245,158,11,.08),transparent 44%)}',
+            '#mc-root .mc-backdrop{position:absolute;inset:0;opacity:.96}',
+            '#mc-root .mc-haze{position:absolute;left:-6%;right:-6%;bottom:-12%;height:42%;',
+            'background:',
+            'radial-gradient(ellipse at 50% 100%,rgba(59,130,246,.12),rgba(59,130,246,.06) 24%,transparent 64%),',
+            'radial-gradient(ellipse at 20% 100%,rgba(251,146,60,.07),transparent 48%),',
+            'radial-gradient(ellipse at 80% 100%,rgba(242,223,75,.08),transparent 48%);',
+            'filter:blur(34px)}',
+            '.dark-mode #mc-root .mc-haze{background:',
+            'radial-gradient(ellipse at 50% 100%,rgba(124,140,245,.15),rgba(124,140,245,.07) 24%,transparent 64%),',
+            'radial-gradient(ellipse at 20% 100%,rgba(249,115,22,.08),transparent 48%),',
+            'radial-gradient(ellipse at 80% 100%,rgba(245,158,11,.08),transparent 48%)}',
             '#mc-root .mc-grid{position:absolute;inset:-12%;background-image:',
             'linear-gradient(rgba(59,130,246,.032) 1px,transparent 1px),',
             'linear-gradient(90deg,rgba(59,130,246,.032) 1px,transparent 1px);background-size:48px 48px;',
-            'animation:mc-grid-drift 40s linear infinite;opacity:.9}',
-            '.dark-mode #mc-root .mc-grid{background-image:linear-gradient(rgba(124,140,245,.042) 1px,transparent 1px),linear-gradient(90deg,rgba(124,140,245,.042) 1px,transparent 1px)}',
+            'animation:mc-grid-drift 40s linear infinite;opacity:.52}',
+            '.dark-mode #mc-root .mc-grid{background-image:linear-gradient(rgba(124,140,245,.042) 1px,transparent 1px),linear-gradient(90deg,rgba(124,140,245,.042) 1px,transparent 1px);opacity:.46}',
             '@keyframes mc-grid-drift{to{transform:translate(48px,32px)}}',
             '#mc-root .mc-target{position:absolute;z-index:8;border-radius:999px;filter:blur(36px);',
             'background:radial-gradient(circle,rgba(59,130,246,.25),rgba(59,130,246,.08) 45%,transparent 74%);opacity:0;',
@@ -503,17 +529,17 @@
             '.dark-mode #mc-root .mc-bubble{background:rgba(20,22,30,.78);border-color:rgba(255,255,255,.1);color:var(--text,#ececf1);box-shadow:0 20px 48px rgba(0,0,0,.35)}',
             '#mc-root .mc-bubble.show{opacity:1;transform:translate(-50%,-50%) scale(1)}',
             '#mc-root .mc-bubble span{display:block;font:600 .8rem/1.35 Outfit,system-ui,sans-serif;letter-spacing:-.01em}',
-            '.mc{position:absolute;left:0;top:0;will-change:transform,opacity;filter:drop-shadow(0 18px 32px rgba(15,23,42,.12))}',
-            '.dark-mode .mc{filter:drop-shadow(0 22px 36px rgba(0,0,0,.32))}',
+            '.mc{position:absolute;left:0;top:0;will-change:transform,opacity;filter:drop-shadow(0 16px 24px rgba(15,23,42,.1))}',
+            '.dark-mode .mc{filter:drop-shadow(0 18px 28px rgba(0,0,0,.28))}',
             '.mc-svg{display:block;width:100%;height:auto;overflow:visible}',
             '.mc-rig,.mc-body-g{transform-box:fill-box;transform-origin:center bottom}',
             '.mc-shadow{fill:rgba(15,23,42,.12);transform-box:fill-box;transform-origin:center center}',
             '.dark-mode .mc-shadow{fill:rgba(0,0,0,.26)}',
             '.mc-arm-stroke{fill:none;stroke:var(--mc-face);stroke-width:8;stroke-linecap:round;stroke-linejoin:round;opacity:.94}',
             '.mc-hand{fill:var(--mc-face)}',
-            '.mc-eye-white{fill:#fff}',
+            '.mc-eye-white{fill:#fff;stroke:rgba(15,23,42,.07);stroke-width:1.3}',
             '.mc-pupil{fill:var(--mc-face)}',
-            '.mc-brow{fill:none;stroke:var(--mc-face);stroke-width:4.2;stroke-linecap:round;opacity:.95}',
+            '.mc-brow{fill:none;stroke:var(--mc-face);stroke-width:4;stroke-linecap:round;opacity:.14;transition:opacity .18s ease}',
             '.mc-mouth{fill:none;stroke:var(--mc-face);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}',
             '.mc-blush{fill:rgba(239,68,68,.12);opacity:0;transition:opacity .2s ease}',
             '.dark-mode .mc-blush{fill:rgba(255,255,255,.1)}',
@@ -532,7 +558,7 @@
         root.innerHTML = [
             '<div class="mc-backdrop">',
             '<div class="mc-grid"></div>',
-            '<div class="mc-floor"></div>',
+            '<div class="mc-haze"></div>',
             '<div class="mc-target"></div>',
             '</div>',
             '<div class="mc-pulses"></div>',
@@ -586,6 +612,12 @@
     function interactiveTarget(node) {
         if (!node || !node.closest) return null;
         return node.closest(ACTIVE_SELECTOR);
+    }
+
+    function isLiveTarget(target) {
+        if (!target || !document.documentElement.contains(target)) return false;
+        const point = centerOf(target);
+        return !!point;
     }
 
     function targetLabel(target) {
@@ -703,6 +735,9 @@
 
     function trigger(mode, options) {
         const opts = options || {};
+        if ((mode === 'inspect' || mode === 'press') && state.burst && (state.burst.mode === 'success' || state.burst.mode === 'error' || state.burst.mode === 'loading')) {
+            return;
+        }
         const durationMap = {
             press: 0.55,
             hover: 0.8,
@@ -760,6 +795,13 @@
         }
 
         if (state.focusTarget) {
+            if (!isLiveTarget(state.focusTarget)) {
+                state.focusTarget = null;
+                state.focusType = '';
+            }
+        }
+
+        if (state.focusTarget) {
             const point = centerOf(state.focusTarget) || defaultTargetPoint();
             return {
                 mode: state.focusType === 'password' ? 'password' : 'focus',
@@ -770,12 +812,18 @@
         }
 
         if (state.hoverTarget) {
+            if (!isLiveTarget(state.hoverTarget)) {
+                state.hoverTarget = null;
+            }
+        }
+
+        if (state.hoverTarget) {
             const point = centerOf(state.hoverTarget) || defaultTargetPoint();
             return {
                 mode: 'hover',
                 target: state.hoverTarget,
                 point: point,
-                message: targetLabel(state.hoverTarget)
+                message: shouldBubbleOnHover(state.hoverTarget) ? targetLabel(state.hoverTarget) : ''
             };
         }
 
@@ -788,20 +836,22 @@
                 width: 140,
                 height: 140
             } : defaultTargetPoint(),
-            message: state.message.until > nowSeconds() ? state.message.text : copyFor(sceneConfig().idleKey)
+            message: state.message.until > nowSeconds()
+                ? state.message.text
+                : (sceneConfig().idleBubble ? copyFor(sceneConfig().idleKey) : '')
         };
     }
 
     function updateGlow(directive) {
         if (!state.glow) return;
         const point = directive.point || defaultTargetPoint();
-        const size = directive.mode === 'idle' ? 170 : directive.mode === 'success' ? 220 : 190;
+        const size = directive.mode === 'idle' ? 156 : directive.mode === 'success' ? 214 : directive.mode === 'drag' ? 206 : 182;
         state.glow.style.left = point.x + 'px';
         state.glow.style.top = point.y + 'px';
         state.glow.style.width = size + 'px';
         state.glow.style.height = size + 'px';
-        state.glow.style.opacity = directive.mode === 'idle' ? (state.pointer.active ? '0.35' : '0.16') : '0.62';
-        state.glow.style.transform = 'translate(-50%,-50%) scale(' + (directive.mode === 'success' ? '1.14' : '1') + ')';
+        state.glow.style.opacity = directive.mode === 'idle' ? (state.pointer.active ? '0.26' : '0.08') : '0.52';
+        state.glow.style.transform = 'translate(-50%,-50%) scale(' + (directive.mode === 'success' ? '1.12' : directive.mode === 'drag' ? '1.06' : '1') + ')';
     }
 
     function leaderChar(directive) {
@@ -828,7 +878,7 @@
     function updateBubble(directive) {
         if (!state.bubble || !state.bubbleText) return;
 
-        const text = directive.message || copyFor(sceneConfig().idleKey);
+        const text = directive.message || (directive.mode === 'idle' && sceneConfig().idleBubble ? copyFor(sceneConfig().idleKey) : '');
         const visible = !!text && !state.reducedMotion;
 
         state.bubbleText.textContent = text;
@@ -856,6 +906,66 @@
         state.bubble.classList.add('show');
     }
 
+    function shouldBubbleOnHover(target) {
+        if (!target) return false;
+        return target.id === 'uploadArea'
+            || target.id === 'homeCreatePairCodeBtn'
+            || target.classList.contains('share-fab');
+    }
+
+    function shouldPressBurst(target) {
+        if (!target) return false;
+        return target.id === 'uploadBtn'
+            || target.id === 'loginBtn'
+            || target.id === 'registerBtn'
+            || target.id === 'uploadArea'
+            || target.classList.contains('share-fab')
+            || target.getAttribute('type') === 'submit';
+    }
+
+    function smoothDirectivePoint(directive) {
+        const point = directive.point || defaultTargetPoint();
+        const alpha = directive.mode === 'success'
+            ? 0.24
+            : directive.mode === 'drag'
+                ? 0.22
+                : directive.mode === 'focus' || directive.mode === 'password'
+                    ? 0.2
+                    : 0.16;
+
+        if (!state.aim.ready) {
+            state.aim.x = point.x;
+            state.aim.y = point.y;
+            state.aim.width = point.width || 140;
+            state.aim.height = point.height || 140;
+            state.aim.ready = true;
+        } else {
+            state.aim.x = lerp(state.aim.x, point.x, alpha);
+            state.aim.y = lerp(state.aim.y, point.y, alpha);
+            state.aim.width = lerp(state.aim.width, point.width || 140, alpha);
+            state.aim.height = lerp(state.aim.height, point.height || 140, alpha);
+        }
+
+        return {
+            x: state.aim.x,
+            y: state.aim.y,
+            width: state.aim.width,
+            height: state.aim.height
+        };
+    }
+
+    function springTo(char, key, velKey, target, stiffness, damping) {
+        if (!Number.isFinite(char[key])) {
+            char[key] = target;
+            char[velKey] = 0;
+            return target;
+        }
+        char[velKey] += (target - char[key]) * stiffness;
+        char[velKey] *= damping;
+        char[key] += char[velKey];
+        return char[key];
+    }
+
     function applyExpression(char, directive, pose, time) {
         const def = char.def;
         const point = directive.point || defaultTargetPoint();
@@ -874,38 +984,44 @@
         let glanceX = focusX;
         let glanceY = focusY;
         let blush = 0;
+        let browOpacity = 0.14;
 
         if (mode === 'hover') {
             mouth = { kind: 'smirk', openness: 0.35 };
             browMood = 'curious';
-            eyeWide = 1.08;
-            glanceY *= 0.8;
+            eyeWide = 1.05;
+            glanceY *= 0.72;
             blush = 0.22;
+            browOpacity = 0.42;
         } else if (mode === 'focus') {
             mouth = { kind: char.def.id === 'purple' || char.def.id === 'yellow' ? 'smile' : 'flat', openness: 0.3 };
             browMood = 'curious';
-            eyeWide = 1.12;
+            eyeWide = 1.08;
             blush = 0.18;
+            browOpacity = 0.52;
         } else if (mode === 'password') {
             mouth = { kind: 'flat', openness: 0.1 };
             browMood = 'shy';
-            eyeWide = 0.94;
+            eyeWide = 0.97;
             eyeOpen = char.def.id === 'black' ? 0.18 : 0.72;
             glanceX = (char.x < point.x ? -0.72 : 0.72) * (char.def.id === 'black' ? 1 : 0.6);
             glanceY = -0.35;
             blush = 0.28;
+            browOpacity = 0.48;
         } else if (mode === 'press') {
             mouth = { kind: 'o', openness: 0.44 };
             browMood = 'curious';
-            eyeWide = 1.18;
+            eyeWide = 1.12;
+            browOpacity = 0.56;
         } else if (mode === 'success') {
             mouth = { kind: 'smile', openness: 0.72 };
             browMood = 'celebrate';
-            eyeWide = 1.2;
+            eyeWide = 1.12;
             eyeOpen = 1.08;
             blush = 0.3;
             glanceX = Math.sin(time * 3.2 + personality.seed) * 0.2;
             glanceY = -0.45;
+            browOpacity = 0.6;
         } else if (mode === 'error') {
             mouth = { kind: 'frown', openness: 0.5 };
             browMood = 'worry';
@@ -913,25 +1029,30 @@
             eyeOpen = 0.78;
             glanceX = -focusX * 0.55;
             glanceY = -0.18;
+            browOpacity = 0.62;
         } else if (mode === 'inspect' || mode === 'copy') {
             mouth = { kind: 'o', openness: 0.35 };
             browMood = 'curious';
-            eyeWide = 1.16;
+            eyeWide = 1.09;
+            browOpacity = 0.46;
         } else if (mode === 'drag') {
             mouth = { kind: 'smile', openness: 0.44 };
             browMood = 'curious';
-            eyeWide = 1.1;
+            eyeWide = 1.06;
             eyeOpen = 1.02;
             glanceY = Math.min(glanceY, -0.1);
+            browOpacity = 0.52;
         } else if (mode === 'loading') {
             mouth = { kind: 'flat', openness: 0.12 };
             browMood = 'curious';
             eyeWide = 1.02;
+            browOpacity = 0.42;
         } else {
             mouth = { kind: attraction > 0.64 ? 'smirk' : 'flat', openness: attraction * 0.25 };
             browMood = attraction > 0.7 ? 'curious' : 'neutral';
-            eyeWide = 1 + attraction * 0.08;
+            eyeWide = 1 + attraction * 0.05;
             eyeOpen = 1;
+            browOpacity = 0.12 + attraction * 0.18;
         }
 
         if (char.mouth) {
@@ -939,17 +1060,20 @@
         }
         if (char.browL) {
             char.browL.setAttribute('d', browPath(def, 'left', browMood, attraction));
+            char.browL.style.opacity = String(browOpacity);
         }
         if (char.browR) {
             char.browR.setAttribute('d', browPath(def, 'right', browMood, attraction));
+            char.browR.style.opacity = String(browOpacity);
         }
 
         const blink = blinkScale(char, time);
         for (let i = 0; i < char.eyes.length; i++) {
             const eye = char.eyes[i];
-            const maxMove = eye.er - eye.pr - 1.3;
-            const targetPx = eye.cx + clamp(glanceX, -1, 1) * maxMove;
-            const targetPy = eye.cy + clamp(glanceY, -1, 1) * maxMove;
+            const maxMoveX = eye.er - eye.pr - 2.1;
+            const maxMoveY = Math.max(1.4, eye.er - eye.pr - 2.8);
+            const targetPx = eye.cx + clamp(glanceX, -1, 1) * maxMoveX;
+            const targetPy = eye.cy + clamp(glanceY, -1, 1) * maxMoveY;
             eye.px = lerp(eye.px, targetPx, 0.18);
             eye.py = lerp(eye.py, targetPy, 0.18);
             eye.sx = lerp(eye.sx, eyeWide, 0.14);
@@ -1084,34 +1208,62 @@
             leftArm: leftArm,
             rightArm: rightArm,
             shadow: shadow,
-            bubbleScore: bubbleScore
+            bubbleScore: bubbleScore,
+            mode: directive.mode
         };
     }
 
     function applyPose(char, pose) {
-        char.size = pose.size;
-        char.x = pose.x;
-        char.y = pose.y;
-        char.bubbleScore = pose.bubbleScore;
+        if (char.renderSize === null) {
+            char.renderSize = pose.size;
+            char.renderX = pose.x;
+            char.renderY = pose.y;
+            char.renderRot = pose.rot;
+            char.renderSx = pose.sx;
+            char.renderSy = pose.sy;
+            char.renderLeftArm = pose.leftArm;
+            char.renderRightArm = pose.rightArm;
+            char.renderShadow = pose.shadow;
+        }
 
-        char.el.style.width = pose.size + 'px';
+        const posStiffness = pose.mode === 'success' || pose.mode === 'drag' ? 0.19 : 0.14;
+        const posDamping = pose.mode === 'success' || pose.mode === 'drag' ? 0.74 : 0.72;
+        const rotStiffness = pose.mode === 'success' ? 0.15 : 0.11;
+        const rotDamping = pose.mode === 'success' ? 0.72 : 0.68;
+
+        char.renderSize = lerp(char.renderSize, pose.size, 0.22);
+        springTo(char, 'renderX', 'vx', pose.x, posStiffness, posDamping);
+        springTo(char, 'renderY', 'vy', pose.y, posStiffness, posDamping);
+        springTo(char, 'renderRot', 'vrot', pose.rot, rotStiffness, rotDamping);
+        springTo(char, 'renderSx', 'vsx', pose.sx, 0.08, 0.64);
+        springTo(char, 'renderSy', 'vsy', pose.sy, 0.08, 0.64);
+        springTo(char, 'renderLeftArm', 'varmL', pose.leftArm, 0.12, 0.7);
+        springTo(char, 'renderRightArm', 'varmR', pose.rightArm, 0.12, 0.7);
+        springTo(char, 'renderShadow', 'vshadow', pose.shadow, 0.1, 0.68);
+
+        char.size = char.renderSize;
+        char.x = char.renderX;
+        char.y = char.renderY;
+        char.bubbleScore = lerp(char.bubbleScore, pose.bubbleScore, 0.18);
+
+        char.el.style.width = char.renderSize.toFixed(1) + 'px';
         char.el.style.zIndex = String((sceneConfig().layout[char.def.id] || {}).z || 44);
-        char.el.style.transform = 'translate(' + (pose.x - pose.size / 2).toFixed(1) + 'px,' + (pose.y - pose.size).toFixed(1) + 'px)';
+        char.el.style.transform = 'translate(' + (char.renderX - char.renderSize / 2).toFixed(1) + 'px,' + (char.renderY - char.renderSize).toFixed(1) + 'px)';
 
         if (char.rig) {
-            char.rig.style.transform = 'rotate(' + pose.rot.toFixed(2) + 'deg) scale(' + pose.sx.toFixed(4) + ',' + pose.sy.toFixed(4) + ')';
+            char.rig.style.transform = 'rotate(' + char.renderRot.toFixed(2) + 'deg) scale(' + char.renderSx.toFixed(4) + ',' + char.renderSy.toFixed(4) + ')';
         }
         if (char.body) {
             char.body.style.transform = 'translateY(0px)';
         }
         if (char.leftArm) {
-            char.leftArm.style.transform = 'rotate(' + pose.leftArm.toFixed(2) + 'deg)';
+            char.leftArm.style.transform = 'rotate(' + char.renderLeftArm.toFixed(2) + 'deg)';
         }
         if (char.rightArm) {
-            char.rightArm.style.transform = 'rotate(' + pose.rightArm.toFixed(2) + 'deg)';
+            char.rightArm.style.transform = 'rotate(' + char.renderRightArm.toFixed(2) + 'deg)';
         }
         if (char.shadow) {
-            char.shadow.style.transform = 'scale(' + pose.shadow.toFixed(3) + ',1)';
+            char.shadow.style.transform = 'scale(' + char.renderShadow.toFixed(3) + ',1)';
         }
     }
 
@@ -1168,7 +1320,11 @@
             const target = interactiveTarget(event.target);
             if (target) {
                 state.lastActionTarget = target;
-                trigger('press', { target: target, message: targetLabel(target), duration: 0.6 });
+                if (shouldPressBurst(target)) {
+                    trigger('press', { target: target, message: targetLabel(target), duration: 0.5 });
+                } else {
+                    pulseAt(centerOf(target) || { x: event.clientX, y: event.clientY }, '');
+                }
             } else {
                 pulseAt({ x: event.clientX, y: event.clientY }, '');
             }
@@ -1185,12 +1341,8 @@
                 trigger('loading', { target: target, message: target.id === 'loginBtn' ? copyFor('loginReady') : target.id === 'registerBtn' ? copyFor('registerReady') : copyFor('loading') });
                 return;
             }
-            if (target.classList && target.classList.contains('tab')) {
-                trigger('inspect', { target: target, message: targetLabel(target) });
-                return;
-            }
             if (target.id === 'uploadArea' || target.classList.contains('share-fab')) {
-                trigger('inspect', { target: target, message: targetLabel(target) });
+                setMessage(targetLabel(target), 1.1);
             }
         }, true);
     }
@@ -1292,14 +1444,10 @@
             const originalSwitchTab = window.switchTab;
             const wrappedSwitchTab = function (tab) {
                 const result = originalSwitchTab.apply(this, arguments);
-                const target = tab === 'download'
-                    ? document.querySelector('.tab:nth-child(2)')
-                    : document.querySelector('.tab:nth-child(1)');
-                trigger('inspect', {
-                    target: target,
-                    message: tab === 'download' ? copyFor('switchDownload') : copyFor('switchUpload'),
-                    duration: 0.95
-                });
+                state.hoverTarget = null;
+                if (!sceneConfig().idleBubble) {
+                    state.message.until = 0;
+                }
                 return result;
             };
             wrappedSwitchTab.__mascotWrapped = true;
@@ -1349,17 +1497,23 @@
         const time = nowSeconds();
         const scale = resolveScale() * (state.reducedMotion ? 0.92 : 1);
         const directive = activeDirective();
+        const smoothedDirective = {
+            mode: directive.mode,
+            target: directive.target,
+            message: directive.message,
+            point: smoothDirectivePoint(directive)
+        };
 
-        updateGlow(directive);
+        updateGlow(smoothedDirective);
 
         for (let i = 0; i < state.chars.length; i++) {
             const char = state.chars[i];
-            const pose = computePose(char, directive, time, scale);
-            applyExpression(char, directive, pose, time);
+            const pose = computePose(char, smoothedDirective, time, scale);
+            applyExpression(char, smoothedDirective, pose, time);
             applyPose(char, pose);
         }
 
-        updateBubble(directive);
+        updateBubble(smoothedDirective);
         state.raf = window.requestAnimationFrame(tick);
     }
 

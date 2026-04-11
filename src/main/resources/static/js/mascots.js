@@ -1,14 +1,13 @@
 /**
- * mascots.js — Premium idle-animated mascot characters
+ * mascots.js — Interactive mascot characters with rich form reactions
  *
- * 4 characters with distinct personalities and seamless idle loops:
- *   Purple block — gentle bobbing + breathing squish (10s loop)
- *   Black block  — subtle swaying + head tilt (12s loop)
- *   Orange dome  — bouncy squish-stretch (8s loop)
- *   Yellow pill  — playful wobble + float (9s loop)
+ * Modes: idle | username | password | toggle-pw | cheer
  *
- * Plus: eye tracking, password paw-cover, random micro-behaviors,
- *       deep blue grid background with slow parallax drift.
+ * idle     — each character does its own idle loop (bob, sway, breathe)
+ * username — purple+yellow lean forward curiously, all eyes watch input
+ * password — all look away shyly, black turns head most
+ * toggle-pw— black quickly covers/turns away, recovers slowly
+ * cheer    — all bounce/celebrate together for 1.5s
  */
 
 'use strict';
@@ -18,6 +17,8 @@
     var mX = 0, mY = 0, t = 0;
     var chars = [];
     var mode = 'idle';
+    var modeT = 0;               // timestamp when mode changed
+    var cheerTimer = null;
 
     /* ═══════════════════════════════════════════════════════════════
        Character definitions
@@ -25,49 +26,58 @@
 
     var DEFS = [
         {
-            id: 'orange',
-            // Orange dome — the big friendly one, front-left
+            id: 'orange', label: 'Orange dome',
             css: 'left:-10px;bottom:-10px;width:280px;z-index:52;',
             vb: '0 0 280 200',
             body: '<ellipse cx="140" cy="190" rx="140" ry="140" fill="var(--mc-orange,#fb923c)"/>',
             eyeL: { cx: 100, cy: 118, er: 9, pr: 4 },
             eyeR: { cx: 172, cy: 118, er: 9, pr: 4 },
             mouth: '',
-            // Animation personality
-            anim: 'orange', blinkEvery: 2200
+            blinkBase: 2200,
+            // Idle: bouncy squish
+            idle: function (t) {
+                var b = Math.sin(t * 0.8);
+                return { ty: Math.abs(b) * -8, sx: 1 + b * 0.018, sy: 1 - b * 0.018, tx: 0, rot: 0 };
+            }
         },
         {
-            id: 'purple',
-            // Purple tall block — behind orange, left
+            id: 'purple', label: 'Purple block',
             css: 'left:80px;bottom:40px;width:160px;z-index:51;',
             vb: '0 0 160 320',
             body: '<rect x="0" y="0" width="160" height="320" rx="40" fill="var(--mc-purple,#818cf8)"/>',
             eyeL: { cx: 55, cy: 110, er: 8, pr: 3.5 },
             eyeR: { cx: 105, cy: 110, er: 8, pr: 3.5 },
             mouth: '',
-            anim: 'purple', blinkEvery: 3000
+            blinkBase: 3000,
+            idle: function (t) {
+                return { ty: Math.sin(t * 0.65) * 6, sx: 1 + Math.sin(t * 0.8) * 0.012, sy: 1 - Math.sin(t * 0.8) * 0.012, tx: 0, rot: 0 };
+            }
         },
         {
-            id: 'yellow',
-            // Yellow capsule — front-right
+            id: 'yellow', label: 'Yellow capsule',
             css: 'right:10px;bottom:-5px;width:150px;z-index:52;',
             vb: '0 0 150 250',
             body: '<rect x="10" y="10" width="130" height="230" rx="65" fill="var(--mc-yellow,#fbbf24)"/>',
             eyeL: { cx: 50, cy: 95, er: 7.5, pr: 3.2 },
             eyeR: { cx: 100, cy: 95, er: 7.5, pr: 3.2 },
             mouth: '<line x1="55" y1="125" x2="95" y2="125" stroke="var(--mc-face,#1e293b)" stroke-width="2.5" stroke-linecap="round"/>',
-            anim: 'yellow', blinkEvery: 1800
+            blinkBase: 1800,
+            idle: function (t) {
+                return { ty: Math.sin(t * 0.7) * 5, tx: Math.sin(t * 0.55) * 3, rot: Math.sin(t * 0.45) * 3, sx: 1, sy: 1 };
+            }
         },
         {
-            id: 'black',
-            // Black tall block — behind yellow, right
+            id: 'black', label: 'Black block',
             css: 'right:60px;bottom:30px;width:120px;z-index:51;',
             vb: '0 0 120 280',
             body: '<rect x="0" y="0" width="120" height="280" rx="36" fill="var(--mc-black,#1f2937)"/>',
             eyeL: { cx: 40, cy: 96, er: 7, pr: 3 },
             eyeR: { cx: 80, cy: 96, er: 7, pr: 3 },
             mouth: '',
-            anim: 'black', blinkEvery: 3500
+            blinkBase: 3500,
+            idle: function (t) {
+                return { tx: Math.sin(t * 0.5) * 4, rot: Math.sin(t * 0.35) * 2.5, ty: 0, sx: 1, sy: 1 };
+            }
         }
     ];
 
@@ -79,31 +89,22 @@
         var eL = d.eyeL, eR = d.eyeR;
         return [
             '<svg viewBox="' + d.vb + '" class="mc-svg" preserveAspectRatio="xMidYMax meet" style="overflow:visible">',
-            // Body group — for breathing/squish transforms
-            '<g class="mc-body-g">',
-            d.body,
+            '<g class="mc-body-g">', d.body, '</g>',
+            '<g class="mc-eye mc-eye-l" data-cx="'+eL.cx+'" data-cy="'+eL.cy+'" data-er="'+eL.er+'" data-pr="'+eL.pr+'">',
+            '<circle cx="'+eL.cx+'" cy="'+eL.cy+'" r="'+eL.er+'" fill="white"/>',
+            '<circle class="mc-pupil" cx="'+eL.cx+'" cy="'+eL.cy+'" r="'+eL.pr+'" fill="var(--mc-face,#1e293b)"/>',
             '</g>',
-            // Eyes
-            '<g class="mc-eye mc-eye-l" data-cx="' + eL.cx + '" data-cy="' + eL.cy + '" data-er="' + eL.er + '" data-pr="' + eL.pr + '">',
-            '<circle cx="' + eL.cx + '" cy="' + eL.cy + '" r="' + eL.er + '" fill="white"/>',
-            '<circle class="mc-pupil" cx="' + eL.cx + '" cy="' + eL.cy + '" r="' + eL.pr + '" fill="var(--mc-face,#1e293b)"/>',
-            '</g>',
-            '<g class="mc-eye mc-eye-r" data-cx="' + eR.cx + '" data-cy="' + eR.cy + '" data-er="' + eR.er + '" data-pr="' + eR.pr + '">',
-            '<circle cx="' + eR.cx + '" cy="' + eR.cy + '" r="' + eR.er + '" fill="white"/>',
-            '<circle class="mc-pupil" cx="' + eR.cx + '" cy="' + eR.cy + '" r="' + eR.pr + '" fill="var(--mc-face,#1e293b)"/>',
+            '<g class="mc-eye mc-eye-r" data-cx="'+eR.cx+'" data-cy="'+eR.cy+'" data-er="'+eR.er+'" data-pr="'+eR.pr+'">',
+            '<circle cx="'+eR.cx+'" cy="'+eR.cy+'" r="'+eR.er+'" fill="white"/>',
+            '<circle class="mc-pupil" cx="'+eR.cx+'" cy="'+eR.cy+'" r="'+eR.pr+'" fill="var(--mc-face,#1e293b)"/>',
             '</g>',
             d.mouth || '',
-            // Paws for password cover
-            '<g class="mc-paws" style="opacity:0">',
-            '<ellipse class="mc-paw-l" cx="' + (eL.cx - eL.er * 3) + '" cy="' + eL.cy + '" rx="' + (eL.er * 2) + '" ry="' + (eL.er * 1.4) + '" fill="var(--mc-paw)"/>',
-            '<ellipse class="mc-paw-r" cx="' + (eR.cx + eR.er * 3) + '" cy="' + eR.cy + '" rx="' + (eR.er * 2) + '" ry="' + (eR.er * 1.4) + '" fill="var(--mc-paw)"/>',
-            '</g>',
             '</svg>'
         ].join('');
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Create instance
+       Create
     ═══════════════════════════════════════════════════════════════ */
 
     function create(d) {
@@ -114,13 +115,13 @@
         el.innerHTML = buildSvg(d);
 
         var eyes = [];
-        var eGroups = el.querySelectorAll('.mc-eye');
-        for (var i = 0; i < eGroups.length; i++) {
-            var g = eGroups[i];
-            eyes.push({
-                g: g, pupil: g.querySelector('.mc-pupil'),
-                cx: +g.dataset.cx, cy: +g.dataset.cy,
-                er: +g.dataset.er, pr: +g.dataset.pr
+        var gs = el.querySelectorAll('.mc-eye');
+        for (var i = 0; i < gs.length; i++) {
+            var g = gs[i];
+            eyes.push({ g: g, pupil: g.querySelector('.mc-pupil'),
+                cx: +g.dataset.cx, cy: +g.dataset.cy, er: +g.dataset.er, pr: +g.dataset.pr,
+                // Smooth pupil position
+                px: +g.dataset.cx, py: +g.dataset.cy
             });
         }
 
@@ -128,15 +129,72 @@
             el: el, d: d, eyes: eyes,
             svg: el.querySelector('.mc-svg'),
             bodyG: el.querySelector('.mc-body-g'),
-            paws: el.querySelector('.mc-paws'),
-            pawL: el.querySelector('.mc-paw-l'),
-            pawR: el.querySelector('.mc-paw-r'),
-            rot: 0, tx: 0, ty: 0
+            // Smooth state
+            rot: 0, tx: 0, ty: 0, extraRot: 0, extraTx: 0, extraTy: 0
         };
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Per-frame update — idle animation + eye tracking
+       Interaction state: compute target eye position & body offset
+    ═══════════════════════════════════════════════════════════════ */
+
+    function getInteractionState(c) {
+        // Returns target overrides: { gazeX, gazeY, bodyTx, bodyTy, bodyRot, eyeScale }
+        // gazeX/gazeY: -1..1 normalized direction for pupils (null = follow mouse)
+        var elapsed = (t - modeT);
+        var id = c.d.id;
+
+        if (mode === 'username') {
+            // Purple + yellow lean forward curiously, eyes look at input area (center-right)
+            var curious = (id === 'purple' || id === 'yellow');
+            return {
+                gazeX: 0.6, gazeY: 0.4,   // look toward form area
+                bodyTx: curious ? 12 : 5,
+                bodyTy: curious ? -4 : -1,
+                bodyRot: curious ? (id === 'purple' ? 4 : -3) : 1,
+                eyeScale: curious ? 1.12 : 1.05
+            };
+        }
+
+        if (mode === 'password') {
+            // All look away shyly — black most dramatically
+            var shyFactor = id === 'black' ? 1.0 : (id === 'purple' ? 0.6 : 0.4);
+            var dir = (c.el.getBoundingClientRect().left < window.innerWidth / 2) ? -1 : 1;
+            return {
+                gazeX: dir * shyFactor,
+                gazeY: -0.3 * shyFactor,
+                bodyTx: dir * 8 * shyFactor,
+                bodyTy: 0,
+                bodyRot: dir * 6 * shyFactor,
+                eyeScale: 0.9
+            };
+        }
+
+        if (mode === 'toggle-pw') {
+            // Black dramatically turns away, others mild
+            if (id === 'black') {
+                var dir2 = (c.el.getBoundingClientRect().left < window.innerWidth / 2) ? -1 : 1;
+                return { gazeX: null, gazeY: null, bodyTx: dir2 * 18, bodyTy: -6, bodyRot: dir2 * 15, eyeScale: 0.05 };
+            }
+            return { gazeX: null, gazeY: null, bodyTx: 0, bodyTy: 0, bodyRot: 0, eyeScale: 0.7 };
+        }
+
+        if (mode === 'cheer') {
+            // Each character has unique celebration
+            var cheerPhase = Math.min(elapsed / 1.5, 1); // 0..1 over 1.5s
+            var bounce = Math.sin(elapsed * 8) * (1 - cheerPhase) * 12;
+            if (id === 'orange') return { gazeX: 0, gazeY: -0.5, bodyTx: 0, bodyTy: -16 * (1-cheerPhase) + bounce, bodyRot: 0, eyeScale: 1.25 * (1-cheerPhase*0.2) };
+            if (id === 'purple') return { gazeX: 0.3, gazeY: -0.3, bodyTx: bounce * 0.5, bodyTy: bounce * 0.7, bodyRot: Math.sin(elapsed * 6) * 5 * (1-cheerPhase), eyeScale: 1.15 };
+            if (id === 'yellow') return { gazeX: -0.2, gazeY: -0.4, bodyTx: 0, bodyTy: bounce * 0.8, bodyRot: Math.sin(elapsed * 7) * 4 * (1-cheerPhase), eyeScale: 1.3 * (1-cheerPhase*0.2) };
+            if (id === 'black') return { gazeX: 0, gazeY: -0.2, bodyTx: Math.sin(elapsed * 5) * 6 * (1-cheerPhase), bodyTy: bounce * 0.5, bodyRot: Math.sin(elapsed * 4) * 3 * (1-cheerPhase), eyeScale: 1.1 };
+        }
+
+        // idle — no override
+        return null;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Per-frame update
     ═══════════════════════════════════════════════════════════════ */
 
     function tick() {
@@ -150,68 +208,93 @@
             var vb = c.d.vb.split(' ');
             var vbW = +vb[2];
             var sx = rect.width / vbW;
-            var cx = rect.left + rect.width / 2;
-            var cy = rect.top + rect.height / 2;
-            var dx = mX - cx, dy = mY - cy;
-            var dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
-            // ── Per-character idle animation ──
-            var idleTy = 0, idleTx = 0, idleRot = 0;
-            var bodySx = 1, bodySy = 1;
+            // ── Idle animation ──
+            var idle = c.d.idle(t);
 
-            if (c.d.anim === 'purple') {
-                // Gentle bobbing + breathing squish
-                idleTy = Math.sin(t * 0.65) * 6;
-                bodySx = 1 + Math.sin(t * 0.8) * 0.012;
-                bodySy = 1 - Math.sin(t * 0.8) * 0.012;
-            } else if (c.d.anim === 'black') {
-                // Subtle swaying + occasional head tilt
-                idleTx = Math.sin(t * 0.5) * 4;
-                idleRot = Math.sin(t * 0.35) * 2.5;
-            } else if (c.d.anim === 'orange') {
-                // Bouncy squish-stretch cycle
-                var bounce = Math.sin(t * 0.8);
-                idleTy = Math.abs(bounce) * -8;
-                bodySx = 1 + bounce * 0.018;
-                bodySy = 1 - bounce * 0.018;
-            } else if (c.d.anim === 'yellow') {
-                // Playful wobble + float
-                idleTy = Math.sin(t * 0.7) * 5;
-                idleTx = Math.sin(t * 0.55) * 3;
-                idleRot = Math.sin(t * 0.45) * 3;
+            // ── Interaction override ──
+            var inter = getInteractionState(c);
+            var targetETx = 0, targetETy = 0, targetERot = 0;
+            var eyeScale = 1;
+
+            if (inter) {
+                targetETx = inter.bodyTx || 0;
+                targetETy = inter.bodyTy || 0;
+                targetERot = inter.bodyRot || 0;
+                eyeScale = inter.eyeScale || 1;
             }
 
-            // ── Mouse lean (additive, subtle) ──
-            var tRot = (dx / dist) * Math.min(dist * 0.004, 3);
-            var tTx = (dx / dist) * Math.min(dist * 0.006, 4);
-            c.rot += (tRot - c.rot) * 0.03;
-            c.tx += (tTx - c.tx) * 0.03;
+            // Smooth easing toward targets
+            c.extraTx += (targetETx - c.extraTx) * 0.06;
+            c.extraTy += (targetETy - c.extraTy) * 0.06;
+            c.extraRot += (targetERot - c.extraRot) * 0.06;
 
-            // Compose transforms
+            // Mouse lean (subtle, additive)
+            var cx0 = rect.left + rect.width / 2;
+            var cy0 = rect.top + rect.height / 2;
+            var dx = mX - cx0, dy = mY - cy0;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            var mLeanRot = (dx / dist) * Math.min(dist * 0.003, 2);
+            var mLeanTx = (dx / dist) * Math.min(dist * 0.005, 3);
+            c.rot += (mLeanRot - c.rot) * 0.03;
+            c.tx += (mLeanTx - c.tx) * 0.03;
+
+            // Compose SVG transform
+            var finalTx = (idle.tx || 0) + c.tx + c.extraTx;
+            var finalTy = (idle.ty || 0) + c.extraTy;
+            var finalRot = (idle.rot || 0) + c.rot + c.extraRot;
+
             c.svg.style.transform =
-                'translate(' + (idleTx + c.tx).toFixed(1) + 'px,' + idleTy.toFixed(1) + 'px)' +
-                ' rotate(' + (idleRot + c.rot).toFixed(2) + 'deg)';
+                'translate(' + finalTx.toFixed(1) + 'px,' + finalTy.toFixed(1) + 'px)' +
+                ' rotate(' + finalRot.toFixed(2) + 'deg)';
 
-            // Body breathing squish
-            if (c.bodyG && (bodySx !== 1 || bodySy !== 1)) {
-                var originY = c.d.id === 'orange' ? '100%' : '100%';
-                c.bodyG.style.transformOrigin = '50% ' + originY;
-                c.bodyG.style.transform = 'scaleX(' + bodySx.toFixed(4) + ') scaleY(' + bodySy.toFixed(4) + ')';
+            // Body squish
+            if (c.bodyG) {
+                c.bodyG.style.transformOrigin = '50% 100%';
+                c.bodyG.style.transform = 'scaleX(' + (idle.sx || 1).toFixed(4) + ') scaleY(' + (idle.sy || 1).toFixed(4) + ')';
             }
 
             // ── Eye tracking ──
-            if (mode !== 'password') {
-                for (var j = 0; j < c.eyes.length; j++) {
-                    var e = c.eyes[j];
+            for (var j = 0; j < c.eyes.length; j++) {
+                var e = c.eyes[j];
+
+                // Eye scale (for curious/shy)
+                e.g.style.transformOrigin = e.cx + 'px ' + e.cy + 'px';
+                var curScale = e._scale || 1;
+                curScale += (eyeScale - curScale) * 0.08;
+                e._scale = curScale;
+                if (mode !== 'toggle-pw' || c.d.id !== 'black') {
+                    e.g.style.transition = '';
+                    e.g.style.transform = 'scale(' + curScale.toFixed(3) + ')';
+                }
+
+                // Pupil target
+                var targetPx, targetPy;
+                if (inter && inter.gazeX !== null && inter.gazeX !== undefined) {
+                    // Forced gaze direction
+                    var maxM = e.er - e.pr - 1;
+                    targetPx = e.cx + inter.gazeX * maxM;
+                    targetPy = e.cy + (inter.gazeY || 0) * maxM;
+                } else if (mode !== 'toggle-pw') {
+                    // Mouse tracking
                     var ex = rect.left + e.cx * sx;
                     var ey = rect.top + e.cy * sx;
                     var edx = mX - ex, edy = mY - ey;
                     var ed = Math.sqrt(edx * edx + edy * edy) || 1;
-                    var maxM = e.er - e.pr - 1;
-                    var mv = Math.min(ed * 0.018, maxM);
-                    e.pupil.setAttribute('cx', (e.cx + (edx / ed) * mv).toFixed(1));
-                    e.pupil.setAttribute('cy', (e.cy + (edy / ed) * mv).toFixed(1));
+                    var maxM2 = e.er - e.pr - 1;
+                    var mv = Math.min(ed * 0.018, maxM2);
+                    targetPx = e.cx + (edx / ed) * mv;
+                    targetPy = e.cy + (edy / ed) * mv;
+                } else {
+                    targetPx = e.cx;
+                    targetPy = e.cy;
                 }
+
+                // Smooth pupil movement
+                e.px += (targetPx - e.px) * 0.1;
+                e.py += (targetPy - e.py) * 0.1;
+                e.pupil.setAttribute('cx', e.px.toFixed(1));
+                e.pupil.setAttribute('cy', e.py.toFixed(1));
             }
         }
 
@@ -219,34 +302,27 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Blinking — per-character interval from config
+       Blinking
     ═══════════════════════════════════════════════════════════════ */
 
     function startBlink(c) {
-        var base = c.d.blinkEvery || 3000;
-
+        var base = c.d.blinkBase;
         function blink() {
-            if (mode === 'password') { c._bt = setTimeout(blink, 2000); return; }
-
-            // Close
+            if (mode === 'toggle-pw' && c.d.id === 'black') { c._bt = setTimeout(blink, 2000); return; }
             c.eyes.forEach(function (e) {
                 e.g.style.transition = 'transform .06s ease-in';
                 e.g.style.transformOrigin = e.cx + 'px ' + e.cy + 'px';
                 e.g.style.transform = 'scaleY(0.04)';
             });
-            // Open
             setTimeout(function () {
-                if (mode === 'password') return;
                 c.eyes.forEach(function (e) {
                     e.g.style.transition = 'transform .08s ease-out';
-                    e.g.style.transform = 'scaleY(1)';
+                    e.g.style.transform = 'scaleY(' + (e._scale || 1).toFixed(3) + ')';
                 });
-            }, 75);
-
-            // Yellow character: occasional playful double-blink
+            }, 70);
+            // Yellow: occasional double-blink
             if (c.d.id === 'yellow' && Math.random() < 0.35) {
                 setTimeout(function () {
-                    if (mode === 'password') return;
                     c.eyes.forEach(function (e) {
                         e.g.style.transition = 'transform .04s ease-in';
                         e.g.style.transform = 'scaleY(0.04)';
@@ -254,92 +330,128 @@
                     setTimeout(function () {
                         c.eyes.forEach(function (e) {
                             e.g.style.transition = 'transform .06s ease-out';
-                            e.g.style.transform = 'scaleY(1)';
+                            e.g.style.transform = 'scaleY(' + (e._scale || 1).toFixed(3) + ')';
                         });
-                    }, 50);
-                }, 180);
+                    }, 45);
+                }, 160);
             }
-
-            c._bt = setTimeout(blink, base + Math.random() * base * 0.6);
+            c._bt = setTimeout(blink, base + Math.random() * base * 0.5);
         }
-
-        c._bt = setTimeout(blink, 500 + Math.random() * base);
+        c._bt = setTimeout(blink, 400 + Math.random() * base);
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Random micro-behaviors (every 4-8s)
+       Random micro-behaviors (idle only)
     ═══════════════════════════════════════════════════════════════ */
 
-    function startRandomBehaviors() {
+    function startRandom() {
         function act() {
-            if (!chars.length) return;
+            if (mode !== 'idle' || !chars.length) { setTimeout(act, 3000); return; }
             var c = chars[Math.floor(Math.random() * chars.length)];
             var r = Math.random();
-
-            if (r < 0.4) {
-                // Surprised wide eyes
+            if (r < 0.3) {
+                // Surprise wide eyes
                 c.eyes.forEach(function (e) {
                     e.g.style.transition = 'transform .15s cubic-bezier(.34,1.4,.64,1)';
                     e.g.style.transformOrigin = e.cx + 'px ' + e.cy + 'px';
                     e.g.style.transform = 'scale(1.2)';
                 });
-                setTimeout(function () {
-                    c.eyes.forEach(function (e) {
-                        e.g.style.transition = 'transform .35s ease';
-                        e.g.style.transform = 'scale(1)';
-                    });
-                }, 700);
-            } else if (r < 0.7) {
-                // Quick bounce
+                setTimeout(function () { c.eyes.forEach(function (e) { e.g.style.transition = 'transform .35s ease'; e.g.style.transform = 'scale(1)'; }); }, 700);
+            } else if (r < 0.6) {
+                // Quick bounce via CSS
                 c.el.style.transition = 'transform .18s cubic-bezier(.4,0,.2,1)';
-                c.el.style.transform = 'translateY(-16px)';
-                setTimeout(function () {
-                    c.el.style.transition = 'transform .35s cubic-bezier(.4,0,.2,1)';
-                    c.el.style.transform = '';
-                }, 180);
+                c.el.style.transform = 'translateY(-14px)';
+                setTimeout(function () { c.el.style.transition = 'transform .35s ease'; c.el.style.transform = ''; }, 180);
             } else {
                 // Head tilt
-                var angle = (Math.random() - 0.5) * 8;
-                c.el.style.transition = 'transform .5s cubic-bezier(.4,0,.2,1)';
-                c.el.style.transform = 'rotate(' + angle + 'deg)';
-                setTimeout(function () {
-                    c.el.style.transition = 'transform .6s cubic-bezier(.4,0,.2,1)';
-                    c.el.style.transform = '';
-                }, 900);
+                var a = (Math.random() - 0.5) * 8;
+                c.el.style.transition = 'transform .5s ease'; c.el.style.transform = 'rotate(' + a + 'deg)';
+                setTimeout(function () { c.el.style.transition = 'transform .6s ease'; c.el.style.transform = ''; }, 800);
             }
-
             setTimeout(act, 4000 + Math.random() * 4000);
         }
         setTimeout(act, 3000);
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Password mode — paws cover eyes
+       Mode transitions
     ═══════════════════════════════════════════════════════════════ */
 
     function setMode(m) {
         if (mode === m) return;
         mode = m;
-        chars.forEach(function (c) {
-            if (m === 'password') {
-                if (c.paws) { c.paws.style.transition = 'opacity .2s'; c.paws.style.opacity = '1'; }
-                if (c.pawL) { c.pawL.style.transition = 'all .3s cubic-bezier(.34,1.4,.64,1)'; c.pawL.setAttribute('cx', c.eyes[0].cx); c.pawL.setAttribute('cy', c.eyes[0].cy); }
-                if (c.pawR) { c.pawR.style.transition = 'all .3s cubic-bezier(.34,1.4,.64,1)'; c.pawR.setAttribute('cx', c.eyes[1].cx); c.pawR.setAttribute('cy', c.eyes[1].cy); }
-                c.eyes.forEach(function (e) { e.g.style.transition = 'transform .2s'; e.g.style.transformOrigin = e.cx + 'px ' + e.cy + 'px'; e.g.style.transform = 'scaleY(0.12)'; });
-            } else {
-                if (c.paws) { c.paws.style.transition = 'opacity .3s'; c.paws.style.opacity = '0'; }
-                if (c.pawL) { c.pawL.style.transition = 'all .3s ease'; c.pawL.setAttribute('cx', c.eyes[0].cx - c.eyes[0].er * 3); c.pawL.setAttribute('cy', c.eyes[0].cy); }
-                if (c.pawR) { c.pawR.style.transition = 'all .3s ease'; c.pawR.setAttribute('cx', c.eyes[1].cx + c.eyes[1].er * 3); c.pawR.setAttribute('cy', c.eyes[1].cy); }
-                c.eyes.forEach(function (e) { e.g.style.transition = 'transform .2s'; e.g.style.transform = 'scaleY(1)'; });
+        modeT = performance.now() / 1000;
+
+        // toggle-pw: black dramatically closes eyes
+        if (m === 'toggle-pw') {
+            var black = chars.find(function (c) { return c.d.id === 'black'; });
+            if (black) {
+                black.eyes.forEach(function (e) {
+                    e.g.style.transition = 'transform .12s ease-in';
+                    e.g.style.transformOrigin = e.cx + 'px ' + e.cy + 'px';
+                    e.g.style.transform = 'scaleY(0.04)';
+                });
+                // Recover slowly after 0.8s
+                setTimeout(function () {
+                    if (mode === 'idle' || mode === 'toggle-pw') {
+                        black.eyes.forEach(function (e) {
+                            e.g.style.transition = 'transform .5s ease-out';
+                            e.g.style.transform = 'scaleY(1)';
+                        });
+                        if (mode === 'toggle-pw') setMode('idle');
+                    }
+                }, 800);
             }
+        }
+
+        // cheer: auto-return to idle after 1.5s
+        if (m === 'cheer') {
+            if (cheerTimer) clearTimeout(cheerTimer);
+            cheerTimer = setTimeout(function () { setMode('idle'); }, 1500);
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Form hooks — detect username, password, toggle, submit
+    ═══════════════════════════════════════════════════════════════ */
+
+    function hookForms() {
+        // Password fields
+        document.querySelectorAll('input[type="password"]').forEach(function (f) {
+            f.addEventListener('focus', function () { setMode('password'); });
+            f.addEventListener('blur', function () { if (mode === 'password') setMode('idle'); });
+        });
+
+        // Text/email fields (username)
+        document.querySelectorAll('input[type="text"], input[type="email"]').forEach(function (f) {
+            // Skip pair code inputs
+            if (f.id === 'homePairCodeInput') return;
+            f.addEventListener('focus', function () { setMode('username'); });
+            f.addEventListener('blur', function () { if (mode === 'username') setMode('idle'); });
+        });
+
+        // Password toggle buttons (eye icon)
+        document.querySelectorAll('[onclick*="togglePassword"], .toggle-password, .password-toggle').forEach(function (btn) {
+            btn.addEventListener('click', function () { setMode('toggle-pw'); });
+        });
+
+        // Submit buttons
+        document.querySelectorAll('button[type="submit"], .btn[onclick*="login"], .btn[onclick*="Login"], #loginBtn').forEach(function (btn) {
+            btn.addEventListener('click', function () { setMode('cheer'); });
+        });
+
+        // Also hook form submit event
+        document.querySelectorAll('form').forEach(function (f) {
+            f.addEventListener('submit', function () { setMode('cheer'); });
         });
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Deep blue grid background with parallax drift
+       Background: grid + wave parallax
     ═══════════════════════════════════════════════════════════════ */
 
-    function createBackground() {
+    function createBg() {
+        if (document.querySelector('.mc-backdrop')) return;
         var bg = document.createElement('div');
         bg.className = 'mc-backdrop';
         bg.setAttribute('aria-hidden', 'true');
@@ -348,18 +460,7 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Form hooks
-    ═══════════════════════════════════════════════════════════════ */
-
-    function hookForms() {
-        document.querySelectorAll('input[type="password"]').forEach(function (f) {
-            f.addEventListener('focus', function () { setMode('password'); });
-            f.addEventListener('blur', function () { setMode('idle'); });
-        });
-    }
-
-    /* ═══════════════════════════════════════════════════════════════
-       CSS injection
+       CSS
     ═══════════════════════════════════════════════════════════════ */
 
     function injectCSS() {
@@ -367,44 +468,38 @@
         var s = document.createElement('style');
         s.id = 'mc-css';
         s.textContent = [
-            /* ── Mascot base ── */
             '.mc{position:fixed;z-index:49;pointer-events:none;will-change:transform}',
             '.mc-svg{display:block;width:100%;height:auto}',
             '.mc-body-g{transform-origin:50% 100%}',
-            '.mc-paws ellipse{transition:all .3s ease}',
-
-            /* ── Background ── */
             '.mc-backdrop{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}',
             '.mc-grid{position:absolute;inset:-20%;width:140%;height:140%;' +
-            'background-image:linear-gradient(rgba(59,130,246,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,.04) 1px,transparent 1px);' +
-            'background-size:48px 48px;animation:mc-grid-drift 60s linear infinite}',
-            '.dark-mode .mc-grid{background-image:linear-gradient(rgba(129,140,248,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(129,140,248,.06) 1px,transparent 1px)}',
-            '@keyframes mc-grid-drift{0%{transform:translate(0,0)}100%{transform:translate(48px,48px)}}',
-            '.mc-wave{position:absolute;inset:-10%;width:120%;height:120%;opacity:.025;' +
+            'background-image:linear-gradient(rgba(59,130,246,.035) 1px,transparent 1px),' +
+            'linear-gradient(90deg,rgba(59,130,246,.035) 1px,transparent 1px);' +
+            'background-size:48px 48px;animation:mc-gdrift 60s linear infinite}',
+            '.dark-mode .mc-grid{background-image:linear-gradient(rgba(129,140,248,.05) 1px,transparent 1px),' +
+            'linear-gradient(90deg,rgba(129,140,248,.05) 1px,transparent 1px)}',
+            '@keyframes mc-gdrift{to{transform:translate(48px,48px)}}',
+            '.mc-wave{position:absolute;inset:-10%;width:120%;height:120%;opacity:.02;' +
             'background:repeating-linear-gradient(135deg,transparent,transparent 30px,rgba(59,130,246,.3) 30px,rgba(59,130,246,.3) 31px);' +
-            'animation:mc-wave-drift 80s linear infinite}',
-            '.dark-mode .mc-wave{opacity:.03;background:repeating-linear-gradient(135deg,transparent,transparent 30px,rgba(129,140,248,.3) 30px,rgba(129,140,248,.3) 31px)}',
-            '@keyframes mc-wave-drift{0%{transform:translate(0,0)}100%{transform:translate(-60px,60px)}}',
-
-            /* ── Colors ── */
-            ':root{--mc-orange:#fb923c;--mc-purple:#818cf8;--mc-yellow:#fbbf24;--mc-black:#1f2937;--mc-face:#1e293b;--mc-paw:rgba(0,0,0,.12)}',
-            '.dark-mode{--mc-orange:#f97316;--mc-purple:#6366f1;--mc-yellow:#f59e0b;--mc-black:#e5e7eb;--mc-face:#1e293b;--mc-paw:rgba(255,255,255,.08)}',
-
-            /* ── Responsive ── */
+            'animation:mc-wdrift 80s linear infinite}',
+            '.dark-mode .mc-wave{opacity:.025}',
+            '@keyframes mc-wdrift{to{transform:translate(-60px,60px)}}',
+            ':root{--mc-orange:#fb923c;--mc-purple:#818cf8;--mc-yellow:#fbbf24;--mc-black:#1f2937;--mc-face:#1e293b}',
+            '.dark-mode{--mc-orange:#f97316;--mc-purple:#6366f1;--mc-yellow:#f59e0b;--mc-black:#e5e7eb;--mc-face:#1e293b}',
             '@media(max-width:1200px){.mc{transform:scale(.55)!important;transform-origin:bottom}}',
             '@media(max-width:800px){.mc{transform:scale(.4)!important}}',
-            '@media(max-width:600px){.mc{display:none!important}.mc-backdrop{display:none!important}}'
+            '@media(max-width:600px){.mc,.mc-backdrop{display:none!important}}'
         ].join('');
         document.head.appendChild(s);
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Public API
+       Public
     ═══════════════════════════════════════════════════════════════ */
 
     window.initMascots = function () {
         injectCSS();
-        createBackground();
+        createBg();
 
         DEFS.forEach(function (d) {
             var c = create(d);
@@ -415,7 +510,7 @@
 
         document.addEventListener('mousemove', function (e) { mX = e.clientX; mY = e.clientY; });
         tick();
-        startRandomBehaviors();
+        startRandom();
         hookForms();
     };
 

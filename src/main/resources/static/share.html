@@ -285,7 +285,7 @@
         }
     </style>
 </head>
-<body>
+<body data-mascot-scene="share">
 
 <div class="toast-container" id="toastContainer"></div>
 
@@ -307,7 +307,7 @@
 </header>
 
 <!-- ═══ Main ═══ -->
-<main class="shell">
+<main class="shell" data-mascot-stage="share-shell">
 
     <!-- Tab toggle -->
     <div class="tab-bar">
@@ -445,6 +445,7 @@
 <script src="js/qrcode-handler.js"></script>
 <script src="js/upload.js"></script>
 <script src="js/download.js"></script>
+<script src="js/mascots.js"></script>
 
 <script>
     /* Compact auth override (same as homepage) */
@@ -475,6 +476,7 @@
     window.addEventListener('load',function(){
         Promise.resolve(checkLoginState());
         initUploadArea();
+        initMascots();
 
         var p=parseShareParams();
         if(p.shareCode){

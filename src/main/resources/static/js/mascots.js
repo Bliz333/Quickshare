@@ -1,331 +1,418 @@
 /**
- * mascots.js — Full-body animated characters with interactive behaviors
+ * mascots.js — Polished animated mascot characters
  *
- * Characters have:
- *  - Full visible body, arms, face
- *  - Eyes that track mouse
- *  - Arms that wave/react
- *  - Expression changes (happy, peek, shy)
- *  - Login page: covers eyes during password input
+ * Inspired by the Nexus login characters: large, clean geometric shapes
+ * with expressive dot-eyes that track the mouse. Multiple characters
+ * peek from screen edges with idle animations and random behaviors.
+ *
+ * Features:
+ *  - 4 distinct characters at different screen positions
+ *  - Eye tracking (pupils follow cursor)
+ *  - Password mode: paws slide in to cover eyes
+ *  - Random behaviors: tilt, bounce, double-blink, look-around
+ *  - Smooth idle bobbing with staggered timing
  */
 
 'use strict';
 
 (function () {
 
-    var mx = 0.5, my = 0.5;       // normalized mouse position
-    var mxPx = 0, myPx = 0;       // pixel mouse position
-    var instances = [];
-    var currentMode = 'idle';      // idle | typing | password | error
+    var mX = 0, mY = 0;
+    var chars = [];
+    var mode = 'idle';
 
-    // ── SVG character builder ─────────────────────────────────────
+    /* ═══════════════════════════════════════════════════════════════
+       Character definitions — clean shapes, distinct personalities
+    ═══════════════════════════════════════════════════════════════ */
 
-    function leftCharSvg() {
-        // A round, friendly blue character — full body with stubby arms
-        return [
-            '<svg viewBox="0 0 200 320" class="m-svg" style="overflow:visible">',
-            // Body
-            '<ellipse class="m-body" cx="100" cy="200" rx="70" ry="90" fill="var(--m-c1,#60a5fa)"/>',
-            // Feet
-            '<ellipse cx="65" cy="285" rx="22" ry="12" fill="var(--m-c1d,#3b82f6)" opacity=".6"/>',
-            '<ellipse cx="135" cy="285" rx="22" ry="12" fill="var(--m-c1d,#3b82f6)" opacity=".6"/>',
-            // Left arm
-            '<g class="m-arm-l" style="transform-origin:45px 185px">',
-            '<path d="M45 185 Q18 195 12 225 Q8 245 22 248" fill="none" stroke="var(--m-c1,#60a5fa)" stroke-width="18" stroke-linecap="round"/>',
-            '</g>',
-            // Right arm
-            '<g class="m-arm-r" style="transform-origin:155px 185px">',
-            '<path d="M155 185 Q182 195 188 225 Q192 245 178 248" fill="none" stroke="var(--m-c1,#60a5fa)" stroke-width="18" stroke-linecap="round"/>',
-            '</g>',
-            // Face area
-            '<g class="m-face">',
+    var DEFS = [
+        {
+            // Big friendly dome — bottom left
+            id: 'dome',
+            css: 'left:0;bottom:0;width:240px;',
+            vb: '0 0 240 200',
+            bobDelay: '0s',
+            bobDur: '4s',
+            body: '<ellipse cx="120" cy="180" rx="120" ry="120" fill="var(--mc1,#f9a8d4)"/>',
+            eyeL: { cx: 88, cy: 120, er: 8, pr: 3.5 },
+            eyeR: { cx: 148, cy: 120, er: 8, pr: 3.5 },
+            pawY: 110,
+            mouthType: 'none'
+        },
+        {
+            // Tall rectangle — left side, behind dome
+            id: 'block',
+            css: 'left:40px;bottom:60px;width:140px;z-index:48;',
+            vb: '0 0 140 280',
+            bobDelay: '-1.2s',
+            bobDur: '4.5s',
+            body: '<rect x="0" y="0" width="140" height="280" rx="36" fill="var(--mc2,#818cf8)"/>',
+            eyeL: { cx: 48, cy: 95, er: 7, pr: 3 },
+            eyeR: { cx: 92, cy: 95, er: 7, pr: 3 },
+            pawY: 86,
+            mouthType: 'none'
+        },
+        {
+            // Yellow egg — right side
+            id: 'egg',
+            css: 'right:-20px;bottom:0;width:180px;',
+            vb: '0 0 180 220',
+            bobDelay: '-0.6s',
+            bobDur: '3.8s',
+            body: '<ellipse cx="90" cy="140" rx="90" ry="110" fill="var(--mc3,#fbbf24)"/>',
+            eyeL: { cx: 62, cy: 108, er: 7.5, pr: 3.2 },
+            eyeR: { cx: 118, cy: 108, er: 7.5, pr: 3.2 },
+            pawY: 98,
+            mouthType: 'line',
+            mouthD: 'M68 138 L112 138'
+        },
+        {
+            // Dark capsule — right side, behind egg
+            id: 'pill',
+            css: 'right:50px;bottom:50px;width:100px;z-index:48;',
+            vb: '0 0 100 240',
+            bobDelay: '-2s',
+            bobDur: '5s',
+            body: '<rect x="0" y="0" width="100" height="240" rx="50" fill="var(--mc4,#374151)"/>',
+            eyeL: { cx: 36, cy: 82, er: 6, pr: 2.5 },
+            eyeR: { cx: 64, cy: 82, er: 6, pr: 2.5 },
+            pawY: 74,
+            mouthType: 'line',
+            mouthD: 'M36 108 L64 108'
+        }
+    ];
+
+    /* ═══════════════════════════════════════════════════════════════
+       Build SVG for a character
+    ═══════════════════════════════════════════════════════════════ */
+
+    function buildSvg(d) {
+        var eL = d.eyeL, eR = d.eyeR;
+        var parts = [
+            '<svg viewBox="' + d.vb + '" class="mc-svg" preserveAspectRatio="xMidYMax meet">',
+            d.body,
             // Left eye
-            '<g class="m-eye m-eye-l" data-cx="75" data-cy="175" data-sr="16" data-pr="7">',
-            '<circle cx="75" cy="175" r="16" fill="white"/>',
-            '<circle class="m-pupil" cx="75" cy="175" r="7" fill="var(--m-face,#1e293b)"/>',
-            '<circle cx="72" cy="171" r="3" fill="white" opacity=".8"/>',
+            '<g class="mc-eye" data-cx="' + eL.cx + '" data-cy="' + eL.cy + '" data-er="' + eL.er + '" data-pr="' + eL.pr + '">',
+            '<circle cx="' + eL.cx + '" cy="' + eL.cy + '" r="' + eL.er + '" fill="white"/>',
+            '<circle class="mc-pupil" cx="' + eL.cx + '" cy="' + eL.cy + '" r="' + eL.pr + '" fill="var(--mc-eye,#1a1a2e)"/>',
             '</g>',
             // Right eye
-            '<g class="m-eye m-eye-r" data-cx="125" data-cy="175" data-sr="16" data-pr="7">',
-            '<circle cx="125" cy="175" r="16" fill="white"/>',
-            '<circle class="m-pupil" cx="125" cy="175" r="7" fill="var(--m-face,#1e293b)"/>',
-            '<circle cx="122" cy="171" r="3" fill="white" opacity=".8"/>',
+            '<g class="mc-eye" data-cx="' + eR.cx + '" data-cy="' + eR.cy + '" data-er="' + eR.er + '" data-pr="' + eR.pr + '">',
+            '<circle cx="' + eR.cx + '" cy="' + eR.cy + '" r="' + eR.er + '" fill="white"/>',
+            '<circle class="mc-pupil" cx="' + eR.cx + '" cy="' + eR.cy + '" r="' + eR.pr + '" fill="var(--mc-eye,#1a1a2e)"/>',
             '</g>',
             // Mouth
-            '<path class="m-mouth" d="M82 210 Q100 222 118 210" fill="none" stroke="var(--m-face,#1e293b)" stroke-width="2.8" stroke-linecap="round"/>',
-            // Blush
-            '<ellipse cx="55" cy="200" rx="10" ry="6" fill="rgba(251,113,133,.18)"/>',
-            '<ellipse cx="145" cy="200" rx="10" ry="6" fill="rgba(251,113,133,.18)"/>',
+            d.mouthType === 'line' ?
+                '<path class="mc-mouth" d="' + d.mouthD + '" fill="none" stroke="var(--mc-eye,#1a1a2e)" stroke-width="2.2" stroke-linecap="round"/>' : '',
+            // Paws (hidden initially, slide in to cover eyes during password)
+            '<g class="mc-paws" style="opacity:0">',
+            '<ellipse class="mc-paw-l" cx="' + (eL.cx - eL.er * 2.5) + '" cy="' + d.pawY + '" rx="' + (eL.er * 1.8) + '" ry="' + (eL.er * 1.3) + '" fill="var(--mc-paw)" rx="8"/>',
+            '<ellipse class="mc-paw-r" cx="' + (eR.cx + eR.er * 2.5) + '" cy="' + d.pawY + '" rx="' + (eR.er * 1.8) + '" ry="' + (eR.er * 1.3) + '" fill="var(--mc-paw)" rx="8"/>',
             '</g>',
             '</svg>'
-        ].join('');
+        ];
+        return parts.join('');
     }
 
-    function rightCharSvg() {
-        // A tall, curious yellow/amber character — full body with arms
-        return [
-            '<svg viewBox="0 0 160 340" class="m-svg" style="overflow:visible">',
-            // Body
-            '<rect class="m-body" x="28" y="40" width="104" height="240" rx="52" fill="var(--m-c2,#fbbf24)"/>',
-            // Feet
-            '<ellipse cx="55" cy="275" rx="18" ry="10" fill="var(--m-c2d,#f59e0b)" opacity=".6"/>',
-            '<ellipse cx="105" cy="275" rx="18" ry="10" fill="var(--m-c2d,#f59e0b)" opacity=".6"/>',
-            // Left arm
-            '<g class="m-arm-l" style="transform-origin:35px 135px">',
-            '<path d="M35 135 Q10 150 5 180 Q2 200 14 205" fill="none" stroke="var(--m-c2,#fbbf24)" stroke-width="16" stroke-linecap="round"/>',
-            '</g>',
-            // Right arm
-            '<g class="m-arm-r" style="transform-origin:125px 135px">',
-            '<path d="M125 135 Q150 150 155 180 Q158 200 146 205" fill="none" stroke="var(--m-c2,#fbbf24)" stroke-width="16" stroke-linecap="round"/>',
-            '</g>',
-            // Face
-            '<g class="m-face">',
-            // Eyes
-            '<g class="m-eye m-eye-l" data-cx="60" data-cy="120" data-sr="14" data-pr="6">',
-            '<circle cx="60" cy="120" r="14" fill="white"/>',
-            '<circle class="m-pupil" cx="60" cy="120" r="6" fill="var(--m-face,#1e293b)"/>',
-            '<circle cx="57" cy="117" r="2.5" fill="white" opacity=".8"/>',
-            '</g>',
-            '<g class="m-eye m-eye-r" data-cx="100" data-cy="120" data-sr="14" data-pr="6">',
-            '<circle cx="100" cy="120" r="14" fill="white"/>',
-            '<circle class="m-pupil" cx="100" cy="120" r="6" fill="var(--m-face,#1e293b)"/>',
-            '<circle cx="97" cy="117" r="2.5" fill="white" opacity=".8"/>',
-            '</g>',
-            // Mouth
-            '<line class="m-mouth" x1="65" y1="152" x2="95" y2="152" stroke="var(--m-face,#1e293b)" stroke-width="2.5" stroke-linecap="round"/>',
-            '</g>',
-            '</svg>'
-        ].join('');
-    }
+    /* ═══════════════════════════════════════════════════════════════
+       Create a character instance
+    ═══════════════════════════════════════════════════════════════ */
 
-    // ── Create instance ───────────────────────────────────────────
+    function create(d) {
+        var el = document.createElement('div');
+        el.className = 'mc mc-' + d.id;
+        el.setAttribute('aria-hidden', 'true');
+        el.style.cssText = d.css;
+        el.innerHTML = buildSvg(d);
 
-    function createChar(side) {
-        var wrap = document.createElement('div');
-        wrap.className = 'mascot mascot-' + side;
-        wrap.setAttribute('aria-hidden', 'true');
-        wrap.innerHTML = side === 'left' ? leftCharSvg() : rightCharSvg();
-
+        // Gather eye refs
         var eyes = [];
-        var eyeEls = wrap.querySelectorAll('.m-eye');
-        for (var i = 0; i < eyeEls.length; i++) {
-            var g = eyeEls[i];
+        var groups = el.querySelectorAll('.mc-eye');
+        for (var i = 0; i < groups.length; i++) {
+            var g = groups[i];
             eyes.push({
-                group: g,
-                pupil: g.querySelector('.m-pupil'),
-                cx: +g.getAttribute('data-cx'),
-                cy: +g.getAttribute('data-cy'),
-                sr: +g.getAttribute('data-sr'),
-                pr: +g.getAttribute('data-pr')
+                g: g,
+                pupil: g.querySelector('.mc-pupil'),
+                cx: +g.dataset.cx, cy: +g.dataset.cy,
+                er: +g.dataset.er, pr: +g.dataset.pr
             });
         }
 
         return {
-            el: wrap,
-            side: side,
-            svg: wrap.querySelector('.m-svg'),
-            eyes: eyes,
-            armL: wrap.querySelector('.m-arm-l'),
-            armR: wrap.querySelector('.m-arm-r'),
-            mouth: wrap.querySelector('.m-mouth'),
-            face: wrap.querySelector('.m-face'),
-            // Animation state
+            el: el, d: d, eyes: eyes,
+            svg: el.querySelector('.mc-svg'),
+            paws: el.querySelector('.mc-paws'),
+            pawL: el.querySelector('.mc-paw-l'),
+            pawR: el.querySelector('.mc-paw-r'),
+            // state
             rot: 0, tx: 0, ty: 0
         };
     }
 
-    // ── Per-frame update ──────────────────────────────────────────
+    /* ═══════════════════════════════════════════════════════════════
+       Frame update — eye tracking + body lean
+    ═══════════════════════════════════════════════════════════════ */
 
-    function update() {
-        instances.forEach(function (m) {
-            var rect = m.el.getBoundingClientRect();
-            var cw = m.side === 'left' ? 200 : 160;
-            var ch = m.side === 'left' ? 320 : 340;
-            var sx = rect.width / cw;
-            var sy = rect.height / ch;
+    function tick() {
+        for (var i = 0; i < chars.length; i++) {
+            var c = chars[i];
+            var rect = c.el.getBoundingClientRect();
+            if (rect.width === 0) continue;
+
+            var vbParts = c.d.vb.split(' ');
+            var vbW = +vbParts[2], vbH = +vbParts[3];
+            var sx = rect.width / vbW;
             var cx = rect.left + rect.width / 2;
             var cy = rect.top + rect.height / 2;
-            var dx = mxPx - cx;
-            var dy = myPx - cy;
-            var d = Math.sqrt(dx * dx + dy * dy) || 1;
+            var dx = mX - cx, dy = mY - cy;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
-            // Body lean toward mouse
-            var targetRot = (dx / d) * Math.min(d * 0.006, 5);
-            var targetTx = (dx / d) * Math.min(d * 0.01, 6);
-            var targetTy = (dy / d) * Math.min(d * 0.005, 3);
-            m.rot += (targetRot - m.rot) * 0.05;
-            m.tx += (targetTx - m.tx) * 0.05;
-            m.ty += (targetTy - m.ty) * 0.05;
-
-            m.svg.style.transform =
-                'translate(' + m.tx.toFixed(1) + 'px,' + m.ty.toFixed(1) + 'px) rotate(' + m.rot.toFixed(2) + 'deg)';
-
-            // Arms react to mouse proximity
-            var armAngle = (dx / d) * Math.min(d * 0.015, 15);
-            if (m.armL) m.armL.style.transform = 'rotate(' + (-armAngle * 0.6).toFixed(1) + 'deg)';
-            if (m.armR) m.armR.style.transform = 'rotate(' + (armAngle * 0.6).toFixed(1) + 'deg)';
+            // Body lean
+            var tRot = (dx / dist) * Math.min(dist * 0.005, 4);
+            var tTx = (dx / dist) * Math.min(dist * 0.008, 5);
+            var tTy = (dy / dist) * Math.min(dist * 0.004, 3);
+            c.rot += (tRot - c.rot) * 0.04;
+            c.tx += (tTx - c.tx) * 0.04;
+            c.ty += (tTy - c.ty) * 0.04;
+            c.svg.style.transform =
+                'translate(' + c.tx.toFixed(1) + 'px,' + c.ty.toFixed(1) + 'px) rotate(' + c.rot.toFixed(2) + 'deg)';
 
             // Eye tracking
-            if (currentMode !== 'password') {
-                m.eyes.forEach(function (eye) {
-                    eye.group.style.transform = '';
-                    var ex = rect.left + eye.cx * sx;
-                    var ey = rect.top + eye.cy * sy;
-                    var edx = mxPx - ex;
-                    var edy = myPx - ey;
+            if (mode !== 'password') {
+                for (var j = 0; j < c.eyes.length; j++) {
+                    var e = c.eyes[j];
+                    var ex = rect.left + e.cx * sx;
+                    var ey = rect.top + e.cy * sx;
+                    var edx = mX - ex, edy = mY - ey;
                     var ed = Math.sqrt(edx * edx + edy * edy) || 1;
-                    var maxM = eye.sr - eye.pr - 1.5;
-                    var move = Math.min(ed * 0.02, maxM);
-                    eye.pupil.setAttribute('cx', (eye.cx + (edx / ed) * move).toFixed(1));
-                    eye.pupil.setAttribute('cy', (eye.cy + (edy / ed) * move).toFixed(1));
-                });
-            }
-
-            // Mouth expression
-            if (m.mouth && currentMode === 'password') {
-                // surprised/concerned "o" shape
-                if (m.mouth.tagName === 'path') {
-                    m.mouth.setAttribute('d', 'M90 210 Q100 218 110 210 Q105 220 95 220 Z');
-                    m.mouth.setAttribute('fill', 'var(--m-face,#1e293b)');
-                } else {
-                    m.mouth.setAttribute('y1', '152');
-                    m.mouth.setAttribute('y2', '152');
-                }
-            } else if (m.mouth && currentMode === 'idle') {
-                if (m.mouth.tagName === 'path') {
-                    m.mouth.setAttribute('d', 'M82 210 Q100 222 118 210');
-                    m.mouth.setAttribute('fill', 'none');
+                    var maxM = e.er - e.pr - 1;
+                    var mv = Math.min(ed * 0.018, maxM);
+                    e.pupil.setAttribute('cx', (e.cx + (edx / ed) * mv).toFixed(1));
+                    e.pupil.setAttribute('cy', (e.cy + (edy / ed) * mv).toFixed(1));
                 }
             }
-        });
-
-        requestAnimationFrame(update);
+        }
+        requestAnimationFrame(tick);
     }
 
-    // ── Password mode: arms cover eyes ────────────────────────────
+    /* ═══════════════════════════════════════════════════════════════
+       Blinking — natural eye squish
+    ═══════════════════════════════════════════════════════════════ */
 
-    function setMode(mode) {
-        if (currentMode === mode) return;
-        currentMode = mode;
+    function startBlink(c) {
+        function blink() {
+            if (mode === 'password') { c._bt = setTimeout(blink, 3000); return; }
+            for (var i = 0; i < c.eyes.length; i++) {
+                var e = c.eyes[i];
+                e.g.style.transition = 'transform .06s ease-in';
+                e.g.style.transformOrigin = e.cx + 'px ' + e.cy + 'px';
+                e.g.style.transform = 'scaleY(0.05)';
+            }
+            setTimeout(function () {
+                if (mode !== 'password') {
+                    for (var i = 0; i < c.eyes.length; i++) {
+                        c.eyes[i].g.style.transition = 'transform .08s ease-out';
+                        c.eyes[i].g.style.transform = 'scaleY(1)';
+                    }
+                }
+            }, 80);
+            c._bt = setTimeout(blink, 2000 + Math.random() * 5000);
+        }
+        c._bt = setTimeout(blink, 500 + Math.random() * 2000);
+    }
 
-        instances.forEach(function (m) {
-            if (mode === 'password') {
-                // Arms move up to cover eyes
-                if (m.armL) m.armL.style.transform = 'rotate(-55deg) translateY(-20px)';
-                if (m.armR) m.armR.style.transform = 'rotate(55deg) translateY(-20px)';
-                // Squish eyes shut
-                m.eyes.forEach(function (eye) {
-                    eye.group.style.transition = 'transform .2s ease';
-                    eye.group.style.transformOrigin = eye.cx + 'px ' + eye.cy + 'px';
-                    eye.group.style.transform = 'scaleY(0.1)';
+    /* ═══════════════════════════════════════════════════════════════
+       Random behaviors — tilt, bounce, surprise
+    ═══════════════════════════════════════════════════════════════ */
+
+    function startRandomBehaviors() {
+        function doRandom() {
+            if (chars.length === 0) return;
+            var c = chars[Math.floor(Math.random() * chars.length)];
+            var action = Math.random();
+
+            if (action < 0.35) {
+                // Head tilt
+                var tilt = (Math.random() - 0.5) * 10;
+                c.el.style.transition = 'transform .4s cubic-bezier(.4,0,.2,1)';
+                c.el.style.transform = 'translateY(' + (c._bobY || 0) + 'px) rotate(' + tilt + 'deg)';
+                setTimeout(function () {
+                    c.el.style.transform = '';
+                    c.el.style.transition = '';
+                }, 800);
+            } else if (action < 0.6) {
+                // Quick bounce
+                c.el.style.transition = 'transform .2s cubic-bezier(.4,0,.2,1)';
+                c.el.style.transform = 'translateY(-14px)';
+                setTimeout(function () {
+                    c.el.style.transition = 'transform .3s cubic-bezier(.4,0,.2,1)';
+                    c.el.style.transform = '';
+                }, 200);
+            } else if (action < 0.8) {
+                // Double blink
+                for (var i = 0; i < c.eyes.length; i++) {
+                    c.eyes[i].g.style.transition = 'transform .05s ease-in';
+                    c.eyes[i].g.style.transformOrigin = c.eyes[i].cx + 'px ' + c.eyes[i].cy + 'px';
+                    c.eyes[i].g.style.transform = 'scaleY(0.05)';
+                }
+                setTimeout(function () {
+                    for (var i = 0; i < c.eyes.length; i++) {
+                        c.eyes[i].g.style.transition = 'transform .06s ease-out';
+                        c.eyes[i].g.style.transform = 'scaleY(1)';
+                    }
+                    setTimeout(function () {
+                        for (var i = 0; i < c.eyes.length; i++) {
+                            c.eyes[i].g.style.transition = 'transform .05s ease-in';
+                            c.eyes[i].g.style.transform = 'scaleY(0.05)';
+                        }
+                        setTimeout(function () {
+                            for (var i = 0; i < c.eyes.length; i++) {
+                                c.eyes[i].g.style.transition = 'transform .06s ease-out';
+                                c.eyes[i].g.style.transform = 'scaleY(1)';
+                            }
+                        }, 60);
+                    }, 120);
+                }, 60);
+            } else {
+                // Wide eyes (surprise) — briefly enlarge eyes
+                for (var i = 0; i < c.eyes.length; i++) {
+                    c.eyes[i].g.style.transition = 'transform .15s cubic-bezier(.34,1.4,.64,1)';
+                    c.eyes[i].g.style.transformOrigin = c.eyes[i].cx + 'px ' + c.eyes[i].cy + 'px';
+                    c.eyes[i].g.style.transform = 'scale(1.25)';
+                }
+                setTimeout(function () {
+                    for (var i = 0; i < c.eyes.length; i++) {
+                        c.eyes[i].g.style.transition = 'transform .3s ease';
+                        c.eyes[i].g.style.transform = 'scale(1)';
+                    }
+                }, 600);
+            }
+
+            setTimeout(doRandom, 3000 + Math.random() * 5000);
+        }
+        setTimeout(doRandom, 2000);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Password mode — paws cover eyes
+    ═══════════════════════════════════════════════════════════════ */
+
+    function setMode(m) {
+        if (mode === m) return;
+        mode = m;
+
+        chars.forEach(function (c) {
+            if (m === 'password') {
+                // Show paws, animate to cover eyes
+                if (c.paws) {
+                    c.paws.style.transition = 'opacity .2s ease';
+                    c.paws.style.opacity = '1';
+                }
+                var midX = (c.eyes[0].cx + c.eyes[1].cx) / 2;
+                if (c.pawL) {
+                    c.pawL.style.transition = 'cx .3s cubic-bezier(.34,1.4,.64,1), cy .3s ease';
+                    c.pawL.setAttribute('cx', c.eyes[0].cx);
+                    c.pawL.setAttribute('cy', c.eyes[0].cy);
+                }
+                if (c.pawR) {
+                    c.pawR.style.transition = 'cx .3s cubic-bezier(.34,1.4,.64,1), cy .3s ease';
+                    c.pawR.setAttribute('cx', c.eyes[1].cx);
+                    c.pawR.setAttribute('cy', c.eyes[1].cy);
+                }
+                // Squish eyes
+                c.eyes.forEach(function (e) {
+                    e.g.style.transition = 'transform .2s ease';
+                    e.g.style.transformOrigin = e.cx + 'px ' + e.cy + 'px';
+                    e.g.style.transform = 'scaleY(0.15)';
                 });
             } else {
-                // Arms back to normal (mouse-driven)
-                m.eyes.forEach(function (eye) {
-                    eye.group.style.transition = 'transform .2s ease';
-                    eye.group.style.transform = 'scaleY(1)';
+                // Hide paws
+                if (c.paws) {
+                    c.paws.style.transition = 'opacity .3s ease';
+                    c.paws.style.opacity = '0';
+                }
+                if (c.pawL) {
+                    c.pawL.style.transition = 'cx .3s ease, cy .3s ease';
+                    c.pawL.setAttribute('cx', c.eyes[0].cx - c.eyes[0].er * 2.5);
+                    c.pawL.setAttribute('cy', c.d.pawY);
+                }
+                if (c.pawR) {
+                    c.pawR.style.transition = 'cx .3s ease, cy .3s ease';
+                    c.pawR.setAttribute('cx', c.eyes[1].cx + c.eyes[1].er * 2.5);
+                    c.pawR.setAttribute('cy', c.d.pawY);
+                }
+                // Restore eyes
+                c.eyes.forEach(function (e) {
+                    e.g.style.transition = 'transform .2s ease';
+                    e.g.style.transform = 'scaleY(1)';
                 });
             }
         });
     }
 
-    // ── Blinking ──────────────────────────────────────────────────
+    /* ═══════════════════════════════════════════════════════════════
+       Form field hooks
+    ═══════════════════════════════════════════════════════════════ */
 
-    function startBlink(m) {
-        function blink() {
-            if (currentMode === 'password') {
-                m._blinkT = setTimeout(blink, 3000);
-                return;
-            }
-            m.eyes.forEach(function (eye) {
-                eye.group.style.transition = 'transform .07s ease-in';
-                eye.group.style.transformOrigin = eye.cx + 'px ' + eye.cy + 'px';
-                eye.group.style.transform = 'scaleY(0.05)';
-            });
-            setTimeout(function () {
-                if (currentMode !== 'password') {
-                    m.eyes.forEach(function (eye) {
-                        eye.group.style.transition = 'transform .09s ease-out';
-                        eye.group.style.transform = 'scaleY(1)';
-                    });
-                }
-            }, 90);
-            m._blinkT = setTimeout(blink, 2500 + Math.random() * 4000);
-        }
-        m._blinkT = setTimeout(blink, 1000 + Math.random() * 2000);
-    }
-
-    // ── Login/register page integration ───────────────────────────
-
-    function hookFormFields() {
-        // Detect password fields
-        var pwFields = document.querySelectorAll('input[type="password"]');
-        var textFields = document.querySelectorAll('input[type="text"], input[type="email"]');
-
-        pwFields.forEach(function (f) {
+    function hookForms() {
+        document.querySelectorAll('input[type="password"]').forEach(function (f) {
             f.addEventListener('focus', function () { setMode('password'); });
             f.addEventListener('blur', function () { setMode('idle'); });
         });
-
-        textFields.forEach(function (f) {
-            f.addEventListener('focus', function () { setMode('typing'); });
-            f.addEventListener('blur', function () { setMode('idle'); });
-        });
     }
 
-    // ── CSS ───────────────────────────────────────────────────────
+    /* ═══════════════════════════════════════════════════════════════
+       CSS
+    ═══════════════════════════════════════════════════════════════ */
 
     function injectCSS() {
-        if (document.getElementById('mascot-css')) return;
+        if (document.getElementById('mc-css')) return;
         var s = document.createElement('style');
-        s.id = 'mascot-css';
+        s.id = 'mc-css';
         s.textContent = [
-            '.mascot{position:fixed;z-index:50;pointer-events:none;will-change:transform}',
-            '.mascot-left{left:-30px;bottom:4%;width:140px}',
-            '.mascot-right{right:-24px;bottom:2%;width:112px}',
-            '.mascot .m-svg{display:block;width:100%;height:auto;transition:transform .12s ease-out}',
-            '.mascot .m-arm-l,.mascot .m-arm-r{transition:transform .3s cubic-bezier(.4,0,.2,1)}',
-            '.mascot .m-eye{transition:transform .09s ease}',
-            // Idle bounce
-            '.mascot-left{animation:m-bob-l 3.8s ease-in-out infinite}',
-            '.mascot-right{animation:m-bob-r 4.2s ease-in-out infinite .6s}',
-            '@keyframes m-bob-l{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}',
-            '@keyframes m-bob-r{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}',
-            // Theme
-            ':root{--m-c1:#60a5fa;--m-c1d:#3b82f6;--m-c2:#fbbf24;--m-c2d:#f59e0b;--m-face:#1e293b}',
-            '.dark-mode{--m-c1:#7c8cf5;--m-c1d:#6366f1;--m-c2:#f59e0b;--m-c2d:#d97706;--m-face:#1e293b}',
+            '.mc{position:fixed;z-index:49;pointer-events:none;will-change:transform}',
+            '.mc-svg{display:block;width:100%;height:auto}',
+            '.mc-svg{transition:transform .15s ease-out}',
+            '.mc-paws ellipse{transition:cx .3s ease,cy .3s ease}',
+            // Idle bob — each char has its own delay/duration via inline style
+            '.mc{animation:mc-bob var(--mc-dur,4s) ease-in-out infinite var(--mc-delay,0s)}',
+            '@keyframes mc-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}',
+            // Colors
+            ':root{--mc1:#f9a8d4;--mc2:#818cf8;--mc3:#fbbf24;--mc4:#374151;--mc-eye:#1a1a2e;--mc-paw:rgba(0,0,0,.15)}',
+            '.dark-mode{--mc1:#ec4899;--mc2:#6366f1;--mc3:#f59e0b;--mc4:#d1d5db;--mc-eye:#1a1a2e;--mc-paw:rgba(255,255,255,.1)}',
             // Responsive
-            '@media(max-width:1100px){.mascot{opacity:.5;transform:scale(.6)!important}}',
-            '@media(max-width:700px){.mascot{display:none!important}}'
+            '@media(max-width:1200px){.mc{transform:scale(.65)!important;transform-origin:bottom center}}',
+            '@media(max-width:800px){.mc{transform:scale(.45)!important}}',
+            '@media(max-width:600px){.mc{display:none!important}}'
         ].join('');
         document.head.appendChild(s);
     }
 
-    // ── Public API ────────────────────────────────────────────────
+    /* ═══════════════════════════════════════════════════════════════
+       Public
+    ═══════════════════════════════════════════════════════════════ */
 
     window.initMascots = function () {
         injectCSS();
 
-        var left = createChar('left');
-        var right = createChar('right');
-        document.body.appendChild(left.el);
-        document.body.appendChild(right.el);
-        instances.push(left, right);
-
-        startBlink(left);
-        startBlink(right);
-
-        document.addEventListener('mousemove', function (e) {
-            mxPx = e.clientX;
-            myPx = e.clientY;
-            mx = e.clientX / window.innerWidth;
-            my = e.clientY / window.innerHeight;
+        DEFS.forEach(function (d) {
+            var c = create(d);
+            c.el.style.setProperty('--mc-dur', d.bobDur);
+            c.el.style.setProperty('--mc-delay', d.bobDelay);
+            document.body.appendChild(c.el);
+            chars.push(c);
+            startBlink(c);
         });
 
-        update();
-        hookFormFields();
+        document.addEventListener('mousemove', function (e) {
+            mX = e.clientX;
+            mY = e.clientY;
+        });
+
+        tick();
+        startRandomBehaviors();
+        hookForms();
     };
 
     window.setMascotMode = setMode;
-
 })();

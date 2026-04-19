@@ -28,54 +28,54 @@
 
     const COPY = {
         zh: {
-            loginIdle: '盯住右边的表单',
-            registerIdle: '把资料填满就出发',
-            homeIdle: '选台设备，马上开传',
-            shareIdle: '把文件拖过来试试',
-            overHere: '点这里',
-            lookHere: '看这边',
-            lookAway: '密码时间，先回避',
-            dropHere: '把文件丢给我们',
-            launching: '准备发射',
-            uploadReady: '链接已经备好',
-            receiveReady: '文件准备好了',
-            copyReady: '记住啦',
-            retry: '哎，刚刚出了点岔子',
-            switchUpload: '切到上传',
-            switchDownload: '切到取件',
-            pairCode: '先生成一个配对码',
-            shareEntry: '从这里发起分享',
-            fileLookup: '查一下文件信息',
-            loading: '马上就好',
-            success: '成了',
-            error: '出了点问题',
-            registerReady: '注册完成就能进网盘',
-            loginReady: '登录后直接进网盘'
+            loginIdle: '输入账号密码登录',
+            registerIdle: '注册后即可使用网盘',
+            homeIdle: '选择设备开始传输',
+            shareIdle: '拖入文件或点击上传',
+            overHere: '点击这里',
+            lookHere: '在这里输入',
+            lookAway: '正在输入密码…',
+            dropHere: '松手即可上传',
+            launching: '正在提交…',
+            uploadReady: '分享链接已生成',
+            receiveReady: '文件已就绪',
+            copyReady: '已复制到剪贴板',
+            retry: '出错了，请重试',
+            switchUpload: '切换到上传',
+            switchDownload: '切换到下载',
+            pairCode: '生成配对码连接设备',
+            shareEntry: '点击发起文件分享',
+            fileLookup: '输入提取码查询文件',
+            loading: '处理中…',
+            success: '操作成功',
+            error: '操作失败，请重试',
+            registerReady: '即将跳转到网盘',
+            loginReady: '即将跳转到网盘'
         },
         en: {
-            loginIdle: 'Eyes on the form',
-            registerIdle: 'Fill it in and go',
-            homeIdle: 'Pick a device and send',
-            shareIdle: 'Drop a file here',
-            overHere: 'Tap here',
-            lookHere: 'Look here',
-            lookAway: 'Password time, looking away',
-            dropHere: 'Drop it here',
-            launching: 'Launching',
-            uploadReady: 'Links are ready',
-            receiveReady: 'File is ready',
-            copyReady: 'Saved it',
-            retry: 'That one slipped',
+            loginIdle: 'Enter credentials to sign in',
+            registerIdle: 'Sign up for cloud storage',
+            homeIdle: 'Select a device to transfer',
+            shareIdle: 'Drag files or click to upload',
+            overHere: 'Click here',
+            lookHere: 'Type here',
+            lookAway: 'Entering password…',
+            dropHere: 'Release to upload',
+            launching: 'Submitting…',
+            uploadReady: 'Share link created',
+            receiveReady: 'File ready to download',
+            copyReady: 'Copied to clipboard',
+            retry: 'Error — please retry',
             switchUpload: 'Switch to upload',
             switchDownload: 'Switch to download',
-            pairCode: 'Generate a pair code',
-            shareEntry: 'Share from here',
-            fileLookup: 'Look up the file',
-            loading: 'Almost there',
-            success: 'Nice',
-            error: 'Something failed',
-            registerReady: 'Register and enter drive',
-            loginReady: 'Login and go to drive'
+            pairCode: 'Generate pair code',
+            shareEntry: 'Start sharing files',
+            fileLookup: 'Enter code to find file',
+            loading: 'Processing…',
+            success: 'Done',
+            error: 'Failed — try again',
+            registerReady: 'Redirecting to drive',
+            loginReady: 'Redirecting to drive'
         }
     };
 
@@ -85,10 +85,10 @@
             idleBubble: true,
             bubbleLeader: 'purple',
             layout: {
-                orange: { x: 0.13, y: 0.95, size: 250, z: 42 },
-                purple: { x: 0.24, y: 0.85, size: 170, z: 44 },
-                black: { x: 0.77, y: 0.86, size: 126, z: 43 },
-                yellow: { x: 0.88, y: 0.95, size: 150, z: 44 }
+                orange: { x: 0.13, y: 0.98, size: 250, z: 42 },
+                purple: { x: 0.24, y: 1.05, size: 170, z: 44 },
+                black: { x: 0.77, y: 1.05, size: 126, z: 43 },
+                yellow: { x: 0.88, y: 1.07, size: 150, z: 44 }
             }
         },
         register: {
@@ -96,10 +96,10 @@
             idleBubble: true,
             bubbleLeader: 'purple',
             layout: {
-                orange: { x: 0.12, y: 0.95, size: 238, z: 42 },
-                purple: { x: 0.22, y: 0.86, size: 164, z: 44 },
-                black: { x: 0.79, y: 0.87, size: 124, z: 43 },
-                yellow: { x: 0.89, y: 0.95, size: 148, z: 44 }
+                orange: { x: 0.12, y: 0.98, size: 238, z: 42 },
+                purple: { x: 0.22, y: 1.05, size: 164, z: 44 },
+                black: { x: 0.79, y: 1.06, size: 124, z: 43 },
+                yellow: { x: 0.89, y: 1.07, size: 148, z: 44 }
             }
         },
         home: {
@@ -107,10 +107,10 @@
             idleBubble: false,
             bubbleLeader: 'yellow',
             layout: {
-                orange: { x: 0.13, y: 0.94, size: 220, z: 42 },
-                purple: { x: 0.21, y: 0.84, size: 154, z: 44 },
-                black: { x: 0.79, y: 0.84, size: 118, z: 43 },
-                yellow: { x: 0.88, y: 0.94, size: 142, z: 44 }
+                orange: { x: 0.13, y: 0.97, size: 220, z: 42 },
+                purple: { x: 0.21, y: 1.02, size: 154, z: 44 },
+                black: { x: 0.79, y: 1.02, size: 118, z: 43 },
+                yellow: { x: 0.88, y: 1.06, size: 142, z: 44 }
             }
         },
         share: {
@@ -118,10 +118,10 @@
             idleBubble: false,
             bubbleLeader: 'yellow',
             layout: {
-                orange: { x: 0.12, y: 0.94, size: 214, z: 42 },
-                purple: { x: 0.21, y: 0.85, size: 146, z: 44 },
-                black: { x: 0.79, y: 0.85, size: 114, z: 43 },
-                yellow: { x: 0.88, y: 0.94, size: 138, z: 44 }
+                orange: { x: 0.12, y: 0.97, size: 214, z: 42 },
+                purple: { x: 0.21, y: 1.02, size: 146, z: 44 },
+                black: { x: 0.79, y: 1.02, size: 114, z: 43 },
+                yellow: { x: 0.88, y: 1.05, size: 138, z: 44 }
             }
         },
         default: {
@@ -129,10 +129,10 @@
             idleBubble: false,
             bubbleLeader: 'purple',
             layout: {
-                orange: { x: 0.13, y: 0.95, size: 224, z: 42 },
-                purple: { x: 0.22, y: 0.85, size: 156, z: 44 },
-                black: { x: 0.79, y: 0.85, size: 118, z: 43 },
-                yellow: { x: 0.89, y: 0.95, size: 144, z: 44 }
+                orange: { x: 0.13, y: 0.98, size: 224, z: 42 },
+                purple: { x: 0.22, y: 1.03, size: 156, z: 44 },
+                black: { x: 0.79, y: 1.03, size: 118, z: 43 },
+                yellow: { x: 0.89, y: 1.07, size: 144, z: 44 }
             }
         }
     };
@@ -391,12 +391,12 @@
             '<circle class="mc-blush" cx="', def.cheekL.cx, '" cy="', def.cheekL.cy, '" r="', def.cheekL.r, '"/>',
             '<circle class="mc-blush" cx="', def.cheekR.cx, '" cy="', def.cheekR.cy, '" r="', def.cheekR.r, '"/>',
             '<g class="mc-eye mc-eye-l" data-cx="', left.cx, '" data-cy="', left.cy, '" data-er="', left.er, '" data-pr="', left.pr, '">',
-            '<circle class="mc-eye-white" cx="', left.cx, '" cy="', left.cy, '" r="', left.er, '"/>',
-            '<circle class="mc-pupil" cx="', left.cx, '" cy="', left.cy, '" r="', left.pr, '"/>',
+            '<ellipse class="mc-eye-white" cx="', left.cx, '" cy="', left.cy, '" rx="', left.er, '" ry="', left.er, '"/>',
+            '<ellipse class="mc-pupil" cx="', left.cx, '" cy="', left.cy, '" rx="', left.pr, '" ry="', left.pr, '"/>',
             '</g>',
             '<g class="mc-eye mc-eye-r" data-cx="', right.cx, '" data-cy="', right.cy, '" data-er="', right.er, '" data-pr="', right.pr, '">',
-            '<circle class="mc-eye-white" cx="', right.cx, '" cy="', right.cy, '" r="', right.er, '"/>',
-            '<circle class="mc-pupil" cx="', right.cx, '" cy="', right.cy, '" r="', right.pr, '"/>',
+            '<ellipse class="mc-eye-white" cx="', right.cx, '" cy="', right.cy, '" rx="', right.er, '" ry="', right.er, '"/>',
+            '<ellipse class="mc-pupil" cx="', right.cx, '" cy="', right.cy, '" rx="', right.pr, '" ry="', right.pr, '"/>',
             '</g>',
             '<path class="mc-mouth" d="', mouthPath(def, { kind: 'flat', openness: 0.1 }), '"/>',
             '</g>',
@@ -415,9 +415,13 @@
         el.setAttribute('aria-hidden', 'true');
         el.innerHTML = buildSvg(def);
 
+        var vbParts = def.viewBox.split(' ');
+        var aspectRatio = Number(vbParts[3]) / Number(vbParts[2]);
+
         const eyes = Array.prototype.map.call(el.querySelectorAll('.mc-eye'), function (eye) {
             return {
                 group: eye,
+                sclera: eye.querySelector('.mc-eye-white'),
                 pupil: eye.querySelector('.mc-pupil'),
                 cx: Number(eye.getAttribute('data-cx')),
                 cy: Number(eye.getAttribute('data-cy')),
@@ -442,6 +446,7 @@
         return {
             def: def,
             el: el,
+            aspectRatio: aspectRatio,
             svg: el.querySelector('.mc-svg'),
             rig: el.querySelector('.mc-rig'),
             body: el.querySelector('.mc-body-g'),
@@ -543,6 +548,14 @@
             '.mc-mouth{fill:none;stroke:var(--mc-face);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}',
             '.mc-blush{fill:rgba(239,68,68,.12);opacity:0;transition:opacity .2s ease}',
             '.dark-mode .mc-blush{fill:rgba(255,255,255,.1)}',
+            '.mc-black .mc-arm-stroke{stroke:#8896a8;opacity:1}',
+            '.mc-black .mc-hand{fill:#8896a8}',
+            '.mc-black .mc-mouth{stroke:#8896a8}',
+            '.mc-black .mc-brow{stroke:#8896a8}',
+            '.dark-mode .mc-black .mc-arm-stroke{stroke:var(--mc-face)}',
+            '.dark-mode .mc-black .mc-hand{fill:var(--mc-face)}',
+            '.dark-mode .mc-black .mc-mouth{stroke:var(--mc-face)}',
+            '.dark-mode .mc-black .mc-brow{stroke:var(--mc-face)}',
             '@media (max-width:880px),(max-height:720px){#mc-root{display:none!important}}',
             '@media (prefers-reduced-motion:reduce){#mc-root .mc-grid{animation:none}#mc-root .mc-bubble,#mc-root .mc-target{transition:none}}'
         ].join('');
@@ -895,12 +908,26 @@
 
         const bubbleWidth = Math.max(state.bubble.offsetWidth || 0, 180);
         const bubblePadding = bubbleWidth * 0.55;
-        const bubbleX = clamp(
-            leader.x + (leader.x < window.innerWidth * 0.5 ? 92 : -92),
+        const leaderLeft = leader.x < window.innerWidth * 0.5;
+        var bubbleX = clamp(
+            leader.x + (leaderLeft ? 130 : -130),
             bubblePadding + 18,
             window.innerWidth - bubblePadding - 18
         );
-        const bubbleY = clamp(leader.y - leader.size * 0.86, 70, window.innerHeight - 100);
+        var bubbleY = clamp(leader.y - leader.size * leader.aspectRatio * 0.9, 50, window.innerHeight - 120);
+
+        // Avoid overlapping other characters
+        for (var bi = 0; bi < state.chars.length; bi++) {
+            var other = state.chars[bi];
+            if (other === leader) continue;
+            var odx = Math.abs(bubbleX - other.x);
+            var ody = bubbleY - (other.y - other.size * other.aspectRatio * 0.5);
+            if (odx < other.size * 0.45 && Math.abs(ody) < other.size * other.aspectRatio * 0.35) {
+                bubbleY = other.y - other.size * other.aspectRatio * 0.85;
+            }
+        }
+        bubbleY = clamp(bubbleY, 50, window.innerHeight - 120);
+
         state.bubble.style.left = bubbleX + 'px';
         state.bubble.style.top = bubbleY + 'px';
         state.bubble.classList.add('show');
@@ -1076,12 +1103,19 @@
             const targetPy = eye.cy + clamp(glanceY, -1, 1) * maxMoveY;
             eye.px = lerp(eye.px, targetPx, 0.18);
             eye.py = lerp(eye.py, targetPy, 0.18);
+            if (!Number.isFinite(eye.px)) eye.px = eye.cx;
+            if (!Number.isFinite(eye.py)) eye.py = eye.cy;
             eye.sx = lerp(eye.sx, eyeWide, 0.14);
             eye.sy = lerp(eye.sy, Math.max(0.04, eyeOpen * blink), 0.14);
-            eye.pupil.setAttribute('cx', eye.px.toFixed(1));
-            eye.pupil.setAttribute('cy', eye.py.toFixed(1));
-            eye.group.style.transformOrigin = eye.cx + 'px ' + eye.cy + 'px';
-            eye.group.style.transform = 'scale(' + eye.sx.toFixed(3) + ',' + eye.sy.toFixed(3) + ')';
+            // Direct ellipse attribute manipulation (no CSS group transform)
+            eye.sclera.setAttribute('rx', (eye.er * eye.sx).toFixed(2));
+            eye.sclera.setAttribute('ry', (eye.er * eye.sy).toFixed(2));
+            var pupilCx = eye.cx + (eye.px - eye.cx) * eye.sx;
+            var pupilCy = eye.cy + (eye.py - eye.cy) * eye.sy;
+            eye.pupil.setAttribute('cx', pupilCx.toFixed(1));
+            eye.pupil.setAttribute('cy', pupilCy.toFixed(1));
+            eye.pupil.setAttribute('rx', (eye.pr * eye.sx).toFixed(2));
+            eye.pupil.setAttribute('ry', (eye.pr * eye.sy).toFixed(2));
         }
 
         Array.prototype.forEach.call(char.blush, function (blushEl) {
@@ -1226,19 +1260,19 @@
             char.renderShadow = pose.shadow;
         }
 
-        const posStiffness = pose.mode === 'success' || pose.mode === 'drag' ? 0.19 : 0.14;
-        const posDamping = pose.mode === 'success' || pose.mode === 'drag' ? 0.74 : 0.72;
-        const rotStiffness = pose.mode === 'success' ? 0.15 : 0.11;
-        const rotDamping = pose.mode === 'success' ? 0.72 : 0.68;
+        const posStiffness = pose.mode === 'success' || pose.mode === 'drag' ? 0.16 : 0.09;
+        const posDamping = pose.mode === 'success' || pose.mode === 'drag' ? 0.78 : 0.76;
+        const rotStiffness = pose.mode === 'success' ? 0.12 : 0.07;
+        const rotDamping = pose.mode === 'success' ? 0.76 : 0.74;
 
-        char.renderSize = lerp(char.renderSize, pose.size, 0.22);
+        char.renderSize = lerp(char.renderSize, pose.size, 0.18);
         springTo(char, 'renderX', 'vx', pose.x, posStiffness, posDamping);
         springTo(char, 'renderY', 'vy', pose.y, posStiffness, posDamping);
         springTo(char, 'renderRot', 'vrot', pose.rot, rotStiffness, rotDamping);
-        springTo(char, 'renderSx', 'vsx', pose.sx, 0.08, 0.64);
-        springTo(char, 'renderSy', 'vsy', pose.sy, 0.08, 0.64);
-        springTo(char, 'renderLeftArm', 'varmL', pose.leftArm, 0.12, 0.7);
-        springTo(char, 'renderRightArm', 'varmR', pose.rightArm, 0.12, 0.7);
+        springTo(char, 'renderSx', 'vsx', pose.sx, 0.06, 0.72);
+        springTo(char, 'renderSy', 'vsy', pose.sy, 0.06, 0.72);
+        springTo(char, 'renderLeftArm', 'varmL', pose.leftArm, 0.07, 0.78);
+        springTo(char, 'renderRightArm', 'varmR', pose.rightArm, 0.07, 0.78);
         springTo(char, 'renderShadow', 'vshadow', pose.shadow, 0.1, 0.68);
 
         char.size = char.renderSize;
@@ -1248,7 +1282,8 @@
 
         char.el.style.width = char.renderSize.toFixed(1) + 'px';
         char.el.style.zIndex = String((sceneConfig().layout[char.def.id] || {}).z || 44);
-        char.el.style.transform = 'translate(' + (char.renderX - char.renderSize / 2).toFixed(1) + 'px,' + (char.renderY - char.renderSize).toFixed(1) + 'px)';
+        var actualHeight = char.renderSize * char.aspectRatio;
+        char.el.style.transform = 'translate(' + (char.renderX - char.renderSize / 2).toFixed(1) + 'px,' + (char.renderY - actualHeight).toFixed(1) + 'px)';
 
         if (char.rig) {
             char.rig.style.transform = 'rotate(' + char.renderRot.toFixed(2) + 'deg) scale(' + char.renderSx.toFixed(4) + ',' + char.renderSy.toFixed(4) + ')';
@@ -1280,14 +1315,20 @@
             state.hoverTarget = null;
         });
 
+        var hoverDebounce = 0;
         document.addEventListener('pointerover', function (event) {
             const target = interactiveTarget(event.target);
             if (!target) return;
-            state.hoverTarget = target;
             state.lastActionTarget = target;
+            clearTimeout(hoverDebounce);
+            if (target === state.hoverTarget) return;
+            hoverDebounce = setTimeout(function () {
+                state.hoverTarget = target;
+            }, 70);
         }, true);
 
         document.addEventListener('pointerout', function (event) {
+            clearTimeout(hoverDebounce);
             if (!state.hoverTarget) return;
             if (state.hoverTarget.contains(event.relatedTarget)) return;
             const leaving = interactiveTarget(event.target);
@@ -1509,8 +1550,8 @@
         for (let i = 0; i < state.chars.length; i++) {
             const char = state.chars[i];
             const pose = computePose(char, smoothedDirective, time, scale);
-            applyExpression(char, smoothedDirective, pose, time);
             applyPose(char, pose);
+            applyExpression(char, smoothedDirective, pose, time);
         }
 
         updateBubble(smoothedDirective);
@@ -1576,5 +1617,23 @@
             return;
         }
         trigger(mode, opts);
+    };
+
+    window.setMascotScene = function (sceneKey) {
+        if (!state.initialized) return;
+        if (SCENES[sceneKey]) {
+            state.sceneKey = sceneKey;
+        }
+        // Reset interaction state for clean scene transition
+        state.focusTarget = null;
+        state.focusType = '';
+        state.hoverTarget = null;
+        state.dragTarget = null;
+        state.burst = null;
+        state.message = { text: '', until: 0 };
+    };
+
+    window.getMascotScene = function () {
+        return state.sceneKey;
     };
 })();

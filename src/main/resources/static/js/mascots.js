@@ -85,10 +85,10 @@
             idleBubble: true,
             bubbleLeader: 'purple',
             layout: {
-                orange: { x: 0.13, y: 0.98, size: 250, z: 42 },
-                purple: { x: 0.24, y: 1.05, size: 170, z: 44 },
-                black: { x: 0.77, y: 1.05, size: 126, z: 43 },
-                yellow: { x: 0.88, y: 1.07, size: 150, z: 44 }
+                orange: { x: 0.13, y: 0.98, size: 224, z: 42 },
+                purple: { x: 0.24, y: 1.05, size: 156, z: 44 },
+                black: { x: 0.77, y: 1.05, size: 118, z: 43 },
+                yellow: { x: 0.88, y: 1.07, size: 144, z: 44 }
             }
         },
         register: {
@@ -96,10 +96,10 @@
             idleBubble: true,
             bubbleLeader: 'purple',
             layout: {
-                orange: { x: 0.12, y: 0.98, size: 238, z: 42 },
-                purple: { x: 0.22, y: 1.05, size: 164, z: 44 },
-                black: { x: 0.79, y: 1.06, size: 124, z: 43 },
-                yellow: { x: 0.89, y: 1.07, size: 148, z: 44 }
+                orange: { x: 0.12, y: 0.98, size: 224, z: 42 },
+                purple: { x: 0.22, y: 1.05, size: 156, z: 44 },
+                black: { x: 0.79, y: 1.06, size: 118, z: 43 },
+                yellow: { x: 0.89, y: 1.07, size: 144, z: 44 }
             }
         },
         home: {
@@ -107,10 +107,10 @@
             idleBubble: false,
             bubbleLeader: 'yellow',
             layout: {
-                orange: { x: 0.13, y: 0.97, size: 220, z: 42 },
-                purple: { x: 0.21, y: 1.02, size: 154, z: 44 },
+                orange: { x: 0.13, y: 0.97, size: 224, z: 42 },
+                purple: { x: 0.21, y: 1.02, size: 156, z: 44 },
                 black: { x: 0.79, y: 1.02, size: 118, z: 43 },
-                yellow: { x: 0.88, y: 1.06, size: 142, z: 44 }
+                yellow: { x: 0.88, y: 1.06, size: 144, z: 44 }
             }
         },
         share: {
@@ -118,10 +118,10 @@
             idleBubble: false,
             bubbleLeader: 'yellow',
             layout: {
-                orange: { x: 0.12, y: 0.97, size: 214, z: 42 },
-                purple: { x: 0.21, y: 1.02, size: 146, z: 44 },
-                black: { x: 0.79, y: 1.02, size: 114, z: 43 },
-                yellow: { x: 0.88, y: 1.05, size: 138, z: 44 }
+                orange: { x: 0.12, y: 0.97, size: 224, z: 42 },
+                purple: { x: 0.21, y: 1.02, size: 156, z: 44 },
+                black: { x: 0.79, y: 1.02, size: 118, z: 43 },
+                yellow: { x: 0.88, y: 1.05, size: 144, z: 44 }
             }
         },
         default: {

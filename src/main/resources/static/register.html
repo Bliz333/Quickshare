@@ -373,6 +373,8 @@
             .captcha-container { transform: scale(0.85); }
         }
 
+        .hidden { display: none !important; }
+
         /* ─── Logo brand icon ─── */
         .logo-icon{
             width:46px;height:46px;border-radius:14px;
@@ -512,8 +514,7 @@
         </div>
 
         <!-- reCAPTCHA -->
-        <div class="captcha-container" id="captchaContainer">
-            <!-- reCAPTCHA 会在这里动态渲染 -->
+        <div class="captcha-container hidden" id="captchaContainer">
         </div>
 
         <button type="submit" class="btn-submit" id="registerBtn">
@@ -521,19 +522,6 @@
             <i class="fa-solid fa-user-plus"></i>
         </button>
     </form>
-
-    <div class="divider"><span data-i18n="or">或</span></div>
-
-    <div class="social-buttons">
-        <button type="button" class="social-btn" disabled title="Coming soon">
-            <i class="fa-brands fa-google"></i>
-            <span>Google</span>
-        </button>
-        <button type="button" class="social-btn" disabled title="Coming soon">
-            <i class="fa-brands fa-apple"></i>
-            <span>Apple</span>
-        </button>
-    </div>
 
     <div class="card-footer">
         <span data-i18n="hasAccount">已有账号？</span>

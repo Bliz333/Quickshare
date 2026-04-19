@@ -40,12 +40,16 @@ class PublicSettingsControllerTest {
                 "recaptcha",
                 "",
                 "",
-                "https://www.google.com/recaptcha/api/siteverify"
+                "https://www.google.com/recaptcha/api/siteverify",
+                "google-client-id",
+                "apple-client-id"
         ));
 
         mockMvc.perform(get("/api/public/registration-settings"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.emailVerificationEnabled").value(false))
-                .andExpect(jsonPath("$.data.recaptchaEnabled").value(false));
+                .andExpect(jsonPath("$.data.recaptchaEnabled").value(false))
+                .andExpect(jsonPath("$.data.googleClientId").value("google-client-id"))
+                .andExpect(jsonPath("$.data.appleClientId").value("apple-client-id"));
     }
 }

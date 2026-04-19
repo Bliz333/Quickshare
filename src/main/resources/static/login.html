@@ -183,18 +183,21 @@
             opacity:.65
         }
 
-        /* ─── Social login placeholder ─── */
+        /* ─── Social login buttons ─── */
         .social-buttons{display:flex;gap:12px;margin-top:2px}
         .social-btn{
             flex:1;padding:11px;border:1px solid var(--border-s);
-            border-radius:12px;background:transparent;color:var(--text2);
-            cursor:not-allowed;font-size:.84rem;font-weight:500;
+            border-radius:12px;background:var(--card);color:var(--text2);
+            cursor:pointer;font-size:.84rem;font-weight:600;
             display:flex;align-items:center;justify-content:center;gap:8px;
-            transition:all .22s var(--ease);opacity:.55;font-family:inherit
+            transition:all .22s var(--ease);font-family:inherit
         }
-        .social-btn:not(:disabled):hover{
-            border-color:var(--primary);color:var(--primary);background:var(--bg);opacity:1
+        .social-btn:hover{
+            border-color:var(--primary);color:var(--primary);background:var(--bg);
+            transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,.1)
         }
+        .dark-mode .social-btn:hover{box-shadow:0 4px 12px rgba(124,140,245,.1)}
+        .social-btn:active{transform:translateY(0) scale(.98)}
         .social-btn i{font-size:1.08rem}
 
         /* ─── Card footer ─── */

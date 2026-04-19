@@ -343,6 +343,45 @@
             font-size:.82rem;line-height:1.55;white-space:pre-wrap;word-break:break-word;margin:0
         }
 
+        /* ═══ Send chooser ═══ */
+        .send-chooser-overlay{
+            position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+            background:rgba(0,0,0,.45);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+            opacity:0;pointer-events:none;transition:opacity .28s var(--ease);padding:20px
+        }
+        .send-chooser-overlay.visible{opacity:1;pointer-events:auto}
+        .send-chooser-card{
+            background:var(--card);border:1px solid var(--border-s);border-radius:20px;
+            padding:24px 28px;width:100%;max-width:340px;box-shadow:var(--sh-l);
+            transform:scale(.96);transition:transform .35s var(--spring);
+            display:flex;flex-direction:column;gap:16px
+        }
+        .dark-mode .send-chooser-card{background:var(--bg)}
+        .send-chooser-overlay.visible .send-chooser-card{transform:scale(1)}
+        .send-chooser-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+        .send-chooser-title{font-size:.88rem;color:var(--text2);font-weight:400;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex:1;min-width:0}
+        .send-chooser-title strong{color:var(--text);font-weight:700}
+        .send-chooser-options{display:flex;gap:12px}
+        .send-chooser-opt{
+            flex:1;display:flex;flex-direction:column;align-items:center;gap:10px;
+            padding:20px 16px;border:1px solid var(--border-s);border-radius:16px;
+            background:transparent;cursor:pointer;font-family:inherit;color:var(--text);
+            transition:all .28s var(--ease)
+        }
+        .send-chooser-opt:hover{transform:translateY(-3px);box-shadow:var(--sh-m);border-color:rgba(59,130,246,.25)}
+        .dark-mode .send-chooser-opt:hover{border-color:rgba(124,140,245,.25)}
+        .send-chooser-opt:active{transform:translateY(-1px) scale(.98);transition-duration:.1s}
+        .send-chooser-opt-icon{
+            width:48px;height:48px;border-radius:14px;
+            display:flex;align-items:center;justify-content:center;font-size:1.15rem
+        }
+        .send-chooser-opt-icon.file{background:rgba(59,130,246,.08);color:var(--primary)}
+        .send-chooser-opt-icon.text{background:rgba(16,185,129,.08);color:var(--success)}
+        .send-chooser-opt-label{font-size:.82rem;font-weight:600}
+        .send-chooser-compose{display:none;flex-direction:column;gap:8px}
+        .send-chooser-compose.visible{display:flex}
+        .send-chooser-row{display:flex;gap:8px;justify-content:flex-end}
+
         .hidden{display:none!important}
 
         @media(max-width:580px){
@@ -500,6 +539,42 @@
             <button id="receiveCopyLinkBtn" class="recv-sec" type="button" title="Copy link"><i class="fa-solid fa-link"></i></button>
             <button id="receiveSaveBtn" class="recv-sec hidden" type="button" title="Save to cloud"><i class="fa-solid fa-hard-drive"></i></button>
             <button class="recv-sec" onclick="closeReceiveCard()" title="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- Send chooser -->
+<div id="sendChooser" class="send-chooser-overlay" role="dialog" aria-modal="true">
+    <div class="send-chooser-card">
+        <div class="send-chooser-header">
+            <span class="send-chooser-title">Send to <strong id="sendChooserTarget">Device</strong></span>
+            <button class="recv-sec" onclick="cancelSendChooser()" type="button" title="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div id="sendChooserOptions" class="send-chooser-options">
+            <button class="send-chooser-opt" id="chooserSendFileBtn" type="button">
+                <div class="send-chooser-opt-icon file"><i class="fa-solid fa-file-arrow-up"></i></div>
+                <span class="send-chooser-opt-label" data-i18n="homeChooserSendFile">Send File</span>
+            </button>
+            <button class="send-chooser-opt" id="chooserSendTextBtn" type="button">
+                <div class="send-chooser-opt-icon text"><i class="fa-solid fa-align-left"></i></div>
+                <span class="send-chooser-opt-label" data-i18n="homeChooserSendText">Send Text</span>
+            </button>
+        </div>
+        <div id="sendChooserCompose" class="send-chooser-compose">
+            <textarea id="sendChooserTextInput" class="text-send-input"
+                      data-i18n-placeholder="homeTextPlaceholder" placeholder="Type text to send…" rows="3"></textarea>
+            <div class="send-chooser-row">
+                <button class="pair-btn pair-btn-ghost" onclick="showSendChooserOptions()" type="button">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span data-i18n="homeChooserBack">Back</span>
+                </button>
+                <button class="pair-btn pair-btn-fill" id="sendChooserSendBtn" type="button">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span data-i18n="homeSendText">Send Text</span>
+                </button>
+            </div>
         </div>
     </div>
 </div>

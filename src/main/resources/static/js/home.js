@@ -309,7 +309,7 @@ function onDeviceClick(channelId, label) {
     homeState.pendingTargetChannelId = channelId;
     homeState.peerLabel = label || homeState.peerLabel;
     homeState.transferFile = null;
-    openHomeFilePicker();
+    showSendChooser(label);
 }
 
 function showSendModal(label) {
@@ -657,7 +657,7 @@ function renderPairState() {
 
     const textPanel = document.getElementById('homeTextSendPanel');
     if (textPanel) {
-        textPanel.classList.toggle('visible', !!(homeState.pairSessionId && homeState.peerChannelId));
+        textPanel.classList.remove('visible');
     }
 
     // Re-render peers to show/hide paired device
@@ -752,6 +752,79 @@ function openHomeFilePicker() {
     const fileInput = document.getElementById('homeFileInput');
     if (fileInput) {
         fileInput.click();
+    }
+}
+
+function showSendChooser(label) {
+    const overlay = document.getElementById('sendChooser');
+    const targetEl = document.getElementById('sendChooserTarget');
+    const textInput = document.getElementById('sendChooserTextInput');
+    if (targetEl) targetEl.textContent = label || 'Device';
+    if (textInput) textInput.value = '';
+    showSendChooserOptions();
+    if (overlay) overlay.classList.add('visible');
+}
+
+function hideSendChooser() {
+    const overlay = document.getElementById('sendChooser');
+    if (overlay) overlay.classList.remove('visible');
+}
+
+function cancelSendChooser() {
+    hideSendChooser();
+    homeState.pendingTargetChannelId = null;
+}
+
+function showSendChooserOptions() {
+    const options = document.getElementById('sendChooserOptions');
+    const compose = document.getElementById('sendChooserCompose');
+    if (options) options.classList.remove('hidden');
+    if (compose) compose.classList.remove('visible');
+}
+
+function onChooserSendFile() {
+    hideSendChooser();
+    openHomeFilePicker();
+}
+
+function onChooserSendText() {
+    const options = document.getElementById('sendChooserOptions');
+    const compose = document.getElementById('sendChooserCompose');
+    if (options) options.classList.add('hidden');
+    if (compose) compose.classList.add('visible');
+    const textInput = document.getElementById('sendChooserTextInput');
+    if (textInput) textInput.focus();
+}
+
+async function sendTextFromChooser() {
+    const textInput = document.getElementById('sendChooserTextInput');
+    const text = textInput?.value?.trim();
+    if (!text) {
+        showHomeToast(homeText('homeTextEmpty', '请输入要发送的文本'), 'warning');
+        return;
+    }
+    if (homeState.transferState !== 'idle') {
+        showHomeToast(homeText('homeTransferBusy', '传输进行中，请稍候'), 'warning');
+        return;
+    }
+
+    const channelId = homeState.pendingTargetChannelId;
+    const label = homeState.peerLabel;
+
+    const blob = new Blob([text], { type: 'text/plain' });
+    const file = new File([blob], 'text-message.txt', { type: 'text/plain', lastModified: Date.now() });
+
+    hideSendChooser();
+
+    if (homeState.pairSessionId && channelId === homeState.peerChannelId) {
+        homeState.transferFile = file;
+        onPairReady({
+            pairSessionId: homeState.pairSessionId,
+            peerChannelId: homeState.peerChannelId,
+            peerLabel: homeState.peerLabel
+        });
+    } else {
+        initiateTransfer(channelId, label, file);
     }
 }
 
@@ -899,6 +972,28 @@ async function initHomePage() {
     const copyTextButton = document.getElementById('receiveCopyTextBtn');
     if (copyTextButton) {
         copyTextButton.addEventListener('click', copyReceivedText);
+    }
+
+    const chooserSendFileBtn = document.getElementById('chooserSendFileBtn');
+    if (chooserSendFileBtn) {
+        chooserSendFileBtn.addEventListener('click', onChooserSendFile);
+    }
+
+    const chooserSendTextBtn = document.getElementById('chooserSendTextBtn');
+    if (chooserSendTextBtn) {
+        chooserSendTextBtn.addEventListener('click', onChooserSendText);
+    }
+
+    const chooserSendBtn = document.getElementById('sendChooserSendBtn');
+    if (chooserSendBtn) {
+        chooserSendBtn.addEventListener('click', sendTextFromChooser);
+    }
+
+    const chooserOverlay = document.getElementById('sendChooser');
+    if (chooserOverlay) {
+        chooserOverlay.addEventListener('click', (e) => {
+            if (e.target === chooserOverlay) cancelSendChooser();
+        });
     }
 
     renderPairState();

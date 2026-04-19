@@ -468,6 +468,11 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
     const btn    = document.getElementById('receiveDownloadBtn');
     const copyBtn = document.getElementById('receiveCopyLinkBtn');
     const saveBtn = document.getElementById('receiveSaveBtn');
+    const textPanel = document.getElementById('receiveTextPanel');
+    const textContent = document.getElementById('receiveTextContent');
+    const copyTextBtn = document.getElementById('receiveCopyTextBtn');
+    const iconEl = modal ? modal.querySelector('.recv-icon i') : null;
+    const labelEl = modal ? modal.querySelector('.recv-label') : null;
     if (!modal || !nameEl || !sizeEl || !btn) {
         showHomeToast(homeText('homeReceivedFallback', 'File received: ') + fileName, 'success');
         return;
@@ -478,11 +483,32 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         fileSize,
         contentType: contentType || 'application/octet-stream'
     };
+
+    const isText = (contentType || '').startsWith('text/plain');
+
+    if (iconEl) iconEl.className = isText ? 'fa-solid fa-align-left' : 'fa-solid fa-file-arrow-down';
+    if (labelEl) labelEl.textContent = isText
+        ? homeText('homeTextReceived', '收到文本')
+        : homeText('homeReceiveFromLabel', '收到文件');
+
     nameEl.textContent = fileName || homeText('homeUnknownFile', 'Unknown file');
     sizeEl.textContent = fileSize ? formatBytes(fileSize) : '';
     const url = `${apiBase()}/api/public/transfer/shares/${shareToken}/download`;
     btn.href = url;
     btn.download = fileName || 'download';
+
+    if (isText && textPanel && textContent) {
+        textPanel.classList.remove('hidden');
+        textContent.textContent = '…';
+        fetch(url).then(r => r.ok ? r.text() : Promise.reject('fetch failed'))
+            .then(txt => { textContent.textContent = txt; })
+            .catch(() => { textContent.textContent = '(' + homeText('homeTextLoadFailed', '加载失败') + ')'; });
+    } else if (textPanel) {
+        textPanel.classList.add('hidden');
+        textContent.textContent = '';
+    }
+
+    if (copyTextBtn) copyTextBtn.classList.toggle('hidden', !isText);
     if (copyBtn) {
         copyBtn.disabled = !shareToken;
     }
@@ -491,12 +517,32 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         saveBtn.disabled = !shareToken || !isLoggedIn();
     }
     modal.classList.add('visible');
-    showHomeToast(homeText('homeFileReceived', 'File received!'), 'success');
+    showHomeToast(isText ? homeText('homeTextReceived', '收到文本!') : homeText('homeFileReceived', '收到文件!'), 'success');
 }
 
 function closeReceiveCard() {
     const modal = document.getElementById('receiveModal');
     if (modal) modal.classList.remove('visible');
+    const textPanel = document.getElementById('receiveTextPanel');
+    if (textPanel) textPanel.classList.add('hidden');
+    const textContent = document.getElementById('receiveTextContent');
+    if (textContent) textContent.textContent = '';
+    const copyTextBtn = document.getElementById('receiveCopyTextBtn');
+    if (copyTextBtn) copyTextBtn.classList.add('hidden');
+    const iconEl = modal ? modal.querySelector('.recv-icon i') : null;
+    if (iconEl) iconEl.className = 'fa-solid fa-file-arrow-down';
+}
+
+async function copyReceivedText() {
+    const textContent = document.getElementById('receiveTextContent');
+    const text = textContent?.textContent;
+    if (!text) return;
+    try {
+        await navigator.clipboard.writeText(text);
+        showHomeToast(homeText('homeTextCopied', '文本已复制'), 'success');
+    } catch {
+        showHomeToast(homeText('homeTextCopyFailed', '复制失败'), 'warning');
+    }
 }
 
 async function copyReceivedShareLink() {
@@ -605,6 +651,11 @@ function renderPairState() {
         copyButton.disabled = !homeState.pairCode;
     }
 
+    const textPanel = document.getElementById('homeTextSendPanel');
+    if (textPanel) {
+        textPanel.classList.toggle('visible', !!(homeState.pairSessionId && homeState.peerChannelId));
+    }
+
     // Re-render peers to show/hide paired device
     renderRing();
 }
@@ -709,6 +760,41 @@ function sendToPairedPeer() {
     openHomeFilePicker();
 }
 
+async function sendTextToPairedPeer() {
+    const input = document.getElementById('homeTextInput');
+    const text = input?.value?.trim();
+    if (!text) {
+        showHomeToast(homeText('homeTextEmpty', '请输入要发送的文本'), 'warning');
+        return;
+    }
+    if (!homeState.pairSessionId || !homeState.peerChannelId) {
+        showHomeToast(homeText('homePairFirst', '请先完成配对'), 'warning');
+        return;
+    }
+    if (homeState.transferState !== 'idle') {
+        showHomeToast(homeText('homeTransferBusy', '传输进行中，请稍候'), 'warning');
+        return;
+    }
+    const blob = new Blob([text], { type: 'text/plain' });
+    const file = new File([blob], 'text-message.txt', { type: 'text/plain', lastModified: Date.now() });
+    homeState.pendingTargetChannelId = homeState.peerChannelId;
+    homeState.transferFile = file;
+    try {
+        await sendViaPublicShare(file, homeState.pairSessionId);
+        homeState.transferState = 'done';
+        const doneText = homeText('homeTransferDone', '已发送');
+        showSendProgress(file.name, 100, '✓ ' + doneText);
+        showHomeToast(homeText('homeTextSent', '文本已发送'), 'success');
+        if (input) input.value = '';
+        setTimeout(resetTransferState, 3000);
+    } catch (err) {
+        homeState.transferState = 'error';
+        hideSendProgress();
+        showHomeToast(homeText('homeTransferFailed', '发送失败') + ': ' + err.message, 'error');
+        resetTransferState();
+    }
+}
+
 // ─── 账号设备同步（登录用户） ──────────────────────────────────────────────────
 
 async function syncAccountDevices() {
@@ -799,6 +885,16 @@ async function initHomePage() {
     const saveReceivedButton = document.getElementById('receiveSaveBtn');
     if (saveReceivedButton) {
         saveReceivedButton.addEventListener('click', saveReceivedShareToNetdisk);
+    }
+
+    const sendTextButton = document.getElementById('homeSendTextBtn');
+    if (sendTextButton) {
+        sendTextButton.addEventListener('click', sendTextToPairedPeer);
+    }
+
+    const copyTextButton = document.getElementById('receiveCopyTextBtn');
+    if (copyTextButton) {
+        copyTextButton.addEventListener('click', copyReceivedText);
     }
 
     renderPairState();

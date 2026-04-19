@@ -323,6 +323,26 @@
         .home-notice-read-state{display:inline-flex;align-items:center;gap:4px;font-size:.7rem;font-weight:700;color:var(--success)}
         .home-notice-toggle-body{margin-top:6px;border:none;background:transparent;color:var(--primary);font-size:.7rem;font-weight:700;cursor:pointer;padding:0}
 
+        /* ═══ Text transfer ═══ */
+        .text-send-panel{width:100%;max-width:540px;display:none;flex-direction:column;gap:8px}
+        .text-send-panel.visible{display:flex}
+        .text-send-input{
+            width:100%;min-height:72px;max-height:180px;resize:vertical;
+            padding:10px 12px;border:1px solid var(--border-s);border-radius:12px;
+            background:var(--card);color:var(--text);font-family:inherit;font-size:.84rem;line-height:1.5;
+            outline:none;transition:border-color .22s
+        }
+        .text-send-input:focus{border-color:var(--primary)}
+        .text-send-input::placeholder{color:var(--text3)}
+        .text-send-row{display:flex;gap:8px;justify-content:flex-end}
+        .recv-text-wrap{width:100%;margin-top:6px;text-align:left}
+        .recv-text-content{
+            width:100%;min-height:60px;max-height:180px;overflow-y:auto;
+            padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+            background:var(--bg);color:var(--text);font-family:'Outfit',monospace;
+            font-size:.82rem;line-height:1.55;white-space:pre-wrap;word-break:break-word;margin:0
+        }
+
         .hidden{display:none!important}
 
         @media(max-width:580px){
@@ -417,6 +437,17 @@
             <p data-i18n="homeNoDevices">Open this page on another device on the same network</p>
         </div>
     </div>
+    <div id="homeTextSendPanel" class="text-send-panel">
+        <textarea id="homeTextInput" class="text-send-input"
+                  placeholder="Type text to send…"
+                  data-i18n-placeholder="homeTextPlaceholder" rows="3"></textarea>
+        <div class="text-send-row">
+            <button class="pair-btn pair-btn-fill" id="homeSendTextBtn" type="button">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span data-i18n="homeSendText">Send Text</span>
+            </button>
+        </div>
+    </div>
 </main>
 
 <!-- Pair strip -->
@@ -456,11 +487,15 @@
         <p class="recv-label" data-i18n="receiveFromLabel">File received</p>
         <h3 id="receiveFileName" class="recv-name">filename</h3>
         <p id="receiveFileSize" class="recv-size"></p>
+        <div id="receiveTextPanel" class="recv-text-wrap hidden">
+            <pre id="receiveTextContent" class="recv-text-content"></pre>
+        </div>
         <div class="recv-actions">
             <a id="receiveDownloadBtn" class="recv-dl" href="#" download>
                 <i class="fa-solid fa-download"></i>
                 <span data-i18n="downloadBtn">Download</span>
             </a>
+            <button id="receiveCopyTextBtn" class="recv-sec hidden" type="button" title="Copy text"><i class="fa-solid fa-copy"></i></button>
             <button id="receiveCopyLinkBtn" class="recv-sec" type="button" title="Copy link"><i class="fa-solid fa-link"></i></button>
             <button id="receiveSaveBtn" class="recv-sec hidden" type="button" title="Save to cloud"><i class="fa-solid fa-hard-drive"></i></button>
             <button class="recv-sec" onclick="closeReceiveCard()" title="Close"><i class="fa-solid fa-xmark"></i></button>

@@ -5,6 +5,7 @@ import com.finalpre.quickshare.common.Result;
 import com.finalpre.quickshare.common.UserRole;
 import com.finalpre.quickshare.entity.User;
 import com.finalpre.quickshare.mapper.UserMapper;
+import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.UserVO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,11 +40,12 @@ public class SocialLoginController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    @Value("${google.client-id:}")
-    private String googleClientId;
+    @Autowired
+    private RegistrationSettingsService registrationSettingsService;
 
     @PostMapping("/google")
     public Result<UserVO> googleLogin(@RequestBody Map<String, String> body) {
+        String googleClientId = registrationSettingsService.getPolicy().googleClientId();
         String idToken = body.get("idToken");
         if (idToken == null || idToken.isBlank()) {
             return Result.error("Missing idToken");
@@ -55,7 +56,7 @@ public class SocialLoginController {
         }
 
         try {
-            JsonNode payload = verifyGoogleToken(idToken);
+            JsonNode payload = verifyGoogleToken(idToken, googleClientId);
             if (payload == null) {
                 return Result.error("Invalid Google token");
             }
@@ -83,7 +84,7 @@ public class SocialLoginController {
         }
     }
 
-    private JsonNode verifyGoogleToken(String idToken) throws Exception {
+    private JsonNode verifyGoogleToken(String idToken, String googleClientId) throws Exception {
         HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();

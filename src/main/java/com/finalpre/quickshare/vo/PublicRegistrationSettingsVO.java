@@ -15,4 +15,6 @@ public class PublicRegistrationSettingsVO {
     private String recaptchaSiteKey;
 
     private String googleClientId;
+
+    private String appleClientId;
 }

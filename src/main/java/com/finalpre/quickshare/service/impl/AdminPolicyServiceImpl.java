@@ -156,6 +156,8 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
         String siteKey = normalizeOptionalValue(request.getRecaptchaSiteKey());
         String secretKey = normalizeOptionalValue(request.getRecaptchaSecretKey());
         String verifyUrl = normalizeOptionalValue(request.getRecaptchaVerifyUrl());
+        String googleClientId = normalizeOptionalValue(request.getGoogleClientId());
+        String appleClientId = normalizeOptionalValue(request.getAppleClientId());
         if (verifyUrl == null) {
             verifyUrl = "turnstile".equals(provider)
                     ? "https://challenges.cloudflare.com/turnstile/v0/siteverify"
@@ -173,7 +175,9 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
                 provider,
                 siteKey == null ? "" : siteKey,
                 secretKey == null ? "" : secretKey,
-                verifyUrl
+                verifyUrl,
+                googleClientId == null ? "" : googleClientId,
+                appleClientId == null ? "" : appleClientId
         ));
     }
 
@@ -550,6 +554,8 @@ public class AdminPolicyServiceImpl implements AdminPolicyService {
         vo.setRecaptchaSiteKey(policy.recaptchaSiteKey());
         vo.setRecaptchaSecretKey(policy.recaptchaSecretKey());
         vo.setRecaptchaVerifyUrl(policy.recaptchaVerifyUrl());
+        vo.setGoogleClientId(policy.googleClientId());
+        vo.setAppleClientId(policy.appleClientId());
         return vo;
     }
 

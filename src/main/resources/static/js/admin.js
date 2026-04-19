@@ -755,6 +755,8 @@ function renderRegistrationSettingsForm() {
     const siteKeyEl = document.getElementById('registrationRecaptchaSiteKey');
     const secretKeyEl = document.getElementById('registrationRecaptchaSecretKey');
     const verifyUrlEl = document.getElementById('registrationRecaptchaVerifyUrl');
+    const googleClientIdEl = document.getElementById('registrationGoogleClientId');
+    const appleClientIdEl = document.getElementById('registrationAppleClientId');
 
     if (emailVerificationEl) emailVerificationEl.checked = !!settings.emailVerificationEnabled;
     if (recaptchaEnabledEl) recaptchaEnabledEl.checked = !!settings.recaptchaEnabled;
@@ -762,6 +764,8 @@ function renderRegistrationSettingsForm() {
     if (siteKeyEl) siteKeyEl.value = settings.recaptchaSiteKey || '';
     if (secretKeyEl) secretKeyEl.value = settings.recaptchaSecretKey || '';
     if (verifyUrlEl) verifyUrlEl.value = settings.recaptchaVerifyUrl || '';
+    if (googleClientIdEl) googleClientIdEl.value = settings.googleClientId || '';
+    if (appleClientIdEl) appleClientIdEl.value = settings.appleClientId || '';
     updateRegistrationCaptchaCopy();
 }
 
@@ -958,6 +962,8 @@ async function saveRegistrationSettings(button) {
     const recaptchaSiteKey = document.getElementById('registrationRecaptchaSiteKey')?.value.trim() || '';
     const recaptchaSecretKey = document.getElementById('registrationRecaptchaSecretKey')?.value.trim() || '';
     const recaptchaVerifyUrl = document.getElementById('registrationRecaptchaVerifyUrl')?.value.trim() || '';
+    const googleClientId = document.getElementById('registrationGoogleClientId')?.value.trim() || '';
+    const appleClientId = document.getElementById('registrationAppleClientId')?.value.trim() || '';
 
     button.disabled = true;
 
@@ -970,7 +976,9 @@ async function saveRegistrationSettings(button) {
                 captchaProvider,
                 recaptchaSiteKey,
                 recaptchaSecretKey,
-                recaptchaVerifyUrl
+                recaptchaVerifyUrl,
+                googleClientId,
+                appleClientId
             })
         });
 

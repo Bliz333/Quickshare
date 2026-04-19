@@ -6,6 +6,7 @@ import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
 import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -23,6 +24,12 @@ public class RegistrationSettingsServiceImpl implements RegistrationSettingsServ
     @Autowired
     private SystemSettingOverrideService systemSettingOverrideService;
 
+    @Value("${google.client-id:}")
+    private String googleClientId;
+
+    @Value("${apple.client-id:}")
+    private String appleClientId;
+
     @Override
     public RegistrationSettingsPolicy getPolicy() {
         if (systemSettingOverrideService != null) {
@@ -38,13 +45,15 @@ public class RegistrationSettingsServiceImpl implements RegistrationSettingsServ
                 "recaptcha",
                 recaptchaProperties.getSiteKey(),
                 recaptchaProperties.getSecretKey(),
-                recaptchaProperties.getVerifyUrl()
+                recaptchaProperties.getVerifyUrl(),
+                googleClientId,
+                appleClientId
         ));
     }
 
     private RegistrationSettingsPolicy normalize(RegistrationSettingsPolicy source) {
         if (source == null) {
-            return new RegistrationSettingsPolicy(true, false, "recaptcha", "", "", DEFAULT_RECAPTCHA_VERIFY_URL);
+            return new RegistrationSettingsPolicy(true, false, "recaptcha", "", "", DEFAULT_RECAPTCHA_VERIFY_URL, "", "");
         }
 
         String provider = normalizeValue(source.captchaProvider());
@@ -53,6 +62,8 @@ public class RegistrationSettingsServiceImpl implements RegistrationSettingsServ
         String siteKey = normalizeValue(source.recaptchaSiteKey());
         String secretKey = normalizeValue(source.recaptchaSecretKey());
         String verifyUrl = normalizeValue(source.recaptchaVerifyUrl());
+        String googleClientId = normalizeValue(source.googleClientId());
+        String appleClientId = normalizeValue(source.appleClientId());
         boolean recaptchaEnabled = source.recaptchaEnabled()
                 && !siteKey.isBlank()
                 && !secretKey.isBlank();
@@ -67,7 +78,9 @@ public class RegistrationSettingsServiceImpl implements RegistrationSettingsServ
                 provider,
                 siteKey,
                 secretKey,
-                verifyUrl
+                verifyUrl,
+                googleClientId,
+                appleClientId
         );
     }
 

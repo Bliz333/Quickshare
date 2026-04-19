@@ -6,6 +6,8 @@ public record RegistrationSettingsPolicy(
         String captchaProvider,
         String recaptchaSiteKey,
         String recaptchaSecretKey,
-        String recaptchaVerifyUrl
+        String recaptchaVerifyUrl,
+        String googleClientId,
+        String appleClientId
 ) {
 }

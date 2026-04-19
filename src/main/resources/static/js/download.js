@@ -3,9 +3,12 @@
  */
 
 let _shareFileType = null;
+let _pickupShareToken = null;
 
 function initGuestMode(shareCode, extractCode) {
     console.log('进入访客模式:', shareCode, extractCode);
+    _pickupShareToken = null;
+    toggleDownloadMode(false);
 
     switchTab('download');
 
@@ -35,8 +38,15 @@ function initGuestMode(shareCode, extractCode) {
 function parseShareParams() {
     let shareCode = null;
     let extractCode = null;
+    let pickupToken = null;
 
-    if (window.location.hash.includes('share=')) {
+    if (window.location.hash.includes('pickup=')) {
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        pickupToken = params.get('pickup');
+    } else if (window.location.search.includes('pickup=')) {
+        const params = new URLSearchParams(window.location.search);
+        pickupToken = params.get('pickup');
+    } else if (window.location.hash.includes('share=')) {
         const params = new URLSearchParams(window.location.hash.substring(1));
         shareCode = params.get('share');
         extractCode = params.get('code');
@@ -46,7 +56,109 @@ function parseShareParams() {
         extractCode = params.get('code');
     }
 
-    return { shareCode, extractCode };
+    return { shareCode, extractCode, pickupToken };
+}
+
+function toggleDownloadMode(isPickupMode) {
+    const shareField = document.getElementById('downloadShareCodeField');
+    const extractField = document.getElementById('downloadExtractCodeField');
+    const lookupBtn = document.getElementById('downloadLookupBtn');
+    const shareInfo = document.getElementById('downloadInfo');
+    const pickupInfo = document.getElementById('pickupInfo');
+
+    if (shareField) shareField.style.display = isPickupMode ? 'none' : '';
+    if (extractField) extractField.style.display = isPickupMode ? 'none' : '';
+    if (lookupBtn) lookupBtn.style.display = isPickupMode ? 'none' : '';
+    if (shareInfo && isPickupMode) shareInfo.style.display = 'none';
+    if (pickupInfo && !isPickupMode) pickupInfo.style.display = 'none';
+}
+
+function formatPickupTime(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    const locale = typeof getCurrentLanguage === 'function' && getCurrentLanguage() === 'en' ? 'en-US' : 'zh-CN';
+    return date.toLocaleString(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+async function getPickupInfo() {
+    const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
+    if (!_pickupShareToken) {
+        showToast(lang === 'zh' ? '缺少取件参数' : 'Missing pickup token', 'error');
+        return;
+    }
+
+    try {
+        const headers = getAuthToken() ? getAuthHeaders() : {};
+        const res = await fetch(`${API_BASE}/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}`, { headers });
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : null;
+        if (!res.ok || !data || data.code !== 200) {
+            throw new Error(data?.message || (lang === 'zh' ? '获取取件信息失败' : 'Failed to fetch pickup info'));
+        }
+
+        const info = data.data || {};
+        toggleDownloadMode(true);
+
+        const fileNameEl = document.getElementById('pickupFileName');
+        const senderEl = document.getElementById('pickupSender');
+        const sizeEl = document.getElementById('pickupFileSize');
+        const updatedEl = document.getElementById('pickupUpdatedAt');
+        const pickupInfo = document.getElementById('pickupInfo');
+        const pickupDownloadBtn = document.getElementById('pickupDownloadBtn');
+        const pickupSaveBtn = document.getElementById('pickupSaveBtn');
+
+        if (fileNameEl) fileNameEl.textContent = info.fileName || '-';
+        if (senderEl) senderEl.textContent = info.senderLabel || '-';
+        if (sizeEl) sizeEl.textContent = formatFileSize(info.fileSize || 0);
+        if (updatedEl) updatedEl.textContent = formatPickupTime(info.updateTime);
+        if (pickupDownloadBtn) pickupDownloadBtn.disabled = !info.ready;
+        if (pickupSaveBtn) {
+            pickupSaveBtn.style.display = isLoggedIn() ? '' : 'none';
+            pickupSaveBtn.disabled = !info.ready || !isLoggedIn();
+        }
+        if (pickupInfo) {
+            pickupInfo.style.display = 'block';
+            pickupInfo.style.animation = 'slideUp 0.5s ease-out';
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+        const pickupInfo = document.getElementById('pickupInfo');
+        if (pickupInfo) pickupInfo.style.display = 'none';
+    }
+}
+
+function downloadPickupFile() {
+    if (!_pickupShareToken) return;
+    window.open(`${API_BASE}/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}/download`, '_blank');
+}
+
+async function savePickupToNetdisk() {
+    const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
+    if (!_pickupShareToken) return;
+    if (!isLoggedIn()) {
+        showToast(lang === 'zh' ? '请先登录' : 'Please log in first', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/transfer/public-shares/${encodeURIComponent(_pickupShareToken)}/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
+            body: JSON.stringify({ folderId: 0 })
+        });
+        const text = await response.text();
+        const result = text ? JSON.parse(text) : null;
+        if (!response.ok || !result || result.code !== 200) {
+            throw new Error(result?.message || (lang === 'zh' ? '保存失败' : 'Save failed'));
+        }
+        showToast(lang === 'zh' ? '已保存到网盘' : 'Saved to Netdisk', 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
 }
 
 function isPreviewableFileName(fileName, fileType) {
@@ -77,6 +189,7 @@ function isImageFile(fileName) {
 }
 
 async function getShareInfo() {
+    toggleDownloadMode(false);
     const sCode = document.getElementById('downloadShareCode').value.trim();
     const eCode = document.getElementById('downloadExtractCode').value.trim();
     const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';

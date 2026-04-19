@@ -178,7 +178,7 @@
             width:100%;height:48px;border:none;border-radius:14px;
             background:linear-gradient(135deg,var(--primary),var(--primary-dark));
             color:#fff;font-family:inherit;font-size:.9rem;font-weight:700;
-            cursor:pointer;transition:all .2s;
+            cursor:pointer;transition:all .2s;white-space:nowrap;
             box-shadow:0 8px 24px rgba(59,130,246,.2)
         }
         .dark-mode .action-btn{box-shadow:0 8px 24px rgba(129,140,248,.2)}
@@ -239,7 +239,8 @@
             border:1px solid var(--border);font-size:.82rem
         }
         .dl-meta-row strong{color:var(--text2);font-weight:600;font-size:.76rem}
-        .dl-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .dl-actions{display:flex;gap:8px;flex-wrap:nowrap;align-items:stretch}
+        .dl-actions .action-btn{flex:1 1 0;min-width:0}
 
         /* ═══ Preview ═══ */
         #sharePreviewContainer{
@@ -282,6 +283,8 @@
             .card{padding:18px}
             .settings-row{grid-template-columns:1fr}
             .tab{padding:0 14px;font-size:.8rem}
+            .dl-actions{flex-direction:column}
+            .dl-actions .action-btn{width:100%;min-width:0}
         }
     </style>
 </head>
@@ -383,18 +386,53 @@
     <div id="download-tab" class="tab-content">
         <div class="card">
 
-            <div class="field" style="margin-bottom:12px">
+            <div class="field" id="downloadShareCodeField" style="margin-bottom:12px">
                 <label data-i18n="shareCodeLabel">Share code</label>
                 <input type="text" id="downloadShareCode" placeholder="8-character code" data-i18n-placeholder="downloadShareCodePlaceholder">
             </div>
-            <div class="field" style="margin-bottom:14px">
+            <div class="field" id="downloadExtractCodeField" style="margin-bottom:14px">
                 <label data-i18n="extractCodeLabel2">Extract code (if any)</label>
                 <input type="text" id="downloadExtractCode" placeholder="Enter extract code" data-i18n-placeholder="downloadExtractCodePlaceholder">
             </div>
-            <button class="action-btn" onclick="getShareInfo()">
+            <button class="action-btn" id="downloadLookupBtn" onclick="getShareInfo()">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <span data-i18n="viewFileInfoBtn">Look up file</span>
             </button>
+
+            <div class="download-info" id="pickupInfo" style="display:none">
+                <h3>
+                    <i class="fa-solid fa-bolt" style="color:var(--primary)"></i>
+                    <span data-i18n="transferPublicPickupTitle">Pickup View</span>
+                </h3>
+                <div class="dl-meta">
+                    <div class="dl-meta-row">
+                        <strong data-i18n="transferPublicFileName">File Name</strong>
+                        <span id="pickupFileName"></span>
+                    </div>
+                    <div class="dl-meta-row">
+                        <strong data-i18n="transferPublicSender">Sender</strong>
+                        <span id="pickupSender"></span>
+                    </div>
+                    <div class="dl-meta-row">
+                        <strong data-i18n="transferPublicFileSize">Size</strong>
+                        <span id="pickupFileSize"></span>
+                    </div>
+                    <div class="dl-meta-row">
+                        <strong data-i18n="transferPublicUpdatedAt">Updated</strong>
+                        <span id="pickupUpdatedAt"></span>
+                    </div>
+                </div>
+                <div class="dl-actions">
+                    <button class="action-btn success-btn" id="pickupDownloadBtn" onclick="downloadPickupFile()">
+                        <i class="fa-solid fa-download"></i>
+                        <span data-i18n="downloadBtn">Download</span>
+                    </button>
+                    <button class="action-btn ghost-btn" id="pickupSaveBtn" onclick="savePickupToNetdisk()" style="display:none">
+                        <i class="fa-solid fa-hard-drive"></i>
+                        <span data-i18n="transferSaveToNetdisk">Save to Netdisk</span>
+                    </button>
+                </div>
+            </div>
 
             <div class="download-info" id="downloadInfo" style="display:none">
                 <h3>
@@ -481,7 +519,11 @@
             initUploadArea();
             initMascots();
             var p=parseShareParams();
-            if(p.shareCode){
+            if(p.pickupToken){
+                _pickupShareToken=p.pickupToken;
+                switchTab('download');
+                getPickupInfo();
+            }else if(p.shareCode){
                 initGuestMode(p.shareCode,p.extractCode);
             }
         }

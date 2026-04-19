@@ -64,6 +64,12 @@ public class RegistrationSettingsServiceImpl implements RegistrationSettingsServ
         String verifyUrl = normalizeValue(source.recaptchaVerifyUrl());
         String googleClientId = normalizeValue(source.googleClientId());
         String appleClientId = normalizeValue(source.appleClientId());
+        if (googleClientId.isBlank()) {
+            googleClientId = normalizeValue(this.googleClientId);
+        }
+        if (appleClientId.isBlank()) {
+            appleClientId = normalizeValue(this.appleClientId);
+        }
         boolean recaptchaEnabled = source.recaptchaEnabled()
                 && !siteKey.isBlank()
                 && !secretKey.isBlank();

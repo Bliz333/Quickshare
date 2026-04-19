@@ -84,7 +84,7 @@ class QuickDropLegacyRouteTest {
         mockMvc.perform(get("/quickdrop.html"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("transfer.html")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("index.html")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("window.location.replace")));
     }
 
@@ -93,7 +93,9 @@ class QuickDropLegacyRouteTest {
         mockMvc.perform(get("/quickdrop-share.html"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("transfer-share.html")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("share.html")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("pickup=")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("window.location.replace")));
     }
 
     @Test

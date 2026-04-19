@@ -53,7 +53,9 @@ class RegistrationSettingsServiceImplTest {
                 "recaptcha",
                 "site-key",
                 "secret-key",
-                "https://www.google.com/recaptcha/api/siteverify"
+                "https://www.google.com/recaptcha/api/siteverify",
+                "google-client-id",
+                "apple-client-id"
         )));
 
         RegistrationSettingsPolicy result = registrationSettingsService.getPolicy();
@@ -61,5 +63,7 @@ class RegistrationSettingsServiceImplTest {
         assertThat(result.emailVerificationEnabled()).isFalse();
         assertThat(result.recaptchaEnabled()).isTrue();
         assertThat(result.recaptchaSiteKey()).isEqualTo("site-key");
+        assertThat(result.googleClientId()).isEqualTo("google-client-id");
+        assertThat(result.appleClientId()).isEqualTo("apple-client-id");
     }
 }

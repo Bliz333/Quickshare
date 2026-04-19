@@ -43,7 +43,8 @@ public class SecurityConfig {
                                 "/api/download/**",
                                 "/api/preview/**",
                                 "/api/payment/notify",
-                                "/api/public/quickdrop/**",
+                                "/api/public/transfer/**",
+                                "/ws/transfer",
                                 "/ws/quickdrop",
                                 "/error"
                         ).permitAll()
@@ -53,9 +54,12 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/",
                                 "/index.html",
+                                "/share.html",
                                 "/login.html",
                                 "/register.html",
                                 "/netdisk.html",
+                                "/transfer.html",
+                                "/transfer-share.html",
                                 "/quickdrop.html",
                                 "/quickdrop-share.html",
                                 "/pdf-viewer.html",

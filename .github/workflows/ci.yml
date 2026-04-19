@@ -42,3 +42,30 @@ jobs:
 
       - name: Package (skip tests)
         run: ./mvnw -B -q package -DskipTests
+
+  playwright-mock:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run mock-only Playwright tests
+        run: |
+          npx playwright test \
+            tests/e2e/home-notifications.spec.js \
+            tests/e2e/netdisk-quota.spec.js \
+            tests/e2e/pricing-payment.spec.js \
+            tests/e2e/quickdrop.spec.js \
+            tests/e2e/register-captcha.spec.js

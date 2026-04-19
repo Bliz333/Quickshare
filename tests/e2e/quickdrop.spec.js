@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-async function stubQuickDropRealtime(page, { lang = 'en' } = {}) {
+async function stubTransferRealtime(page, { lang = 'en' } = {}) {
   await page.addInitScript(({ currentLang }) => {
     localStorage.setItem('quickshare-lang', currentLang);
 
@@ -39,45 +39,157 @@ async function stubQuickDropRealtime(page, { lang = 'en' } = {}) {
   }, { currentLang: lang });
 }
 
-async function gotoQuickDropPage(page, baseURL) {
-  await page.goto(`${baseURL}/quickdrop.html`, { waitUntil: 'commit' });
-  await expect(page.locator('#quickDropModeSwitch')).toBeVisible();
+async function stubTransferRealtimeWithPublicRoom(page, { lang = 'en' } = {}) {
+  await page.addInitScript(({ currentLang }) => {
+    localStorage.setItem('quickshare-lang', currentLang);
+    window.__transferSocketSends = [];
+
+    class FakeWebSocket extends EventTarget {
+      static CONNECTING = 0;
+      static OPEN = 1;
+      static CLOSING = 2;
+      static CLOSED = 3;
+
+      constructor(url) {
+        super();
+        this.url = url;
+        this.readyState = FakeWebSocket.CONNECTING;
+        setTimeout(() => {
+          this.readyState = FakeWebSocket.OPEN;
+          this.dispatchEvent(new Event('open'));
+          this.dispatchEvent(new MessageEvent('message', {
+            data: JSON.stringify({
+              type: 'welcome',
+              channelId: 'guest:test-device',
+              label: 'Test Device'
+            })
+          }));
+          this.dispatchEvent(new MessageEvent('message', {
+            data: JSON.stringify({
+              type: 'room-update',
+              roomId: 'room:localhost',
+              roomScope: 'local',
+              roomCode: '',
+              devices: [
+                { channelId: 'guest:test-device', label: 'Test Device', isMe: true }
+              ]
+            })
+          }));
+        }, 0);
+      }
+
+      send(raw) {
+        const payload = JSON.parse(raw);
+        window.__transferSocketSends.push(payload);
+
+        if (payload.type === 'create-public-room') {
+          setTimeout(() => {
+            this.dispatchEvent(new MessageEvent('message', {
+              data: JSON.stringify({
+                type: 'public-room-created',
+                roomCode: 'ROOM42'
+              })
+            }));
+            this.dispatchEvent(new MessageEvent('message', {
+              data: JSON.stringify({
+                type: 'room-update',
+                roomId: 'room:public:ROOM42',
+                roomScope: 'public',
+                roomCode: 'ROOM42',
+                devices: [
+                  { channelId: 'guest:test-device', label: 'Test Device', isMe: true },
+                  { channelId: 'guest:peer-device', label: 'Peer Device', isMe: false }
+                ]
+              })
+            }));
+          }, 0);
+        }
+
+        if (payload.type === 'request-transfer') {
+          setTimeout(() => {
+            this.dispatchEvent(new MessageEvent('message', {
+              data: JSON.stringify({
+                type: 'pair-ready',
+                pairSessionId: 'pair-room-1',
+                peerChannelId: 'guest:peer-device',
+                peerDeviceId: '',
+                peerLabel: 'Peer Device'
+              })
+            }));
+          }, 0);
+        }
+      }
+
+      close() {
+        this.readyState = FakeWebSocket.CLOSED;
+        this.dispatchEvent(new Event('close'));
+      }
+    }
+
+    window.WebSocket = FakeWebSocket;
+  }, { currentLang: lang });
 }
 
-async function openQuickDropAccountHistory(page) {
-  const panel = page.locator('#quickDropAccountHistoryPanel');
+async function gotoTransferPage(page, baseURL) {
+  await page.goto(`${baseURL}/transfer.html`, { waitUntil: 'commit' });
+  await expect(page.locator('#transferModeSwitch')).toBeVisible();
+}
+
+async function openTransferAccountHistory(page) {
+  const panel = page.locator('#transferAccountHistoryPanel');
   if (await panel.isVisible()) {
     return;
   }
-  await page.locator('#quickDropAccountHistoryToggle').click();
+  await page.locator('#transferAccountHistoryToggle').click();
   await expect(page).toHaveURL(/[?&]view=account-history$/);
   await expect(panel).toBeVisible();
 }
 
-async function openQuickDropDirectHistory(page) {
-  const panel = page.locator('#quickDropDirectHistoryPanel');
+async function openTransferDirectHistory(page) {
+  const panel = page.locator('#transferDirectHistoryPanel');
   if (await panel.isVisible()) {
     return;
   }
-  await page.locator('#quickDropDirectHistoryToggle').click();
+  await page.locator('#transferDirectHistoryToggle').click();
   await expect(page).toHaveURL(/[?&]view=temporary-history$/);
   await expect(panel).toBeVisible();
 }
 
-test.describe('QuickDrop pages', () => {
-  test('guest can stay on quickdrop page and use temporary transfer without being redirected to login', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+test.describe('Transfer pages', () => {
+  test('guest can stay on transfer page and use temporary transfer without being redirected to login', async ({ page, baseURL }) => {
+    await stubTransferRealtime(page, { lang: 'en' });
 
-    await gotoQuickDropPage(page, baseURL);
-    await expect(page).toHaveURL(/quickdrop\.html$/);
-    await expect(page.locator('#quickDropSignalStatus')).toBeHidden();
-    await expect(page.locator('#quickDropDirectChooseBtn')).toBeVisible();
-    await expect(page.locator('#quickDropAccountPanels')).toBeHidden();
+    await gotoTransferPage(page, baseURL);
+    await expect(page).toHaveURL(/transfer.html$/);
+    await expect(page.locator('#transferSignalStatus')).toBeHidden();
+    await expect(page.locator('#transferDirectChooseBtn')).toBeVisible();
+    await expect(page.locator('#transferAccountPanels')).toBeHidden();
+  });
+
+  test('temporary mode can create a public room and request a transfer from a room peer', async ({ page, baseURL }) => {
+    await stubTransferRealtimeWithPublicRoom(page, { lang: 'en' });
+
+    await gotoTransferPage(page, baseURL);
+    await page.locator('#transferCreatePublicRoomBtn').click();
+
+    await expect(page.locator('#transferPublicRoomCodeDisplay')).toHaveText('ROOM42');
+    await expect(page.locator('#transferPeerDiscoveryTitle')).toHaveText('Room Devices');
+    await expect(page.locator('#transferLanDeviceList')).toContainText('Peer Device');
+
+    await page.locator('[data-transfer-lan-device="guest:peer-device"]').click();
+
+    await expect(page.locator('#transferDirectPeer')).toContainText('Peer Device');
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__transferSocketSends);
+    }).toContainEqual(expect.objectContaining({
+      type: 'request-transfer',
+      targetChannelId: 'guest:peer-device'
+    }));
   });
 
   test('renders same-account device transfer view and saves incoming transfer to netdisk', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -103,7 +215,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -178,7 +290,7 @@ test.describe('QuickDrop pages', () => {
 
     let saveCalled = false;
     let saveRequestFolderId = null;
-    await page.route('**/api/quickdrop/transfers/12/save', async route => {
+    await page.route('**/api/transfer/transfers/12/save', async route => {
       saveCalled = true;
       saveRequestFolderId = route.request().postDataJSON()?.folderId ?? null;
       await route.fulfill({
@@ -195,24 +307,24 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
-    await openQuickDropAccountHistory(page);
+    await gotoTransferPage(page, baseURL);
+    await openTransferAccountHistory(page);
 
-    await expect(page.locator('#quickDropDeviceList')).toContainText('My Laptop');
-    await expect(page.locator('#quickDropSelectedDevice')).toHaveText('My Laptop');
-    await expect(page.locator('#quickDropSaveFolderSelect')).toContainText('Projects');
-    await expect(page.locator('#quickDropIncomingList')).toContainText('draft.pdf');
-    await expect(page.locator('#quickDropIncomingList')).toContainText('Save to Netdisk');
+    await expect(page.locator('#transferDeviceList')).toContainText('My Laptop');
+    await expect(page.locator('#transferSelectedDevice')).toHaveText('My Laptop');
+    await expect(page.locator('#transferSaveFolderSelect')).toContainText('Projects');
+    await expect(page.locator('#transferIncomingList')).toContainText('draft.pdf');
+    await expect(page.locator('#transferIncomingList')).toContainText('Save to Netdisk');
 
-    await page.locator('#quickDropSaveFolderSelect').selectOption('301');
-    await page.locator('[data-quickdrop-save="12"]').click();
+    await page.locator('#transferSaveFolderSelect').selectOption('301');
+    await page.locator('[data-transfer-save="12"]').click();
     await expect.poll(() => saveCalled).toBe(true);
     expect(saveRequestFolderId).toBe(301);
   });
 
-  test('same-account history page uses route navigation and browser back returns to the main stage', async ({ page, baseURL }) => {
+  test('same-account main page shows an incoming notice card and can jump into the inbox', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -238,7 +350,223 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            currentDevice: {
+              deviceId: 'device-a',
+              deviceName: 'My Desktop',
+              deviceType: 'Windows',
+              current: true,
+              online: true,
+              lastSeenAt: '2026-03-21T10:00:00'
+            },
+            devices: [
+              {
+                deviceId: 'device-a',
+                deviceName: 'My Desktop',
+                deviceType: 'Windows',
+                current: true,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              },
+              {
+                deviceId: 'device-b',
+                deviceName: 'My Laptop',
+                deviceType: 'Mac',
+                current: false,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              }
+            ],
+            incomingTransfers: [
+              {
+                id: 18,
+                senderDeviceId: 'device-b',
+                receiverDeviceId: 'device-a',
+                fileName: 'arrival.zip',
+                fileSize: 8192,
+                contentType: 'application/zip',
+                chunkSize: 1024,
+                totalChunks: 8,
+                uploadedChunks: 8,
+                uploadedChunkIndexes: [0, 1, 2, 3, 4, 5, 6, 7],
+                status: 'ready',
+                ready: true,
+                updateTime: '2026-03-21T10:00:00'
+              }
+            ],
+            outgoingTransfers: [],
+            recommendedChunkSize: 2097152
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/folders/all', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: [
+            { id: 301, name: 'Projects' },
+            { id: 302, name: 'Inbox' }
+          ]
+        })
+      });
+    });
+
+    await gotoTransferPage(page, baseURL);
+
+    await expect(page.locator('#transferIncomingNoticeCard')).toBeVisible();
+    await expect(page.locator('#transferIncomingNoticeCard')).toContainText('arrival.zip');
+    await expect(page.locator('#transferIncomingNoticeStatus')).toContainText(/Ready|待下载|已就绪/);
+
+    await page.locator('#transferIncomingNoticeOpenBtn').click();
+    await expect(page).toHaveURL(/[?&]view=account-history$/);
+    await expect(page.locator('#transferAccountHistoryPanel')).toBeVisible();
+    await expect(page.locator('#transferIncomingList')).toContainText('arrival.zip');
+  });
+
+  test('shows saved badge and view-in-netdisk link when incoming task was already saved', async ({ page, baseURL }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('token', 'transfer-token');
+      localStorage.setItem('user', JSON.stringify({
+        id: 1,
+        username: 'admin',
+        nickname: 'QuickShare Admin',
+        role: 'ADMIN'
+      }));
+    });
+
+    await page.route('**/api/profile', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: { id: 1, username: 'admin', nickname: 'QuickShare Admin', role: 'ADMIN' }
+        })
+      });
+    });
+
+    await page.route('**/api/transfer/sync', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            currentDevice: {
+              deviceId: 'device-a',
+              deviceName: 'My Desktop',
+              deviceType: 'Windows',
+              current: true,
+              online: true,
+              lastSeenAt: '2026-03-21T10:00:00'
+            },
+            devices: [
+              {
+                deviceId: 'device-a',
+                deviceName: 'My Desktop',
+                deviceType: 'Windows',
+                current: true,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              },
+              {
+                deviceId: 'device-b',
+                deviceName: 'My Laptop',
+                deviceType: 'Mac',
+                current: false,
+                online: true,
+                lastSeenAt: '2026-03-21T10:00:00'
+              }
+            ],
+            incomingTransfers: [
+              {
+                id: 12,
+                senderDeviceId: 'device-b',
+                receiverDeviceId: 'device-a',
+                fileName: 'draft.pdf',
+                fileSize: 2048,
+                contentType: 'application/pdf',
+                chunkSize: 1024,
+                totalChunks: 2,
+                uploadedChunks: 2,
+                uploadedChunkIndexes: [0, 1],
+                status: 'ready',
+                ready: true,
+                updateTime: '2026-03-21T10:00:00',
+                savedToNetdiskAt: '2026-03-26T10:00:00'
+              }
+            ],
+            outgoingTransfers: [],
+            recommendedChunkSize: 2097152
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/folders/all', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: [{ id: 301, name: 'Projects' }]
+        })
+      });
+    });
+
+    await gotoTransferPage(page, baseURL);
+    await openTransferAccountHistory(page);
+
+    await expect(page.locator('#transferIncomingList')).toContainText('draft.pdf');
+    await expect(page.locator('#transferIncomingList [data-transfer-save]')).toHaveCount(0);
+    await expect(page.locator('#transferIncomingList')).toContainText('Saved to Netdisk');
+    await expect(page.locator('#transferIncomingList a[href="netdisk.html"]')).toBeVisible();
+  });
+
+  test('same-account history page uses route navigation and browser back returns to the main stage', async ({ page, baseURL }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('token', 'transfer-token');
+      localStorage.setItem('user', JSON.stringify({
+        id: 1,
+        username: 'admin',
+        nickname: 'QuickShare Admin',
+        role: 'ADMIN'
+      }));
+    });
+
+    await page.route('**/api/profile', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            id: 1,
+            username: 'admin',
+            nickname: 'QuickShare Admin',
+            role: 'ADMIN'
+          }
+        })
+      });
+    });
+
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -292,19 +620,19 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
-    await openQuickDropAccountHistory(page);
-    await expect(page.locator('#quickDropHistoryPage')).toBeVisible();
+    await gotoTransferPage(page, baseURL);
+    await openTransferAccountHistory(page);
+    await expect(page.locator('#transferHistoryPage')).toBeVisible();
     await page.goBack({ waitUntil: 'commit' });
-    await expect(page).toHaveURL(/quickdrop\.html$/);
-    await expect(page.locator('#quickDropHistoryPage')).toBeHidden();
-    await expect(page.locator('#quickDropMainLayout')).toBeVisible();
+    await expect(page).toHaveURL(/transfer.html$/);
+    await expect(page.locator('#transferHistoryPage')).toBeHidden();
+    await expect(page.locator('#transferMainLayout')).toBeVisible();
   });
 
   test('same-account page auto-requests a direct session and prefers direct send when ready', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -330,7 +658,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -386,7 +714,7 @@ test.describe('QuickDrop pages', () => {
 
     let directSessionRequests = 0;
     let relayTransferCreated = false;
-    await page.route('**/api/quickdrop/direct-sessions', async route => {
+    await page.route('**/api/transfer/direct-sessions', async route => {
       directSessionRequests += 1;
       await route.fulfill({
         status: 200,
@@ -406,38 +734,38 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/transfers', async route => {
+    await page.route('**/api/transfer/transfers', async route => {
       if (route.request().method() === 'POST') {
         relayTransferCreated = true;
       }
       await route.fallback();
     });
 
-    await gotoQuickDropPage(page, baseURL);
+    await gotoTransferPage(page, baseURL);
 
     await expect.poll(() => directSessionRequests).toBeGreaterThan(0);
 
     await page.evaluate(() => {
-      window.__quickDropDirectChoice = null;
+      window.__transferDirectChoice = null;
 
-      QuickDropSignalManager.ensurePairWithDevice = async () => ({
+      TransferSignalManager.ensurePairWithDevice = async () => ({
         pairSessionId: 'pair-same-account-1',
         peerChannelId: 'user:1:device:device-b',
         peerDeviceId: 'device-b',
         peerLabel: 'My Laptop'
       });
-      QuickDropSignalManager.waitForDirectReady = async () => true;
-      QuickDropSignalManager.isDirectReady = () => true;
-      QuickDropSignalManager.getState = () => ({
+      TransferSignalManager.waitForDirectReady = async () => true;
+      TransferSignalManager.isDirectReady = () => true;
+      TransferSignalManager.getState = () => ({
         latestPeerLabel: 'My Laptop',
         latestPeerChannelId: 'user:1:device:device-b',
         latestPeerDeviceId: 'device-b',
         directState: 'ready'
       });
 
-      QuickDropDirectTransfer.canSendToPeerDevice = deviceId => deviceId === 'device-b';
-      QuickDropDirectTransfer.sendFile = async (file, options) => {
-        window.__quickDropDirectChoice = {
+      TransferDirectTransfer.canSendToPeerDevice = deviceId => deviceId === 'device-b';
+      TransferDirectTransfer.sendFile = async (file, options) => {
+        window.__transferDirectChoice = {
           fileName: file.name,
           expectedPeerDeviceId: options.expectedPeerDeviceId
         };
@@ -445,14 +773,14 @@ test.describe('QuickDrop pages', () => {
       };
     });
 
-    await page.setInputFiles('#quickDropFileInput', {
+    await page.setInputFiles('#transferFileInput', {
       name: 'same-account.txt',
       mimeType: 'text/plain',
       buffer: Buffer.from('hello')
     });
-    await page.locator('#quickDropSendBtn').click();
+    await page.locator('#transferSendBtn').click();
 
-    const directChoice = await page.evaluate(() => window.__quickDropDirectChoice);
+    const directChoice = await page.evaluate(() => window.__transferDirectChoice);
     expect(directChoice).toEqual({
       fileName: 'same-account.txt',
       expectedPeerDeviceId: 'device-b'
@@ -461,9 +789,9 @@ test.describe('QuickDrop pages', () => {
   });
 
   test('same-account send retries transient direct-session signaling errors before falling back to relay', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -489,7 +817,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -544,7 +872,7 @@ test.describe('QuickDrop pages', () => {
     });
 
     let relayTransferCreated = false;
-    await page.route('**/api/quickdrop/direct-sessions', async route => {
+    await page.route('**/api/transfer/direct-sessions', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -563,26 +891,26 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/transfers', async route => {
+    await page.route('**/api/transfer/transfers', async route => {
       if (route.request().method() === 'POST') {
         relayTransferCreated = true;
       }
       await route.fallback();
     });
 
-    await gotoQuickDropPage(page, baseURL);
+    await gotoTransferPage(page, baseURL);
 
     await page.evaluate(() => {
-      window.__quickDropDirectChoice = null;
-      window.__quickDropEnsurePairAttempts = 0;
-      window.__quickDropPeerReady = false;
+      window.__transferDirectChoice = null;
+      window.__transferEnsurePairAttempts = 0;
+      window.__transferPeerReady = false;
 
-      QuickDropSignalManager.ensurePairWithDevice = async () => {
-        window.__quickDropEnsurePairAttempts += 1;
-        if (window.__quickDropEnsurePairAttempts === 1) {
+      TransferSignalManager.ensurePairWithDevice = async () => {
+        window.__transferEnsurePairAttempts += 1;
+        if (window.__transferEnsurePairAttempts === 1) {
           throw new Error('目标设备当前没有连上直连信令');
         }
-        window.__quickDropPeerReady = true;
+        window.__transferPeerReady = true;
         return {
           pairSessionId: 'pair-same-account-retry',
           peerChannelId: 'user:1:device:device-b',
@@ -590,22 +918,22 @@ test.describe('QuickDrop pages', () => {
           peerLabel: 'My Laptop'
         };
       };
-      QuickDropSignalManager.waitForDirectReady = async () => window.__quickDropPeerReady;
-      QuickDropSignalManager.isDirectReady = () => window.__quickDropPeerReady;
-      QuickDropSignalManager.getState = () => ({
+      TransferSignalManager.waitForDirectReady = async () => window.__transferPeerReady;
+      TransferSignalManager.isDirectReady = () => window.__transferPeerReady;
+      TransferSignalManager.getState = () => ({
         connected: true,
-        latestPeerLabel: window.__quickDropPeerReady ? 'My Laptop' : '',
-        latestPeerChannelId: window.__quickDropPeerReady ? 'user:1:device:device-b' : '',
-        latestPeerDeviceId: window.__quickDropPeerReady ? 'device-b' : '',
-        directState: window.__quickDropPeerReady ? 'ready' : 'idle',
+        latestPeerLabel: window.__transferPeerReady ? 'My Laptop' : '',
+        latestPeerChannelId: window.__transferPeerReady ? 'user:1:device:device-b' : '',
+        latestPeerDeviceId: window.__transferPeerReady ? 'device-b' : '',
+        directState: window.__transferPeerReady ? 'ready' : 'idle',
         directDiagnostics: {
           rtcHasTurn: false
         }
       });
 
-      QuickDropDirectTransfer.canSendToPeerDevice = deviceId => deviceId === 'device-b';
-      QuickDropDirectTransfer.sendFile = async (file, options) => {
-        window.__quickDropDirectChoice = {
+      TransferDirectTransfer.canSendToPeerDevice = deviceId => deviceId === 'device-b';
+      TransferDirectTransfer.sendFile = async (file, options) => {
+        window.__transferDirectChoice = {
           fileName: file.name,
           expectedPeerDeviceId: options.expectedPeerDeviceId
         };
@@ -613,16 +941,16 @@ test.describe('QuickDrop pages', () => {
       };
     });
 
-    await page.locator('[data-quickdrop-device="device-b"]').click();
-    await page.setInputFiles('#quickDropFileInput', {
+    await page.locator('[data-transfer-device="device-b"]').click();
+    await page.setInputFiles('#transferFileInput', {
       name: 'retry-direct.txt',
       mimeType: 'text/plain',
       buffer: Buffer.from('hello')
     });
-    await page.locator('#quickDropSendBtn').click();
+    await page.locator('#transferSendBtn').click();
 
-    await expect.poll(() => page.evaluate(() => window.__quickDropEnsurePairAttempts)).toBe(2);
-    expect(await page.evaluate(() => window.__quickDropDirectChoice)).toEqual({
+    await expect.poll(() => page.evaluate(() => window.__transferEnsurePairAttempts)).toBe(2);
+    expect(await page.evaluate(() => window.__transferDirectChoice)).toEqual({
       fileName: 'retry-direct.txt',
       expectedPeerDeviceId: 'device-b'
     });
@@ -634,7 +962,7 @@ test.describe('QuickDrop pages', () => {
       localStorage.setItem('quickshare-lang', 'en');
     });
 
-    await page.route('**/api/public/quickdrop/shares', async route => {
+    await page.route('**/api/public/transfer/shares', async route => {
       if (route.request().method() === 'POST') {
         await route.fulfill({
           status: 200,
@@ -663,7 +991,7 @@ test.describe('QuickDrop pages', () => {
       }
     });
 
-    await page.route('**/api/public/quickdrop/shares/share-abc/chunks/0', async route => {
+    await page.route('**/api/public/transfer/shares/share-abc/chunks/0', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -688,25 +1016,25 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.goto(`${baseURL}/quickdrop-share.html`, { waitUntil: 'domcontentloaded' });
-    await page.setInputFiles('#quickDropPublicFileInput', {
+    await page.goto(`${baseURL}/transfer-share.html`, { waitUntil: 'domcontentloaded' });
+    await page.setInputFiles('#transferPublicFileInput', {
       name: 'hello.txt',
       mimeType: 'text/plain',
       buffer: Buffer.from('hello')
     });
 
-    await expect(page.locator('#quickDropPublicSelectedFile')).toContainText('hello.txt');
-    await page.locator('#quickDropPublicSendBtn').click();
+    await expect(page.locator('#transferPublicSelectedFile')).toContainText('hello.txt');
+    await page.locator('#transferPublicSendBtn').click();
 
-    await expect(page.locator('#quickDropPublicResultLink')).toBeVisible();
-    await expect(page.locator('#quickDropPublicResultLink')).toContainText('share-abc');
+    await expect(page.locator('#transferPublicResultLink')).toBeVisible();
+    await expect(page.locator('#transferPublicResultLink')).toContainText('share-abc');
 
   });
 
   test('same-account send falls back to server relay when direct link is not ready', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -732,7 +1060,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -786,7 +1114,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/direct-sessions', async route => {
+    await page.route('**/api/transfer/direct-sessions', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -806,7 +1134,7 @@ test.describe('QuickDrop pages', () => {
     });
 
     let directFallbackSyncPayload = null;
-    await page.route('**/api/quickdrop/tasks/direct-attempts', async route => {
+    await page.route('**/api/transfer/tasks/direct-attempts', async route => {
       directFallbackSyncPayload = route.request().postDataJSON();
       await route.fulfill({
         status: 200,
@@ -847,7 +1175,7 @@ test.describe('QuickDrop pages', () => {
     });
 
     let relayTransferCreated = false;
-    await page.route('**/api/quickdrop/transfers', async route => {
+    await page.route('**/api/transfer/transfers', async route => {
       if (route.request().method() === 'POST') {
         relayTransferCreated = true;
         await route.fulfill({
@@ -877,7 +1205,7 @@ test.describe('QuickDrop pages', () => {
       await route.fallback();
     });
 
-    await page.route('**/api/quickdrop/transfers/51/chunks/0**', async route => {
+    await page.route('**/api/transfer/transfers/51/chunks/0**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -902,20 +1230,20 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
+    await gotoTransferPage(page, baseURL);
 
     await page.evaluate(() => {
-      window.__quickDropDirectShouldNotRun = false;
+      window.__transferDirectShouldNotRun = false;
 
-      QuickDropSignalManager.ensurePairWithDevice = async () => ({
+      TransferSignalManager.ensurePairWithDevice = async () => ({
         pairSessionId: 'pair-same-account-fallback',
         peerChannelId: 'user:1:device:device-b',
         peerDeviceId: 'device-b',
         peerLabel: 'My Laptop'
       });
-      QuickDropSignalManager.waitForDirectReady = async () => false;
-      QuickDropSignalManager.isDirectReady = () => false;
-      QuickDropSignalManager.getState = () => ({
+      TransferSignalManager.waitForDirectReady = async () => false;
+      TransferSignalManager.isDirectReady = () => false;
+      TransferSignalManager.getState = () => ({
         connected: true,
         latestPeerLabel: 'My Laptop',
         latestPeerChannelId: 'user:1:device:device-b',
@@ -926,32 +1254,32 @@ test.describe('QuickDrop pages', () => {
         }
       });
 
-      QuickDropDirectTransfer.canSendToPeerDevice = () => false;
-      QuickDropDirectTransfer.sendFile = async () => {
-        window.__quickDropDirectShouldNotRun = true;
+      TransferDirectTransfer.canSendToPeerDevice = () => false;
+      TransferDirectTransfer.sendFile = async () => {
+        window.__transferDirectShouldNotRun = true;
       };
     });
 
-    await page.setInputFiles('#quickDropFileInput', {
+    await page.setInputFiles('#transferFileInput', {
       name: 'fallback.txt',
       mimeType: 'text/plain',
       buffer: Buffer.from('hello')
     });
-    await page.locator('#quickDropSendBtn').click();
+    await page.locator('#transferSendBtn').click();
 
     await expect.poll(() => relayTransferCreated).toBe(true);
     await expect.poll(() => directFallbackSyncPayload).not.toBeNull();
     expect(directFallbackSyncPayload.status).toBe('relay_fallback');
     expect(directFallbackSyncPayload.endReason).toBe('relay_fallback');
     expect(directFallbackSyncPayload.failureReason).toBe('direct_ready_timeout');
-    expect(await page.evaluate(() => window.__quickDropDirectShouldNotRun)).toBe(false);
-    await expect(page.locator('#quickDropActiveUploadMeta')).toContainText('Ready to Download');
+    expect(await page.evaluate(() => window.__transferDirectShouldNotRun)).toBe(false);
+    await expect(page.locator('#transferActiveUploadMeta')).toContainText('Ready to Download');
   });
 
   test('same-account send switches to server relay when direct transfer breaks mid-flight', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -977,7 +1305,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1031,7 +1359,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/direct-sessions', async route => {
+    await page.route('**/api/transfer/direct-sessions', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1051,7 +1379,7 @@ test.describe('QuickDrop pages', () => {
     });
 
     let relayTransferCreated = false;
-    await page.route('**/api/quickdrop/transfers', async route => {
+    await page.route('**/api/transfer/transfers', async route => {
       if (route.request().method() === 'POST') {
         relayTransferCreated = true;
         await route.fulfill({
@@ -1081,7 +1409,7 @@ test.describe('QuickDrop pages', () => {
       await route.fallback();
     });
 
-    await page.route('**/api/quickdrop/transfers/52/chunks/0**', async route => {
+    await page.route('**/api/transfer/transfers/52/chunks/0**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1106,31 +1434,31 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
+    await gotoTransferPage(page, baseURL);
 
     await page.evaluate(() => {
-      window.__quickDropInterruptedDirect = 0;
+      window.__transferInterruptedDirect = 0;
 
-      QuickDropSignalManager.ensurePairWithDevice = async () => ({
+      TransferSignalManager.ensurePairWithDevice = async () => ({
         pairSessionId: 'pair-same-account-interrupt',
         peerChannelId: 'user:1:device:device-b',
         peerDeviceId: 'device-b',
         peerLabel: 'My Laptop'
       });
-      QuickDropSignalManager.waitForDirectReady = async () => true;
-      QuickDropSignalManager.isDirectReady = () => true;
-      QuickDropSignalManager.getState = () => ({
+      TransferSignalManager.waitForDirectReady = async () => true;
+      TransferSignalManager.isDirectReady = () => true;
+      TransferSignalManager.getState = () => ({
         latestPeerLabel: 'My Laptop',
         latestPeerChannelId: 'user:1:device:device-b',
         latestPeerDeviceId: 'device-b',
         directState: 'ready'
       });
 
-      QuickDropDirectTransfer.canSendToPeerDevice = () => true;
-      QuickDropDirectTransfer.sendFile = async () => {
-        window.__quickDropInterruptedDirect += 1;
+      TransferDirectTransfer.canSendToPeerDevice = () => true;
+      TransferDirectTransfer.sendFile = async () => {
+        window.__transferInterruptedDirect += 1;
         const error = new Error('Direct link dropped');
-        error.quickDropDirectContext = {
+        error.transferDirectContext = {
           transferId: 'direct-interrupt-1',
           sentChunks: 1,
           acknowledgedChunks: 1,
@@ -1141,22 +1469,22 @@ test.describe('QuickDrop pages', () => {
       };
     });
 
-    await page.setInputFiles('#quickDropFileInput', {
+    await page.setInputFiles('#transferFileInput', {
       name: 'interrupt.txt',
       mimeType: 'text/plain',
       buffer: Buffer.from('hello')
     });
-    await page.locator('#quickDropSendBtn').click();
+    await page.locator('#transferSendBtn').click();
 
     await expect.poll(() => relayTransferCreated).toBe(true);
-    expect(await page.evaluate(() => window.__quickDropInterruptedDirect)).toBe(1);
-    await expect(page.locator('#quickDropActiveUploadMeta')).toContainText('Ready to Download');
+    expect(await page.evaluate(() => window.__transferInterruptedDirect)).toBe(1);
+    await expect(page.locator('#transferActiveUploadMeta')).toContainText('Ready to Download');
   });
 
   test('same-account page merges direct transfers into main inbox and saves them to netdisk', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -1182,7 +1510,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1250,12 +1578,12 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
-    await openQuickDropAccountHistory(page);
-    await page.locator('#quickDropSaveFolderSelect').selectOption('301');
+    await gotoTransferPage(page, baseURL);
+    await openTransferAccountHistory(page);
+    await page.locator('#transferSaveFolderSelect').selectOption('301');
 
     await page.evaluate(() => {
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-control', {
+      document.dispatchEvent(new CustomEvent('transfer:direct-control', {
         detail: {
           message: {
             type: 'transfer-offer',
@@ -1272,32 +1600,32 @@ test.describe('QuickDrop pages', () => {
     });
 
     await page.evaluate(() => {
-      const packet = QuickDropDirectTransfer.buildChunkPacket(
+      const packet = TransferDirectTransfer.buildChunkPacket(
         'direct-inbox-1',
         0,
         1,
         new TextEncoder().encode('hello').buffer
       );
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-binary', {
+      document.dispatchEvent(new CustomEvent('transfer:direct-binary', {
         detail: {
           data: packet
         }
       }));
     });
 
-    await expect(page.locator('#quickDropIncomingList')).toContainText('direct-inbox.txt');
-    await expect(page.locator('#quickDropIncomingList')).toContainText('Direct');
-    await expect(page.locator('#quickDropIncomingList [data-quickdrop-direct-save="direct-inbox-1"]')).toBeEnabled();
-    await page.locator('#quickDropIncomingList [data-quickdrop-direct-save="direct-inbox-1"]').click();
+    await expect(page.locator('#transferIncomingList')).toContainText('direct-inbox.txt');
+    await expect(page.locator('#transferIncomingList')).toContainText('Direct');
+    await expect(page.locator('#transferIncomingList [data-transfer-direct-save="direct-inbox-1"]')).toBeEnabled();
+    await page.locator('#transferIncomingList [data-transfer-direct-save="direct-inbox-1"]').click();
 
     await expect.poll(() => uploadCalled).toBe(true);
     expect(uploadFolderMatched).toBe(true);
   });
 
   test('same-account page merges direct transfers into main outgoing list', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -1323,7 +1651,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1369,11 +1697,11 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
-    await openQuickDropAccountHistory(page);
+    await gotoTransferPage(page, baseURL);
+    await openTransferAccountHistory(page);
 
     await page.evaluate(() => {
-      QuickDropDirectTransfer.getTransfers = direction => {
+      TransferDirectTransfer.getTransfers = direction => {
         if (direction === 'incoming') return [];
         if (direction === 'outgoing') {
           return [{
@@ -1392,24 +1720,24 @@ test.describe('QuickDrop pages', () => {
         }
         return [];
       };
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-transfer-storechange'));
+      document.dispatchEvent(new CustomEvent('transfer:direct-transfer-storechange'));
     });
 
-    await expect(page.locator('#quickDropOutgoingList')).toContainText('outgoing-direct.txt');
-    await expect(page.locator('#quickDropOutgoingList')).toContainText('Direct');
+    await expect(page.locator('#transferOutgoingList')).toContainText('outgoing-direct.txt');
+    await expect(page.locator('#transferOutgoingList')).toContainText('Direct');
   });
 
   test('same-account page merges direct fallback and relay into one outgoing task row', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
         nickname: 'QuickShare Admin',
         role: 'ADMIN'
       }));
-      localStorage.setItem('quickdrop-task-links', JSON.stringify({
+      localStorage.setItem('transfer-task-links', JSON.stringify({
         relayByTransferId: {
           '77': 'outgoing|device-b|merged.txt|5|1710000000000'
         }
@@ -1433,7 +1761,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1504,10 +1832,10 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
+    await gotoTransferPage(page, baseURL);
 
     await page.evaluate(() => {
-      QuickDropDirectTransfer.getTransfers = direction => {
+      TransferDirectTransfer.getTransfers = direction => {
         if (direction === 'incoming') return [];
         if (direction === 'outgoing') {
           return [{
@@ -1528,26 +1856,26 @@ test.describe('QuickDrop pages', () => {
         }
         return [];
       };
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-transfer-storechange'));
+      document.dispatchEvent(new CustomEvent('transfer:direct-transfer-storechange'));
     });
 
-    await openQuickDropAccountHistory(page);
-    await expect(page.locator('#quickDropOutgoingList .transfer-card')).toHaveCount(1);
-    await expect(page.locator('#quickDropOutgoingList')).toContainText('merged.txt');
-    await expect(page.locator('#quickDropOutgoingList')).toContainText('Direct -> Relay');
+    await openTransferAccountHistory(page);
+    await expect(page.locator('#transferOutgoingList .transfer-card')).toHaveCount(1);
+    await expect(page.locator('#transferOutgoingList')).toContainText('merged.txt');
+    await expect(page.locator('#transferOutgoingList')).toContainText('Direct -> Relay');
   });
 
   test('same-account merged task row exposes task details modal payload', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
         nickname: 'QuickShare Admin',
         role: 'ADMIN'
       }));
-      localStorage.setItem('quickdrop-task-links', JSON.stringify({
+      localStorage.setItem('transfer-task-links', JSON.stringify({
         relayByTransferId: {
           '77': 'outgoing|device-b|detail.txt|5|1710000000000'
         }
@@ -1571,7 +1899,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1689,14 +2017,14 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
+    await gotoTransferPage(page, baseURL);
 
     await page.evaluate(() => {
-      window.__quickDropDetailDialog = null;
+      window.__transferDetailDialog = null;
       window.showAppCopyDialog = async (message, value, options) => {
-        window.__quickDropDetailDialog = { message, value, options };
+        window.__transferDetailDialog = { message, value, options };
       };
-      QuickDropDirectTransfer.getTransfers = direction => {
+      TransferDirectTransfer.getTransfers = direction => {
         if (direction === 'incoming') return [];
         if (direction === 'outgoing') {
           return [{
@@ -1721,11 +2049,11 @@ test.describe('QuickDrop pages', () => {
         }
         return [];
       };
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-transfer-storechange'));
+      document.dispatchEvent(new CustomEvent('transfer:direct-transfer-storechange'));
     });
 
-    await page.evaluate(() => window.showQuickDropTransferDetails('outgoing', 0));
-    const detailDialog = await page.evaluate(() => window.__quickDropDetailDialog);
+    await page.evaluate(() => window.showTransferTransferDetails('outgoing', 0));
+    const detailDialog = await page.evaluate(() => window.__transferDetailDialog);
     expect(detailDialog.value).toContain('Task Key: outgoing|device-b|detail.txt|5|1710000000000');
     expect(detailDialog.value).toContain('Mode: Direct -> Relay');
     expect(detailDialog.value).toContain('Lifecycle: Waiting');
@@ -1740,7 +2068,7 @@ test.describe('QuickDrop pages', () => {
 
   test('same-account page prefers unified server task rows and deletes by task id', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -1767,7 +2095,7 @@ test.describe('QuickDrop pages', () => {
     });
 
     let taskDeleted = false;
-    await page.route('**/api/quickdrop/tasks/501?deviceId=*', async route => {
+    await page.route('**/api/transfer/tasks/501?deviceId=*', async route => {
       taskDeleted = true;
       await route.fulfill({
         status: 200,
@@ -1780,7 +2108,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/quickdrop/sync', async route => {
+    await page.route('**/api/transfer/sync', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1873,26 +2201,26 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
-    await openQuickDropAccountHistory(page);
+    await gotoTransferPage(page, baseURL);
+    await openTransferAccountHistory(page);
     await page.evaluate(() => {
       window.showAppConfirm = async () => true;
     });
 
-    await expect(page.locator('#quickDropOutgoingList .transfer-card')).toHaveCount(1);
-    await expect(page.locator('#quickDropOutgoingList')).toContainText('server-task.txt');
-    await expect(page.locator('#quickDropOutgoingList')).toContainText('Direct -> Relay');
+    await expect(page.locator('#transferOutgoingList .transfer-card')).toHaveCount(1);
+    await expect(page.locator('#transferOutgoingList')).toContainText('server-task.txt');
+    await expect(page.locator('#transferOutgoingList')).toContainText('Direct -> Relay');
 
-    await page.locator('#quickDropOutgoingList .transfer-card [data-quickdrop-task-delete]').click();
+    await page.locator('#transferOutgoingList .transfer-card [data-transfer-task-delete]').click();
     await expect.poll(() => taskDeleted).toBe(true);
-    await expect(page.locator('#quickDropOutgoingList .transfer-card')).toHaveCount(0);
+    await expect(page.locator('#transferOutgoingList .transfer-card')).toHaveCount(0);
   });
 
   test('receives a paired direct transfer and keeps it in the browser inbox', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
 
     let pairTaskSyncCalls = 0;
-    await page.route('**/api/public/quickdrop/pair-tasks**', async route => {
+    await page.route('**/api/public/transfer/pair-tasks**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1903,7 +2231,7 @@ test.describe('QuickDrop pages', () => {
         })
       });
     });
-    await page.route('**/api/public/quickdrop/pair-tasks/direct-attempts', async route => {
+    await page.route('**/api/public/transfer/pair-tasks/direct-attempts', async route => {
       pairTaskSyncCalls += 1;
       await route.fulfill({
         status: 200,
@@ -1920,19 +2248,19 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
-    await openQuickDropDirectHistory(page);
+    await gotoTransferPage(page, baseURL);
+    await openTransferDirectHistory(page);
 
     await page.evaluate(() => {
-      QuickDropSignalManager.isDirectReady = () => true;
-      QuickDropSignalManager.getState = () => ({
+      TransferSignalManager.isDirectReady = () => true;
+      TransferSignalManager.getState = () => ({
         channelId: 'guest:self-browser',
         pairSessionId: 'pair-public-1',
         latestPeerLabel: 'Peer Phone',
         latestPeerChannelId: 'guest:peer-phone'
       });
 
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-statechange', {
+      document.dispatchEvent(new CustomEvent('transfer:direct-statechange', {
         detail: {
           directState: 'ready',
           peerLabel: 'Peer Phone',
@@ -1941,10 +2269,10 @@ test.describe('QuickDrop pages', () => {
       }));
     });
 
-    await expect(page.locator('#quickDropDirectPeer')).toHaveText('Peer Phone');
+    await expect(page.locator('#transferDirectPeer')).toHaveText('Peer Phone');
 
     await page.evaluate(() => {
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-control', {
+      document.dispatchEvent(new CustomEvent('transfer:direct-control', {
         detail: {
           message: {
             type: 'transfer-offer',
@@ -1962,48 +2290,48 @@ test.describe('QuickDrop pages', () => {
       }));
     });
 
-    await expect(page.locator('#quickDropDirectTransferList')).toContainText('hello.txt');
+    await expect(page.locator('#transferDirectTransferList')).toContainText('hello.txt');
 
     await page.evaluate(() => {
-      const packet = QuickDropDirectTransfer.buildChunkPacket(
+      const packet = TransferDirectTransfer.buildChunkPacket(
         'direct-offer-1',
         0,
         1,
         new TextEncoder().encode('hello').buffer
       );
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-binary', {
+      document.dispatchEvent(new CustomEvent('transfer:direct-binary', {
         detail: {
           data: packet
         }
       }));
     });
 
-    await expect(page.locator('#quickDropDirectTransferList')).toContainText('Ready to Download');
-    await expect(page.locator('#quickDropDirectTransferList')).toContainText('hello.txt');
-    await expect(page.locator('#quickDropDirectTransferList [data-quickdrop-direct-download="direct-offer-1"]')).toBeEnabled();
+    await expect(page.locator('#transferDirectTransferList')).toContainText('Ready to Download');
+    await expect(page.locator('#transferDirectTransferList')).toContainText('hello.txt');
+    await expect(page.locator('#transferDirectTransferList [data-transfer-direct-download="direct-offer-1"]')).toBeEnabled();
     await expect.poll(() => pairTaskSyncCalls).toBeGreaterThan(0);
 
-    await openQuickDropDirectHistory(page);
+    await openTransferDirectHistory(page);
     await page.evaluate(() => {
-      window.__quickDropDirectDetailDialog = null;
+      window.__transferDirectDetailDialog = null;
       window.showAppCopyDialog = async (message, value, options) => {
-        window.__quickDropDirectDetailDialog = { message, value, options };
+        window.__transferDirectDetailDialog = { message, value, options };
       };
     });
-    await page.locator('#quickDropDirectTransferList [data-quickdrop-direct-detail="direct-offer-1"]').click();
+    await page.locator('#transferDirectTransferList [data-transfer-direct-detail="direct-offer-1"]').click();
     await expect.poll(async () => {
-      return page.evaluate(() => window.__quickDropDirectDetailDialog);
+      return page.evaluate(() => window.__transferDirectDetailDialog);
     }).not.toBeNull();
-    const detailDialog = await page.evaluate(() => window.__quickDropDirectDetailDialog);
+    const detailDialog = await page.evaluate(() => window.__transferDirectDetailDialog);
     expect(detailDialog.value).toContain('Pair Task ID: 701');
     expect(detailDialog.value).toContain('Pair Session: pair-public-1');
   });
 
   test('sends a paired direct transfer through the direct channel hooks', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
 
     let pairTaskSyncCalls = 0;
-    await page.route('**/api/public/quickdrop/pair-tasks**', async route => {
+    await page.route('**/api/public/transfer/pair-tasks**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -2014,7 +2342,7 @@ test.describe('QuickDrop pages', () => {
         })
       });
     });
-    await page.route('**/api/public/quickdrop/pair-tasks/direct-attempts', async route => {
+    await page.route('**/api/public/transfer/pair-tasks/direct-attempts', async route => {
       pairTaskSyncCalls += 1;
       await route.fulfill({
         status: 200,
@@ -2031,29 +2359,29 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
+    await gotoTransferPage(page, baseURL);
 
     await page.evaluate(() => {
-      window.__quickDropDirectSend = {
+      window.__transferDirectSend = {
         control: [],
         binaryCount: 0,
         transferId: ''
       };
 
-      QuickDropSignalManager.getState = () => ({
+      TransferSignalManager.getState = () => ({
         channelId: 'guest:self-browser',
         pairSessionId: 'pair-public-send-1',
         latestPeerLabel: 'Peer Phone',
         latestPeerChannelId: 'guest:peer-phone'
       });
-      QuickDropSignalManager.isDirectReady = () => true;
-      QuickDropSignalManager.waitForDirectDrain = async () => {};
-      QuickDropSignalManager.sendDirectControl = message => {
-        window.__quickDropDirectSend.control.push(message);
+      TransferSignalManager.isDirectReady = () => true;
+      TransferSignalManager.waitForDirectDrain = async () => {};
+      TransferSignalManager.sendDirectControl = message => {
+        window.__transferDirectSend.control.push(message);
         if (message.type === 'transfer-offer') {
-          window.__quickDropDirectSend.transferId = message.transferId;
+          window.__transferDirectSend.transferId = message.transferId;
           setTimeout(() => {
-            document.dispatchEvent(new CustomEvent('quickdrop:direct-control', {
+            document.dispatchEvent(new CustomEvent('transfer:direct-control', {
               detail: {
                 message: {
                   type: 'transfer-accept',
@@ -2068,11 +2396,11 @@ test.describe('QuickDrop pages', () => {
         }
         return true;
       };
-      QuickDropSignalManager.sendDirectBinary = () => {
-        window.__quickDropDirectSend.binaryCount += 1;
-        const transferId = window.__quickDropDirectSend.transferId;
+      TransferSignalManager.sendDirectBinary = () => {
+        window.__transferDirectSend.binaryCount += 1;
+        const transferId = window.__transferDirectSend.transferId;
         setTimeout(() => {
-          document.dispatchEvent(new CustomEvent('quickdrop:direct-control', {
+          document.dispatchEvent(new CustomEvent('transfer:direct-control', {
             detail: {
               message: {
                 type: 'transfer-progress',
@@ -2082,7 +2410,7 @@ test.describe('QuickDrop pages', () => {
               }
             }
           }));
-          document.dispatchEvent(new CustomEvent('quickdrop:direct-control', {
+          document.dispatchEvent(new CustomEvent('transfer:direct-control', {
             detail: {
               message: {
                 type: 'transfer-complete',
@@ -2096,7 +2424,7 @@ test.describe('QuickDrop pages', () => {
         return true;
       };
 
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-statechange', {
+      document.dispatchEvent(new CustomEvent('transfer:direct-statechange', {
         detail: {
           directState: 'ready',
           peerLabel: 'Peer Phone',
@@ -2105,17 +2433,17 @@ test.describe('QuickDrop pages', () => {
       }));
     });
 
-    await page.setInputFiles('#quickDropDirectFileInput', {
+    await page.setInputFiles('#transferDirectFileInput', {
       name: 'direct.txt',
       mimeType: 'text/plain',
       buffer: Buffer.from('hello')
     });
 
-    await expect(page.locator('#quickDropDirectSelectedFile')).toContainText('direct.txt');
-    await page.locator('#quickDropDirectSendBtn').click();
+    await expect(page.locator('#transferDirectSelectedFile')).toContainText('direct.txt');
+    await page.locator('#transferDirectSendBtn').click();
 
-    await expect(page.locator('#quickDropDirectActiveMeta')).toContainText('Direct transfer complete');
-    const sendState = await page.evaluate(() => window.__quickDropDirectSend);
+    await expect(page.locator('#transferDirectActiveMeta')).toContainText('Direct transfer complete');
+    const sendState = await page.evaluate(() => window.__transferDirectSend);
     expect(sendState.binaryCount).toBe(1);
     expect(sendState.control.some(item => item.type === 'transfer-offer')).toBeTruthy();
     expect(sendState.control.some(item => item.type === 'transfer-finish')).toBeTruthy();
@@ -2123,7 +2451,7 @@ test.describe('QuickDrop pages', () => {
   });
 
   test('loads paired tasks from the server task view and can delete a server-only pair task', async ({ page, baseURL }) => {
-    await stubQuickDropRealtime(page, { lang: 'en' });
+    await stubTransferRealtime(page, { lang: 'en' });
 
     let currentPairTasks = [
       {
@@ -2163,7 +2491,7 @@ test.describe('QuickDrop pages', () => {
     ];
     let pairTaskDeleteCalled = false;
 
-    await page.route('**/api/public/quickdrop/pair-tasks**', async route => {
+    await page.route('**/api/public/transfer/pair-tasks**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -2175,7 +2503,7 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await page.route('**/api/public/quickdrop/pair-tasks/801/direct-attempts/server-transfer-1**', async route => {
+    await page.route('**/api/public/transfer/pair-tasks/801/direct-attempts/server-transfer-1**', async route => {
       pairTaskDeleteCalled = true;
       currentPairTasks = [];
       await route.fulfill({
@@ -2189,24 +2517,24 @@ test.describe('QuickDrop pages', () => {
       });
     });
 
-    await gotoQuickDropPage(page, baseURL);
-    await openQuickDropDirectHistory(page);
+    await gotoTransferPage(page, baseURL);
+    await openTransferDirectHistory(page);
     await page.evaluate(() => {
       window.showAppConfirm = async () => true;
-      window.__quickDropPairTaskDialog = null;
+      window.__transferPairTaskDialog = null;
       window.showAppCopyDialog = async (message, value, options) => {
-        window.__quickDropPairTaskDialog = { message, value, options };
+        window.__transferPairTaskDialog = { message, value, options };
       };
 
-      QuickDropSignalManager.getState = () => ({
+      TransferSignalManager.getState = () => ({
         channelId: 'guest:self-browser',
         pairSessionId: 'pair-public-list-1',
         latestPeerLabel: 'Peer Phone',
         latestPeerChannelId: 'guest:peer-phone'
       });
-      QuickDropSignalManager.isDirectReady = () => true;
+      TransferSignalManager.isDirectReady = () => true;
 
-      document.dispatchEvent(new CustomEvent('quickdrop:direct-statechange', {
+      document.dispatchEvent(new CustomEvent('transfer:direct-statechange', {
         detail: {
           directState: 'ready',
           peerLabel: 'Peer Phone',
@@ -2215,27 +2543,27 @@ test.describe('QuickDrop pages', () => {
       }));
     });
 
-    await expect(page.locator('#quickDropDirectTransferList')).toContainText('server-only.txt');
-    await expect(page.locator('#quickDropDirectTransferList')).toContainText('Sent');
+    await expect(page.locator('#transferDirectTransferList')).toContainText('server-only.txt');
+    await expect(page.locator('#transferDirectTransferList')).toContainText('Sent');
 
-    await page.locator('#quickDropDirectTransferList [data-quickdrop-direct-detail="pair-task:801"]').click();
+    await page.locator('#transferDirectTransferList [data-transfer-direct-detail="pair-task:801"]').click();
     await expect.poll(async () => {
-      return page.evaluate(() => window.__quickDropPairTaskDialog);
+      return page.evaluate(() => window.__transferPairTaskDialog);
     }).not.toBeNull();
-    const detailDialog = await page.evaluate(() => window.__quickDropPairTaskDialog);
+    const detailDialog = await page.evaluate(() => window.__transferPairTaskDialog);
     expect(detailDialog.value).toContain('Lifecycle: Transferring');
     expect(detailDialog.value).toContain('Start Reason: Paired direct session');
     expect(detailDialog.value).toContain('Pair Task ID: 801');
     expect(detailDialog.value).toContain('Direct Transfer ID: server-transfer-1');
 
-    await page.locator('#quickDropDirectTransferList [data-quickdrop-direct-delete-task="pair-task:801"]').click();
+    await page.locator('#transferDirectTransferList [data-transfer-direct-delete-task="pair-task:801"]').click();
     await expect.poll(() => pairTaskDeleteCalled).toBe(true);
-    await expect(page.locator('#quickDropDirectTransferList .transfer-card')).toHaveCount(0);
+    await expect(page.locator('#transferDirectTransferList .transfer-card')).toHaveCount(0);
   });
 
   test.skip('renders signed-in pickup view with save-to-netdisk folder selector', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('token', 'quickdrop-token');
+      localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         username: 'admin',
@@ -2244,8 +2572,8 @@ test.describe('QuickDrop pages', () => {
       }));
     });
 
-    await page.route('**/api/public/quickdrop/shares/**', async route => {
-      if (!route.request().url().includes('/api/public/quickdrop/shares/share-abc')) {
+    await page.route('**/api/public/transfer/shares/**', async route => {
+      if (!route.request().url().includes('/api/public/transfer/shares/share-abc')) {
         await route.fallback();
         return;
       }
@@ -2283,18 +2611,18 @@ test.describe('QuickDrop pages', () => {
           code: 200,
           message: 'success',
           data: [
-            { id: 401, name: 'QuickDrop Saves' }
+            { id: 401, name: 'Transfer Saves' }
           ]
         })
       });
     });
 
-    await page.goto(`${baseURL}/quickdrop-share.html?share=share-abc`, { waitUntil: 'domcontentloaded' });
-    await page.waitForResponse('**/api/public/quickdrop/shares/share-abc');
-    await expect(page.locator('#quickDropPublicPickupCard')).toBeVisible();
-    await expect(page.locator('#quickDropPublicFileName')).toHaveText('hello.txt');
-    await expect(page.locator('#quickDropPublicDownloadBtn')).toBeEnabled();
-    await expect(page.locator('#quickDropPublicSaveBtn')).toBeVisible();
-    await expect(page.locator('#quickDropPublicSaveFolderSelect')).toContainText('QuickDrop Saves');
+    await page.goto(`${baseURL}/transfer-share.html?share=share-abc`, { waitUntil: 'domcontentloaded' });
+    await page.waitForResponse('**/api/public/transfer/shares/share-abc');
+    await expect(page.locator('#transferPublicPickupCard')).toBeVisible();
+    await expect(page.locator('#transferPublicFileName')).toHaveText('hello.txt');
+    await expect(page.locator('#transferPublicDownloadBtn')).toBeEnabled();
+    await expect(page.locator('#transferPublicSaveBtn')).toBeVisible();
+    await expect(page.locator('#transferPublicSaveFolderSelect')).toContainText('Transfer Saves');
   });
 });

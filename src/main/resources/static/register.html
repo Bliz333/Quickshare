@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title data-i18n="registerPageTitle">注册 - QuickShare</title>
+    <title data-i18n="registerPageTitle">Register - QuickShare</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,35 +23,34 @@
     <style>
         /* ==================== 浅色主题（默认） ==================== */
         :root {
-            --primary: #0ea5e9;
-            --primary-light: #38bdf8;
-            --primary-dark: #0284c7;
+            --primary: #3b82f6;
+            --primary-light: #60a5fa;
+            --primary-dark: #2563eb;
             --accent: #06b6d4;
             --success: #10b981;
             --danger: #ef4444;
-            --text-main: #0f172a;
+            --text-main: #1a1a2e;
             --text-sub: #64748b;
-            --bg-light: #f8fafc;
+            --bg-light: #f0f4fa;
             --bg-card: #ffffff;
-            --border-color: #e2e8f0;
-            --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.05);
-            --shadow-strong: 0 20px 40px rgba(0, 0, 0, 0.1);
+            --border-color: rgba(148,163,184,.26);
+            --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.04);
+            --shadow-strong: 0 20px 40px rgba(15, 23, 42, 0.08);
             --radius: 20px;
         }
 
-        /* ==================== 暗黑主题 ==================== */
         .dark-mode {
-            --primary: #6366f1;
-            --primary-light: #818cf8;
-            --primary-dark: #4f46e5;
+            --primary: #7c8cf5;
+            --primary-light: #9ba5f8;
+            --primary-dark: #6366f1;
             --accent: #3b82f6;
             --success: #10b981;
             --danger: #f87171;
-            --text-main: #f1f5f9;
-            --text-sub: #94a3b8;
-            --bg-light: #0f172a;
-            --bg-card: #1e293b;
-            --border-color: #334155;
+            --text-main: #ececf1;
+            --text-sub: #8b8b97;
+            --bg-light: #101012;
+            --bg-card: rgba(24,24,27,.92);
+            --border-color: rgba(255,255,255,.1);
             --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.4);
             --shadow-strong: 0 20px 40px rgba(0, 0, 0, 0.5);
         }
@@ -134,6 +133,7 @@
 
         /* Main Card */
         .register-container {
+            position: relative;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: var(--radius);
@@ -158,6 +158,7 @@
             color: var(--primary-dark);
             margin-bottom: 6px;
             transition: color 0.3s;
+            letter-spacing: -.02em;
         }
         .dark-mode .logo h1 { color: var(--primary-light); }
         .logo p { color: var(--text-sub); font-size: 0.9rem; }
@@ -371,9 +372,58 @@
             .back-btn { padding: 10px 14px; }
             .captcha-container { transform: scale(0.85); }
         }
+
+        .hidden { display: none !important; }
+
+        /* ─── Logo brand icon ─── */
+        .logo-icon{
+            width:46px;height:46px;border-radius:14px;
+            background:linear-gradient(135deg, var(--primary-light), var(--primary));
+            display:inline-flex;align-items:center;justify-content:center;
+            color:#fff;font-size:1.15rem;margin-bottom:14px;
+            box-shadow:0 6px 20px rgba(59,130,246,.18)
+        }
+        .dark-mode .logo-icon{box-shadow:0 6px 20px rgba(124,140,245,.12)}
+
+        /* ─── Card top accent ─── */
+        .register-container::before{
+            content:'';position:absolute;top:0;left:32px;right:32px;
+            height:3px;border-radius:0 0 3px 3px;
+            background:linear-gradient(90deg, var(--primary-light), var(--primary), var(--primary-light));
+            opacity:.65
+        }
+
+        /* ─── Social login buttons ─── */
+        .social-buttons{display:flex;gap:12px;margin-top:2px}
+        .social-btn{
+            flex:1;padding:11px;border:1px solid var(--border-color);
+            border-radius:12px;background:var(--card);color:var(--text-sub);
+            cursor:pointer;font-size:.84rem;font-weight:600;
+            display:flex;align-items:center;justify-content:center;gap:8px;
+            transition:all .3s;font-family:'Outfit',sans-serif
+        }
+        .social-btn:hover{
+            border-color:var(--primary);color:var(--primary);background:var(--bg-light);
+            transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,.1)
+        }
+        .social-btn:active{transform:translateY(0) scale(.98)}
+        .social-btn i{font-size:1.08rem}
+
+        /* ─── Card footer ─── */
+        .card-footer{
+            text-align:center;font-size:.9rem;color:var(--text-sub);
+            margin-top:24px;padding-top:20px;
+            border-top:1px solid var(--border-color)
+        }
+        .card-footer a{
+            color:var(--primary);text-decoration:none;font-weight:600;
+            margin-left:5px;transition:.2s
+        }
+        .card-footer a:hover{color:var(--primary-dark)}
+        .dark-mode .card-footer a:hover{color:var(--primary-light)}
     </style>
 </head>
-<body>
+<body data-mascot-scene="register">
 
 <div class="bg-glow">
     <div class="blob blob-1"></div>
@@ -386,47 +436,48 @@
 <!-- 返回按钮 -->
 <a href="index.html" class="top-btn back-btn">
     <i class="fa-solid fa-arrow-left"></i>
-    <span style="margin-left: 6px;" data-i18n="backHome">返回首页</span>
+    <span style="margin-left: 6px;" data-i18n="backHome">Back to Home</span>
 </a>
 
 <!-- 顶部按钮组 -->
 <div class="top-buttons">
-    <button class="top-btn" id="darkModeToggle" onclick="toggleTheme()" title="切换主题">
+    <button class="top-btn" id="darkModeToggle" onclick="toggleTheme()" title="Toggle theme">
         <i class="fa-solid fa-moon"></i>
     </button>
     <button class="top-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
 </div>
 
-<div class="register-container">
+<div class="register-container" data-mascot-stage="auth-register">
     <div class="logo">
-        <h1 data-i18n="registerTitle">创建账号</h1>
-        <p data-i18n="registerSubtitle">加入 QuickShare，开始分享</p>
+        <div class="logo-icon"><i class="fa-solid fa-user-plus"></i></div>
+        <h1 data-i18n="registerTitle">Create Account</h1>
+        <p data-i18n="registerSubtitle">Join QuickShare and start sharing</p>
     </div>
 
     <form id="registerForm" onsubmit="handleRegister(event)">
         <!-- 用户名 -->
         <div class="form-group">
-            <label data-i18n="usernameLabel"><i class="fa-regular fa-user"></i>用户名 *</label>
+            <label data-i18n="usernameLabel"><i class="fa-regular fa-user"></i>Username *</label>
             <div class="input-wrapper">
-                <input type="text" id="username" class="form-control" data-i18n="regUsernamePlaceholder" placeholder="请输入用户名" required minlength="3">
+                <input type="text" id="username" class="form-control" data-i18n="regUsernamePlaceholder" placeholder="Enter username" required minlength="3">
                 <i class="fa-regular fa-user input-icon"></i>
             </div>
-            <small data-i18n="usernameHint">至少 3 个字符</small>
+            <small data-i18n="usernameHint">At least 3 characters</small>
         </div>
 
         <!-- 密码 -->
         <div class="form-row">
             <div class="form-group">
-                <label data-i18n="passwordLabel"><i class="fa-solid fa-lock"></i>密码 *</label>
+                <label data-i18n="passwordLabel"><i class="fa-solid fa-lock"></i>Password *</label>
                 <div class="input-wrapper">
-                    <input type="password" id="password" class="form-control" data-i18n="regPasswordPlaceholder" placeholder="至少6位" required minlength="6">
+                    <input type="password" id="password" class="form-control" data-i18n="regPasswordPlaceholder" placeholder="At least 6 characters" required minlength="6">
                     <i class="fa-solid fa-lock input-icon"></i>
                 </div>
             </div>
             <div class="form-group">
-                <label data-i18n="confirmPasswordLabel"><i class="fa-solid fa-check-double"></i>确认密码 *</label>
+                <label data-i18n="confirmPasswordLabel"><i class="fa-solid fa-check-double"></i>Confirm Password *</label>
                 <div class="input-wrapper">
-                    <input type="password" id="confirmPassword" class="form-control" data-i18n="confirmPasswordPlaceholder" placeholder="再次输入" required>
+                    <input type="password" id="confirmPassword" class="form-control" data-i18n="confirmPasswordPlaceholder" placeholder="Re-enter password" required>
                     <i class="fa-solid fa-check-double input-icon"></i>
                 </div>
             </div>
@@ -434,52 +485,53 @@
 
         <!-- 邮箱 -->
         <div class="form-group" id="emailGroup">
-            <label data-i18n="emailLabel"><i class="fa-regular fa-envelope"></i>邮箱 *</label>
+            <label data-i18n="emailLabel"><i class="fa-regular fa-envelope"></i>Email *</label>
             <div class="email-row">
                 <div class="input-wrapper">
                     <input type="email" id="email" class="form-control" data-i18n="emailPlaceholder" placeholder="your@email.com" required>
                     <i class="fa-regular fa-envelope input-icon"></i>
                 </div>
                 <button type="button" class="btn-code" id="sendCodeBtn" onclick="sendVerificationCode()" data-i18n="sendCodeBtn">
-                    发送验证码
+                    Send Code
                 </button>
             </div>
         </div>
 
         <!-- 验证码 -->
         <div class="form-group" id="verificationCodeGroup">
-            <label data-i18n="verificationCodeLabel"><i class="fa-solid fa-shield-halved"></i>验证码 *</label>
+            <label data-i18n="verificationCodeLabel"><i class="fa-solid fa-shield-halved"></i>Verification Code *</label>
             <div class="input-wrapper">
-                <input type="text" id="verificationCode" class="form-control" data-i18n="verificationCodePlaceholder" placeholder="6位数字验证码" required maxlength="6">
+                <input type="text" id="verificationCode" class="form-control" data-i18n="verificationCodePlaceholder" placeholder="6-digit code" required maxlength="6">
                 <i class="fa-solid fa-shield-halved input-icon"></i>
             </div>
         </div>
 
         <!-- 昵称 -->
         <div class="form-group">
-            <label data-i18n="nicknameLabel"><i class="fa-regular fa-face-smile"></i>昵称 (可选)</label>
+            <label data-i18n="nicknameLabel"><i class="fa-regular fa-face-smile"></i>Nickname (optional)</label>
             <div class="input-wrapper">
-                <input type="text" id="nickname" class="form-control" data-i18n="nicknamePlaceholder" placeholder="显示名称">
+                <input type="text" id="nickname" class="form-control" data-i18n="nicknamePlaceholder" placeholder="Display name">
                 <i class="fa-regular fa-face-smile input-icon"></i>
             </div>
         </div>
 
         <!-- reCAPTCHA -->
-        <div class="captcha-container" id="captchaContainer">
-            <!-- reCAPTCHA 会在这里动态渲染 -->
+        <div class="captcha-container hidden" id="captchaContainer">
         </div>
 
         <button type="submit" class="btn-submit" id="registerBtn">
-            <span data-i18n="registerSubmit">注册</span>
+            <span data-i18n="registerSubmit">Register</span>
             <i class="fa-solid fa-user-plus"></i>
         </button>
     </form>
 
-    <div class="divider"><span data-i18n="or">或</span></div>
+    <div class="divider" id="socialDivider" style="display:none"><span data-i18n="or">or</span></div>
 
-    <div class="links">
-        <span data-i18n="hasAccount">已有账号？</span>
-        <a href="login.html" data-i18n="loginNow">立即登录</a>
+    <div class="social-buttons" id="socialButtons"></div>
+
+    <div class="card-footer">
+        <span data-i18n="hasAccount">Already have an account?</span>
+        <a href="login.html" data-i18n="loginNow">Sign in</a>
     </div>
 </div>
 
@@ -490,5 +542,9 @@
 <script src="js/modal.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/register.js"></script>
+<script src="js/social-login.js"></script>
+<script src="js/mascots.js"></script>
+<script src="js/spa-router.js"></script>
+<script>initMascots();</script>
 </body>
 </html>

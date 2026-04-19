@@ -65,6 +65,11 @@ cp .env.example .env
 docker compose up --build -d
 # If your host uses the legacy binary:
 # docker-compose up --build -d
+# Open http://localhost:8080
+# Admin (hidden path, not linked from public UI): set BOOTSTRAP_ADMIN_* in .env first, then open /console/{ADMIN_CONSOLE_SLUG}
+# Homepage quick transfer: http://localhost:8080/
+# Public pickup / share page: http://localhost:8080/share.html
+# Legacy aliases still work: /quickdrop.html and /quickdrop-share.html
 ```
 
 Open:
@@ -128,6 +133,51 @@ docker-compose up --build -d --remove-orphans
 ./scripts/quickshare-smoke.sh
 ./scripts/quickshare-playwright-smoke.sh
 ```
+
+### API Endpoint Reference
+
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `POST /api/auth/register` | No | Register user (email verification optional by runtime policy) |
+| `POST /api/auth/login` | No | Login, returns JWT token |
+| `GET /api/public/plans` | No | List active purchasable plans for the pricing page |
+| `GET /api/public/payment-options` | No | Show the current default payment provider and supported pay types for the pricing page |
+| `POST /api/upload` | Optional | Upload file (guest or authenticated) |
+| `POST /api/share` | Optional | Create share link |
+| `GET /api/share/{code}` | No | Get share info |
+| `GET /api/download/{code}` | No | Download shared file |
+| `GET /api/preview/{code}` | No | Preview shared file (PDF/Office/image/text) |
+| `GET /api/files` | Yes | List user's files |
+| `GET /api/files/{id}/preview` | Yes | Preview own file |
+| `GET /api/files/{id}/download` | Yes | Download own file |
+| `PUT /api/files/{id}/move` | Yes | Move own file to another folder |
+| `POST /api/folders` | Yes | Create folder |
+| `GET /api/folders/all` | Yes | List all folders for navigation/move targets |
+| `PUT /api/folders/{id}/move` | Yes | Move own folder to another folder |
+| `POST /api/payment/create` | Yes | Create a payment order and receive the provider redirect URL |
+| `GET /api/payment/order/{orderNo}` | Yes | Query the current user's order status for the payment result page |
+| `GET /api/payment/orders` | Yes | List the current user's own orders |
+| `POST /api/transfer/sync` | Yes | Refresh the current device presence and list same-account devices plus transfer/task state |
+| `POST /api/transfer/transfers` | Yes | Create a same-account transfer session |
+| `PUT /api/transfer/transfers/{id}/chunks/{chunkIndex}` | Yes | Upload or resume a transfer chunk |
+| `GET /api/transfer/transfers/{id}/download` | Yes | Download a completed transfer addressed to the current account |
+| `POST /api/transfer/transfers/{id}/save` | Yes | Save an incoming transfer into the current user's netdisk |
+| `POST /api/transfer/tasks/direct-attempts` | Yes | Write back same-account browser direct-attempt state into the unified transfer task |
+| `DELETE /api/transfer/tasks/{id}` | Yes | Delete a unified transfer task and its relay-side records |
+| `DELETE /api/transfer/tasks/{id}/direct-attempts/{clientTransferId}` | Yes | Remove one direct-attempt record from a unified transfer task |
+| `POST /api/transfer/direct-sessions` | Yes | Create or reuse a same-account direct-link session between two devices |
+| `POST /api/public/transfer/shares` | No | Create a public pickup session without logging in |
+| `PUT /api/public/transfer/shares/{token}/chunks/{chunkIndex}` | No | Upload or resume a chunk for a public share |
+| `GET /api/public/transfer/shares/{token}` | No | Query public share status for the pickup page |
+| `POST /api/public/transfer/pair-tasks/direct-attempts` | No | Write back public / anonymous paired direct-transfer state into a server-side pair task |
+| `DELETE /api/public/transfer/pair-tasks/{id}/direct-attempts/{clientTransferId}` | No | Remove one public paired direct-attempt record from a pair task |
+| `POST /api/public/transfer/pair-codes` | Optional | Create a temporary match code for direct pairing |
+| `POST /api/public/transfer/pair-codes/{code}/claim` | Optional | Claim a match code and bind the pair session |
+| `GET /api/public/transfer/rtc-config` | No | Fetch the current STUN/TURN config for direct transfer |
+| `POST /api/transfer/public-shares/{token}/save` | Yes | Save a public share into the current user's netdisk |
+| Legacy aliases | Mixed | `/api/quickdrop/**`, `/api/public/quickdrop/**`, and `/ws/quickdrop` remain supported for backward compatibility |
+| `GET /api/health` | No | Health check (DB, Redis, storage mode, and local upload-dir / disk metrics / risk level when using local storage) |
+| `GET /api/admin/*` | Admin | Admin management endpoints |
 
 Notes:
 

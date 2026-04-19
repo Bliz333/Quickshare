@@ -23,7 +23,7 @@ DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK="${DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK:-1}"
 DEPLOY_ENABLE_SNAPSHOT_FALLBACK="${DEPLOY_ENABLE_SNAPSHOT_FALLBACK:-1}"
 DEPLOY_SSH_TIMEOUT_SECONDS="${DEPLOY_SSH_TIMEOUT_SECONDS:-900}"
 DEPLOY_HEALTH_URL="${DEPLOY_HEALTH_URL:-http://127.0.0.1:8080/api/health}"
-DEPLOY_RTC_URL="${DEPLOY_RTC_URL:-http://127.0.0.1:8080/api/public/quickdrop/rtc-config}"
+DEPLOY_RTC_URL="${DEPLOY_RTC_URL:-http://127.0.0.1:8080/api/public/transfer/rtc-config}"
 DEPLOY_HEALTH_RETRIES="${DEPLOY_HEALTH_RETRIES:-30}"
 DEPLOY_HEALTH_SLEEP_SECONDS="${DEPLOY_HEALTH_SLEEP_SECONDS:-2}"
 DEPLOY_MIN_DISK_MB="${DEPLOY_MIN_DISK_MB:-2048}"
@@ -361,6 +361,13 @@ fi
 
 if [[ "$DEPLOY_MODE" == "git" ]]; then
     TARGET_COMMIT="$(git rev-parse "$TARGET_REF")"
+    # If the server's bare repo is behind (e.g. not yet synced with GitHub),
+    # the resolved commit will differ from what we intend to deploy.
+    # Fall back to the uploaded snapshot which always carries the correct HEAD.
+    if [[ "$TARGET_COMMIT" != "$LOCAL_HEAD" && "$ENABLE_SNAPSHOT_FALLBACK" == "1" ]]; then
+        log "remote git has ${TARGET_COMMIT}, expected ${LOCAL_HEAD}; using uploaded snapshot instead"
+        deploy_from_snapshot "$(date +%Y%m%d-%H%M%S)"
+    fi
 fi
 ROLLBACK_NEEDED=0
 

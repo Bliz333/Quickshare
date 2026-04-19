@@ -1631,8 +1631,22 @@
                                 <p id="registrationCaptchaVerifyHint" class="form-note mt-2 text-sm text-text-sub"></p>
                             </div>
 
+                            <div class="section-divider"></div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="registrationGoogleClientId" data-i18n="adminGoogleClientId">Google Client ID</label>
+                                <input id="registrationGoogleClientId" type="text" class="settings-field" placeholder="1234567890-xxxxx.apps.googleusercontent.com">
+                                <p class="form-note mt-2" data-i18n="adminGoogleClientIdHint">填写后，登录页和注册页会显示 Google 登录按钮，并使用这个 Client ID 做令牌校验。</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-text-sub mb-2" for="registrationAppleClientId" data-i18n="adminAppleClientId">Apple Client ID</label>
+                                <input id="registrationAppleClientId" type="text" class="settings-field" placeholder="com.example.web / Service ID">
+                                <p class="form-note mt-2" data-i18n="adminAppleClientIdHint">先保存 Apple Client ID 以便统一管理。前端 Apple 登录流程尚未接入，当前只保留配置入口。</p>
+                            </div>
+
                             <div class="form-actions">
-                                <p class="form-note" data-i18n="adminRegistrationHint">关闭邮箱验证码后，注册页会直接放行邮箱和验证码步骤；关闭人机验证后，不再加载验证组件。</p>
+                                <p class="form-note" data-i18n="adminRegistrationHint">关闭邮箱验证码后，注册页会直接放行邮箱和验证码步骤；关闭人机验证后，不再加载所选的人机验证组件。Google Client ID 保存在这里后会立即影响公开登录页。</p>
                                 <button type="button" class="action-btn" onclick="saveRegistrationSettings(this)">
                                     <i class="fa-solid fa-user-lock"></i>
                                     <span data-i18n="adminSaveSettings">保存配置</span>

@@ -2,6 +2,75 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-04-05 (Transfer 重命名 + LAN 传输修复 + 首页重设计)
+
+- **后端重命名（QuickDrop → Transfer）**：
+  - 所有 Java 层（config / controller / dto / entity / mapper / service / vo）统一改名为 Transfer*
+  - WebSocket 端点：`/ws/quickdrop` → `/ws/transfer`
+  - API 前缀：`/api/quickdrop/**` → `/api/transfer/**`、`/api/public/transfer/**`
+  - 配置属性前缀：`app.quickdrop` → `app.transfer`
+  - DB 迁移 V11：`RENAME TABLE quickdrop_* → transfer_*`
+  - 静态资源：`quickdrop.html` → `transfer.html`，`quickdrop*.js` → `transfer*.js`
+- **新增 TransferSignalingServiceImpl**：
+  - IP /24 子网分组（Snapdrop 同款）实现局域网设备自动发现
+  - `requestRoomTransfer` 支持无需配对码的同局域网快速配对
+- **修复 LAN 传输接收方零响应 Bug（关键 Bug）**：
+  - 发送方完成上传后，通过 WS `forwardSignal` 发送 `relay-done` 信令给接收方
+  - 接收方收到信令后弹出下载卡片
+  - 改用 `/api/public/transfer/shares`（无需登录），游客也可发送文件
+- **首页 (index.html) 全面重设计**：
+  - 全视口设备环（两圈旋转轨道 + 自身中心 80px 脉冲圆）
+  - 设备节点：根据 UA 自动识别类型图标（手机 / 平板 / 笔记本）
+  - 接收文件：底部滑出 receive card，含文件名、大小、下载按钮
+  - 发送进度：渐显进度条 + 状态文字
+  - 背景：轻量柔和模糊色块，替换原有重动画
+  - 深色模式全面适配
+- **新增 nav.js**：统一导航栏公共组件
+
+## 2026-04-01 (七阶段加固计划)
+
+- 运维加固：
+  - `compose.yaml` 全部服务补 `json-file` 日志轮转配置（max-size 10m / max-file 3）
+  - 新增 `scripts/quickshare-alert.sh`：健康检查 + 磁盘告警 + 容器状态监控（支持 webhook）
+  - 新增 `scripts/quickshare-backup.sh`：MySQL dump + uploads 增量备份 + retention 策略
+  - 更新 `docs/ops/capacity.md` 和 `docs/ops/prod-preprod.md` 补 crontab 示例
+- UX 一致性：
+  - `netdisk.js` deleteFile 补 404 处理（与 deleteFolder 一致）
+  - `pricing.js` loadPlans/loadPaymentOptions 补加载状态与错误提示
+  - 新增 3 个 i18n key（zh/en）
+- CI 扩展：
+  - `.github/workflows/ci.yml` 新增 playwright-mock job（5 个 mock-only spec）
+- 网盘分页：
+  - 后端 `GET /api/files` 支持可选 `pageNum`/`pageSize` 参数（向后兼容）
+  - 前端 `netdisk.js` 改为分页加载 + "加载更多"按钮
+  - 新增 `PageVO<T>` 通用分页包装类
+- QuickDrop 产品化：
+  - 任务列表 LIMIT 从 20 提升至 50，改为可配置（`app.quickdrop.sync-task-limit`）
+  - 浏览器直传缓存 TTL 改为通过 `AppConfig` 可配置
+  - 新增每小时定期清理（不再仅 init 时清理）
+- 匿名分享配额：
+  - 新增 `app.share.anonymous-download-deducts-owner-quota` 开关（默认关闭）
+  - 启用后匿名下载会扣减文件上传者的月度下载配额
+
+## 2026-03-30 (Phase 4 回归扩展 + Phase 5 运维文档)
+
+- 核心变更：
+  - 新增 `tests/e2e/netdisk-nav.spec.js`：覆盖文件夹导航（点击进入子文件夹 → URL 变为 `?folder={id}`、面包屑更新）和浏览器返回（URL 清除 `?folder=`、面包屑恢复）及冷启动 URL 直接打开子文件夹两个用例
+  - 扩展 `tests/e2e/netdisk-quota.spec.js`：新增存储近满（>90%，进度条变红 `var(--danger)`）与 VIP 已过期（`vipExpireTime` 过期，状态文字变红）两个 mock 驱动用例
+  - 新增 `docs/ops/capacity.md`：磁盘风险阈值（WARNING 15% / CRITICAL 5%）、health check 字段解读、Docker 镜像/日志/上传目录清理 SOP
+  - 新增 `docs/ops/https-proxy.md`：nginx 反向代理配置（含 WebSocket upgrade for `/ws/quickdrop`）、Let's Encrypt / Certbot 集成、安全 header 建议
+  - 新增 `docs/ops/prod-preprod.md`：预发布与生产环境职责边界、配置差异清单（JWT、存储、TURN、邮件等）、发布前 7 步检查清单
+
+## 2026-03-30 (QuickDrop Phase 3 UI 收口)
+
+- 核心变更：
+  - 删除 `#quickDropModeGuide` 元素及 `renderQuickDropModeGuide()` 函数——模式切换按钮本身已足够清晰，不需要额外的引导说明文字
+  - 确认历史页冷启动 URL（`?view=account-history` / `?view=temporary-history`）直接可访问，`applyQuickDropSubpageFromLocation()` 已在渲染前正确读取 URL，无需额外修改
+  - relay 与 direct 两条路径下，转存成功的任务卡片现在均把"保存到网盘"按钮替换为"已存入网盘"badge + "在网盘中查看"链接（判断依据：`task.savedToNetdiskAt` / `transfer.savedToNetdiskAt`）
+  - 新增 i18n key：`quickDropSavedBadge`、`quickDropViewInNetdisk`（中英文）
+  - 删除已无引用的 i18n key：`quickDropModeGuideTemporary`、`quickDropModeGuideAccount`
+  - 更新 `CLAUDE.md`，补充完整的测试流程、存储后端、QuickDrop 架构、环境变量说明
+
 ## 2026-03-26 (远端基线重建、资源回收与 direct 验证)
 
 - 详细记录：`docs/archive/2026-03-26-remote-baseline-rebuild-and-direct-validation.md`

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickShare Redirect</title>
+    <script>
+        (function () {
+            var params = new URLSearchParams(window.location.search);
+            var share = params.get('share');
+            var target = 'share.html';
+            if (share) {
+                target += '?pickup=' + encodeURIComponent(share);
+            }
+            if (window.location.hash) {
+                target += window.location.hash;
+            }
+            window.location.replace(target);
+        })();
+    </script>
+</head>
+<body>
+<p>Pickup moved to <a id="target-link" href="share.html">share.html</a>.</p>
+<script>
+    (function () {
+        var params = new URLSearchParams(window.location.search);
+        var share = params.get('share');
+        var target = 'share.html' + (share ? ('?pickup=' + encodeURIComponent(share)) : '');
+        var link = document.getElementById('target-link');
+        if (link) link.href = target;
+    })();
+</script>
+</body>
+</html>

@@ -17,4 +17,8 @@ public class AdminRegistrationSettingsVO {
     private String recaptchaSecretKey;
 
     private String recaptchaVerifyUrl;
+
+    private String googleClientId;
+
+    private String appleClientId;
 }

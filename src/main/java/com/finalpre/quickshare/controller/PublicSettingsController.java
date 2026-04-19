@@ -25,6 +25,8 @@ public class PublicSettingsController {
         vo.setRecaptchaEnabled(policy.recaptchaEnabled());
         vo.setCaptchaProvider(policy.captchaProvider());
         vo.setRecaptchaSiteKey(policy.recaptchaSiteKey());
+        vo.setGoogleClientId(policy.googleClientId() != null && !policy.googleClientId().isBlank() ? policy.googleClientId() : null);
+        vo.setAppleClientId(policy.appleClientId() != null && !policy.appleClientId().isBlank() ? policy.appleClientId() : null);
         return Result.success(vo);
     }
 }

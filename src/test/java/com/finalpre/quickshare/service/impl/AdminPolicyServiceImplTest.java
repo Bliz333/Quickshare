@@ -139,13 +139,15 @@ class AdminPolicyServiceImplTest {
     @Test
     void getRegistrationSettingsShouldExposeResolvedPolicy() {
         when(registrationSettingsService.getPolicy()).thenReturn(new RegistrationSettingsPolicy(
-                false, false, "recaptcha", "", "", "https://www.google.com/recaptcha/api/siteverify"
+                false, false, "recaptcha", "", "", "https://www.google.com/recaptcha/api/siteverify", "google-client-id", "apple-client-id"
         ));
 
         AdminRegistrationSettingsVO result = adminPolicyService.getRegistrationSettings();
 
         assertThat(result.getEmailVerificationEnabled()).isFalse();
         assertThat(result.getRecaptchaEnabled()).isFalse();
+        assertThat(result.getGoogleClientId()).isEqualTo("google-client-id");
+        assertThat(result.getAppleClientId()).isEqualTo("apple-client-id");
     }
 
     @Test
@@ -156,6 +158,8 @@ class AdminPolicyServiceImplTest {
         request.setRecaptchaSiteKey("");
         request.setRecaptchaSecretKey("");
         request.setRecaptchaVerifyUrl("https://www.google.com/recaptcha/api/siteverify");
+        request.setGoogleClientId("google-client-id");
+        request.setAppleClientId("apple-client-id");
 
         adminPolicyService.updateRegistrationSettings(request);
 
@@ -163,6 +167,8 @@ class AdminPolicyServiceImplTest {
         verify(systemSettingOverrideService).saveRegistrationSettingsPolicy(captor.capture());
         assertThat(captor.getValue().emailVerificationEnabled()).isFalse();
         assertThat(captor.getValue().recaptchaEnabled()).isFalse();
+        assertThat(captor.getValue().googleClientId()).isEqualTo("google-client-id");
+        assertThat(captor.getValue().appleClientId()).isEqualTo("apple-client-id");
     }
 
     @Test

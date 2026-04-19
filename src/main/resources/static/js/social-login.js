@@ -1,5 +1,9 @@
 /**
  * social-login.js - Dynamic social login buttons based on server config
+ *
+ * Uses Google Identity Services (GIS) "Sign In With Google" flow:
+ *   google.accounts.id.initialize() + prompt()
+ * which returns a JWT id_token (credential) instead of an OAuth2 access_token.
  */
 (function () {
     'use strict';
@@ -44,12 +48,43 @@
     }
 
     function loadGoogleGIS(clientId) {
-        if (window.google && window.google.accounts) return;
+        function onReady() {
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                initGoogleSignIn(clientId);
+            }
+        }
+
+        if (window.google && window.google.accounts && window.google.accounts.id) {
+            onReady();
+            return;
+        }
+
         var script = document.createElement('script');
         script.src = 'https://accounts.google.com/gsi/client';
         script.async = true;
         script.defer = true;
+        script.onload = onReady;
         document.head.appendChild(script);
+    }
+
+    function initGoogleSignIn(clientId) {
+        google.accounts.id.initialize({
+            client_id: clientId,
+            callback: function (response) {
+                if (response.credential) {
+                    sendGoogleToken(response.credential);
+                } else {
+                    resetBtn();
+                }
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true
+        });
+    }
+
+    function resetBtn() {
+        var btn = document.getElementById('googleLoginBtn');
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
     }
 
     function handleGoogleLogin() {
@@ -57,33 +92,22 @@
         if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
 
         try {
-            var client = google.accounts.oauth2.initTokenClient({
-                client_id: socialState.googleClientId,
-                scope: 'openid email profile',
-                callback: function (response) {
-                    if (response.error) {
-                        showToast(response.error, 'error');
-                        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
-                        return;
-                    }
-                    sendGoogleToken(response.access_token);
-                },
-                error_callback: function () {
-                    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+            google.accounts.id.prompt(function (notification) {
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    resetBtn();
                 }
             });
-            client.requestAccessToken();
         } catch (e) {
             showToast('Google login failed', 'error');
-            if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+            resetBtn();
         }
     }
 
-    function sendGoogleToken(accessToken) {
+    function sendGoogleToken(idToken) {
         fetch(API_BASE + '/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken: accessToken })
+            body: JSON.stringify({ idToken: idToken })
         })
         .then(function (r) { return r.json(); })
         .then(function (result) {
@@ -99,8 +123,7 @@
         })
         .catch(function (e) {
             showToast(e.message, 'error');
-            var btn = document.getElementById('googleLoginBtn');
-            if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+            resetBtn();
         });
     }
 

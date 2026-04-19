@@ -955,7 +955,7 @@ public class TransferServiceImpl implements TransferService {
         BeanUtils.copyProperties(share, vo);
         vo.setReady(STATUS_READY.equals(share.getStatus()) || STATUS_COMPLETED.equals(share.getStatus()));
         vo.setUploadedChunkIndexes(includeChunkIndexes ? listUploadedPublicShareChunkIndexes(share) : List.of());
-        vo.setPickupUrl("/transfer-share.html?share=" + share.getShareToken());
+        vo.setPickupUrl("/share.html?pickup=" + share.getShareToken());
         return vo;
     }
 

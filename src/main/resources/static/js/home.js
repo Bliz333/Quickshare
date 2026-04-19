@@ -538,7 +538,7 @@ async function copyReceivedShareLink() {
         showHomeToast(homeText('homeReceiveCopyLinkMissing', '当前没有可复制的链接'), 'warning');
         return;
     }
-    const url = `${window.location.origin}/transfer-share.html?share=${encodeURIComponent(share.shareToken)}`;
+    const url = `${window.location.origin}/share.html?pickup=${encodeURIComponent(share.shareToken)}`;
     try {
         await navigator.clipboard.writeText(url);
         showHomeToast(homeText('homeReceiveCopyLinkSuccess', '取件链接已复制'), 'success');

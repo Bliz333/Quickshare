@@ -827,6 +827,7 @@ const i18n = {
         adminOrderMarkFailed: '操作失败',
         // --- Pricing Page ---
         pricingPageTitle: '套餐购买 - QuickShare',
+        pricingBackHome: '返回首页',
         pricingHeading: '选择套餐',
         pricingSubtitle: '升级您的存储空间、下载次数或 VIP 权益',
         pricingBackToNetdisk: '返回网盘',
@@ -1786,6 +1787,7 @@ const i18n = {
         adminOrderMarkFailed: 'Operation failed',
         // --- Pricing Page ---
         pricingPageTitle: 'Pricing - QuickShare',
+        pricingBackHome: 'Back to Home',
         pricingHeading: 'Choose a Plan',
         pricingSubtitle: 'Upgrade your storage, downloads, or VIP benefits',
         pricingBackToNetdisk: 'Back to Drive',

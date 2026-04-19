@@ -114,6 +114,20 @@
             transform: translateY(-1px);
         }
 
+        .back-home{
+            position:fixed;top:18px;left:18px;z-index:30;
+            display:inline-flex;align-items:center;gap:8px;
+            height:40px;padding:0 14px;
+            border-radius:999px;border:1px solid var(--border-color);
+            background:rgba(255,255,255,0.68);
+            backdrop-filter:blur(16px);box-shadow:var(--shadow);
+            color:var(--text-sub);text-decoration:none;
+            font-weight:700;font-size:.85rem;
+            transition:all .2s ease;
+        }
+        .dark-mode .back-home{background:rgba(15,23,42,0.76)}
+        .back-home:hover{color:white;background:var(--primary);border-color:var(--primary);transform:translateY(-1px)}
+
         .page {
             width: min(980px, calc(100vw - 28px));
             margin: 0 auto;
@@ -1191,6 +1205,14 @@
                 justify-content: flex-end;
             }
 
+            .back-home {
+                top: 70px;
+                left: 12px;
+            }
+            .back-home span {
+                display: none;
+            }
+
             .top-btn span {
                 display: none;
             }
@@ -1220,14 +1242,15 @@
 <body>
 <div class="toast-container" id="toastContainer"></div>
 
+<a href="index.html" class="back-home">
+    <i class="fa-solid fa-house"></i>
+    <span data-i18n="transferBackHome">首页</span>
+</a>
+
 <div class="top-buttons">
     <button class="top-btn" type="button" onclick="location.href='netdisk.html'">
         <i class="fa-solid fa-hard-drive"></i>
         <span data-i18n="transferToNetdisk">网盘</span>
-    </button>
-    <button class="top-btn" type="button" onclick="location.href='index.html'">
-        <i class="fa-solid fa-share-nodes"></i>
-        <span data-i18n="transferBackHome">首页</span>
     </button>
     <button class="top-btn" id="darkModeToggle" type="button" onclick="toggleTheme()">
         <i class="fa-solid fa-moon"></i>

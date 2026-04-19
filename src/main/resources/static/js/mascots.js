@@ -495,7 +495,7 @@
         const style = document.createElement('style');
         style.id = CSS_ID;
         style.textContent = [
-            ':root{--mc-orange:#fb923c;--mc-purple:#7367f0;--mc-yellow:#f2df4b;--mc-black:#24262d;--mc-face:#1e293b}',
+            ':root{--mc-orange:#fb923c;--mc-purple:#7367f0;--mc-yellow:#f2df4b;--mc-black:#4a5063;--mc-face:#1e293b}',
             '.dark-mode{--mc-orange:#ff9557;--mc-purple:#8b7bff;--mc-yellow:#f0db4b;--mc-black:#cfd6e7;--mc-face:#111827}',
             '#mc-root{position:fixed;inset:0;z-index:36;pointer-events:none;overflow:hidden}',
             '#mc-root .mc-backdrop{position:absolute;inset:0;opacity:.96}',
@@ -548,10 +548,10 @@
             '.mc-mouth{fill:none;stroke:var(--mc-face);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}',
             '.mc-blush{fill:rgba(239,68,68,.12);opacity:0;transition:opacity .2s ease}',
             '.dark-mode .mc-blush{fill:rgba(255,255,255,.1)}',
-            '.mc-black .mc-arm-stroke{stroke:#8896a8;opacity:1}',
-            '.mc-black .mc-hand{fill:#8896a8}',
-            '.mc-black .mc-mouth{stroke:#8896a8}',
-            '.mc-black .mc-brow{stroke:#8896a8}',
+            '.mc-black .mc-arm-stroke{stroke:#a8b2c4;opacity:1}',
+            '.mc-black .mc-hand{fill:#a8b2c4}',
+            '.mc-black .mc-mouth{stroke:#a8b2c4}',
+            '.mc-black .mc-brow{stroke:#a8b2c4}',
             '.dark-mode .mc-black .mc-arm-stroke{stroke:var(--mc-face)}',
             '.dark-mode .mc-black .mc-hand{fill:var(--mc-face)}',
             '.dark-mode .mc-black .mc-mouth{stroke:var(--mc-face)}',

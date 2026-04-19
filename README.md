@@ -39,8 +39,8 @@ cp .env.example .env
 docker compose up --build -d
 # Open http://localhost:8080
 # Admin (hidden path, not linked from public UI): set BOOTSTRAP_ADMIN_* in .env first, then open /console/{ADMIN_CONSOLE_SLUG}
-# Transfer (same-account device transfer): http://localhost:8080/transfer.html
-# Transfer Share (public pickup link): http://localhost:8080/transfer-share.html
+# Homepage quick transfer: http://localhost:8080/
+# Public pickup / share page: http://localhost:8080/share.html
 # Legacy aliases still work: /quickdrop.html and /quickdrop-share.html
 ```
 

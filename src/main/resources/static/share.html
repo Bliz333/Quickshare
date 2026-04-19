@@ -301,7 +301,7 @@
         </button>
         <button class="t-btn t-btn-label" id="langBtn" onclick="toggleLanguage()">EN</button>
         <span id="authButtons">
-            <button class="t-btn t-btn-label" onclick="location.href='login.html'" data-i18n="loginBtn">Login</button>
+            <a href="login.html" class="t-btn t-btn-label" style="text-decoration:none" data-i18n="loginBtn">Login</a>
         </span>
     </nav>
 </header>
@@ -446,6 +446,7 @@
 <script src="js/upload.js"></script>
 <script src="js/download.js"></script>
 <script src="js/mascots.js"></script>
+<script src="js/spa-router.js"></script>
 
 <script>
     /* Compact auth override (same as homepage) */
@@ -473,16 +474,20 @@
         card.style.setProperty('--mouse-y',((e.clientY-r.top)/r.height*100)+'%');
     });
 
-    window.addEventListener('load',function(){
-        Promise.resolve(checkLoginState());
-        initUploadArea();
-        initMascots();
-
-        var p=parseShareParams();
-        if(p.shareCode){
-            initGuestMode(p.shareCode,p.extractCode);
+    /* SPA-aware init: run immediately if document already loaded, otherwise wait for load */
+    (function(){
+        function init(){
+            Promise.resolve(checkLoginState());
+            initUploadArea();
+            initMascots();
+            var p=parseShareParams();
+            if(p.shareCode){
+                initGuestMode(p.shareCode,p.extractCode);
+            }
         }
-    });
+        if(document.readyState==='complete'){init();}
+        else{window.addEventListener('load',init);}
+    })();
 </script>
 </body>
 </html>

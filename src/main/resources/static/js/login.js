@@ -70,4 +70,8 @@ function checkAlreadyLoggedIn() {
 }
 
 // 页面加载时检查登录状态
-window.addEventListener('load', checkAlreadyLoggedIn);
+if (document.readyState === 'complete') {
+    checkAlreadyLoggedIn();
+} else {
+    window.addEventListener('load', checkAlreadyLoggedIn);
+}

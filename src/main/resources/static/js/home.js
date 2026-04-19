@@ -732,7 +732,7 @@ async function syncAccountDevices() {
 
 // ─── 初始化 ────────────────────────────────────────────────────────────────────
 
-window.addEventListener('load', async () => {
+async function initHomePage() {
     // 读取 auth 状态
     const token = localStorage.getItem('token');
     if (token) {
@@ -816,4 +816,11 @@ window.addEventListener('load', async () => {
             showHomeToast('请点击目标设备后再拖入文件', 'info');
         }
     });
-});
+}
+
+/* SPA-aware bootstrap: run immediately if document already loaded */
+if (document.readyState === 'complete') {
+    initHomePage();
+} else {
+    window.addEventListener('load', initHomePage);
+}

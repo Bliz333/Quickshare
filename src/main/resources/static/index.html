@@ -364,7 +364,7 @@
         </button>
         <button class="t-btn t-btn-label" id="langBtn" onclick="toggleLanguage()">EN</button>
         <span id="authButtons">
-            <button class="t-btn t-btn-label" onclick="location.href='login.html'" data-i18n="loginBtn">Login</button>
+            <a href="login.html" class="t-btn t-btn-label" style="text-decoration:none" data-i18n="loginBtn">Login</a>
         </span>
     </nav>
 </header>
@@ -481,6 +481,7 @@
 <script src="js/home-notifications.js"></script>
 <script src="js/home.js"></script>
 <script src="js/mascots.js"></script>
+<script src="js/spa-router.js"></script>
 
 <script>
     /* Compact auth for topbar */
@@ -519,10 +520,15 @@
         tick();
     })();
 
-    window.addEventListener('load',function(){
-        Promise.resolve(checkLoginState()).finally(function(){initHomeNotifications()});
-        initMascots();
-    });
+    /* SPA-aware init: run immediately if document already loaded, otherwise wait for load */
+    (function(){
+        function init(){
+            Promise.resolve(checkLoginState()).finally(function(){initHomeNotifications()});
+            initMascots();
+        }
+        if(document.readyState==='complete'){init();}
+        else{window.addEventListener('load',init);}
+    })();
 </script>
 </body>
 </html>

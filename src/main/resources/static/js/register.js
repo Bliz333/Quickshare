@@ -302,7 +302,7 @@ function checkAlreadyLoggedIn() {
     }
 }
 
-window.addEventListener('load', async () => {
+async function initRegisterPage() {
     checkAlreadyLoggedIn();
     await loadRegistrationSettings();
 
@@ -315,4 +315,10 @@ window.addEventListener('load', async () => {
             }
         };
     }
-});
+}
+
+if (document.readyState === 'complete') {
+    initRegisterPage();
+} else {
+    window.addEventListener('load', initRegisterPage);
+}

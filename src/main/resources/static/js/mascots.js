@@ -17,7 +17,7 @@
         '[onclick]',
         '.tab',
         '.peer-card',
-        '.share-fab',
+        '.share-cta-bar a',
         '.upload-area',
         '.pick-btn',
         '.copy-btn',
@@ -640,7 +640,7 @@
         if (target.id === 'uploadArea') return copyFor('dropHere');
         if (target.id === 'uploadBtn' || target.id === 'loginBtn' || target.id === 'registerBtn') return copyFor('launching');
         if (target.id === 'downloadShareCode' || target.id === 'downloadExtractCode') return copyFor('fileLookup');
-        if (target.classList && target.classList.contains('share-fab')) return copyFor('shareEntry');
+        if (target.closest && target.closest('.share-cta-bar')) return copyFor('shareEntry');
         if (target.classList && target.classList.contains('tab')) {
             return /download/i.test(target.textContent || '') ? copyFor('switchDownload') : copyFor('switchUpload');
         }
@@ -937,7 +937,7 @@
         if (!target) return false;
         return target.id === 'uploadArea'
             || target.id === 'homeCreatePairCodeBtn'
-            || target.classList.contains('share-fab');
+            || (target.closest && target.closest('.share-cta-bar'));
     }
 
     function shouldPressBurst(target) {
@@ -946,7 +946,7 @@
             || target.id === 'loginBtn'
             || target.id === 'registerBtn'
             || target.id === 'uploadArea'
-            || target.classList.contains('share-fab')
+            || (target.closest && target.closest('.share-cta-bar'))
             || target.getAttribute('type') === 'submit';
     }
 
@@ -1382,7 +1382,7 @@
                 trigger('loading', { target: target, message: target.id === 'loginBtn' ? copyFor('loginReady') : target.id === 'registerBtn' ? copyFor('registerReady') : copyFor('loading') });
                 return;
             }
-            if (target.id === 'uploadArea' || target.classList.contains('share-fab')) {
+            if (target.id === 'uploadArea' || (target.closest && target.closest('.share-cta-bar'))) {
                 setMessage(targetLabel(target), 1.1);
             }
         }, true);

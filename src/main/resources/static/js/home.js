@@ -26,6 +26,8 @@ const homeState = {
     selfLabel: null,
     roomDevices: [],          // [{channelId, label, isMe}]
     accountDevices: [],       // [{deviceId, deviceName, deviceType, online}]
+    selectionMode: false,
+    selectedChannelIds: new Set(),
     pendingTargetChannelId: null,
     pairSessionId: null,
     peerChannelId: null,
@@ -36,6 +38,14 @@ const homeState = {
     pairCode: null,
     peerLabel: null,
     lastReceivedShare: null,
+    chooserMode: 'single',
+    batchPhase: 'idle',      // idle | uploading | sending | done | error
+    batchQueue: [],
+    batchCurrentTargetId: null,
+    batchShareToken: null,
+    batchFileInfo: null,
+    batchPairTimer: null,
+    batchProgress: { done: 0, total: 0, failed: 0 },
 };
 
 // ─── 工具函数 ──────────────────────────────────────────────────────────────────
@@ -123,6 +133,14 @@ function homeText(key, fallback) {
     return typeof t === 'function' ? t(key) : fallback;
 }
 
+function homeTextFmt(key, fallback, vars) {
+    let text = homeText(key, fallback);
+    Object.entries(vars || {}).forEach(([name, value]) => {
+        text = text.split(`{${name}}`).join(String(value));
+    });
+    return text;
+}
+
 // ─── WebSocket ─────────────────────────────────────────────────────────────────
 
 function buildWsUrl() {
@@ -193,7 +211,11 @@ function handleWsMessage(msg) {
             homeState.pairSessionId = msg.pairSessionId;
             homeState.peerChannelId = msg.peerChannelId;
             homeState.peerLabel = msg.peerLabel || homeState.peerLabel || msg.peerChannelId || null;
-            onPairReady(msg);
+            if (homeState.batchPhase === 'sending') {
+                onBatchPairReady(msg);
+            } else {
+                onPairReady(msg);
+            }
             break;
 
         case 'signal':
@@ -206,8 +228,12 @@ function handleWsMessage(msg) {
             break;
 
         case 'error':
-            showHomeToast(msg.message || '操作失败', 'error');
-            resetTransferState();
+            if (homeState.batchPhase === 'sending' && homeState.batchCurrentTargetId) {
+                onBatchTargetFailure(homeState.batchCurrentTargetId, msg.message || homeText('homeBatchTargetFailed', '发送失败'));
+            } else {
+                showHomeToast(msg.message || '操作失败', 'error');
+                resetTransferState();
+            }
             break;
     }
 }
@@ -219,6 +245,156 @@ function sendWs(obj) {
 }
 
 // ─── 设备环渲染 ────────────────────────────────────────────────────────────────
+
+function buildPeerDeviceList() {
+    const allDevices = [...homeState.roomDevices];
+    for (const d of homeState.accountDevices) {
+        const chId = homeState.userId ? `user:${homeState.userId}:device:${d.deviceId}` : null;
+        if (chId && !allDevices.find(r => r.channelId === chId)) {
+            allDevices.push({ channelId: chId, label: d.deviceName || d.deviceType, isMe: false });
+        }
+    }
+
+    if (homeState.peerChannelId && homeState.pairSessionId) {
+        if (!allDevices.find(d => d.channelId === homeState.peerChannelId)) {
+            allDevices.push({
+                channelId: homeState.peerChannelId,
+                label: homeState.peerLabel || 'Paired Device',
+                isMe: false,
+                isPaired: true
+            });
+        }
+    }
+
+    return allDevices.filter(d => !d.isMe);
+}
+
+function clearBatchPairTimer() {
+    if (homeState.batchPairTimer) {
+        clearTimeout(homeState.batchPairTimer);
+        homeState.batchPairTimer = null;
+    }
+}
+
+function resetBatchState() {
+    clearBatchPairTimer();
+    homeState.batchPhase = 'idle';
+    homeState.batchQueue = [];
+    homeState.batchCurrentTargetId = null;
+    homeState.batchShareToken = null;
+    homeState.batchFileInfo = null;
+    homeState.batchProgress = { done: 0, total: 0, failed: 0 };
+    homeState.chooserMode = 'single';
+}
+
+function batchProgressText() {
+    if (!homeState.batchProgress.total) return '';
+    return homeTextFmt('homeBatchProgressSummary', '{done}/{total} completed · {failed} failed', {
+        done: homeState.batchProgress.done,
+        total: homeState.batchProgress.total,
+        failed: homeState.batchProgress.failed,
+    });
+}
+
+function updateMultiSelectBar() {
+    const toggleBtn = document.getElementById('peerSelectModeBtn');
+    const bar = document.getElementById('multiSelectBar');
+    const sendBtn = document.getElementById('sendSelectedPeersBtn');
+    const selectAllBtn = document.getElementById('selectAllPeersBtn');
+    const count = homeState.selectedChannelIds.size;
+    const visiblePeers = buildPeerDeviceList();
+    const showToggle = visiblePeers.length >= 2
+        && homeState.transferState === 'idle'
+        && homeState.batchPhase !== 'uploading'
+        && homeState.batchPhase !== 'sending';
+    const allSelected = visiblePeers.length > 0 && count === visiblePeers.length;
+
+    if (toggleBtn) {
+        toggleBtn.classList.toggle('active', homeState.selectionMode);
+        toggleBtn.classList.toggle('hidden', !showToggle);
+        toggleBtn.disabled = !showToggle;
+        const label = toggleBtn.querySelector('span');
+        if (label) {
+            label.textContent = homeTextFmt('homeSelectModeCount', 'Send to Many ({count})', { count: visiblePeers.length });
+        }
+    }
+    if (bar) bar.classList.toggle('hidden', !homeState.selectionMode);
+    if (sendBtn) {
+        sendBtn.disabled = count < 2 || homeState.transferState !== 'idle' || homeState.batchPhase === 'uploading' || homeState.batchPhase === 'sending';
+        const label = sendBtn.querySelector('span');
+        if (label) {
+            label.textContent = count > 0
+                ? homeTextFmt('homeSendSelectedPeersCount', 'Send to selected ({count})', { count })
+                : homeText('homeSendSelectedPeers', 'Send to selected');
+        }
+    }
+    if (selectAllBtn) {
+        const label = selectAllBtn.querySelector('span');
+        if (label) {
+            label.textContent = allSelected
+                ? homeText('homeUnselectAllPeers', 'Clear all')
+                : homeText('homeSelectAllPeers', 'Select all');
+        }
+    }
+}
+
+function clearSelectedPeers(exitSelectionMode = true) {
+    homeState.selectedChannelIds.clear();
+    if (exitSelectionMode) {
+        homeState.selectionMode = false;
+    }
+    updateMultiSelectBar();
+    renderRing();
+}
+
+function toggleSelectionMode() {
+    if (homeState.transferState !== 'idle' || homeState.batchPhase === 'uploading' || homeState.batchPhase === 'sending') return;
+    const peers = buildPeerDeviceList();
+    if (!homeState.selectionMode && peers.length < 2) {
+        showHomeToast(homeText('homeBatchNeedMorePeers', '至少需要两台可用设备才能多人发送'), 'warning');
+        return;
+    }
+    homeState.selectionMode = !homeState.selectionMode;
+    if (!homeState.selectionMode) {
+        homeState.selectedChannelIds.clear();
+    }
+    updateMultiSelectBar();
+    renderRing();
+}
+
+function togglePeerSelection(channelId) {
+    if (!homeState.selectionMode) return;
+    if (homeState.selectedChannelIds.has(channelId)) {
+        homeState.selectedChannelIds.delete(channelId);
+    } else {
+        homeState.selectedChannelIds.add(channelId);
+    }
+    updateMultiSelectBar();
+    renderRing();
+}
+
+function toggleSelectAllPeers() {
+    if (!homeState.selectionMode) return;
+    const peers = buildPeerDeviceList();
+    const allSelected = peers.length > 0 && peers.every(peer => homeState.selectedChannelIds.has(peer.channelId));
+    homeState.selectedChannelIds.clear();
+    if (!allSelected) {
+        peers.forEach(peer => homeState.selectedChannelIds.add(peer.channelId));
+    }
+    updateMultiSelectBar();
+    renderRing();
+}
+
+function openBatchSendChooser() {
+    if (homeState.selectedChannelIds.size < 2) {
+        showHomeToast(homeText('homeBatchPickPeers', '请先选择至少两台设备'), 'warning');
+        return;
+    }
+    homeState.chooserMode = 'batch';
+    showSendChooser(homeTextFmt('homeSelectedDevicesLabel', '{count} 台设备', {
+        count: homeState.selectedChannelIds.size,
+    }));
+}
 
 function updateSelfNode() {
     const label = document.getElementById('selfDeviceLabel');
@@ -232,37 +408,18 @@ function renderRing() {
     const noHint  = document.getElementById('noDevicesHint');
     if (!peersEl) return;
 
-    // Merge: room devices + account devices (dedup by channelId)
-    const allDevices = [...homeState.roomDevices];
-    for (const d of homeState.accountDevices) {
-        const chId = homeState.userId ? `user:${homeState.userId}:device:${d.deviceId}` : null;
-        if (chId && !allDevices.find(r => r.channelId === chId)) {
-            allDevices.push({ channelId: chId, label: d.deviceName || d.deviceType, isMe: false });
-        }
-    }
-
-    // Include paired peer if not already in the list
-    if (homeState.peerChannelId && homeState.pairSessionId) {
-        if (!allDevices.find(d => d.channelId === homeState.peerChannelId)) {
-            allDevices.push({
-                channelId: homeState.peerChannelId,
-                label: homeState.peerLabel || 'Paired Device',
-                isMe: false,
-                isPaired: true
-            });
-        }
-    }
-
-    const others = allDevices.filter(d => !d.isMe);
+    const others = buildPeerDeviceList();
 
     if (noHint) noHint.classList.toggle('show', others.length === 0);
 
     peersEl.innerHTML = '';
+    updateMultiSelectBar();
     if (others.length === 0) return;
 
     others.forEach((dev) => {
         const isPaired = dev.isPaired || dev.channelId === homeState.peerChannelId;
         const isAccount = dev.channelId.startsWith('user:');
+        const isSelected = homeState.selectedChannelIds.has(dev.channelId);
         const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
         const metaText = isPaired
             ? (lang === 'zh' ? '已配对' : 'Paired')
@@ -272,7 +429,10 @@ function renderRing() {
 
         const node = document.createElement('button');
         node.type = 'button';
-        node.className = 'peer-card' + (isPaired ? ' paired' : '');
+        node.className = 'peer-card'
+            + (isPaired ? ' paired' : '')
+            + (homeState.selectionMode ? ' select-mode' : '')
+            + (isSelected ? ' selected' : '');
         node.dataset.channelId = dev.channelId;
         node.innerHTML = `
             <div class="peer-card-icon">
@@ -282,16 +442,25 @@ function renderRing() {
                 <div class="peer-card-name">${escapeHtml(dev.label)}</div>
                 <div class="peer-card-meta">${escapeHtml(metaText)}</div>
             </div>
+            ${homeState.selectionMode ? '<span class="peer-card-check"><i class="fa-solid fa-check"></i></span>' : ''}
         `;
 
-        node.addEventListener('click', () => onDeviceClick(dev.channelId, dev.label));
+        node.addEventListener('click', () => {
+            if (homeState.selectionMode) {
+                togglePeerSelection(dev.channelId);
+                return;
+            }
+            onDeviceClick(dev.channelId, dev.label);
+        });
 
         node.addEventListener('dragover', (e) => {
+            if (homeState.selectionMode) return;
             e.preventDefault();
             node.classList.add('drag-over');
         });
         node.addEventListener('dragleave', () => node.classList.remove('drag-over'));
         node.addEventListener('drop', (e) => {
+            if (homeState.selectionMode) return;
             e.preventDefault();
             node.classList.remove('drag-over');
             const file = e.dataTransfer.files[0];
@@ -305,7 +474,8 @@ function renderRing() {
 // ─── 传输流程：发起 ────────────────────────────────────────────────────────────
 
 function onDeviceClick(channelId, label) {
-    if (homeState.transferState !== 'idle') return;
+    if (homeState.transferState !== 'idle' || homeState.selectionMode || homeState.batchPhase === 'uploading' || homeState.batchPhase === 'sending') return;
+    homeState.chooserMode = 'single';
     homeState.pendingTargetChannelId = channelId;
     homeState.peerLabel = label || homeState.peerLabel;
     homeState.transferFile = null;
@@ -395,10 +565,7 @@ async function onPairReady(msg) {
 
 // ─── 公开 Share API 上传（无需登录） ──────────────────────────────────────────
 
-async function sendViaPublicShare(file, pairSessionId) {
-    homeState.transferState = 'sending';
-
-    // 1. 创建公开 Share
+async function uploadToPublicShare(file, onProgress) {
     const createRes = await fetch(`${apiBase()}/api/public/transfer/shares`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
@@ -427,23 +594,194 @@ async function sendViaPublicShare(file, pairSessionId) {
         });
         if (!res.ok) throw new Error(`分片 ${i + 1}/${totalChunks} 上传失败`);
         const pct = Math.round(((i + 1) / totalChunks) * 100);
-        showSendProgress(file.name, pct, `上传中 ${pct}%`);
+        if (typeof onProgress === 'function') {
+            onProgress(pct);
+        }
     }
 
-    // 3. 通过 WS 信令通知接收方
+    return shareToken;
+}
+
+function sendRelayDoneSignal(pairSessionId, fileInfo, shareToken) {
     sendWs({
         type: 'signal',
         pairSessionId,
         signalType: 'relay-done',
         payload: {
             shareToken,
+            fileName: fileInfo.fileName,
+            fileSize: fileInfo.fileSize,
+            contentType: fileInfo.contentType,
+        },
+    });
+}
+
+async function sendViaPublicShare(file, pairSessionId) {
+    homeState.transferState = 'sending';
+    const shareToken = await uploadToPublicShare(file, (pct) => {
+        const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
+        const statusText = lang === 'zh' ? `上传中 ${pct}%` : `Uploading ${pct}%`;
+        showSendProgress(file.name, pct, statusText);
+    });
+    sendRelayDoneSignal(pairSessionId, {
+        fileName: file.name,
+        fileSize: file.size,
+        contentType: file.type || 'application/octet-stream',
+    }, shareToken);
+
+    return shareToken;
+}
+
+async function initiateDirectSessionBatch(targetChannelId) {
+    const deviceMatch = targetChannelId.match(/:device:(.+)$/);
+    if (!deviceMatch) {
+        onBatchTargetFailure(targetChannelId, homeText('homeBatchInvalidTarget', '无效的目标设备'));
+        return;
+    }
+    const targetDeviceId = deviceMatch[1];
+    try {
+        const res = await fetch(`${apiBase()}/api/transfer/direct-sessions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            body: JSON.stringify({
+                deviceId: getHomeDeviceId(),
+                targetDeviceId,
+            }),
+        });
+        const body = await res.json();
+        if (!res.ok || body.code !== 200) {
+            throw new Error(body?.message || 'Direct session failed');
+        }
+    } catch (err) {
+        onBatchTargetFailure(targetChannelId, err.message);
+    }
+}
+
+function updateBatchProgress(statusText) {
+    const total = homeState.batchProgress.total || 1;
+    const handled = homeState.batchProgress.done + homeState.batchProgress.failed;
+    const pct = homeState.batchPhase === 'uploading'
+        ? 0
+        : Math.round((handled / total) * 100);
+    showSendProgress(
+        homeState.batchFileInfo?.fileName || homeText('homeBatchPreparing', '多人发送中'),
+        pct,
+        statusText,
+        batchProgressText(),
+    );
+}
+
+async function startBatchTransfer(file) {
+    const targets = buildPeerDeviceList().filter(peer => homeState.selectedChannelIds.has(peer.channelId));
+    if (targets.length < 2) {
+        showHomeToast(homeText('homeBatchPickPeers', '请先选择至少两台设备'), 'warning');
+        return;
+    }
+    homeState.batchPhase = 'uploading';
+    homeState.batchQueue = targets.map(target => ({ ...target, status: 'pending' }));
+    homeState.batchProgress = { done: 0, total: targets.length, failed: 0 };
+    homeState.batchCurrentTargetId = null;
+    homeState.transferFile = null;
+    hideSendChooser();
+    try {
+        const shareToken = await uploadToPublicShare(file, (pct) => {
+            showSendProgress(file.name, pct, homeTextFmt('homeBatchUploading', 'Uploading once… {pct}%', { pct }), batchProgressText());
+        });
+        homeState.batchShareToken = shareToken;
+        homeState.batchFileInfo = {
             fileName: file.name,
             fileSize: file.size,
             contentType: file.type || 'application/octet-stream',
-        },
-    });
+        };
+        homeState.batchPhase = 'sending';
+        processNextBatchTarget();
+    } catch (err) {
+        homeState.batchPhase = 'error';
+        hideSendProgress();
+        showHomeToast(`${homeText('homeTransferFailed', 'Send failed')}: ${err.message}`, 'error');
+        resetBatchState();
+    }
+}
 
-    return shareToken;
+function processNextBatchTarget() {
+    clearBatchPairTimer();
+    if (homeState.batchPhase !== 'sending') return;
+    const next = homeState.batchQueue.find(item => item.status === 'pending');
+    if (!next) {
+        finishBatchTransfer();
+        return;
+    }
+    next.status = 'pairing';
+    homeState.batchCurrentTargetId = next.channelId;
+    updateBatchProgress(homeTextFmt('homeBatchPairing', 'Connecting to {name}…', { name: next.label || 'Device' }));
+
+    if (homeState.pairSessionId && next.channelId === homeState.peerChannelId) {
+        onBatchPairReady({
+            pairSessionId: homeState.pairSessionId,
+            peerChannelId: homeState.peerChannelId,
+            peerLabel: homeState.peerLabel,
+        });
+        return;
+    }
+
+    homeState.batchPairTimer = setTimeout(() => {
+        onBatchTargetFailure(next.channelId, homeText('homeBatchPairTimeout', '连接超时'));
+    }, 15000);
+
+    if (homeState.token && next.channelId.startsWith('user:')) {
+        initiateDirectSessionBatch(next.channelId);
+    } else {
+        sendWs({ type: 'request-transfer', targetChannelId: next.channelId });
+    }
+}
+
+function onBatchPairReady(msg) {
+    if (homeState.batchPhase !== 'sending') return;
+    clearBatchPairTimer();
+    const current = homeState.batchQueue.find(item => item.status === 'pairing' && item.channelId === (homeState.batchCurrentTargetId || msg.peerChannelId))
+        || homeState.batchQueue.find(item => item.status === 'pairing');
+    if (!current) return;
+
+    sendRelayDoneSignal(msg.pairSessionId, homeState.batchFileInfo, homeState.batchShareToken);
+    current.status = 'sent';
+    homeState.batchProgress.done += 1;
+    homeState.batchCurrentTargetId = null;
+    updateBatchProgress(homeTextFmt('homeBatchSentOne', 'Sent to {name}', { name: current.label || 'Device' }));
+    setTimeout(processNextBatchTarget, 0);
+}
+
+function onBatchTargetFailure(channelId, message) {
+    if (homeState.batchPhase !== 'sending') return;
+    clearBatchPairTimer();
+    const current = homeState.batchQueue.find(item => item.channelId === channelId && (item.status === 'pairing' || item.status === 'pending'));
+    if (!current) return;
+    current.status = 'failed';
+    homeState.batchProgress.failed += 1;
+    homeState.batchCurrentTargetId = null;
+    showHomeToast(homeTextFmt('homeBatchPeerFailed', '{name} failed: {message}', {
+        name: current.label || 'Device',
+        message: message || homeText('homeBatchTargetFailed', '发送失败'),
+    }), 'warning');
+    updateBatchProgress(homeTextFmt('homeBatchSkippedOne', 'Skipped {name}', { name: current.label || 'Device' }));
+    setTimeout(processNextBatchTarget, 0);
+}
+
+function finishBatchTransfer() {
+    clearBatchPairTimer();
+    homeState.batchPhase = 'done';
+    const done = homeState.batchProgress.done;
+    const total = homeState.batchProgress.total;
+    const failed = homeState.batchProgress.failed;
+    const summary = failed > 0
+        ? homeTextFmt('homeBatchFinishedPartial', 'Sent to {done}/{total} devices', { done, total })
+        : homeText('homeBatchFinishedAll', 'Sent to all selected devices');
+    showSendProgress(homeState.batchFileInfo?.fileName || '', 100, summary, batchProgressText());
+    showHomeToast(summary, failed > 0 ? 'warning' : 'success');
+    setTimeout(() => {
+        clearSelectedPeers(true);
+        resetBatchState();
+        hideSendProgress();
+    }, 2600);
 }
 
 // ─── 传输流程：接收方弹窗 ──────────────────────────────────────────────────────
@@ -579,16 +917,21 @@ async function saveReceivedShareToNetdisk() {
 
 // ─── 进度 UI ──────────────────────────────────────────────────────────────────
 
-function showSendProgress(fileName, pct, statusText) {
+function showSendProgress(fileName, pct, statusText, batchInfo = '') {
     const wrap  = document.getElementById('homeTransferProgress');
     const label = document.getElementById('homeTransferLabel');
     const bar   = document.getElementById('homeTransferBar');
     const hint  = document.getElementById('homeTransferHint');
+    const batch = document.getElementById('homeTransferBatchInfo');
     if (!wrap) return;
     wrap.classList.add('visible');
     if (label) label.textContent = fileName || '';
     if (bar)   bar.style.width = Math.min(pct, 100) + '%';
     if (hint)  hint.textContent = statusText || '';
+    if (batch) {
+        batch.textContent = batchInfo || '';
+        batch.classList.toggle('visible', !!batchInfo);
+    }
     // Push toast container up when progress is visible
     const toast = document.getElementById('toastContainer');
     if (toast) toast.style.bottom = '80px';
@@ -596,7 +939,12 @@ function showSendProgress(fileName, pct, statusText) {
 
 function hideSendProgress() {
     const wrap = document.getElementById('homeTransferProgress');
+    const batch = document.getElementById('homeTransferBatchInfo');
     if (wrap) wrap.classList.remove('visible');
+    if (batch) {
+        batch.textContent = '';
+        batch.classList.remove('visible');
+    }
     const toast = document.getElementById('toastContainer');
     if (toast) toast.style.bottom = '';
 }
@@ -609,7 +957,9 @@ function resetTransferState() {
     if (textInput && !homeState.pairSessionId) {
         textInput.value = '';
     }
-    setTimeout(hideSendProgress, 800);
+    if (homeState.batchPhase === 'idle') {
+        setTimeout(hideSendProgress, 800);
+    }
     renderPairState();
 }
 
@@ -644,6 +994,7 @@ function renderPairState() {
 
     // Re-render peers to show/hide paired device
     renderRing();
+    updateMultiSelectBar();
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -755,6 +1106,7 @@ function hideSendChooser() {
 function cancelSendChooser() {
     hideSendChooser();
     homeState.pendingTargetChannelId = null;
+    homeState.chooserMode = 'single';
 }
 
 function showSendChooserOptions() {
@@ -797,6 +1149,12 @@ async function sendTextFromChooser() {
     const file = new File([blob], 'text-message.txt', { type: 'text/plain', lastModified: Date.now() });
 
     hideSendChooser();
+
+    if (homeState.chooserMode === 'batch') {
+        homeState.chooserMode = 'single';
+        await startBatchTransfer(file);
+        return;
+    }
 
     if (homeState.pairSessionId && channelId === homeState.peerChannelId) {
         homeState.transferFile = file;
@@ -857,10 +1215,14 @@ async function initHomePage() {
     // 文件选择器
     const fileInput = document.getElementById('homeFileInput');
     if (fileInput) {
-        fileInput.addEventListener('change', (e) => {
+        fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
+            const chooserMode = homeState.chooserMode;
             const targetChannelId = homeState.pendingTargetChannelId || homeState.peerChannelId;
-            if (file && targetChannelId) {
+            if (file && chooserMode === 'batch') {
+                homeState.chooserMode = 'single';
+                await startBatchTransfer(file);
+            } else if (file && targetChannelId) {
                 if (homeState.pairSessionId && targetChannelId === homeState.peerChannelId) {
                     homeState.transferFile = file;
                     onPairReady({
@@ -917,6 +1279,26 @@ async function initHomePage() {
         chooserSendBtn.addEventListener('click', sendTextFromChooser);
     }
 
+    const selectModeBtn = document.getElementById('peerSelectModeBtn');
+    if (selectModeBtn) {
+        selectModeBtn.addEventListener('click', toggleSelectionMode);
+    }
+
+    const selectAllPeersBtn = document.getElementById('selectAllPeersBtn');
+    if (selectAllPeersBtn) {
+        selectAllPeersBtn.addEventListener('click', toggleSelectAllPeers);
+    }
+
+    const sendSelectedPeersBtn = document.getElementById('sendSelectedPeersBtn');
+    if (sendSelectedPeersBtn) {
+        sendSelectedPeersBtn.addEventListener('click', openBatchSendChooser);
+    }
+
+    const clearSelectedPeersBtn = document.getElementById('clearSelectedPeersBtn');
+    if (clearSelectedPeersBtn) {
+        clearSelectedPeersBtn.addEventListener('click', () => clearSelectedPeers(true));
+    }
+
     const chooserOverlay = document.getElementById('sendChooser');
     if (chooserOverlay) {
         chooserOverlay.addEventListener('click', (e) => {
@@ -931,6 +1313,10 @@ async function initHomePage() {
     document.addEventListener('drop', (e) => {
         e.preventDefault();
         if (homeState.transferState !== 'idle') return;
+        if (homeState.selectionMode) {
+            showHomeToast(homeText('homeBatchDropDisabled', '多人发送模式下请先点击“发送给已选设备”'), 'info');
+            return;
+        }
         const others = homeState.roomDevices.filter(d => !d.isMe);
         if (others.length === 1) {
             const file = e.dataTransfer.files[0];

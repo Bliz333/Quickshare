@@ -11,7 +11,6 @@
     const NAV_ITEMS = [
         { key: 'navHome',      label: '首页',    labelEn: 'Home',     href: 'index.html',  icon: 'fa-house',       alwaysShow: true },
         { key: 'navNetdisk',   label: '网盘',    labelEn: 'Drive',    href: 'netdisk.html', icon: 'fa-hard-drive',  loginRequired: true },
-        { key: 'navTransfer',  label: '快传历史', labelEn: 'Transfers', href: 'transfer.html', icon: 'fa-clock-rotate-left', loginRequired: true },
         { key: 'navPricing',   label: '定价',    labelEn: 'Pricing',  href: 'pricing.html', icon: 'fa-tags',        alwaysShow: true },
     ];
 

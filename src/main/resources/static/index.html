@@ -145,6 +145,22 @@
 
         /* ── Peers ── */
         .peers{width:100%;max-width:540px;display:flex;flex-direction:column;align-items:center;gap:10px}
+        .peer-toolbar{width:100%;display:flex;justify-content:flex-end;min-height:34px}
+        .peer-toolbar-btn{
+            min-height:38px;padding:0 14px;border-radius:999px;border:1px solid rgba(59,130,246,.14);
+            background:linear-gradient(180deg,rgba(59,130,246,.08),rgba(59,130,246,.03));color:var(--primary-dark);font-family:inherit;font-size:.77rem;font-weight:700;
+            cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .22s var(--ease);box-shadow:var(--sh-s)
+        }
+        .peer-toolbar-btn:hover{border-color:rgba(59,130,246,.32);color:var(--primary);transform:translateY(-1px);box-shadow:var(--sh-m)}
+        .peer-toolbar-btn.active{background:linear-gradient(180deg,rgba(59,130,246,.14),rgba(59,130,246,.08));border-color:rgba(59,130,246,.3);color:var(--primary)}
+        .peer-toolbar-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:var(--sh-s)}
+        .dark-mode .peer-toolbar-btn{background:linear-gradient(180deg,rgba(124,140,245,.16),rgba(124,140,245,.08));border-color:rgba(124,140,245,.24);color:var(--primary-light)}
+        .dark-mode .peer-toolbar-btn.active{background:linear-gradient(180deg,rgba(124,140,245,.24),rgba(124,140,245,.14));border-color:rgba(124,140,245,.34)}
+        .peer-toolbar-btn i{font-size:.8rem}
+        .multi-select-bar{
+            width:100%;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;
+            padding:4px 0 0
+        }
         .peer-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;width:100%}
         .peer-card{
             display:flex;align-items:center;gap:12px;
@@ -153,14 +169,18 @@
             cursor:pointer;transition:all .28s var(--ease);
             min-width:175px;max-width:256px;flex:1 1 175px;
             appearance:none;-webkit-appearance:none;font-family:inherit;color:inherit;text-align:left;
-            box-shadow:var(--sh-s);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
+            box-shadow:var(--sh-s);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);position:relative
         }
         .peer-card:hover{transform:translateY(-3px);box-shadow:var(--sh-m);border-color:rgba(59,130,246,.2)}
         .dark-mode .peer-card:hover{border-color:rgba(124,140,245,.2)}
         .peer-card:active{transform:translateY(-1px) scale(.98);transition-duration:.1s}
         .peer-card.drag-over{border-color:var(--success);background:rgba(16,185,129,.05)}
         .peer-card.paired{border-color:var(--primary);background:rgba(59,130,246,.03)}
+        .peer-card.select-mode{padding-right:48px}
+        .peer-card.select-mode:hover{transform:none}
+        .peer-card.selected{border-color:var(--primary);background:rgba(59,130,246,.08);box-shadow:0 0 0 2px rgba(59,130,246,.12)}
         .dark-mode .peer-card.paired{background:rgba(124,140,245,.06)}
+        .dark-mode .peer-card.selected{background:rgba(124,140,245,.12);box-shadow:0 0 0 2px rgba(124,140,245,.16)}
         .peer-card-icon{
             width:42px;height:42px;border-radius:12px;
             background:rgba(59,130,246,.08);
@@ -169,15 +189,28 @@
             transition:transform .28s var(--ease)
         }
         .peer-card:hover .peer-card-icon{transform:scale(1.06)}
+        .peer-card.select-mode:hover .peer-card-icon{transform:none}
         .dark-mode .peer-card-icon{background:rgba(124,140,245,.08)}
         .peer-card-info{min-width:0;flex:1}
         .peer-card-name{font-size:.86rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .peer-card-meta{font-size:.7rem;color:var(--text2);margin-top:2px;font-weight:400}
+        .peer-card-check{
+            position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:7px;
+            border:1px solid var(--border-s);background:var(--card);color:transparent;
+            display:flex;align-items:center;justify-content:center;font-size:.72rem;
+            box-shadow:var(--sh-s);transition:all .2s var(--ease);pointer-events:none
+        }
+        .peer-card.selected .peer-card-check{background:var(--primary);border-color:var(--primary);color:#fff}
 
         .no-peers{display:none;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:24px;color:var(--text3)}
         .no-peers.show{display:flex}
         .no-peers i{font-size:1.4rem;opacity:.3}
         .no-peers p{font-size:.82rem;line-height:1.65;max-width:260px;font-weight:400}
+
+        /* ═══ Section headers ═══ */
+        .section-header{text-align:center;display:flex;flex-direction:column;gap:2px}
+        .section-title{font-size:.82rem;font-weight:700;letter-spacing:.01em}
+        .section-subtitle{font-size:.7rem;color:var(--text2);font-weight:400;line-height:1.45}
 
         /* ═══ Bottom pair strip ═══ */
         .pair-strip{
@@ -226,27 +259,50 @@
         .pair-btn-fill:hover{filter:brightness(1.06)}
         .pair-btn-ghost{background:var(--card);color:var(--text2);border:1px solid var(--border-s)}
         .pair-btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+        .pair-helper{
+            width:100%;max-width:400px;display:flex;flex-direction:column;gap:3px;
+            padding:8px 12px;border-radius:12px;border:1px solid var(--border-s);
+            background:rgba(59,130,246,.04);text-align:center
+        }
+        .dark-mode .pair-helper{background:rgba(124,140,245,.08);border-color:rgba(124,140,245,.14)}
+        .pair-helper-line{font-size:.72rem;line-height:1.45;color:var(--text2)}
+        .pair-helper-line strong{color:var(--text);font-weight:700}
 
-        /* ═══ Share FAB ═══ */
-        .share-fab{
-            position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:90;
-            display:flex;flex-direction:column;align-items:center;gap:6px;
-            text-decoration:none;color:var(--text2);transition:all .28s var(--ease)
+        /* subtle sign-in benefit cue */
+        .pair-signin-hint{
+            font-size:.66rem;color:var(--text3);font-weight:400;
+            line-height:1.3;text-align:center;max-width:280px;
+            opacity:.7
         }
-        .share-fab-icon{
-            width:48px;height:48px;border-radius:14px;
-            background:var(--card);border:1px solid var(--border-s);box-shadow:var(--sh-m);
+
+        /* ═══ Share CTA — floating top-right card ═══ */
+        .share-cta-bar{
+            position:fixed;top:66px;right:20px;z-index:110;
+            display:block;padding:0;border:none;
+            background:none;
+            backdrop-filter:none;-webkit-backdrop-filter:none
+        }
+        .share-cta-bar a{
+            display:inline-flex;align-items:center;gap:11px;
+            padding:9px 20px 9px 9px;border-radius:15px;
+            text-decoration:none;color:var(--text);
+            background:var(--card);border:1px solid var(--border-s);
+            box-shadow:var(--sh-m);transition:all .24s var(--ease);
+            max-width:min(380px,calc(100vw - 48px));
+            backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)
+        }
+        .share-cta-bar a:hover{border-color:rgba(59,130,246,.26);box-shadow:var(--sh-l);transform:translateY(-2px)}
+        .dark-mode .share-cta-bar a:hover{border-color:rgba(124,140,245,.28)}
+        .share-cta-bar a:active{transform:translateY(0) scale(.98);transition-duration:.1s}
+        .share-cta-icon{
+            width:36px;height:36px;border-radius:11px;
+            background:linear-gradient(135deg,var(--primary-light),var(--primary));
             display:flex;align-items:center;justify-content:center;
-            color:var(--primary);font-size:1.1rem;
-            transition:all .28s var(--ease);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
+            color:#fff;font-size:.84rem;flex-shrink:0
         }
-        .share-fab:hover .share-fab-icon{
-            background:var(--primary);color:#fff;
-            box-shadow:0 8px 28px rgba(59,130,246,.22);transform:scale(1.06)
-        }
-        .dark-mode .share-fab:hover .share-fab-icon{box-shadow:0 8px 28px rgba(124,140,245,.2)}
-        .share-fab-label{font-size:.62rem;font-weight:600;letter-spacing:.02em;opacity:.5;transition:opacity .2s;white-space:nowrap}
-        .share-fab:hover .share-fab-label{opacity:1}
+        .share-cta-copy{display:flex;flex-direction:column;gap:1px;min-width:0}
+        .share-cta-label{font-size:.84rem;font-weight:700;letter-spacing:.01em;line-height:1.2;white-space:nowrap}
+        .share-cta-subtitle{font-size:.67rem;color:var(--text2);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
         /* ═══ Progress ═══ */
         .progress-banner{
@@ -261,6 +317,8 @@
         .progress-hint{font-size:.74rem;color:var(--text2);flex-shrink:0;font-weight:400}
         .progress-track{height:3px;background:var(--border-s);border-radius:99px;overflow:hidden}
         .progress-bar{height:100%;background:linear-gradient(90deg,var(--primary),var(--success));border-radius:99px;width:0;transition:width .35s var(--ease)}
+        .progress-batch-info{display:none;margin-top:8px;font-size:.74rem;color:var(--text2)}
+        .progress-batch-info.visible{display:block}
 
         /* ═══ Receive modal ═══ */
         .recv-overlay{
@@ -384,12 +442,20 @@
         @media(max-width:580px){
             .topbar{padding:0 14px}
             .arena{padding:0 16px;gap:22px}
+            .peer-toolbar{justify-content:stretch}
+            .peer-toolbar-btn{width:100%;justify-content:center}
+            .multi-select-bar{align-items:stretch}
             .peer-card{min-width:0;max-width:none;flex-basis:100%}
             .pair-strip{padding:14px 16px 20px;gap:10px}
             .pair-row{flex-direction:column;align-items:stretch}
             .pair-input{max-width:none;min-width:0;min-height:52px;height:52px;padding:0 14px;font-size:16px;line-height:1.2}
             .pair-btn{min-height:52px;height:52px;padding:0 16px;font-size:.9rem;justify-content:center}
-            .share-fab{right:10px}.share-fab-label{display:none}
+            .peer-toolbar{justify-content:center}
+            .share-cta-bar{top:62px;right:14px}
+            .share-cta-bar a{padding:6px 12px 6px 6px;gap:8px;max-width:min(280px,calc(100vw - 24px))}
+            .share-cta-icon{width:28px;height:28px;font-size:.66rem;border-radius:8px}
+            .share-cta-label{font-size:.72rem}
+            .share-cta-subtitle{font-size:.58rem}
         }
     </style>
 </head>
@@ -426,6 +492,16 @@
         </span>
     </nav>
 </header>
+
+<!-- Share CTA bar -->
+<div class="share-cta-bar anim d2" role="complementary">
+    <a href="share.html" title="Upload a file and send the link to anyone" aria-label="Upload a file and send the link to anyone">
+        <div class="share-cta-icon"><i class="fa-solid fa-share-nodes"></i></div>
+        <div class="share-cta-copy">
+            <span class="share-cta-label" data-i18n="homeShareFab">Share by Link</span>
+        </div>
+    </a>
+</div>
 
 <!-- Notifications -->
 <section id="homeNotificationsPanel" class="home-notice-panel" aria-hidden="true">
@@ -469,7 +545,30 @@
         </span>
     </div>
     <div class="peers anim d3">
+        <div class="section-header">
+            <strong class="section-title" data-i18n="homeNearbyTitle">附近设备</strong>
+        </div>
+        <div class="peer-toolbar">
+            <button id="peerSelectModeBtn" class="peer-toolbar-btn hidden" type="button">
+                <i class="fa-solid fa-check-double"></i>
+                <span data-i18n="homeSelectMode">多人发送</span>
+            </button>
+        </div>
         <div id="peerDevices" class="peer-grid"></div>
+        <div id="multiSelectBar" class="multi-select-bar hidden">
+            <button id="selectAllPeersBtn" class="pair-btn pair-btn-ghost" type="button">
+                <i class="fa-regular fa-square-check"></i>
+                <span data-i18n="homeSelectAllPeers">全选设备</span>
+            </button>
+            <button id="sendSelectedPeersBtn" class="pair-btn pair-btn-fill" type="button" disabled>
+                <i class="fa-solid fa-paper-plane"></i>
+                <span data-i18n="homeSendSelectedPeers">发送给已选设备</span>
+            </button>
+            <button id="clearSelectedPeersBtn" class="pair-btn pair-btn-ghost" type="button">
+                <i class="fa-solid fa-xmark"></i>
+                <span data-i18n="homeCancelSelection">退出选择</span>
+            </button>
+        </div>
         <div class="no-peers" id="noDevicesHint">
             <i class="fa-solid fa-wifi"></i>
             <p data-i18n="homeNoDevices">Open this page on another device on the same network</p>
@@ -479,7 +578,10 @@
 
 <!-- Pair strip -->
 <footer class="pair-strip anim d4">
-    <div class="pair-divider" data-i18n="homePairDivider">Different network? Use a pair code</div>
+    <div class="section-header">
+        <strong class="section-title" data-i18n="homePairTitle">配对码</strong>
+    </div>
+    <span class="pair-signin-hint" data-i18n="homePairSigninHint">登录后自动发现你的设备</span>
     <div id="homePairCodeDisplay" class="pair-code-show">
         <span id="homePairCodeValue" class="pair-code-value">-</span>
         <button id="homeCopyPairCodeBtn" class="pair-code-copy" type="button" data-i18n="homeCopyPairCode">Copy</button>
@@ -492,12 +594,6 @@
     </div>
 </footer>
 
-<!-- Share FAB -->
-<a href="share.html" class="share-fab anim d4" title="Upload & share a file">
-    <div class="share-fab-icon"><i class="fa-solid fa-arrow-up-from-bracket"></i></div>
-    <span class="share-fab-label" data-i18n="homeShareFab">Share</span>
-</a>
-
 <!-- Progress -->
 <div id="homeTransferProgress" class="progress-banner">
     <div class="progress-header">
@@ -505,6 +601,7 @@
         <span id="homeTransferHint" class="progress-hint"></span>
     </div>
     <div class="progress-track"><div id="homeTransferBar" class="progress-bar"></div></div>
+    <div id="homeTransferBatchInfo" class="progress-batch-info"></div>
 </div>
 
 <!-- Receive modal -->

@@ -312,19 +312,6 @@ function onDeviceClick(channelId, label) {
     showSendChooser(label);
 }
 
-function showSendModal(label) {
-    const modal = document.getElementById('sendModal');
-    const target = document.getElementById('sendModalTarget');
-    if (target) target.textContent = `发送给：${label}`;
-    if (modal) modal.classList.add('visible');
-}
-
-function closeSendModal() {
-    const modal = document.getElementById('sendModal');
-    if (modal) modal.classList.remove('visible');
-    homeState.pendingTargetChannelId = null;
-}
-
 function initiateTransfer(targetChannelId, label, file) {
     if (homeState.transferState !== 'idle') return;
     homeState.transferFile = file;
@@ -618,7 +605,7 @@ function resetTransferState() {
     homeState.transferState   = 'idle';
     homeState.transferFile    = null;
     homeState.pendingTargetChannelId = null;
-    const textInput = document.getElementById('homeTextInput');
+    const textInput = document.getElementById('sendChooserTextInput');
     if (textInput && !homeState.pairSessionId) {
         textInput.value = '';
     }
@@ -653,11 +640,6 @@ function renderPairState() {
     }
     if (copyButton) {
         copyButton.disabled = !homeState.pairCode;
-    }
-
-    const textPanel = document.getElementById('homeTextSendPanel');
-    if (textPanel) {
-        textPanel.classList.remove('visible');
     }
 
     // Re-render peers to show/hide paired device
@@ -828,50 +810,6 @@ async function sendTextFromChooser() {
     }
 }
 
-function sendToPairedPeer() {
-    if (!homeState.pairSessionId || !homeState.peerChannelId) {
-        showHomeToast(homeText('homePairFirst', '请先完成配对'), 'warning');
-        return;
-    }
-    homeState.pendingTargetChannelId = homeState.peerChannelId;
-    openHomeFilePicker();
-}
-
-async function sendTextToPairedPeer() {
-    const input = document.getElementById('homeTextInput');
-    const text = input?.value?.trim();
-    if (!text) {
-        showHomeToast(homeText('homeTextEmpty', '请输入要发送的文本'), 'warning');
-        return;
-    }
-    if (!homeState.pairSessionId || !homeState.peerChannelId) {
-        showHomeToast(homeText('homePairFirst', '请先完成配对'), 'warning');
-        return;
-    }
-    if (homeState.transferState !== 'idle') {
-        showHomeToast(homeText('homeTransferBusy', '传输进行中，请稍候'), 'warning');
-        return;
-    }
-    const blob = new Blob([text], { type: 'text/plain' });
-    const file = new File([blob], 'text-message.txt', { type: 'text/plain', lastModified: Date.now() });
-    homeState.pendingTargetChannelId = homeState.peerChannelId;
-    homeState.transferFile = file;
-    try {
-        await sendViaPublicShare(file, homeState.pairSessionId);
-        homeState.transferState = 'done';
-        const doneText = homeText('homeTransferDone', '已发送');
-        showSendProgress(file.name, 100, '✓ ' + doneText);
-        showHomeToast(homeText('homeTextSent', '文本已发送'), 'success');
-        if (input) input.value = '';
-        setTimeout(resetTransferState, 3000);
-    } catch (err) {
-        homeState.transferState = 'error';
-        hideSendProgress();
-        showHomeToast(homeText('homeTransferFailed', '发送失败') + ': ' + err.message, 'error');
-        resetTransferState();
-    }
-}
-
 // ─── 账号设备同步（登录用户） ──────────────────────────────────────────────────
 
 async function syncAccountDevices() {
@@ -949,11 +887,6 @@ async function initHomePage() {
         copyPairCodeButton.addEventListener('click', copyCurrentPairCode);
     }
 
-    const sendToPeerButton = document.getElementById('homeSendToPeerBtn');
-    if (sendToPeerButton) {
-        sendToPeerButton.addEventListener('click', sendToPairedPeer);
-    }
-
     const copyReceivedLinkButton = document.getElementById('receiveCopyLinkBtn');
     if (copyReceivedLinkButton) {
         copyReceivedLinkButton.addEventListener('click', copyReceivedShareLink);
@@ -962,11 +895,6 @@ async function initHomePage() {
     const saveReceivedButton = document.getElementById('receiveSaveBtn');
     if (saveReceivedButton) {
         saveReceivedButton.addEventListener('click', saveReceivedShareToNetdisk);
-    }
-
-    const sendTextButton = document.getElementById('homeSendTextBtn');
-    if (sendTextButton) {
-        sendTextButton.addEventListener('click', sendTextToPairedPeer);
     }
 
     const copyTextButton = document.getElementById('receiveCopyTextBtn');

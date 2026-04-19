@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title data-i18n="registerPageTitle">注册 - QuickShare</title>
+    <title data-i18n="registerPageTitle">Register - QuickShare</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -434,12 +434,12 @@
 <!-- 返回按钮 -->
 <a href="index.html" class="top-btn back-btn">
     <i class="fa-solid fa-arrow-left"></i>
-    <span style="margin-left: 6px;" data-i18n="backHome">返回首页</span>
+    <span style="margin-left: 6px;" data-i18n="backHome">Back to Home</span>
 </a>
 
 <!-- 顶部按钮组 -->
 <div class="top-buttons">
-    <button class="top-btn" id="darkModeToggle" onclick="toggleTheme()" title="切换主题">
+    <button class="top-btn" id="darkModeToggle" onclick="toggleTheme()" title="Toggle theme">
         <i class="fa-solid fa-moon"></i>
     </button>
     <button class="top-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
@@ -448,34 +448,34 @@
 <div class="register-container" data-mascot-stage="auth-register">
     <div class="logo">
         <div class="logo-icon"><i class="fa-solid fa-user-plus"></i></div>
-        <h1 data-i18n="registerTitle">创建账号</h1>
-        <p data-i18n="registerSubtitle">加入 QuickShare，开始分享</p>
+        <h1 data-i18n="registerTitle">Create Account</h1>
+        <p data-i18n="registerSubtitle">Join QuickShare and start sharing</p>
     </div>
 
     <form id="registerForm" onsubmit="handleRegister(event)">
         <!-- 用户名 -->
         <div class="form-group">
-            <label data-i18n="usernameLabel"><i class="fa-regular fa-user"></i>用户名 *</label>
+            <label data-i18n="usernameLabel"><i class="fa-regular fa-user"></i>Username *</label>
             <div class="input-wrapper">
-                <input type="text" id="username" class="form-control" data-i18n="regUsernamePlaceholder" placeholder="请输入用户名" required minlength="3">
+                <input type="text" id="username" class="form-control" data-i18n="regUsernamePlaceholder" placeholder="Enter username" required minlength="3">
                 <i class="fa-regular fa-user input-icon"></i>
             </div>
-            <small data-i18n="usernameHint">至少 3 个字符</small>
+            <small data-i18n="usernameHint">At least 3 characters</small>
         </div>
 
         <!-- 密码 -->
         <div class="form-row">
             <div class="form-group">
-                <label data-i18n="passwordLabel"><i class="fa-solid fa-lock"></i>密码 *</label>
+                <label data-i18n="passwordLabel"><i class="fa-solid fa-lock"></i>Password *</label>
                 <div class="input-wrapper">
-                    <input type="password" id="password" class="form-control" data-i18n="regPasswordPlaceholder" placeholder="至少6位" required minlength="6">
+                    <input type="password" id="password" class="form-control" data-i18n="regPasswordPlaceholder" placeholder="At least 6 characters" required minlength="6">
                     <i class="fa-solid fa-lock input-icon"></i>
                 </div>
             </div>
             <div class="form-group">
-                <label data-i18n="confirmPasswordLabel"><i class="fa-solid fa-check-double"></i>确认密码 *</label>
+                <label data-i18n="confirmPasswordLabel"><i class="fa-solid fa-check-double"></i>Confirm Password *</label>
                 <div class="input-wrapper">
-                    <input type="password" id="confirmPassword" class="form-control" data-i18n="confirmPasswordPlaceholder" placeholder="再次输入" required>
+                    <input type="password" id="confirmPassword" class="form-control" data-i18n="confirmPasswordPlaceholder" placeholder="Re-enter password" required>
                     <i class="fa-solid fa-check-double input-icon"></i>
                 </div>
             </div>
@@ -483,32 +483,32 @@
 
         <!-- 邮箱 -->
         <div class="form-group" id="emailGroup">
-            <label data-i18n="emailLabel"><i class="fa-regular fa-envelope"></i>邮箱 *</label>
+            <label data-i18n="emailLabel"><i class="fa-regular fa-envelope"></i>Email *</label>
             <div class="email-row">
                 <div class="input-wrapper">
                     <input type="email" id="email" class="form-control" data-i18n="emailPlaceholder" placeholder="your@email.com" required>
                     <i class="fa-regular fa-envelope input-icon"></i>
                 </div>
                 <button type="button" class="btn-code" id="sendCodeBtn" onclick="sendVerificationCode()" data-i18n="sendCodeBtn">
-                    发送验证码
+                    Send Code
                 </button>
             </div>
         </div>
 
         <!-- 验证码 -->
         <div class="form-group" id="verificationCodeGroup">
-            <label data-i18n="verificationCodeLabel"><i class="fa-solid fa-shield-halved"></i>验证码 *</label>
+            <label data-i18n="verificationCodeLabel"><i class="fa-solid fa-shield-halved"></i>Verification Code *</label>
             <div class="input-wrapper">
-                <input type="text" id="verificationCode" class="form-control" data-i18n="verificationCodePlaceholder" placeholder="6位数字验证码" required maxlength="6">
+                <input type="text" id="verificationCode" class="form-control" data-i18n="verificationCodePlaceholder" placeholder="6-digit code" required maxlength="6">
                 <i class="fa-solid fa-shield-halved input-icon"></i>
             </div>
         </div>
 
         <!-- 昵称 -->
         <div class="form-group">
-            <label data-i18n="nicknameLabel"><i class="fa-regular fa-face-smile"></i>昵称 (可选)</label>
+            <label data-i18n="nicknameLabel"><i class="fa-regular fa-face-smile"></i>Nickname (optional)</label>
             <div class="input-wrapper">
-                <input type="text" id="nickname" class="form-control" data-i18n="nicknamePlaceholder" placeholder="显示名称">
+                <input type="text" id="nickname" class="form-control" data-i18n="nicknamePlaceholder" placeholder="Display name">
                 <i class="fa-regular fa-face-smile input-icon"></i>
             </div>
         </div>
@@ -518,14 +518,18 @@
         </div>
 
         <button type="submit" class="btn-submit" id="registerBtn">
-            <span data-i18n="registerSubmit">注册</span>
+            <span data-i18n="registerSubmit">Register</span>
             <i class="fa-solid fa-user-plus"></i>
         </button>
     </form>
 
+    <div class="divider" id="socialDivider" style="display:none"><span data-i18n="or">or</span></div>
+
+    <div class="social-buttons" id="socialButtons"></div>
+
     <div class="card-footer">
-        <span data-i18n="hasAccount">已有账号？</span>
-        <a href="login.html" data-i18n="loginNow">立即登录</a>
+        <span data-i18n="hasAccount">Already have an account?</span>
+        <a href="login.html" data-i18n="loginNow">Sign in</a>
     </div>
 </div>
 
@@ -536,6 +540,7 @@
 <script src="js/modal.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/register.js"></script>
+<script src="js/social-login.js"></script>
 <script src="js/mascots.js"></script>
 <script src="js/spa-router.js"></script>
 <script>initMascots();</script>

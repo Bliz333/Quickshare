@@ -137,3 +137,6 @@ app:
     turn-password: ${QUICKDROP_TURN_PASSWORD:}
   upload:
     guest-max-size-bytes: ${GUEST_UPLOAD_MAX_SIZE_BYTES:2147483648}
+
+google:
+  client-id: ${GOOGLE_CLIENT_ID:}

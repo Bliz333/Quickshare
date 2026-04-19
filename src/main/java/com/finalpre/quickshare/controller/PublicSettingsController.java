@@ -5,6 +5,7 @@ import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
 import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.vo.PublicRegistrationSettingsVO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,6 +17,9 @@ public class PublicSettingsController {
     @Autowired
     private RegistrationSettingsService registrationSettingsService;
 
+    @Value("${google.client-id:}")
+    private String googleClientId;
+
     @GetMapping("/registration-settings")
     public Result<PublicRegistrationSettingsVO> getRegistrationSettings() {
         RegistrationSettingsPolicy policy = registrationSettingsService.getPolicy();
@@ -25,6 +29,7 @@ public class PublicSettingsController {
         vo.setRecaptchaEnabled(policy.recaptchaEnabled());
         vo.setCaptchaProvider(policy.captchaProvider());
         vo.setRecaptchaSiteKey(policy.recaptchaSiteKey());
+        vo.setGoogleClientId(googleClientId != null && !googleClientId.isBlank() ? googleClientId : null);
         return Result.success(vo);
     }
 }

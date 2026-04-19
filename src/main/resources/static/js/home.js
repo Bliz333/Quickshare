@@ -618,6 +618,10 @@ function resetTransferState() {
     homeState.transferState   = 'idle';
     homeState.transferFile    = null;
     homeState.pendingTargetChannelId = null;
+    const textInput = document.getElementById('homeTextInput');
+    if (textInput && !homeState.pairSessionId) {
+        textInput.value = '';
+    }
     setTimeout(hideSendProgress, 800);
     renderPairState();
 }

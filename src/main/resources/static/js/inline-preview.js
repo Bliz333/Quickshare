@@ -146,7 +146,7 @@
             case 'pdf': {
                 var viewerUrl = 'pdf-viewer.html?file=' + encodeURIComponent(url)
                     + '&download=' + encodeURIComponent(dlUrl || url)
-                    + '&name=' + encodeURIComponent(name) + '&kind=pdf';
+                    + '&name=' + encodeURIComponent(name) + '&kind=pdf&embedded=1';
                 return '<div class="inline-preview-wrap inline-preview-iframe-wrap">'
                     + '<iframe class="inline-preview-iframe" src="' + escapeAttr(viewerUrl) + '"'
                     + ' title="' + escapeAttr(name) + '"></iframe>'
@@ -156,7 +156,7 @@
             case 'office': {
                 var viewerUrl2 = 'pdf-viewer.html?file=' + encodeURIComponent(url)
                     + '&download=' + encodeURIComponent(dlUrl || url)
-                    + '&name=' + encodeURIComponent(name) + '&kind=office';
+                    + '&name=' + encodeURIComponent(name) + '&kind=office&embedded=1';
                 return '<div class="inline-preview-wrap inline-preview-iframe-wrap">'
                     + '<iframe class="inline-preview-iframe" src="' + escapeAttr(viewerUrl2) + '"'
                     + ' title="' + escapeAttr(name) + '"></iframe>'
@@ -217,12 +217,12 @@
             '.inline-preview-wrap{width:100%;margin-top:8px;text-align:center;overflow:hidden;border-radius:12px}',
             '.inline-preview-image-wrap{cursor:zoom-in}',
             '.inline-preview-image-wrap.zoomed{cursor:zoom-out}',
-            '.inline-preview-img{max-width:100%;max-height:200px;object-fit:contain;display:block;margin:0 auto;border-radius:12px;transition:max-height .3s ease}',
+            '.inline-preview-img{max-width:100%;max-height:min(52vh,720px);object-fit:contain;display:block;margin:0 auto;border-radius:12px;transition:max-height .3s ease}',
             '.inline-preview-image-wrap.zoomed .inline-preview-img{max-height:none}',
-            '.inline-preview-video{max-width:100%;max-height:200px;border-radius:12px;display:block;margin:0 auto}',
+            '.inline-preview-video{max-width:100%;max-height:min(52vh,720px);border-radius:12px;display:block;margin:0 auto}',
             '.inline-preview-audio{width:100%;margin:4px 0}',
-            '.inline-preview-text{width:100%;max-height:160px;overflow-y:auto;text-align:left;padding:10px 12px;border:1px solid var(--border,#e2e8f0);border-radius:10px;background:var(--bg,#f8fafc);color:var(--text,#0f172a);font-family:\'Outfit\',monospace;font-size:.8rem;line-height:1.55;white-space:pre-wrap;word-break:break-word;margin:0}',
-            '.inline-preview-iframe{width:100%;height:200px;border:none;border-radius:12px}',
+            '.inline-preview-text{width:100%;max-height:min(40vh,420px);overflow-y:auto;text-align:left;padding:10px 12px;border:1px solid var(--border,#e2e8f0);border-radius:10px;background:var(--bg,#f8fafc);color:var(--text,#0f172a);font-family:\'Outfit\',monospace;font-size:.8rem;line-height:1.55;white-space:pre-wrap;word-break:break-word;margin:0}',
+            '.inline-preview-iframe{width:100%;height:min(64vh,820px);border:none;border-radius:12px}',
             '@media(max-width:580px){',
             '  .inline-preview-img,.inline-preview-video{max-height:160px}',
             '  .inline-preview-iframe{height:160px}',

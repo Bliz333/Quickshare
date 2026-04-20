@@ -60,10 +60,18 @@
             color: var(--text-main);
         }
 
+        body.embedded {
+            background: transparent;
+        }
+
         .viewer-shell {
             width: 100%;
             height: 100%;
             padding: 18px;
+        }
+
+        body.embedded .viewer-shell {
+            padding: 0;
         }
 
         .viewer-panel {
@@ -89,6 +97,11 @@
             flex-wrap: wrap;
         }
 
+        body.embedded .viewer-toolbar {
+            padding: 10px 12px 0;
+            gap: 8px;
+        }
+
         .viewer-meta {
             min-width: 0;
         }
@@ -107,6 +120,10 @@
             margin-top: 6px;
             font-size: 0.85rem;
             color: var(--text-sub);
+        }
+
+        body.embedded .viewer-subtitle {
+            display: none;
         }
 
         .viewer-actions {
@@ -174,10 +191,18 @@
             color: var(--text-sub);
         }
 
+        body.embedded .viewer-status {
+            display: none;
+        }
+
         .viewer-canvas-area {
             position: relative;
             overflow: auto;
             padding: 8px 20px 20px;
+        }
+
+        body.embedded .viewer-canvas-area {
+            padding: 8px 10px 12px;
         }
 
         .viewer-canvas-shell {
@@ -188,11 +213,21 @@
             padding: 10px 0 20px;
         }
 
+        body.embedded .viewer-canvas-shell {
+            padding: 4px 0 8px;
+        }
+
         .viewer-canvas-card {
             border-radius: 18px;
             background: rgba(255, 255, 255, 0.96);
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
             padding: 14px;
+        }
+
+        body.embedded .viewer-canvas-card {
+            padding: 8px;
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
         }
 
         .dark-mode .viewer-canvas-card {
@@ -285,6 +320,16 @@
             .viewer-btn,
             .viewer-ghost {
                 padding: 0 12px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            body.embedded .viewer-toolbar {
+                padding: 8px 10px 0;
+            }
+
+            body.embedded .viewer-canvas-area {
+                padding: 6px 8px 10px;
             }
         }
     </style>

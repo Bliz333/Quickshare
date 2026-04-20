@@ -352,7 +352,7 @@
         .recv-overlay.visible{opacity:1;pointer-events:auto}
         .recv-card{
             background:var(--card);border:1px solid var(--border-s);border-radius:20px;
-            padding:28px;width:100%;max-width:360px;box-shadow:var(--sh-l);
+            padding:28px;width:100%;max-width:min(380px,calc(100vw - 40px));box-shadow:var(--sh-l);
             transform:scale(.96);transition:transform .35s var(--spring);
             text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px
         }
@@ -413,10 +413,10 @@
         }
         .text-send-input:focus{border-color:var(--primary)}
         .text-send-input::placeholder{color:var(--text3)}
-        .recv-card.has-preview{max-width:420px}
+        .recv-card.has-preview{max-width:min(72vw,960px)}
         .recv-text-wrap{width:100%;margin-top:6px;text-align:left}
         .recv-text-content{
-            width:100%;min-height:60px;max-height:180px;overflow-y:auto;
+            width:100%;min-height:60px;max-height:min(42vh,420px);overflow-y:auto;
             padding:10px 12px;border:1px solid var(--border);border-radius:10px;
             background:var(--bg);color:var(--text);font-family:'Outfit',monospace;
             font-size:.82rem;line-height:1.55;white-space:pre-wrap;word-break:break-word;margin:0

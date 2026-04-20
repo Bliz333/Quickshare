@@ -14,6 +14,7 @@ const viewerState = {
     downloadUrl: '',
     fileName: '',
     kind: 'pdf',
+    embedded: false,
     renderTask: null,
     resizeTimer: null
 };
@@ -113,7 +114,9 @@ async function renderViewerPage() {
     const shell = viewerEl('viewerCanvasShell');
     const context = canvas.getContext('2d');
     const baseViewport = page.getViewport({ scale: 1 });
-    const availableWidth = Math.max(shell.clientWidth - 48, 320);
+    const shellPadding = viewerState.embedded ? 16 : 48;
+    const minimumWidth = viewerState.embedded ? 0 : 320;
+    const availableWidth = Math.max(shell.clientWidth - shellPadding, minimumWidth);
     const fitScale = availableWidth / baseViewport.width;
     const viewport = page.getViewport({ scale: fitScale * viewerState.zoom });
     const pixelRatio = window.devicePixelRatio || 1;
@@ -149,6 +152,9 @@ async function loadViewerDocument() {
     viewerState.downloadUrl = params.get('download') || '';
     viewerState.fileName = params.get('name') || 'preview.pdf';
     viewerState.kind = params.get('kind') === 'office' ? 'office' : 'pdf';
+    viewerState.embedded = params.get('embedded') === '1';
+
+    document.body.classList.toggle('embedded', viewerState.embedded);
 
     viewerEl('viewerTitle').textContent = viewerState.fileName;
     setViewerDownloadLink();

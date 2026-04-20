@@ -916,6 +916,8 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         ? window.getInlinePreviewKind(fileName, ct)
         : null;
     const isTextPlain = ct.startsWith('text/plain');
+    const shouldUseWideModal = Boolean(previewKind);
+    const previewRequestWidth = Math.max(520, Math.min(Math.round(window.innerWidth * 0.6), 1600));
 
     if (iconEl) iconEl.className = previewKind === 'text' ? 'fa-solid fa-align-left' : 'fa-solid fa-file-arrow-down';
     if (labelEl) labelEl.textContent = previewKind === 'text'
@@ -948,31 +950,32 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
                 previewUrl: previewUrl,
                 kind: 'text',
                 fileName: fileName,
-                maxWidth: 400,
+                maxWidth: previewRequestWidth,
                 downloadUrl: downloadUrl
             });
             previewPanel.classList.remove('hidden');
-            modal.classList.add('has-preview');
             if (typeof window.fillTextPreviews === 'function') window.fillTextPreviews(previewPanel);
         } else if (previewKind !== 'text') {
             previewPanel.innerHTML = window.renderInlinePreviewHtml({
                 previewUrl: previewUrl,
                 kind: previewKind,
                 fileName: fileName,
-                maxWidth: 400,
+                maxWidth: previewRequestWidth,
                 downloadUrl: downloadUrl
             });
             previewPanel.classList.remove('hidden');
-            modal.classList.add('has-preview');
         } else {
             previewPanel.innerHTML = '';
             previewPanel.classList.add('hidden');
-            modal.classList.remove('has-preview');
         }
     } else if (previewPanel) {
         previewPanel.innerHTML = '';
         previewPanel.classList.add('hidden');
-        modal.classList.remove('has-preview');
+    }
+
+    const cardEl = modal.querySelector('.recv-card');
+    if (cardEl) {
+        cardEl.classList.toggle('has-preview', shouldUseWideModal);
     }
 
     if (copyTextBtn) copyTextBtn.classList.toggle('hidden', !isTextPlain);
@@ -992,7 +995,10 @@ function closeReceiveCard() {
     const modal = document.getElementById('receiveModal');
     if (modal) {
         modal.classList.remove('visible');
-        modal.classList.remove('has-preview');
+        const cardEl = modal.querySelector('.recv-card');
+        if (cardEl) {
+            cardEl.classList.remove('has-preview');
+        }
     }
     const textPanel = document.getElementById('receiveTextPanel');
     if (textPanel) textPanel.classList.add('hidden');

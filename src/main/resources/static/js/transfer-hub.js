@@ -1591,6 +1591,52 @@ function buildRelayTransferDownloadUrl(transferId) {
     return `${API_BASE}/transfer/transfers/${transferId}/download?deviceId=${encodeURIComponent(getTransferDeviceId())}`;
 }
 
+function buildTransferInlinePreviewHtml(transfer, task) {
+    if (typeof window.getInlinePreviewKind !== 'function' || typeof window.renderInlinePreviewHtml !== 'function') return '';
+    const source = getTransferPreviewSource(transfer, task);
+    if (!source) return '';
+    if (typeof window.injectInlinePreviewStyles === 'function') window.injectInlinePreviewStyles();
+
+    if (source.source === 'direct') {
+        return `<div class="inline-preview-wrap" data-direct-inline-preview="${transferEscapeHtml(String(source.transferId || ''))}"><div style="padding:12px;color:var(--text2,#64748b);font-size:.82rem"><i class="fa-solid fa-spinner fa-spin"></i></div></div>`;
+    }
+
+    let previewUrl = buildRelayTransferPreviewUrl(source.transferId);
+    const token = typeof getAuthToken === 'function' ? getAuthToken() : (localStorage.getItem('token') || '');
+    if (token) previewUrl += '&token=' + encodeURIComponent(token);
+
+    return window.renderInlinePreviewHtml({
+        previewUrl: previewUrl,
+        kind: source.kind,
+        fileName: task.fileName || '',
+        maxWidth: 400
+    });
+}
+
+async function fillTransferDirectInlinePreviews() {
+    const placeholders = document.querySelectorAll('[data-direct-inline-preview]');
+    if (!placeholders.length || !window.TransferDirectTransfer?.loadStoredChunks) return;
+    for (const el of placeholders) {
+        const transferId = el.getAttribute('data-direct-inline-preview');
+        if (!transferId) continue;
+        try {
+            const chunks = await TransferDirectTransfer.loadStoredChunks(transferId);
+            if (!chunks || !chunks.length) { el.innerHTML = ''; continue; }
+            const blob = new Blob(chunks);
+            const blobUrl = URL.createObjectURL(blob);
+            const transfer = transferState.displayIncomingTransfers.find(t =>
+                String(t.directTransferId || getTransferLatestTaskAttemptId(buildTransferTaskFromTransfer(t, 'incoming'), 'direct')) === transferId
+            );
+            const task = transfer ? buildTransferTaskFromTransfer(transfer, 'incoming') : null;
+            const kind = task ? getTransferPreviewKind(task.fileName, task.contentType) : 'image';
+            if (kind === 'office') { el.innerHTML = ''; continue; }
+            el.innerHTML = window.renderInlinePreviewHtml({ previewUrl: blobUrl, kind: kind || 'image', fileName: task?.fileName || '', maxWidth: 400 });
+        } catch (e) {
+            el.innerHTML = '';
+        }
+    }
+}
+
 async function openTransferPreviewItem(transfer) {
     const task = buildTransferTaskFromTransfer(transfer, 'incoming');
     const previewSource = getTransferPreviewSource(transfer, task);
@@ -1724,6 +1770,9 @@ function renderTransferTransfers() {
         document.getElementById('transferOutgoingEmpty'),
         'outgoing'
     );
+    fillTransferDirectInlinePreviews();
+    const incomingList = document.getElementById('transferIncomingList');
+    if (incomingList && typeof window.fillTextPreviews === 'function') window.fillTextPreviews(incomingList);
 }
 
 function renderTransferTransferList(transfers, container, empty, direction) {
@@ -1759,6 +1808,10 @@ function renderTransferTransferList(transfers, container, empty, direction) {
                     <i class="fa-solid fa-eye"></i>
                     <span>${transferText('previewBtn', 'Preview')}</span>
                </button>`
+            : '';
+
+        const inlinePreviewHtml = direction === 'incoming' && readyForDownload && canTransferPreview(transfer, task)
+            ? buildTransferInlinePreviewHtml(transfer, task)
             : '';
         const primaryAction = readyForDownload
             ? `<button class="btn btn-primary" type="button" ${
@@ -1823,6 +1876,7 @@ function renderTransferTransferList(transfers, container, empty, direction) {
                     ${transferText('transferChunkProgress', 'Chunks')}: ${chunkProgress} / ${task.totalChunks || 0}
                     · ${transferText('transferUpdatedAt', 'Updated')}: ${formatTransferTime(task.updateTime)}
                 </p>
+                ${inlinePreviewHtml}
                 <div class="actions">
                     ${previewAction}
                     ${primaryAction}

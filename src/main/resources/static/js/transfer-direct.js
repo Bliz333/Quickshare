@@ -1282,6 +1282,12 @@ const TransferDirectTransfer = (() => {
                 : transfer.deleteServerTransferId
                     ? `data-transfer-direct-delete-task="${transfer.detailId}"`
                     : 'disabled';
+            const previewKind = canDownload && typeof window.getInlinePreviewKind === 'function'
+                ? window.getInlinePreviewKind(transfer.fileName, transfer.contentType)
+                : null;
+            const directPreviewHtml = previewKind && previewKind !== 'office'
+                ? `<div class="inline-preview-wrap" data-direct-inline-preview="${transfer.localTransferId}"><div style="padding:12px;color:var(--text2,#64748b);font-size:.82rem"><i class="fa-solid fa-spinner fa-spin"></i></div></div>`
+                : '';
             return `
                 <article class="transfer-card">
                     <div class="transfer-card-head">
@@ -1298,6 +1304,7 @@ const TransferDirectTransfer = (() => {
                         ${text('transferChunkProgress', 'Chunks')}: ${transfer.completedChunks || 0} / ${transfer.totalChunks || 0}
                         · ${text('transferUpdatedAt', 'Updated')}: ${formatTime(transfer.updateTime)}
                     </p>
+                    ${directPreviewHtml}
                     <div class="actions">
                         <button class="btn btn-primary" type="button" data-transfer-direct-download="${transfer.localTransferId}" ${canDownload ? '' : 'disabled'}>
                             <i class="fa-solid fa-download"></i>
@@ -1337,6 +1344,30 @@ const TransferDirectTransfer = (() => {
         renderPeer();
         renderPickerMenu();
         renderTransferList();
+        fillDirectInlinePreviews();
+    }
+
+    async function fillDirectInlinePreviews() {
+        const placeholders = document.querySelectorAll('[data-direct-inline-preview]');
+        if (!placeholders.length) return;
+        if (typeof window.injectInlinePreviewStyles === 'function') window.injectInlinePreviewStyles();
+        for (const el of placeholders) {
+            const transferId = el.getAttribute('data-direct-inline-preview');
+            if (!transferId) continue;
+            try {
+                const transfer = state.displayTransfers.find(t => t.localTransferId === transferId);
+                if (!transfer || !transfer.totalChunks) { el.innerHTML = ''; continue; }
+                const chunks = await loadStoredChunks(transferId);
+                if (!chunks || chunks.length < transfer.totalChunks) { el.innerHTML = ''; continue; }
+                const blob = new Blob(chunks, { type: transfer.contentType || 'application/octet-stream' });
+                const blobUrl = URL.createObjectURL(blob);
+                const kind = window.getInlinePreviewKind(transfer.fileName, transfer.contentType);
+                if (!kind || kind === 'office') { URL.revokeObjectURL(blobUrl); el.innerHTML = ''; continue; }
+                el.innerHTML = window.renderInlinePreviewHtml({ previewUrl: blobUrl, kind: kind, fileName: transfer.fileName || '', maxWidth: 400 });
+            } catch (e) {
+                el.innerHTML = '';
+            }
+        }
     }
 
     function formatTaskAttemptLine(attempt) {

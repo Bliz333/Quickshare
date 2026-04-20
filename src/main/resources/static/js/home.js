@@ -893,6 +893,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
     const textPanel = document.getElementById('receiveTextPanel');
     const textContent = document.getElementById('receiveTextContent');
     const copyTextBtn = document.getElementById('receiveCopyTextBtn');
+    const previewPanel = document.getElementById('receivePreviewPanel');
     const iconEl = modal ? modal.querySelector('.recv-icon i') : null;
     const labelEl = modal ? modal.querySelector('.recv-label') : null;
     if (!modal || !nameEl || !sizeEl || !btn) {
@@ -906,7 +907,8 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         contentType: contentType || 'application/octet-stream'
     };
 
-    const isText = (contentType || '').startsWith('text/plain');
+    const ct = contentType || 'application/octet-stream';
+    const isText = ct.startsWith('text/plain');
 
     if (iconEl) iconEl.className = isText ? 'fa-solid fa-align-left' : 'fa-solid fa-file-arrow-down';
     if (labelEl) labelEl.textContent = isText
@@ -930,6 +932,29 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         textContent.textContent = '';
     }
 
+    if (previewPanel && typeof window.getInlinePreviewKind === 'function') {
+        const previewKind = window.getInlinePreviewKind(fileName, ct);
+        const previewUrl = `${apiBase()}/api/public/transfer/shares/${shareToken}/preview`;
+        if (previewKind && previewKind !== 'text') {
+            if (typeof window.injectInlinePreviewStyles === 'function') window.injectInlinePreviewStyles();
+            previewPanel.innerHTML = window.renderInlinePreviewHtml({
+                previewUrl: previewUrl,
+                kind: previewKind,
+                fileName: fileName,
+                maxWidth: 400
+            });
+            previewPanel.classList.remove('hidden');
+            modal.classList.add('has-preview');
+        } else {
+            previewPanel.innerHTML = '';
+            previewPanel.classList.add('hidden');
+            modal.classList.remove('has-preview');
+        }
+    } else if (previewPanel) {
+        previewPanel.innerHTML = '';
+        previewPanel.classList.add('hidden');
+    }
+
     if (copyTextBtn) copyTextBtn.classList.toggle('hidden', !isText);
     if (copyBtn) {
         copyBtn.disabled = !shareToken;
@@ -944,11 +969,19 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
 
 function closeReceiveCard() {
     const modal = document.getElementById('receiveModal');
-    if (modal) modal.classList.remove('visible');
+    if (modal) {
+        modal.classList.remove('visible');
+        modal.classList.remove('has-preview');
+    }
     const textPanel = document.getElementById('receiveTextPanel');
     if (textPanel) textPanel.classList.add('hidden');
     const textContent = document.getElementById('receiveTextContent');
     if (textContent) textContent.textContent = '';
+    const previewPanel = document.getElementById('receivePreviewPanel');
+    if (previewPanel) {
+        if (typeof window.cleanupInlinePreview === 'function') window.cleanupInlinePreview(previewPanel);
+        previewPanel.classList.add('hidden');
+    }
     const copyTextBtn = document.getElementById('receiveCopyTextBtn');
     if (copyTextBtn) copyTextBtn.classList.add('hidden');
     const iconEl = modal ? modal.querySelector('.recv-icon i') : null;

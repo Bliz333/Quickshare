@@ -109,6 +109,7 @@
         var kind = opts.kind || '';
         var name = opts.fileName || '';
         var maxW = opts.maxWidth || 400;
+        var dlUrl = opts.downloadUrl || '';
 
         if (!url || !kind) return '';
 
@@ -118,6 +119,7 @@
                 return '<div class="inline-preview-wrap inline-preview-image-wrap">'
                     + '<img class="inline-preview-img" src="' + escapeAttr(imgSrc) + '"'
                     + ' alt="' + escapeAttr(name) + '" loading="lazy"'
+                    + ' onerror="this.closest(\'.inline-preview-wrap\').style.display=\'none\'"'
                     + ' onclick="this.closest(\'.inline-preview-wrap\').classList.toggle(\'zoomed\')"'
                     + ' />'
                     + '</div>';
@@ -125,12 +127,14 @@
             case 'audio':
                 return '<div class="inline-preview-wrap inline-preview-audio-wrap">'
                     + '<audio class="inline-preview-audio" controls preload="metadata"'
+                    + ' onerror="this.closest(\'.inline-preview-wrap\').style.display=\'none\'"'
                     + ' src="' + escapeAttr(url) + '"></audio>'
                     + '</div>';
 
             case 'video':
                 return '<div class="inline-preview-wrap inline-preview-video-wrap">'
                     + '<video class="inline-preview-video" controls preload="metadata"'
+                    + ' onerror="this.closest(\'.inline-preview-wrap\').style.display=\'none\'"'
                     + ' src="' + escapeAttr(url) + '"></video>'
                     + '</div>';
 
@@ -141,6 +145,7 @@
 
             case 'pdf': {
                 var viewerUrl = 'pdf-viewer.html?file=' + encodeURIComponent(url)
+                    + '&download=' + encodeURIComponent(dlUrl || url)
                     + '&name=' + encodeURIComponent(name) + '&kind=pdf';
                 return '<div class="inline-preview-wrap inline-preview-iframe-wrap">'
                     + '<iframe class="inline-preview-iframe" src="' + escapeAttr(viewerUrl) + '"'
@@ -150,6 +155,7 @@
 
             case 'office': {
                 var viewerUrl2 = 'pdf-viewer.html?file=' + encodeURIComponent(url)
+                    + '&download=' + encodeURIComponent(dlUrl || url)
                     + '&name=' + encodeURIComponent(name) + '&kind=office';
                 return '<div class="inline-preview-wrap inline-preview-iframe-wrap">'
                     + '<iframe class="inline-preview-iframe" src="' + escapeAttr(viewerUrl2) + '"'

@@ -883,7 +883,11 @@ function finishBatchTransfer() {
 
 // ─── 传输流程：接收方弹窗 ──────────────────────────────────────────────────────
 
+var _receiveCardVersion = 0;
+
 function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
+    _receiveCardVersion++;
+    const currentVersion = _receiveCardVersion;
     const modal = document.getElementById('receiveModal');
     const nameEl = document.getElementById('receiveFileName');
     const sizeEl = document.getElementById('receiveFileSize');
@@ -928,8 +932,8 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         textPanel.classList.remove('hidden');
         textContent.textContent = '…';
         fetch(url).then(r => r.ok ? r.text() : Promise.reject('fetch failed'))
-            .then(txt => { textContent.textContent = txt; })
-            .catch(() => { textContent.textContent = '(' + homeText('homeTextLoadFailed', '加载失败') + ')'; });
+            .then(txt => { if (_receiveCardVersion === currentVersion) textContent.textContent = txt; })
+            .catch(() => { if (_receiveCardVersion === currentVersion) textContent.textContent = '(' + homeText('homeTextLoadFailed', '加载失败') + ')'; });
     } else if (textPanel) {
         textPanel.classList.add('hidden');
         textContent.textContent = '';
@@ -938,12 +942,14 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
     if (previewPanel && previewKind) {
         if (typeof window.injectInlinePreviewStyles === 'function') window.injectInlinePreviewStyles();
         const previewUrl = `${apiBase()}/api/public/transfer/shares/${shareToken}/preview`;
+        const downloadUrl = `${apiBase()}/api/public/transfer/shares/${shareToken}/download`;
         if (previewKind === 'text' && !isTextPlain) {
             previewPanel.innerHTML = window.renderInlinePreviewHtml({
                 previewUrl: previewUrl,
                 kind: 'text',
                 fileName: fileName,
-                maxWidth: 400
+                maxWidth: 400,
+                downloadUrl: downloadUrl
             });
             previewPanel.classList.remove('hidden');
             modal.classList.add('has-preview');
@@ -953,7 +959,8 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
                 previewUrl: previewUrl,
                 kind: previewKind,
                 fileName: fileName,
-                maxWidth: 400
+                maxWidth: 400,
+                downloadUrl: downloadUrl
             });
             previewPanel.classList.remove('hidden');
             modal.classList.add('has-preview');

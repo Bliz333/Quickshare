@@ -89,6 +89,22 @@
 
 ## 当前目标
 
+### 0. Mobile app planning and release readiness
+
+- 新增目标：把 QuickShare 的移动端路线、Android/iOS 构建发布、商店上架、测试策略和生产依赖全部文档化。
+- 产出应落在：
+  - `docs/mobile/README.md`
+  - `docs/mobile/architecture.md`
+  - `docs/mobile/android.md`
+  - `docs/mobile/ios.md`
+  - `docs/mobile/store-submission.md`
+  - `docs/mobile/testing.md`
+  - `docs/mobile/responsibilities.md`
+  - `docs/ops/production-deployment.md`
+- 近期原则：
+  - 先做“后端可复用 + 新客户端路线”文档，不把当前网页直接当作长期移动端方案
+  - 先明确 Android/iOS 全流程，再决定是否先走 wrapper MVP
+
 ### 1. 体验与交互稳定性
 
 - 继续清理任何残留的浏览器原生交互，统一使用站内 Modal / Toast / 内联反馈。

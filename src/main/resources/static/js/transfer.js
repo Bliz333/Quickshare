@@ -492,14 +492,14 @@ async function uploadSingleFile(file, token) {
                     try {
                         resolve(JSON.parse(xhr.responseText));
                     } catch (e) {
-                        reject(new Error('解析响应失败'));
+                        reject(new Error(t('parseResponseFailed')));
                     }
                 } else {
                     reject(new Error(xhr.statusText || '上传失败'));
                 }
             };
 
-            xhr.onerror = () => reject(new Error('网络错误'));
+            xhr.onerror = () => reject(new Error(t('networkError')));
             xhr.onabort = () => reject(new Error('AbortError'));
 
             const formData = new FormData();

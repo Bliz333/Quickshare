@@ -1712,16 +1712,14 @@ async function handleLogout() {
         icon: 'fa-right-from-bracket',
         tone: 'danger',
         confirmTone: 'danger',
-        title: getCurrentLanguage() === 'en' ? 'Log Out' : '退出登录',
+        title: t('logoutTitle'),
         description: t('logoutConfirm'),
-        confirmText: getCurrentLanguage() === 'en' ? 'Log out' : '退出',
+        confirmText: t('logoutConfirmBtn'),
         confirmIcon: 'fa-right-from-bracket',
         content: `
             <div class="dialog-note">
                 <i class="fa-solid fa-shield-heart"></i>
-                <span>${escapeHtml(getCurrentLanguage() === 'en'
-                    ? 'Your local session will be cleared on this device and you will return to the home page.'
-                    : '当前设备上的本地登录状态会被清除，并返回首页。')}</span>
+                <span>${escapeHtml(t('logoutDeviceNote'))}</span>
             </div>
         `,
         onConfirm: async ({ close }) => {
@@ -1909,7 +1907,7 @@ async function _fetchFilesPage(pageNum, append) {
             rerenderNetdiskCurrentView();
             renderLoadMoreButton();
         } else {
-            throw new Error(result.message || '加载失败');
+            throw new Error(result.message || t('loadFailed'));
         }
     } catch (error) {
         console.error('加载文件失败:', error);
@@ -2126,9 +2124,8 @@ function fallbackCopy(text) {
     try {
         document.execCommand('copy');
     } catch (e) {
-        const lang = getCurrentLanguage();
         showAppCopyDialog(
-            lang === 'zh' ? '复制失败，请手动复制以下内容。' : 'Copy failed. Copy the content below manually.',
+            t('manualCopyFallback'),
             text
         );
     }
@@ -2345,10 +2342,7 @@ function searchFiles(keyword) {
     // 更新标题显示搜索结果数量
     const currentViewTitle = document.getElementById('currentViewTitle');
     if (currentViewTitle) {
-        const lang = getCurrentLanguage();
-        currentViewTitle.textContent = lang === 'zh'
-            ? `搜索结果: ${allItems.length} 项`
-            : `Search Results: ${allItems.length} items`;
+        currentViewTitle.textContent = t('searchResultsTitle').replace('{count}', allItems.length);
     }
 
     // 空状态处理
@@ -2357,9 +2351,8 @@ function searchFiles(keyword) {
         document.getElementById('listView').classList.add('hidden');
         document.getElementById('gridView').classList.add('hidden');
 
-        const lang = getCurrentLanguage();
-        emptyState.querySelector('h3').textContent = lang === 'zh' ? '未找到匹配的文件' : 'No matching files found';
-        emptyState.querySelector('p').textContent = lang === 'zh' ? '尝试其他关键词' : 'Try different keywords';
+        emptyState.querySelector('h3').textContent = t('noMatchingFiles');
+        emptyState.querySelector('p').textContent = t('tryDifferentKeywords');
 
         listContent.innerHTML = '';
         gridView.innerHTML = '';

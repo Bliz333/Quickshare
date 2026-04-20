@@ -133,8 +133,8 @@ function renderFiles() {
             emptyState.querySelector('h3').textContent = t('emptyStateTitle');
             emptyState.querySelector('p').textContent = t('emptyStateText');
         } else if (currentCategory !== 'all') {
-            emptyState.querySelector('h3').textContent = t('emptyCategoryTitle') || '该分类暂无文件';
-            emptyState.querySelector('p').textContent = t('emptyCategoryText') || '上传对应类型的文件后会显示在这里';
+            emptyState.querySelector('h3').textContent = t('emptyCategoryTitle');
+            emptyState.querySelector('p').textContent = t('emptyCategoryText');
         } else {
             emptyState.querySelector('h3').textContent = t('emptyFolderTitle');
             emptyState.querySelector('p').textContent = t('emptyFolderText');
@@ -175,7 +175,7 @@ function renderListView(container, currentFolders, filteredFiles) {
 
     // 渲染文件夹
     currentFolders.forEach(folder => {
-        const folderName = folder.name || '未命名文件夹';
+        const folderName = folder.name || t('unnamedFolder');
         const safeName = escapeInlineJsString(folderName);
         const isSelected = isNetdiskItemSelected('folder', folder.id);
         const checkboxClass = selectionModeEnabled ? '' : 'hidden';
@@ -271,7 +271,7 @@ function renderGridView(container, currentFolders, filteredFiles) {
 
     // 渲染文件夹
     currentFolders.forEach(folder => {
-        const folderName = folder.name || '未命名文件夹';
+        const folderName = folder.name || t('unnamedFolder');
         const safeName = escapeInlineJsString(folderName);
         const isSelected = isNetdiskItemSelected('folder', folder.id);
         const checkboxClass = selectionModeEnabled ? '' : 'hidden';

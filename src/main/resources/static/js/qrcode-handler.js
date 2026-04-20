@@ -13,13 +13,11 @@ function isDarkMode() {
 }
 
 function getQRCodeStatusText(type) {
-    const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
-
     if (type === 'loading') {
-        return lang === 'zh' ? '正在生成二维码...' : 'Generating QR code...';
+        return t('generatingQrCode');
     }
 
-    return lang === 'zh' ? '二维码生成失败' : 'Failed to generate QR code';
+    return t('qrCodeFailed');
 }
 
 function renderQRCodeStatus(container, type) {

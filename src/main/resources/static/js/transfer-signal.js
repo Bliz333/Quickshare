@@ -99,6 +99,51 @@ const TransferSignalManager = (() => {
         return typeof t === 'function' ? t(key) : fallback;
     }
 
+    function localizeTransferSignalErrorMessage(message) {
+        const normalized = String(message || '').trim();
+        const directMap = {
+            '匹配码不存在或已过期': 'pairCodeExpired',
+            '不能使用自己的匹配码': 'pairCodeSelfUse',
+            '请先登录后再发起同账号直连': 'transferSignInRequired',
+            '当前设备缺少 deviceId': 'transferDeviceMissing',
+            '目标设备缺少 deviceId': 'transferTargetDeviceMissing',
+            '请选择另一台设备': 'transferChooseOtherDevice',
+            '当前设备的直连信令尚未连上': 'transferSignalNotConnected',
+            '目标设备当前没有连上直连信令': 'transferPeerSignalOffline'
+        };
+
+        if (directMap[normalized]) {
+            return text(directMap[normalized], normalized);
+        }
+
+        if (normalized.includes('匹配码不存在') || normalized.includes('匹配码已过期')) {
+            return text('pairCodeExpired', normalized);
+        }
+        if (normalized.includes('不能使用自己的匹配码')) {
+            return text('pairCodeSelfUse', normalized);
+        }
+        if (normalized.includes('请先登录后再发起同账号直连')) {
+            return text('transferSignInRequired', normalized);
+        }
+        if (normalized.includes('当前设备缺少 deviceId')) {
+            return text('transferDeviceMissing', normalized);
+        }
+        if (normalized.includes('目标设备缺少 deviceId')) {
+            return text('transferTargetDeviceMissing', normalized);
+        }
+        if (normalized.includes('请选择另一台设备')) {
+            return text('transferChooseOtherDevice', normalized);
+        }
+        if (normalized.includes('当前设备的直连信令尚未连上')) {
+            return text('transferSignalNotConnected', normalized);
+        }
+        if (normalized.includes('目标设备当前没有连上直连信令')) {
+            return text('transferPeerSignalOffline', normalized);
+        }
+
+        return normalized;
+    }
+
     function emit(eventName, detail = {}) {
         document.dispatchEvent(new CustomEvent(eventName, { detail }));
     }
@@ -1198,7 +1243,7 @@ const TransferSignalManager = (() => {
                     await createPairCode();
                     showToast(text('transferPairCodeCreated', 'Match code created'), 'success');
                 } catch (error) {
-                    showToast(error.message, 'error');
+                    showToast(localizeTransferSignalErrorMessage(error.message), 'error');
                 }
             });
         }
@@ -1211,7 +1256,7 @@ const TransferSignalManager = (() => {
                     await claimPairCode(code);
                     showToast(text('transferPairCodeClaimed', 'Joined match code'), 'success');
                 } catch (error) {
-                    showToast(error.message, 'error');
+                    showToast(localizeTransferSignalErrorMessage(error.message), 'error');
                 }
             });
         }
@@ -1225,7 +1270,7 @@ const TransferSignalManager = (() => {
                         publicRoomInput.value = payload.roomCode || '';
                     }
                 } catch (error) {
-                    showToast(error.message, 'error');
+                    showToast(localizeTransferSignalErrorMessage(error.message), 'error');
                 }
             });
         }
@@ -1240,7 +1285,7 @@ const TransferSignalManager = (() => {
                         publicRoomInput.value = payload.roomCode || roomCode;
                     }
                 } catch (error) {
-                    showToast(error.message, 'error');
+                    showToast(localizeTransferSignalErrorMessage(error.message), 'error');
                 }
             });
         }
@@ -1251,7 +1296,7 @@ const TransferSignalManager = (() => {
                     await leavePublicRoom();
                     showToast(text('transferPublicRoomLeft', 'Returned to local discovery'), 'success');
                 } catch (error) {
-                    showToast(error.message, 'error');
+                    showToast(localizeTransferSignalErrorMessage(error.message), 'error');
                 }
             });
         }

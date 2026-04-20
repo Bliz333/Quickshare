@@ -13,6 +13,33 @@ let captchaScriptLoaded = false;
 let captchaRenderQueued = false;
 let captchaWidgetId = null;
 
+function localizeRegisterErrorMessage(message) {
+    const normalized = (message || '').trim();
+    const directMap = {
+        '用户名已存在': 'usernameExists',
+        '用户名至少 3 个字符': 'usernameTooShort',
+        '请输入验证码': 'verificationCodeRequired',
+        '验证码错误或已过期': 'verificationCodeInvalid',
+        '请填写邮箱': 'emailRequired',
+        '邮箱不能为空': 'emailRequired',
+        'Email is required': 'emailRequired',
+        'Username already exists': 'usernameExists'
+    };
+
+    if (directMap[normalized]) {
+        return t(directMap[normalized]);
+    }
+
+    if (normalized.includes('用户名已存在')) {
+        return t('usernameExists');
+    }
+    if (normalized.includes('验证码错误')) {
+        return t('verificationCodeInvalid');
+    }
+
+    return normalized || t('registerFailed');
+}
+
 async function loadRegistrationSettings() {
     try {
         const response = await fetch(`${API_BASE}/public/registration-settings`);
@@ -210,7 +237,7 @@ async function sendVerificationCode() {
             throw new Error(data.message || t('sendCodeFailed'));
         }
     } catch (err) {
-        showToast(err.message, 'error');
+        showToast(localizeRegisterErrorMessage(err.message), 'error');
         btn.disabled = false;
         btn.textContent = t('sendCodeBtn');
         resetCaptcha();
@@ -287,7 +314,7 @@ async function handleRegister(event) {
             throw new Error(result.message || t('registerFailed'));
         }
     } catch (err) {
-        showToast(err.message, 'error');
+        showToast(localizeRegisterErrorMessage(err.message), 'error');
         btn.disabled = false;
         btn.innerHTML = originalHTML;
     }

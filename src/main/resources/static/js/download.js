@@ -5,6 +5,45 @@
 let _shareFileType = null;
 let _pickupShareToken = null;
 
+function localizeDownloadErrorMessage(message) {
+    const normalized = (message || '').trim();
+    const directMap = {
+        '缺少取件参数': 'pickupTokenMissing',
+        '获取取件信息失败': 'pickupInfoFailed',
+        '保存失败': 'saveFailed',
+        '获取失败': 'shareInfoFailed',
+        '提取码错误': 'extractCodeError',
+        '提取码错误或必填': 'extractCodeError',
+        '分享链接已过期': 'shareExpired',
+        '下载次数已达上限': 'downloadLimitReached',
+        '文件不存在': 'fileNotFound',
+        '文件不存在或已删除': 'fileGone',
+        '无权限执行该操作': 'noPermissionAction'
+    };
+
+    if (directMap[normalized]) {
+        return t(directMap[normalized]);
+    }
+
+    if (normalized.includes('提取码错误')) {
+        return t('extractCodeError');
+    }
+    if (normalized.includes('分享链接已过期')) {
+        return t('shareExpired');
+    }
+    if (normalized.includes('下载次数已达上限')) {
+        return t('downloadLimitReached');
+    }
+    if (normalized.includes('文件不存在或已删除')) {
+        return t('fileGone');
+    }
+    if (normalized.includes('文件不存在')) {
+        return t('fileNotFound');
+    }
+
+    return normalized;
+}
+
 function initGuestMode(shareCode, extractCode) {
     console.log('进入访客模式:', shareCode, extractCode);
     _pickupShareToken = null;
@@ -84,7 +123,7 @@ function formatPickupTime(value) {
 async function getPickupInfo() {
     const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
     if (!_pickupShareToken) {
-        showToast(lang === 'zh' ? '缺少取件参数' : 'Missing pickup token', 'error');
+        showToast(t('pickupTokenMissing'), 'error');
         return;
     }
 
@@ -122,7 +161,7 @@ async function getPickupInfo() {
             pickupInfo.style.animation = 'slideUp 0.5s ease-out';
         }
     } catch (err) {
-        showToast(err.message, 'error');
+        showToast(localizeDownloadErrorMessage(err.message), 'error');
         const pickupInfo = document.getElementById('pickupInfo');
         if (pickupInfo) pickupInfo.style.display = 'none';
     }
@@ -155,9 +194,9 @@ async function savePickupToNetdisk() {
         if (!response.ok || !result || result.code !== 200) {
             throw new Error(result?.message || (lang === 'zh' ? '保存失败' : 'Save failed'));
         }
-        showToast(lang === 'zh' ? '已保存到网盘' : 'Saved to Netdisk', 'success');
+        showToast(t('savedToNetdisk'), 'success');
     } catch (err) {
-        showToast(err.message, 'error');
+        showToast(localizeDownloadErrorMessage(err.message), 'error');
     }
 }
 
@@ -195,7 +234,7 @@ async function getShareInfo() {
     const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
 
     if (!sCode) {
-        showToast(lang === 'zh' ? '请输入分享码' : 'Please enter share code', 'error');
+        showToast(t('shareCodeRequired'), 'error');
         return;
     }
 
@@ -246,7 +285,7 @@ async function getShareInfo() {
         }
 
     } catch (err) {
-        showToast(err.message, 'error');
+        showToast(localizeDownloadErrorMessage(err.message), 'error');
         const infoBox = document.getElementById('downloadInfo');
         if (infoBox) infoBox.style.display = 'none';
     }

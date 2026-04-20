@@ -69,7 +69,7 @@ function copyText(id, btn) {
     const element = document.getElementById(id);
     if (!element) {
         console.error(`Copy Error: Element with id '${id}' not found.`);
-        showToast('内部错误：无法找到文本元素', 'error');
+        showToast(t('copyError'), 'error');
         return;
     }
 
@@ -84,9 +84,9 @@ function copyText(id, btn) {
         btn.classList.add('copied');
         btn.innerHTML = `
             <i class="fa-solid fa-check"></i>
-            <span class="copy-btn-text">${lang === 'zh' ? '已复制' : 'Copied'}</span>
+            <span class="copy-btn-text">${t('copied')}</span>
         `;
-        showToast(lang === 'zh' ? '已复制到剪贴板' : 'Copied to clipboard!', 'success');
+        showToast(t('copiedToClipboard'), 'success');
 
         setTimeout(() => {
             btn.classList.remove('copied');
@@ -96,7 +96,7 @@ function copyText(id, btn) {
 
     const handleError = () => {
         console.error('All copy methods failed');
-        showToast(lang === 'zh' ? '复制失败，请长按文字手动复制' : 'Copy failed', 'error');
+        showToast(t('copyFailedLongPress'), 'error');
 
         if (window.getSelection && document.createRange) {
             const selection = window.getSelection();
@@ -109,19 +109,19 @@ function copyText(id, btn) {
                 const userAgent = navigator.userAgent.toLowerCase();
                 const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
                 if (isMobile) {
-                    showAppAlert(lang === 'zh' ? "请长按已选中的文字进行复制" : "Please long press to copy the selected text", {
+                    showAppAlert(t('longPressToCopySelected'), {
                         icon: 'fa-hand-pointer'
                     });
                 } else {
                     showAppCopyDialog(
-                        lang === 'zh' ? "复制失败，请手动复制以下文本：" : "Copy failed. Please copy manually:",
+                        t('copyFailedManualText'),
                         text
                     );
                 }
             }, 100);
         } else {
             showAppCopyDialog(
-                lang === 'zh' ? "请手动复制以下文本：" : "Please copy manually:",
+                t('manualCopyText'),
                 text
             );
         }

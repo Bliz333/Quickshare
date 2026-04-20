@@ -104,3 +104,25 @@ git remote -v
 - 如果历史里曾误提交过真实敏感信息，不要只删工作树文件：
   - 需要改写 git history
   - 并同步轮换对应凭据
+
+## 7. Mobile release hygiene
+
+- Keep mobile docs aligned with the real product state:
+  - `docs/mobile/README.md`
+  - `docs/mobile/architecture.md`
+  - `docs/mobile/android.md`
+  - `docs/mobile/ios.md`
+  - `docs/mobile/store-submission.md`
+  - `docs/mobile/testing.md`
+  - `docs/mobile/responsibilities.md`
+- Before any mobile release candidate:
+  - confirm backend API compatibility with the current server release
+  - confirm screenshots and store metadata are current
+  - confirm signing assets are available outside the repo
+  - confirm privacy policy / support URL are live
+- Do not commit:
+  - signing keys
+  - provisioning profiles
+  - store API tokens
+  - release keystores / certificates
+  - local-only production notes

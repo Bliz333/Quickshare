@@ -394,24 +394,24 @@ function renderTransferDisclosure() {
     }
     if (directHistoryToggle) {
         directHistoryToggle.querySelector('span').textContent = transferState.currentSubpage === 'temporaryHistory'
-            ? transferText('transferHideTemporaryHistory', '收起互传记录')
-            : transferText('transferShowTemporaryHistory', '查看互传记录');
+            ? transferText('transferHideTemporaryHistory', 'Hide Transfer History')
+            : transferText('transferShowTemporaryHistory', 'View Transfer History');
     }
     if (accountHistoryPanel) {
         accountHistoryPanel.classList.toggle('hidden', subpageMode !== 'account');
     }
     if (accountHistoryToggle) {
         accountHistoryToggle.querySelector('span').textContent = transferState.currentSubpage === 'accountHistory'
-            ? transferText('transferHideAccountHistory', '收起收发记录')
-            : transferText('transferShowAccountHistory', '查看收发记录');
+            ? transferText('transferHideAccountHistory', 'Hide Account History')
+            : transferText('transferShowAccountHistory', 'View Account History');
     }
     if (deviceSettingsPanel) {
         deviceSettingsPanel.classList.toggle('hidden', !transferState.deviceSettingsExpanded);
     }
     if (deviceSettingsToggle) {
         deviceSettingsToggle.querySelector('span').textContent = transferState.deviceSettingsExpanded
-            ? transferText('transferHideDeviceSettings', '收起设备名')
-            : transferText('transferShowDeviceSettings', '改设备名');
+            ? transferText('transferHideDeviceSettings', 'Hide Device Name')
+            : transferText('transferShowDeviceSettings', 'Edit Device Name');
     }
 }
 

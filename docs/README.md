@@ -13,6 +13,7 @@ This directory is the operational documentation hub for QuickShare.
 - [PLAN.md](PLAN.md): current Chinese roadmap and next-stage priorities
 - [CHANGELOG.md](CHANGELOG.md): change history
 - [PUBLISHING.md](PUBLISHING.md): publishing hygiene and release notes
+- [mobile/README.md](mobile/README.md): mobile app planning and release process
 
 ## Current Documentation Model
 
@@ -51,6 +52,13 @@ This directory is the operational documentation hub for QuickShare.
 2. [TESTING.md](TESTING.md)
 3. [CHANGELOG.md](CHANGELOG.md)
 4. [archive/2026-03-26-remote-baseline-rebuild-and-direct-validation.md](archive/2026-03-26-remote-baseline-rebuild-and-direct-validation.md)
+
+### For mobile planning and release work
+
+1. [mobile/README.md](mobile/README.md)
+2. [mobile/architecture.md](mobile/architecture.md)
+3. [mobile/testing.md](mobile/testing.md)
+4. [ops/production-deployment.md](ops/production-deployment.md)
 
 ## Notes
 

@@ -68,7 +68,6 @@ function openFolderPicker() {
  * @param {File[]} files - 文件数组
  */
 function handleFiles(files) {
-    const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
     selectedFiles = [...selectedFiles, ...files];
     displayFileList();
 
@@ -83,7 +82,7 @@ function handleFiles(files) {
     }
 
     showToast(
-        lang === 'zh' ? `已添加 ${files.length} 个文件` : `Added ${files.length} file(s)`,
+        t('filesAdded').replace('{count}', files.length),
         'success'
     );
 }
@@ -139,8 +138,6 @@ function removeFile(index) {
  * 上传并分享文件
  */
 async function uploadAndShare() {
-    const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
-
     if (selectedFiles.length === 0) return;
 
     const uploadBtn = document.getElementById('uploadBtn');
@@ -205,7 +202,7 @@ async function uploadAndShare() {
         selectedFiles = [];
         displayFileList();
 
-        showToast(lang === 'zh' ? '文件分享成功!' : 'Files shared successfully!', 'success');
+        showToast(t('filesSharedSuccessfully'), 'success');
 
     } catch (error) {
         showToast(error.message, 'error');
@@ -220,11 +217,10 @@ async function uploadAndShare() {
  * @param {Array} links - 分享链接数组
  */
 function displayShareLinks(links) {
-    const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
     const resultBox = document.getElementById('resultBox');
 
     let html = `<h3 style="color:var(--success); text-align:center; margin-bottom:20px;">
-        <i class="fa-regular fa-circle-check"></i> ${lang === 'zh' ? '创建成功' : 'Success'}
+        <i class="fa-regular fa-circle-check"></i> ${t('createSuccess')}
     </h3>`;
 
     links.forEach((link, idx) => {
@@ -243,13 +239,13 @@ function displayShareLinks(links) {
 
                 <div class="result-item full-link">
                     <span class="result-label" data-i18n="fullLink">
-                        <i class="fa-solid fa-link"></i> ${lang === 'zh' ? '完整链接 (一键访问)' : 'Full Link (Auto-Fill)'}
+                        <i class="fa-solid fa-link"></i> ${t('fullLink')}
                     </span>
                     <div class="result-value-row">
                         <span class="result-value" id="fullUrl${idx}">${fullUrl}</span>
                         <button class="copy-btn" onclick="copyText('fullUrl${idx}', this)">
                             <i class="fa-regular fa-copy"></i>
-                            <span class="copy-btn-text" data-i18n="copy">${lang === 'zh' ? '复制' : 'Copy'}</span>
+                            <span class="copy-btn-text" data-i18n="copy">${t('copy')}</span>
                         </button>
                     </div>
                 </div>
@@ -257,27 +253,27 @@ function displayShareLinks(links) {
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                     <div class="result-item">
                         <span class="result-label" data-i18n="shareCode">
-                            <i class="fa-solid fa-hashtag"></i> ${lang === 'zh' ? '分享码' : 'Share Code'}
+                            <i class="fa-solid fa-hashtag"></i> ${t('shareCode')}
                         </span>
                         <div class="result-value-row">
                             <span class="result-value" id="shareCode${idx}">${link.shareCode}</span>
                             <button class="copy-btn" onclick="copyText('shareCode${idx}', this)">
                                 <i class="fa-regular fa-copy"></i>
-                                <span class="copy-btn-text" data-i18n="copy">${lang === 'zh' ? '复制' : 'Copy'}</span>
+                                <span class="copy-btn-text" data-i18n="copy">${t('copy')}</span>
                             </button>
                         </div>
                     </div>
 
                     <div class="result-item">
                         <span class="result-label" data-i18n="extractCode">
-                            <i class="fa-solid fa-key"></i> ${lang === 'zh' ? '提取码' : 'Extract Code'}
+                            <i class="fa-solid fa-key"></i> ${t('extractCode')}
                         </span>
                         <div class="result-value-row">
-                            <span class="result-value" id="extractCode${idx}">${link.extractCode || (lang === 'zh' ? '无需提取码' : 'None')}</span>
+                            <span class="result-value" id="extractCode${idx}">${link.extractCode || t('none')}</span>
                             ${link.extractCode ? `
                                 <button class="copy-btn" onclick="copyText('extractCode${idx}', this)">
                                     <i class="fa-regular fa-copy"></i>
-                                    <span class="copy-btn-text" data-i18n="copy">${lang === 'zh' ? '复制' : 'Copy'}</span>
+                                    <span class="copy-btn-text" data-i18n="copy">${t('copy')}</span>
                                 </button>
                             ` : `<span style="color: var(--text-sub); font-size: 0.75rem; padding: 8px;">-</span>`}
                         </div>
@@ -289,7 +285,7 @@ function displayShareLinks(links) {
                         <div id="qrcode${idx}"></div>
                         <p class="qrcode-hint" data-i18n="scanToAccess">
                             <i class="fa-solid fa-qrcode"></i>
-                            ${lang === 'zh' ? '扫描二维码直达' : 'Scan to access'}
+                            ${t('scanToAccess')}
                         </p>
                     </div>
                 </div>

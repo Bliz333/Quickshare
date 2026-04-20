@@ -6,6 +6,25 @@
  * 处理登录表单提交
  * @param {Event} event
  */
+function localizeLoginErrorMessage(message) {
+    const normalized = (message || '').trim();
+    const directMap = {
+        '用户名或密码错误': 'invalidCredentials',
+        'Missing username or password': 'missingCredentials',
+        'Invalid username or password': 'invalidCredentials'
+    };
+
+    if (directMap[normalized]) {
+        return t(directMap[normalized]);
+    }
+
+    if (normalized.includes('用户名或密码错误')) {
+        return t('invalidCredentials');
+    }
+
+    return normalized || t('loginFailed');
+}
+
 async function handleLogin(event) {
     event.preventDefault();
 
@@ -50,7 +69,7 @@ async function handleLogin(event) {
             throw new Error(result.message || t('loginFailed'));
         }
     } catch (error) {
-        showToast(error.message, 'error');
+        showToast(localizeLoginErrorMessage(error.message), 'error');
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalHTML;
     }

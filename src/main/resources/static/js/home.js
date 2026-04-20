@@ -520,21 +520,24 @@ function renderRing() {
             : isAccount
                 ? (lang === 'zh' ? '同账号设备' : 'My Device')
                 : (lang === 'zh' ? '附近' : 'Nearby');
+        const metaBadge = isPaired ? 'paired-badge' : isAccount ? 'account-badge' : 'nearby-badge';
 
         const node = document.createElement('button');
         node.type = 'button';
         node.className = 'peer-card'
             + (isPaired ? ' paired' : '')
+            + (isAccount ? ' account' : ' nearby')
             + (homeState.selectionMode ? ' select-mode' : '')
             + (isSelected ? ' selected' : '');
         node.dataset.channelId = dev.channelId;
         node.innerHTML = `
             <div class="peer-card-icon">
                 <i class="fa-solid ${deviceTypeIcon(dev.label)}"></i>
+                <span class="peer-online-dot"></span>
             </div>
             <div class="peer-card-info">
                 <div class="peer-card-name">${escapeHtml(dev.label)}</div>
-                <div class="peer-card-meta">${escapeHtml(metaText)}</div>
+                <div class="peer-card-meta"><span class="meta-badge ${metaBadge}">${escapeHtml(metaText)}</span></div>
             </div>
             ${homeState.selectionMode ? '<span class="peer-card-check"><i class="fa-solid fa-check"></i></span>' : ''}
         `;
@@ -1101,6 +1104,29 @@ function showHomeToast(msg, type = 'info') {
     console.log(`[home] ${type}: ${msg}`);
 }
 
+function localizeHomeErrorMessage(message) {
+    const normalized = String(message || '').trim();
+    const directMap = {
+        '匹配码不存在或已过期': 'pairCodeExpired',
+        '不能使用自己的匹配码': 'pairCodeSelfUse',
+        '请选择另一台设备': 'transferChooseOtherDevice',
+        '无权限执行该操作': 'noPermissionAction'
+    };
+
+    if (directMap[normalized]) {
+        return homeText(directMap[normalized], normalized);
+    }
+
+    if (normalized.includes('匹配码不存在') || normalized.includes('匹配码已过期')) {
+        return homeText('pairCodeExpired', normalized);
+    }
+    if (normalized.includes('不能使用自己的匹配码')) {
+        return homeText('pairCodeSelfUse', normalized);
+    }
+
+    return normalized;
+}
+
 // ─── 配对码输入（跨网段） ──────────────────────────────────────────────────────
 
 async function createPairCode() {
@@ -1161,7 +1187,7 @@ async function joinByPairCode() {
         });
         const body = await res.json();
         if (!res.ok || body.code !== 200) {
-            showHomeToast(body?.message || homeText('homePairCodeExpired', '配对码无效或已过期'), 'error');
+            showHomeToast(localizeHomeErrorMessage(body?.message || homeText('homePairCodeExpired', '配对码无效或已过期')), 'error');
             return;
         }
         homeState.pairSessionId = body.data?.pairSessionId || homeState.pairSessionId;
@@ -1171,7 +1197,7 @@ async function joinByPairCode() {
         renderPairState();
         showHomeToast(homeText('homePairCodeClaimed', '配对成功，等待对方操作…'), 'success');
     } catch (err) {
-        showHomeToast(`${homeText('homePairCodeJoinFailed', '配对失败')}：${err.message}`, 'error');
+        showHomeToast(`${homeText('homePairCodeJoinFailed', '配对失败')}：${localizeHomeErrorMessage(err.message)}`, 'error');
     }
 }
 

@@ -988,6 +988,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
 }
 
 function closeReceiveCard() {
+    _receiveCardVersion++;
     const modal = document.getElementById('receiveModal');
     if (modal) {
         modal.classList.remove('visible');

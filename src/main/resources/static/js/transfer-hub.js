@@ -1613,7 +1613,13 @@ function buildTransferInlinePreviewHtml(transfer, task) {
     });
 }
 
+var _directPreviewBlobUrls = {};
+
 async function fillTransferDirectInlinePreviews() {
+    Object.keys(_directPreviewBlobUrls).forEach(function (key) {
+        try { URL.revokeObjectURL(_directPreviewBlobUrls[key]); } catch (ignore) {}
+    });
+    _directPreviewBlobUrls = {};
     const placeholders = document.querySelectorAll('[data-direct-inline-preview]');
     if (!placeholders.length || !window.TransferDirectTransfer?.loadStoredChunks) return;
     for (const el of placeholders) {
@@ -1622,15 +1628,18 @@ async function fillTransferDirectInlinePreviews() {
         try {
             const chunks = await TransferDirectTransfer.loadStoredChunks(transferId);
             if (!chunks || !chunks.length) { el.innerHTML = ''; continue; }
-            const blob = new Blob(chunks);
-            const blobUrl = URL.createObjectURL(blob);
             const transfer = transferState.displayIncomingTransfers.find(t =>
                 String(t.directTransferId || getTransferLatestTaskAttemptId(buildTransferTaskFromTransfer(t, 'incoming'), 'direct')) === transferId
             );
             const task = transfer ? buildTransferTaskFromTransfer(transfer, 'incoming') : null;
+            const mimeType = task?.contentType || 'application/octet-stream';
+            const blob = new Blob(chunks, { type: mimeType });
+            const blobUrl = URL.createObjectURL(blob);
+            _directPreviewBlobUrls[transferId] = blobUrl;
             const kind = task ? getTransferPreviewKind(task.fileName, task.contentType) : 'image';
-            if (kind === 'office') { el.innerHTML = ''; continue; }
+            if (kind === 'office') { URL.revokeObjectURL(blobUrl); delete _directPreviewBlobUrls[transferId]; el.innerHTML = ''; continue; }
             el.innerHTML = window.renderInlinePreviewHtml({ previewUrl: blobUrl, kind: kind || 'image', fileName: task?.fileName || '', maxWidth: 400 });
+            if (kind === 'text' && typeof window.fillTextPreviews === 'function') window.fillTextPreviews(el);
         } catch (e) {
             el.innerHTML = '';
         }

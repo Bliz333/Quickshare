@@ -1347,7 +1347,13 @@ const TransferDirectTransfer = (() => {
         fillDirectInlinePreviews();
     }
 
+    var _blobUrlCache = {};
+
     async function fillDirectInlinePreviews() {
+        Object.keys(_blobUrlCache).forEach(function (key) {
+            try { URL.revokeObjectURL(_blobUrlCache[key]); } catch (ignore) {}
+        });
+        _blobUrlCache = {};
         const placeholders = document.querySelectorAll('[data-direct-inline-preview]');
         if (!placeholders.length) return;
         if (typeof window.injectInlinePreviewStyles === 'function') window.injectInlinePreviewStyles();
@@ -1361,9 +1367,11 @@ const TransferDirectTransfer = (() => {
                 if (!chunks || chunks.length < transfer.totalChunks) { el.innerHTML = ''; continue; }
                 const blob = new Blob(chunks, { type: transfer.contentType || 'application/octet-stream' });
                 const blobUrl = URL.createObjectURL(blob);
+                _blobUrlCache[transferId] = blobUrl;
                 const kind = window.getInlinePreviewKind(transfer.fileName, transfer.contentType);
-                if (!kind || kind === 'office') { URL.revokeObjectURL(blobUrl); el.innerHTML = ''; continue; }
+                if (!kind || kind === 'office') { URL.revokeObjectURL(blobUrl); delete _blobUrlCache[transferId]; el.innerHTML = ''; continue; }
                 el.innerHTML = window.renderInlinePreviewHtml({ previewUrl: blobUrl, kind: kind, fileName: transfer.fileName || '', maxWidth: 400 });
+                if (kind === 'text' && typeof window.fillTextPreviews === 'function') window.fillTextPreviews(el);
             } catch (e) {
                 el.innerHTML = '';
             }

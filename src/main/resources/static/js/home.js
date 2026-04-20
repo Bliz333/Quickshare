@@ -908,10 +908,13 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
     };
 
     const ct = contentType || 'application/octet-stream';
-    const isText = ct.startsWith('text/plain');
+    const previewKind = (typeof window.getInlinePreviewKind === 'function')
+        ? window.getInlinePreviewKind(fileName, ct)
+        : null;
+    const isTextPlain = ct.startsWith('text/plain');
 
-    if (iconEl) iconEl.className = isText ? 'fa-solid fa-align-left' : 'fa-solid fa-file-arrow-down';
-    if (labelEl) labelEl.textContent = isText
+    if (iconEl) iconEl.className = previewKind === 'text' ? 'fa-solid fa-align-left' : 'fa-solid fa-file-arrow-down';
+    if (labelEl) labelEl.textContent = previewKind === 'text'
         ? homeText('homeTextReceived', '收到文本')
         : homeText('homeReceiveFromLabel', '收到文件');
 
@@ -921,7 +924,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
     btn.href = url;
     btn.download = fileName || 'download';
 
-    if (isText && textPanel && textContent) {
+    if (isTextPlain && textPanel && textContent) {
         textPanel.classList.remove('hidden');
         textContent.textContent = '…';
         fetch(url).then(r => r.ok ? r.text() : Promise.reject('fetch failed'))
@@ -932,11 +935,20 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         textContent.textContent = '';
     }
 
-    if (previewPanel && typeof window.getInlinePreviewKind === 'function') {
-        const previewKind = window.getInlinePreviewKind(fileName, ct);
+    if (previewPanel && previewKind) {
+        if (typeof window.injectInlinePreviewStyles === 'function') window.injectInlinePreviewStyles();
         const previewUrl = `${apiBase()}/api/public/transfer/shares/${shareToken}/preview`;
-        if (previewKind && previewKind !== 'text') {
-            if (typeof window.injectInlinePreviewStyles === 'function') window.injectInlinePreviewStyles();
+        if (previewKind === 'text' && !isTextPlain) {
+            previewPanel.innerHTML = window.renderInlinePreviewHtml({
+                previewUrl: previewUrl,
+                kind: 'text',
+                fileName: fileName,
+                maxWidth: 400
+            });
+            previewPanel.classList.remove('hidden');
+            modal.classList.add('has-preview');
+            if (typeof window.fillTextPreviews === 'function') window.fillTextPreviews(previewPanel);
+        } else if (previewKind !== 'text') {
             previewPanel.innerHTML = window.renderInlinePreviewHtml({
                 previewUrl: previewUrl,
                 kind: previewKind,
@@ -953,9 +965,10 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
     } else if (previewPanel) {
         previewPanel.innerHTML = '';
         previewPanel.classList.add('hidden');
+        modal.classList.remove('has-preview');
     }
 
-    if (copyTextBtn) copyTextBtn.classList.toggle('hidden', !isText);
+    if (copyTextBtn) copyTextBtn.classList.toggle('hidden', !isTextPlain);
     if (copyBtn) {
         copyBtn.disabled = !shareToken;
     }
@@ -964,7 +977,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         saveBtn.disabled = !shareToken || !isLoggedIn();
     }
     modal.classList.add('visible');
-    showHomeToast(isText ? homeText('homeTextReceived', '收到文本!') : homeText('homeFileReceived', '收到文件!'), 'success');
+    showHomeToast(isTextPlain ? homeText('homeTextReceived', '收到文本!') : homeText('homeFileReceived', '收到文件!'), 'success');
 }
 
 function closeReceiveCard() {

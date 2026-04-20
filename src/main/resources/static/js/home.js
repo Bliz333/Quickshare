@@ -22,6 +22,9 @@ const HOME_CHUNK_SIZE     = 2 * 1024 * 1024; // 2 MB
 
 const homeState = {
     ws: null,
+    wsReconnectTimer: null,
+    allowReconnect: true,
+    pingTimer: null,
     selfChannelId: null,
     selfLabel: null,
     roomDevices: [],          // [{channelId, label, isMe}]
@@ -46,7 +49,19 @@ const homeState = {
     batchFileInfo: null,
     batchPairTimer: null,
     batchProgress: { done: 0, total: 0, failed: 0 },
+    accountSyncTimer: null,
+    globalEventsBound: false,
+    dragOverHandler: null,
+    dropHandler: null,
 };
+
+function bindElementListener(element, eventName, handler, key) {
+    if (!element) return;
+    const prop = `__qsBound_${key}`;
+    if (element[prop]) return;
+    element.addEventListener(eventName, handler);
+    element[prop] = true;
+}
 
 // ─── 工具函数 ──────────────────────────────────────────────────────────────────
 
@@ -159,20 +174,39 @@ function buildWsUrl() {
 }
 
 function connectHomeWs() {
-    if (homeState.ws && homeState.ws.readyState < 2) return;
+    if (homeState.ws && homeState.ws.readyState < 2) {
+        setWsStatus(homeState.ws.readyState === WebSocket.OPEN ? 'connected' : 'disconnected');
+        updateSelfNode();
+        renderRing();
+        renderPairState();
+        return;
+    }
+
+    if (homeState.wsReconnectTimer) {
+        clearTimeout(homeState.wsReconnectTimer);
+        homeState.wsReconnectTimer = null;
+    }
+
+    homeState.allowReconnect = true;
 
     const ws = new WebSocket(buildWsUrl());
     homeState.ws = ws;
 
-    ws.addEventListener('open', () => setWsStatus('connected'));
+    ws.addEventListener('open', () => {
+        if (homeState.ws !== ws) return;
+        setWsStatus('connected');
+    });
 
     ws.addEventListener('message', (e) => {
+        if (homeState.ws !== ws) return;
         let msg;
         try { msg = JSON.parse(e.data); } catch { return; }
         handleWsMessage(msg);
     });
 
     ws.addEventListener('close', () => {
+        if (homeState.ws !== ws) return;
+        homeState.ws = null;
         setWsStatus('disconnected');
         homeState.selfChannelId = null;
         homeState.roomDevices = [];
@@ -181,16 +215,76 @@ function connectHomeWs() {
         homeState.peerLabel = null;
         renderRing();
         renderPairState();
-        setTimeout(connectHomeWs, 3000);
+        if (homeState.allowReconnect) {
+            homeState.wsReconnectTimer = setTimeout(connectHomeWs, 3000);
+        }
     });
 
     ws.addEventListener('error', () => { /* close will reconnect */ });
 
     // keep-alive ping (clear previous to avoid leaks on reconnect)
-    if (homeState._pingTimer) clearInterval(homeState._pingTimer);
-    homeState._pingTimer = setInterval(() => {
+    if (homeState.pingTimer) clearInterval(homeState.pingTimer);
+    homeState.pingTimer = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }));
     }, 25000);
+}
+
+function clearHomeRealtimeState() {
+    homeState.selfChannelId = null;
+    homeState.selfLabel = null;
+    homeState.roomDevices = [];
+    homeState.accountDevices = [];
+    homeState.pendingTargetChannelId = null;
+    homeState.pairSessionId = null;
+    homeState.peerChannelId = null;
+    homeState.pairCode = null;
+    homeState.peerLabel = null;
+    homeState.selectionMode = false;
+    homeState.selectedChannelIds.clear();
+    clearBatchPairTimer();
+    resetBatchState();
+}
+
+function stopAccountDeviceSync() {
+    if (homeState.accountSyncTimer) {
+        clearInterval(homeState.accountSyncTimer);
+        homeState.accountSyncTimer = null;
+    }
+}
+
+function unbindHomeGlobalEvents() {
+    if (homeState.dragOverHandler) {
+        document.removeEventListener('dragover', homeState.dragOverHandler);
+        homeState.dragOverHandler = null;
+    }
+    if (homeState.dropHandler) {
+        document.removeEventListener('drop', homeState.dropHandler);
+        homeState.dropHandler = null;
+    }
+    homeState.globalEventsBound = false;
+}
+
+function disconnectHomeWs() {
+    homeState.allowReconnect = false;
+    if (homeState.wsReconnectTimer) {
+        clearTimeout(homeState.wsReconnectTimer);
+        homeState.wsReconnectTimer = null;
+    }
+    if (homeState.pingTimer) {
+        clearInterval(homeState.pingTimer);
+        homeState.pingTimer = null;
+    }
+    stopAccountDeviceSync();
+    clearHomeRealtimeState();
+    unbindHomeGlobalEvents();
+    setWsStatus('disconnected');
+    renderRing();
+    renderPairState();
+    const ws = homeState.ws;
+    if (ws && ws.readyState < 2) {
+        try { ws.close(); } catch { /* ignore */ }
+    }
+    homeState.ws = null;
 }
 
 function handleWsMessage(msg) {
@@ -896,11 +990,11 @@ async function saveReceivedShareToNetdisk() {
         return;
     }
     try {
-        const response = await fetch(`${API_BASE}/transfer/public-shares/${encodeURIComponent(share.shareToken)}/save`, {
+        const response = await fetch(`${apiBase()}/api/transfer/public-shares/${encodeURIComponent(share.shareToken)}/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                ...getAuthHeaders()
+                ...authHeader()
             },
             body: JSON.stringify({ folderId: 0 })
         });
@@ -1209,13 +1303,16 @@ async function initHomePage() {
     // 登录用户：同步账号设备
     if (homeState.token) {
         await syncAccountDevices();
-        setInterval(syncAccountDevices, 30000);
+        stopAccountDeviceSync();
+        homeState.accountSyncTimer = setInterval(syncAccountDevices, 30000);
+    } else {
+        stopAccountDeviceSync();
     }
 
     // 文件选择器
     const fileInput = document.getElementById('homeFileInput');
     if (fileInput) {
-        fileInput.addEventListener('change', async (e) => {
+        bindElementListener(fileInput, 'change', async (e) => {
             const file = e.target.files[0];
             const chooserMode = homeState.chooserMode;
             const targetChannelId = homeState.pendingTargetChannelId || homeState.peerChannelId;
@@ -1236,96 +1333,130 @@ async function initHomePage() {
             }
             fileInput.value = '';
             homeState.pendingTargetChannelId = null;
-        });
+        }, 'fileInputChange');
     }
 
     const createPairCodeButton = document.getElementById('homeCreatePairCodeBtn');
     if (createPairCodeButton) {
-        createPairCodeButton.addEventListener('click', createPairCode);
+        bindElementListener(createPairCodeButton, 'click', createPairCode, 'createPairCode');
     }
 
     const copyPairCodeButton = document.getElementById('homeCopyPairCodeBtn');
     if (copyPairCodeButton) {
-        copyPairCodeButton.addEventListener('click', copyCurrentPairCode);
+        bindElementListener(copyPairCodeButton, 'click', copyCurrentPairCode, 'copyPairCode');
     }
 
     const copyReceivedLinkButton = document.getElementById('receiveCopyLinkBtn');
     if (copyReceivedLinkButton) {
-        copyReceivedLinkButton.addEventListener('click', copyReceivedShareLink);
+        bindElementListener(copyReceivedLinkButton, 'click', copyReceivedShareLink, 'copyReceivedLink');
     }
 
     const saveReceivedButton = document.getElementById('receiveSaveBtn');
     if (saveReceivedButton) {
-        saveReceivedButton.addEventListener('click', saveReceivedShareToNetdisk);
+        bindElementListener(saveReceivedButton, 'click', saveReceivedShareToNetdisk, 'saveReceivedShare');
     }
 
     const copyTextButton = document.getElementById('receiveCopyTextBtn');
     if (copyTextButton) {
-        copyTextButton.addEventListener('click', copyReceivedText);
+        bindElementListener(copyTextButton, 'click', copyReceivedText, 'copyReceivedText');
     }
 
     const chooserSendFileBtn = document.getElementById('chooserSendFileBtn');
     if (chooserSendFileBtn) {
-        chooserSendFileBtn.addEventListener('click', onChooserSendFile);
+        bindElementListener(chooserSendFileBtn, 'click', onChooserSendFile, 'chooserSendFile');
     }
 
     const chooserSendTextBtn = document.getElementById('chooserSendTextBtn');
     if (chooserSendTextBtn) {
-        chooserSendTextBtn.addEventListener('click', onChooserSendText);
+        bindElementListener(chooserSendTextBtn, 'click', onChooserSendText, 'chooserSendText');
     }
 
     const chooserSendBtn = document.getElementById('sendChooserSendBtn');
     if (chooserSendBtn) {
-        chooserSendBtn.addEventListener('click', sendTextFromChooser);
+        bindElementListener(chooserSendBtn, 'click', sendTextFromChooser, 'chooserSendTextSubmit');
     }
 
     const selectModeBtn = document.getElementById('peerSelectModeBtn');
     if (selectModeBtn) {
-        selectModeBtn.addEventListener('click', toggleSelectionMode);
+        bindElementListener(selectModeBtn, 'click', toggleSelectionMode, 'toggleSelectionMode');
     }
 
     const selectAllPeersBtn = document.getElementById('selectAllPeersBtn');
     if (selectAllPeersBtn) {
-        selectAllPeersBtn.addEventListener('click', toggleSelectAllPeers);
+        bindElementListener(selectAllPeersBtn, 'click', toggleSelectAllPeers, 'selectAllPeers');
     }
 
     const sendSelectedPeersBtn = document.getElementById('sendSelectedPeersBtn');
     if (sendSelectedPeersBtn) {
-        sendSelectedPeersBtn.addEventListener('click', openBatchSendChooser);
+        bindElementListener(sendSelectedPeersBtn, 'click', openBatchSendChooser, 'sendSelectedPeers');
     }
 
     const clearSelectedPeersBtn = document.getElementById('clearSelectedPeersBtn');
     if (clearSelectedPeersBtn) {
-        clearSelectedPeersBtn.addEventListener('click', () => clearSelectedPeers(true));
+        bindElementListener(clearSelectedPeersBtn, 'click', () => clearSelectedPeers(true), 'clearSelectedPeers');
     }
 
     const chooserOverlay = document.getElementById('sendChooser');
     if (chooserOverlay) {
-        chooserOverlay.addEventListener('click', (e) => {
+        bindElementListener(chooserOverlay, 'click', (e) => {
             if (e.target === chooserOverlay) cancelSendChooser();
-        });
+        }, 'chooserOverlayClick');
     }
 
     renderPairState();
 
     // 整页拖拽（单一 peer 时自动目标）
-    document.addEventListener('dragover', (e) => e.preventDefault());
-    document.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (homeState.transferState !== 'idle') return;
-        if (homeState.selectionMode) {
-            showHomeToast(homeText('homeBatchDropDisabled', '多人发送模式下请先点击“发送给已选设备”'), 'info');
-            return;
-        }
-        const others = homeState.roomDevices.filter(d => !d.isMe);
-        if (others.length === 1) {
-            const file = e.dataTransfer.files[0];
-            if (file) initiateTransfer(others[0].channelId, others[0].label, file);
-        } else if (others.length > 1) {
-            showHomeToast('请点击目标设备后再拖入文件', 'info');
-        }
-    });
+    if (!homeState.globalEventsBound) {
+        homeState.dragOverHandler = (e) => {
+            if (!document.getElementById('peerDevices')) return;
+            e.preventDefault();
+        };
+        homeState.dropHandler = (e) => {
+            if (!document.getElementById('peerDevices')) return;
+            e.preventDefault();
+            if (homeState.transferState !== 'idle') return;
+            if (homeState.selectionMode) {
+                showHomeToast(homeText('homeBatchDropDisabled', '多人发送模式下请先点击“发送给已选设备”'), 'info');
+                return;
+            }
+            const others = homeState.roomDevices.filter(d => !d.isMe);
+            if (others.length === 1) {
+                const file = e.dataTransfer.files[0];
+                if (file) initiateTransfer(others[0].channelId, others[0].label, file);
+            } else if (others.length > 1) {
+                showHomeToast('请点击目标设备后再拖入文件', 'info');
+            }
+        };
+        document.addEventListener('dragover', homeState.dragOverHandler);
+        document.addEventListener('drop', homeState.dropHandler);
+        homeState.globalEventsBound = true;
+    }
 }
+
+function reinitHomePage() {
+    initHomePage();
+}
+
+window.__spaBeforeNavigate = function (targetFile) {
+    const file = (targetFile || '').split('/').pop().toLowerCase();
+    if (file !== 'index.html' && file !== '') {
+        disconnectHomeWs();
+    }
+};
+
+window.__spaAfterNavigate = function (targetFile) {
+    const file = (targetFile || '').split('/').pop().toLowerCase();
+    if (file === 'index.html' || file === '') {
+        reinitHomePage();
+    }
+};
+
+window.addEventListener('pageshow', () => {
+    const file = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    if (file === 'index.html' || file === '') {
+        reinitHomePage();
+    }
+});
 
 /* SPA-aware bootstrap: run immediately if document already loaded */
 if (document.readyState === 'complete') {

@@ -94,7 +94,8 @@
 
     /* ── transition ── */
 
-    function transition(targetFile) {
+    function transition(targetFile, options) {
+        options = options || {};
         if (busy || targetFile === currentFile) return;
         busy = true;
 
@@ -114,6 +115,11 @@
             var doc = new DOMParser().parseFromString(html, 'text/html');
 
             setTimeout(function () {
+                // 0. Give current page a chance to clean up long-lived resources
+                if (typeof window.__spaBeforeNavigate === 'function') {
+                    try { window.__spaBeforeNavigate(targetFile); } catch (e) {}
+                }
+
                 // 1. Replace <head> styles (keep mc-css)
                 var old = document.querySelectorAll('head > style:not(#mc-css)');
                 for (var i = 0; i < old.length; i++) old[i].remove();
@@ -181,13 +187,23 @@
                     if (typeof initTheme === 'function') {
                         try { initTheme(); } catch (e) {}
                     }
-                    if (typeof applyLanguage === 'function') {
-                        try { applyLanguage(); } catch (e) {}
+                    if (typeof setLanguage === 'function') {
+                        try {
+                            var lang = typeof getCurrentLanguage === 'function'
+                                ? getCurrentLanguage()
+                                : (localStorage.getItem('quickshare-lang') || 'zh');
+                            setLanguage(lang);
+                        } catch (e) {}
                     }
 
                     // 8. Re-hook mascot scene hooks (upload area etc.)
                     if (typeof window._mascotSceneHooksFn === 'function') {
                         try { window._mascotSceneHooksFn(); } catch (e) {}
+                    }
+
+                    // 8.5 Re-init page-specific runtime for already-loaded scripts
+                    if (typeof window.__spaAfterNavigate === 'function') {
+                        try { window.__spaAfterNavigate(targetFile); } catch (e) {}
                     }
 
                     // 9. Fade out curtain
@@ -204,8 +220,10 @@
                     });
                 });
 
-                // 10. Push to history
-                history.pushState({ spa: targetFile }, doc.title, targetFile);
+                // 10. Update history only for direct navigations, not browser back/forward
+                if (!options.fromHistory) {
+                    history.pushState({ spa: targetFile }, doc.title, targetFile);
+                }
 
             }, 200); // wait for curtain fade-in
         }).catch(function (err) {
@@ -238,7 +256,7 @@
     // Back / forward
     window.addEventListener('popstate', function (e) {
         if (e.state && e.state.spa) {
-            transition(e.state.spa);
+            transition(e.state.spa, { fromHistory: true });
         }
     });
 

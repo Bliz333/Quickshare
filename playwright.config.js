@@ -24,7 +24,7 @@ module.exports = defineConfig({
   // reuseExistingServer:true means it won't start a duplicate if Docker is
   // already listening on :8080.
   webServer: externalBase ? undefined : {
-    command: 'npx --yes http-server src/main/resources/static -p 8080 --silent -c-1',
+    command: 'node tests/e2e/mock-static-server.js',
     url: 'http://127.0.0.1:8080',
     reuseExistingServer: true,
     timeout: 20000,

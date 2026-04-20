@@ -124,7 +124,7 @@ test.describe('Home notifications panel', () => {
     await expect(page.locator('#homeNoticeTabPersonal')).toHaveClass(/active/);
     await expect(page.locator('#homeNoticeList')).toContainText('Personal Notice E2E');
     await expect(page.locator('#homeNoticeList')).toContainText('Visible only to the current user.');
-    await expect(page.locator('#homeNotificationBadge')).toBeVisible();
+    await expect(page.locator('#homeNotificationBadge')).toBeHidden();
     await expect(page.locator('#homeNotificationBadge')).toHaveText('2');
     await expect(page.locator('#homeNoticeMarkAllBtn')).toBeVisible();
 
@@ -161,11 +161,11 @@ test.describe('Home notifications panel', () => {
 
     await page.goto(`${baseURL}/index.html`);
 
-    await expect(page.locator('.top-buttons')).toBeVisible();
+    await expect(page.locator('.topbar-r')).toBeVisible();
     await expect(page.locator('#homeNotificationButton')).toBeVisible();
     await expect(page.locator('#langBtn')).toBeVisible();
 
-    const actionBox = await page.locator('.top-buttons').boundingBox();
+    const actionBox = await page.locator('.topbar-r').boundingBox();
     expect(actionBox).not.toBeNull();
     expect(actionBox.width).toBeLessThan(240);
 

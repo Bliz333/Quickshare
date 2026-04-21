@@ -30,8 +30,11 @@ fi
 rm -rf "$DERIVED_DATA_PATH"
 mkdir -p "$(dirname "$SCREENSHOT_PATH")"
 
+pushd "$IOS_DIR" >/dev/null
+trap 'popd >/dev/null' EXIT
+
 echo "[ios-sim-smoke] pod install"
-pod install --project-directory="$IOS_DIR"
+pod install
 
 echo "[ios-sim-smoke] xcodebuild simulator app"
 xcodebuild \
@@ -74,3 +77,6 @@ if [[ ! -f "$SCREENSHOT_PATH" ]]; then
 fi
 
 echo "[ios-sim-smoke] simulator launch proof saved to $SCREENSHOT_PATH"
+
+trap - EXIT
+popd >/dev/null

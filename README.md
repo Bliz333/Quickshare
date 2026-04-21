@@ -30,6 +30,7 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 - File upload, sharing, preview, download, and extraction-code protection
 - Nested folders with create, rename, delete, move, batch actions, and drag-and-drop relocation
 - Upload deduplication and reference-aware delete behavior
+- Inline file preview in the homepage receive modal, plus embedded PDF/Office viewing on web preview surfaces
 - Pricing page, payment result page, user order history, and quota / VIP visibility
 - Runtime-switchable captcha provider: Google reCAPTCHA or Cloudflare Turnstile
 

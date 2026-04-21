@@ -1,4 +1,4 @@
-# QuickShare 后续计划（2026-04-05）
+# QuickShare 后续计划（2026-04-20）
 
 旧的阶段式路线图已经完成。当前计划不再按”从 0 到 6 的大阶段”推进，而是围绕维护、体验和回归质量继续收口。
 
@@ -11,6 +11,14 @@
   - `index.html` 全面重设计（设备环 + 接收弹窗 + 深色模式）
   - 新增 `TransferSignalingServiceImpl`（IP /24 房间分组）
   - DB 迁移 V11
+
+- 已完成（2026-04-20）：Quick Share 首页接收预览 + 可读性增强
+  - 首页接收弹窗 inline preview（图片 / PDF / Office / 文本）
+  - 新增 `js/inline-preview.js` 共享预览模块
+  - 桌面端 proportional sizing（卡片、图片 / 视频 / 文本 / iframe 预览）
+  - `pdf-viewer.html` / `pdf-viewer.js` 嵌入式 viewer 模式
+  - 预览失败 fallback 收口（坏图回退、文本 fallback、宽版卡片回收）
+  - 已完成浏览器实际回归，移动端实施的 web 前置条件已满足
 
 - 已完成阶段 A：QuickDrop 页面收口基线固化
   - 已重新验收未提交的 QuickDrop UI 改动
@@ -92,6 +100,7 @@
 ### 0. Mobile app planning and release readiness
 
 - 新增目标：把 QuickShare 的移动端路线、Android/iOS 构建发布、商店上架、测试策略和生产依赖全部文档化。
+- 当前状态更新：移动端实际开发前需要的 web 侧预览 / 可读性 / fallback 前置条件已经完成，下一步可以从纯规划阶段进入客户端实际实施。
 - 产出应落在：
   - `docs/mobile/README.md`
   - `docs/mobile/architecture.md`
@@ -102,7 +111,8 @@
   - `docs/mobile/responsibilities.md`
   - `docs/ops/production-deployment.md`
 - 近期原则：
-  - 先做“后端可复用 + 新客户端路线”文档，不把当前网页直接当作长期移动端方案
+  - 当前已完成“后端可复用 + web 预览 / 可读性前置条件”收口，下一步优先开始移动端实际开发
+  - 不把当前网页直接当作长期移动端方案，仍需按 Android/iOS 正式客户端路线推进
   - 先明确 Android/iOS 全流程，再决定是否先走 wrapper MVP
 
 ### 1. 体验与交互稳定性

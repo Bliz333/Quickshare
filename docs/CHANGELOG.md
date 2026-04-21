@@ -2,6 +2,27 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-04-20 (Quick Share 接收预览 + 可读性增强 + 移动端前置条件收口)
+
+- **首页接收弹窗补齐 inline preview**：
+  - `index.html` + `home.js` 现在会在接收到文件时直接显示图片、PDF、Office、文本等可预览内容
+  - PDF / Office 统一复用 `pdf-viewer.html` 的嵌入式模式，不必先下载再判断内容
+  - 新增 `src/main/resources/static/js/inline-preview.js` 作为共享预览模块，统一首页接收弹窗与后续可复用预览逻辑
+- **桌面端可读性增强**：
+  - 接收弹窗卡片与 inline preview 由固定像素宽高改为按视口比例缩放
+  - 1440p 到 4K 桌面下预览区域不再过小，图片 / 视频 / 文本 / iframe 预览都能按比例放大
+- **嵌入式 PDF / Office 查看器模式**：
+  - `pdf-viewer.html` / `pdf-viewer.js` 新增 `embedded=1` 模式
+  - 嵌入模式会减少 toolbar / shell padding / status bar 占用，提升首页接收弹窗内的文档可读性
+- **预览失败 fallback 收口**：
+  - 图片 / 音频 / 视频 / iframe 预览失败时，接收弹窗会正确回退窄版卡片，而不是保持空白宽版状态
+  - 文本预览失败时改为显示明确 fallback 文案，不再出现空白框
+  - 首页接收弹窗的外层预览容器 class 也已同步收口，避免失败回退逻辑被嵌套 wrapper 干扰
+- **移动端前置条件完成**：
+  - 移动端接收预览宽度、图片高度、iframe 高度、文本区域高度已补一轮基础收口
+  - 已完成浏览器实际回归：桌面端宽版预览、坏图回退、文本 fallback、移动端卡片宽度与 PDF iframe 高度全部确认通过
+  - 这意味着“真正开始移动端实际开发”前的 web 端预览 / 可读性前置条件已经完成
+
 ## 2026-04-05 (Transfer 重命名 + LAN 传输修复 + 首页重设计)
 
 - **后端重命名（QuickDrop → Transfer）**：

@@ -27,6 +27,22 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || fail "missing command: $1"
 }
 
+wait_for_health_ready() {
+  local attempts="${SMOKE_HEALTH_ATTEMPTS:-30}"
+  local sleep_seconds="${SMOKE_HEALTH_SLEEP_SECONDS:-2}"
+  local body=""
+
+  for ((i = 1; i <= attempts; i++)); do
+    body="$(run_curl -sS --max-time "$CURL_MAX_TIME" "${BASE_URL}/api/health" 2>/dev/null || true)"
+    if [[ "$body" == *'"status":"UP"'* && "$body" == *'"database":"UP"'* && "$body" == *'"redis":"UP"'* ]]; then
+      return 0
+    fi
+    sleep "$sleep_seconds"
+  done
+
+  fail "health endpoint did not become ready after ${attempts} attempts"
+}
+
 read_dotenv_var() {
   local key="$1"
 
@@ -212,6 +228,8 @@ fi
 if [[ "$SMOKE_UP" == "1" ]]; then
   log "docker compose up --build -d"
   compose_cmd up --build -d
+  log "wait for /api/health readiness"
+  wait_for_health_ready
 fi
 
 if [[ "$SMOKE_DOCKER_PS" == "1" ]]; then

@@ -43,9 +43,15 @@ jobs:
       - name: Package (skip tests)
         run: ./mvnw -B -q package -DskipTests
 
+      - name: Repo smoke
+        run: ./scripts/quickshare-smoke.sh
+
   playwright-mock:
     runs-on: ubuntu-latest
     needs: build-and-test
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
 
     steps:
       - uses: actions/checkout@v4
@@ -58,12 +64,67 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install mobile dependencies
+        run: npm ci
+        working-directory: mobile
+
+      - name: Mobile unit tests
+        run: npm test -- --runInBand
+        working-directory: mobile
+
+      - name: Mobile typecheck
+        run: npm run typecheck
+        working-directory: mobile
+
+      - name: Mobile Android debug build
+        run: ./gradlew assembleDebug
+        working-directory: mobile/android
+
+      - name: Mobile iOS project generation
+        run: npx -y node@20 ./node_modules/expo/bin/cli prebuild --platform ios --no-install
+        working-directory: mobile
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: Run mock-only Playwright tests
         run: |
           npx playwright test \
             tests/e2e/home-notifications.spec.js \
             tests/e2e/quickdrop.spec.js \
-            tests/e2e/register-captcha.spec.js
+            tests/e2e/register-captcha.spec.js \
+            --project=${{ matrix.browser }}
+
+      - name: Playwright smoke
+        run: ./scripts/quickshare-playwright-smoke.sh
+
+  ios-build:
+    runs-on: macos-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install mobile dependencies
+        run: npm ci
+        working-directory: mobile
+
+      - name: Generate iOS native project
+        run: npx -y node@20 ./node_modules/expo/bin/cli prebuild --platform ios --no-install
+        working-directory: mobile
+
+      - name: iOS simulator smoke
+        run: ./scripts/quickshare-ios-simulator-smoke.sh
+
+      - name: Upload iOS simulator proof artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-proof
+          path: mobile/ios/build/ios-simulator-launch.png
+          if-no-files-found: warn

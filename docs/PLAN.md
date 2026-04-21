@@ -76,7 +76,7 @@
   - 删除 `#quickDropModeGuide` 首屏引导文案及对应渲染函数
   - 确认历史页 `?view=` URL 冷启动直接可访问，无需修改路由初始化顺序
   - relay / direct 传输均补”已存入网盘”badge + “在网盘中查看”跳转入口
-  - `quickdrop.spec.js` 待补 saved-badge 回归用例（任务 B）
+  - `quickdrop.spec.js` 已覆盖 saved-badge 与“Save to Netdisk”回归用例
 
 ### Phase 4. 回归与 smoke 自动化扩展
 
@@ -97,10 +97,10 @@
 
 ## 当前目标
 
-### 0. Mobile app planning and release readiness
+### 0. Mobile release operations and optional regression expansion
 
-- 新增目标：把 QuickShare 的移动端路线、Android/iOS 构建发布、商店上架、测试策略和生产依赖全部文档化。
-- 当前状态更新：移动端实际开发前需要的 web 侧预览 / 可读性 / fallback 前置条件已经完成，下一步可以从纯规划阶段进入客户端实际实施。
+- 当前目标：在已落库的 Expo / React Native 客户端和生成后的 Android/iOS 原生工程基础上，继续维护发布流程文档，并按需扩展回归覆盖面。
+- 当前状态更新：移动端实现本体与仓库内兼容性基线已经落库；本节记录的是后续发布运营与可选扩面方向，而不是主链路缺口。
 - 产出应落在：
   - `docs/mobile/README.md`
   - `docs/mobile/architecture.md`
@@ -111,9 +111,9 @@
   - `docs/mobile/responsibilities.md`
   - `docs/ops/production-deployment.md`
 - 近期原则：
-  - 当前已完成“后端可复用 + web 预览 / 可读性前置条件”收口，下一步优先开始移动端实际开发
+  - 当前已完成“后端可复用 + web 预览 / 可读性前置条件”以及移动端已落库基线，后续按需继续扩展回归覆盖与发布文档
   - 不把当前网页直接当作长期移动端方案，仍需按 Android/iOS 正式客户端路线推进
-  - 先明确 Android/iOS 全流程，再决定是否先走 wrapper MVP
+  - 当前无需再讨论 wrapper MVP，重点转向现有客户端的验证、兼容性和发布链路
 
 ### 1. 体验与交互稳定性
 
@@ -138,6 +138,7 @@
   - 登录后网盘 CRUD 页面级回归，建议拆成更小的稳定用例，而不是单条综合流程
 - 条件允许时继续补浏览器自动化，而不是只依赖手工点击回归。
 - 当前 Playwright + Chromium 基线已经可用，下一步应继续扩大页面级覆盖面，优先补真实公网商户回跳场景、更多登录后网盘 CRUD 交互，以及把当前默认验收脚本同步进 CI。
+- 当前默认验收链路现已同步进 CI：`check-js -> JUnit -> quickshare-smoke -> quickshare-playwright-smoke`
 - 脚本层已经支持 GitHub 拉取式；但当前测试机的真实稳定底座是“git 工作副本 + 服务器本地 bare repo + docker-compose”。下一步更值得投入的是把这条远端基线固化，而不是再回到无版本信息的源码快照目录。
 - 这一轮远端部署基线已经补上资源检查和 bundle mirror fallback，因此下一阶段可以顺势转向“回归自动化扩展”，而不是继续反复手工重建同一条部署链路。
 
@@ -150,10 +151,10 @@
   - 应用层负责用户逻辑配额、上传校验和后端切换
   - 基础设施层负责磁盘 / bucket 容量、备份、生命周期和告警
 
-### 4. 可选体验增强
+### 4. 可选体验增强（不阻塞当前已验证基线）
 
 - 明确匿名分享访问是否需要计入分享者或访问者的套餐额度；若需要，补新的扣减主体与对账规则。
-- QuickDrop 下一阶段优先级：
+- QuickDrop 后续优化方向：
   - 基于已部署的预发布 TURN 做真实双端公网 / NAT 场景验证，并继续提升直连成功率
   - 继续考虑把 public `pair task` 和 same-account `task` 收成同一套顶层模型 / 操作语义
   - 直传文件保存到网盘后的后续动作继续收口：
@@ -201,7 +202,7 @@
     - 已完成补充步：预发布 TURN / same-account 真实链路复核
       - 预发布 `health`、`rtc-config`、远端 smoke 与 Dockerized 浏览器 smoke 已继续通过
       - 远端 real-browser 已经出现过 `direct` 命中样本，但最新一次又回到 `relay`
-      - 下一步要解决的是“扩大不同网络条件下的稳定直连命中率”，不是“这台测试机能否完成传输”
+    - 后续若继续投入，重点是“扩大不同网络条件下的稳定直连命中率”，不是“这台测试机能否完成传输”
     - 已完成补充步：QuickDrop 页面级减法收口
       - `quickdrop.html` 首屏已继续去掉步骤条和大段解释
       - 临时互传与同账号发送都已改成“单入口选择内容”
@@ -209,7 +210,7 @@
     - 已完成补充步：QuickDrop 中心舞台与次级记录页
       - 临时互传现已进一步压成中心配对卡
       - 记录区已从抽屉推进到真正的次级页面状态，并开始从 `hash` 收口到 query route
-    - 下一步更适合继续做产品化收口，而不是再堆新控件：
+    - 若继续做产品化收口，更适合继续做以下优化，而不是再堆新控件：
       - 继续减少首屏辅助文案
       - 继续把设备目标区收成“点目标即发”的舞台
       - 评估把记录页独立成单独 URL，而不是继续停留在页内视图切换

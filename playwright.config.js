@@ -1,4 +1,5 @@
 const { defineConfig } = require('@playwright/test');
+const { devices } = require('@playwright/test');
 
 // When PLAYWRIGHT_BASE_URL is set, tests run against a real/preprod server.
 // Otherwise, spin up a lightweight static file server so mock-only tests
@@ -20,6 +21,20 @@ module.exports = defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure'
   },
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+  ],
   // Auto-start static file server for CI / local runs without Docker.
   // reuseExistingServer:true means it won't start a duplicate if Docker is
   // already listening on :8080.

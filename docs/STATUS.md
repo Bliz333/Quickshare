@@ -29,6 +29,10 @@
   - 移动端接收卡片宽度、图片高度、iframe 高度、文本区域高度已补基础收口
   - 已完成实际浏览器回归：桌面端宽版预览、坏图回退、文本 fallback、移动端 390px 视口卡片宽度 / PDF iframe 高度全部通过
   - 当前已经可以从“移动端规划文档”切换到“移动端实际开发”阶段
+- iOS 仓库内兼容性证据已继续增强：
+  - 新增 `scripts/quickshare-ios-simulator-smoke.sh`，把 iOS simulator 的 `pod install -> build -> install -> launch -> screenshot` 固化成仓库脚本
+  - CI 的 `ios-build` 已切换为执行该脚本，并上传 simulator launch 截图 artifact
+  - `docs/mobile/compatibility.md` 已新增当前 Android / iOS / Web 的仓库内兼容性证据清单
 
 ## 2026-03-30 已完成
 
@@ -259,14 +263,14 @@
   - 已覆盖注册页 `reCAPTCHA` / `Turnstile` provider 切换和关闭验证码时的 UI 收口
   - 不再只依赖接口级 smoke 推断网盘/交易页面行为正确
 
-## 当前正在收口
+## 当前维护方向（不否定已验证主链路）
 
-- 首页接收预览与可读性增强已完成并通过浏览器回归，下一步不再是继续补桌面端 preview，而是正式进入移动端实际开发。
+- 首页接收预览与可读性增强已完成并通过浏览器回归；移动端实现与 Android/iOS 原生工程也已落库，当前维护方向主要是回归扩面与发布运营，而不是补主链路缺口。
 - 用户侧交易链路：`pricing.html`、`payment-result.html`、用户订单历史、网盘侧栏配额/VIP 卡片与升级入口都已接入当前工作树。
 - 网盘高频操作：选择模式、批量移动/删除、拖拽移动已经接入前端交互，并复用了后端移动接口。
 - 注册验证链路：公开设置接口已下发验证码 provider，注册页会按 provider 加载对应脚本与文案。
-- 上述内容本轮已完成语法检查、Java 编译、订单/注册设置相关定向测试与 Docker 烟测；仍缺“启用真实商户后的成功支付/退款回调”页面级回归。
-- QuickDrop 当前已从“信令基础”进入“配对直传 MVP”：
+- 上述内容本轮已完成语法检查、Java 编译、订单/注册设置相关定向测试与 Docker 烟测；后续若继续扩面，重点是更广的真实支付回调与页面级回归覆盖，而不是补主链路缺口。
+- QuickDrop 当前已经形成可用的配对直传与同账号互传基线：
   - 已实现同账号设备发现、服务器中转和 chunk 续传
   - 已实现同账号设备免配对自动直连，以及“发送前直连优先 / 未就绪回退中转”
   - 已实现匹配码配对后的 `WebRTC DataChannel` 浏览器直传
@@ -274,8 +278,8 @@
   - 已实现 direct / relay attempt 生命周期摘要、失败原因与保存反馈的统一详情视图
   - 已实现直连诊断快照、selected candidate pair 观测和 “直连未就绪即回退” 的 direct fallback 写回
   - 本地工作区前端现在也能直接对真实后端执行 real-browser 探针，不必等 Docker 镜像重建完成
-  - 当前预发布机已经验证到“真实双页 same-account 传输可直接收口 `direct`”；下一步从“证明能直连”切换到“扩大不同 NAT / 网络条件下的直连命中率样本”，并继续统一 same-account `task` / public `pair task`
-  - 页面层已继续朝 Snapdrop / PairDrop 风格收口，但还没到最终形态：
+  - 当前预发布机已经验证到“真实双页 same-account 传输可直接收口 `direct`”；后续若继续投入，重点是扩大不同 NAT / 网络条件下的直连命中率样本，并继续统一 same-account `task` / public `pair task`
+  - 页面层已继续朝 Snapdrop / PairDrop 风格收口；后续仍有体验优化空间：
     - 首屏仍有进一步减少辅助文案和标签的空间
     - 历史页当前已从 hash 收口到 query route；后续仍可继续评估独立 URL
 - Docker 验收现在不再只靠零散手工 `curl`，而是已有仓库内脚本基线可直接重复执行。
@@ -564,19 +568,19 @@
 - 当前浏览器自动化已覆盖管理台注册设置、通知中心、拖拽移动、选择模式批量操作弹窗、浏览器历史返回、套餐页、支付结果页、网盘配额侧栏和注册页 provider 切换，但还没有覆盖真实公网商户回跳和更广的登录后 CRUD 页面行为。
 - 登录后网盘 CRUD 页面级回归本轮已开始尝试，但仍未收口成稳定可合并的自动化；下一轮应拆成更小的稳定用例，而不是继续维护一条过长的综合流程。
 - 当前 QuickDrop 已有同账号中转、公开分享和配对直传三条页面级自动化，但还没有覆盖“真实浏览器间大文件直传到完成下载”的整条路径。
-- 当前 QuickDrop 已在远端 Dockerized Playwright 中命中过一次真实 `direct`；但这还不是“所有公网/NAT 条件都稳定直连”的证明，后续仍需要扩大网络样本，而不是把单机命中结果过度外推。
+- 当前 QuickDrop 已在远端 Dockerized Playwright 中命中过真实 `direct`；后续扩大公网/NAT 网络样本属于直连成功率优化，不改变当前直传/中转主链路已经具备仓库内验证基线这一事实。
 - 当前 public / anonymous 直传虽然已有 server-first `pair task` 页面视图，但还没有和 same-account `task` 收敛成同一套顶层模型与操作语义。
 - 当前 QuickDrop 的公开取件页“已登录后直接显示保存控件”浏览器 mock 用例仍待继续收口；对应业务能力已通过运行态 API 验证。
-- 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架、public pair task 页面级任务视图，以及 direct / relay attempt 生命周期摘要；下一步重点转向真实双端公网/TURN 验证和顶层模型进一步统一。
+- 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架、public pair task 页面级任务视图，以及 direct / relay attempt 生命周期摘要；下一步重点转向真实双端公网/TURN 样本扩面和顶层模型进一步统一，这属于优化与收口，不是否定当前基线能力。
 - 当前预发布机已经命中过 same-account `direct`，说明这台服务器上的 TURN / WebRTC 链路不再停留在“只会回退 relay”的状态；后续重点是扩大网络条件覆盖，而不是继续证明本机可直连。
-- 最新同一台测试机上的 `quickdrop-real` 再次验证又回到 `relay`，进一步说明当前问题已经不是“能不能直连”，而是“直连命中是否稳定、受哪些网络条件影响”。
+- 最新同一台测试机上的 `quickdrop-real` 再次验证又回到 `relay`，进一步说明当前问题已经不是“能不能直连”，而是“直连命中是否稳定、受哪些网络条件影响”；这说明后续重点是稳定性优化，而不是补主链路缺口。
 - 当前 `deploy-preprod.sh` 的 GitHub 拉取式路径仍需要远端仓库读取凭据；在凭据未补前，当前服务器的稳定入口是“git 工作副本 + 服务器本地 bare repo + docker-compose”。
 - 当前远端部署基线已经补上资源检查和 bundle mirror 路径，下一轮应继续减少对手工 SSH 会话的依赖，把这条路径进一步产品化。
 - 当前服务器还只是预发布环境：
   - 还没有 HTTPS / 证书
   - 还没有正式发布前的最终脱敏提交流程
   - 还没把更广的服务器端浏览器回归和更长链路的 QuickDrop 大文件直传验证补全
-- 当前 CI 仍以构建和语法检查为主，还没有把 Docker smoke 和选定 Playwright 用例作为默认门槛串起来；这属于下一步回归基线增强。
+- 当前 CI 已继续前推：构建、语法检查、`quickshare-smoke` 与 `quickshare-playwright-smoke` 已纳入默认门槛；后续仍可继续扩大浏览器矩阵与页面覆盖面。
 - 当前 `downloads` 套餐口径是“登录用户自己的下载次数”；若未来要把匿名分享访问也计入套餐额度，需要重新定义扣减主体。
 - 当前存储策略还没有自动扩容、冷热分层、对象生命周期和容量告警；这些属于后续部署与运维增强。
 - 部分大数据量分页/性能优化仍属于后续体验增强，不影响当前主流程可用性。

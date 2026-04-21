@@ -12,8 +12,10 @@ This directory is the operational documentation hub for QuickShare.
 - [TESTING.md](TESTING.md): detailed Chinese testing and acceptance workflow
 - [PLAN.md](PLAN.md): current Chinese roadmap and next-stage priorities
 - [CHANGELOG.md](CHANGELOG.md): change history
+- [DESIGN.md](DESIGN.md): web frontend design phase and first design-system slice
 - [PUBLISHING.md](PUBLISHING.md): publishing hygiene and release notes
-- [mobile/README.md](mobile/README.md): mobile app planning and release process
+- [mobile/README.md](mobile/README.md): mobile client status, testing, and release process
+- [mobile/compatibility.md](mobile/compatibility.md): repository-visible mobile compatibility evidence
 
 ## Current Documentation Model
 
@@ -59,6 +61,8 @@ This directory is the operational documentation hub for QuickShare.
 2. [mobile/architecture.md](mobile/architecture.md)
 3. [mobile/testing.md](mobile/testing.md)
 4. [ops/production-deployment.md](ops/production-deployment.md)
+
+The repository currently contains a tracked mobile client under `../mobile/` with generated native Android and iOS projects under `../mobile/android/` and `../mobile/ios/`.
 
 ## Notes
 

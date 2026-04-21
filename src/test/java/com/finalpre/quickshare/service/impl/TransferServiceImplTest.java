@@ -4,12 +4,14 @@ import com.finalpre.quickshare.config.FileConfig;
 import com.finalpre.quickshare.config.TransferProperties;
 import com.finalpre.quickshare.dto.TransferCreateRequest;
 import com.finalpre.quickshare.dto.TransferDirectAttemptSyncRequest;
+import com.finalpre.quickshare.service.FileService;
 import com.finalpre.quickshare.entity.TransferDevice;
 import com.finalpre.quickshare.entity.TransferTask;
 import com.finalpre.quickshare.entity.TransferRelay;
 import com.finalpre.quickshare.mapper.TransferDeviceMapper;
 import com.finalpre.quickshare.mapper.TransferTaskMapper;
 import com.finalpre.quickshare.mapper.TransferRelayMapper;
+import com.finalpre.quickshare.vo.FileInfoVO;
 import com.finalpre.quickshare.vo.TransferTaskVO;
 import com.finalpre.quickshare.vo.TransferRelayVO;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +51,9 @@ class TransferServiceImplTest {
     @Mock
     private TransferTaskMapper transferTaskMapper;
 
+    @Mock
+    private FileService fileService;
+
     private TransferServiceImpl transferService;
     private Map<Long, TransferTask> taskStore;
     private AtomicLong taskIdSequence;
@@ -59,6 +64,7 @@ class TransferServiceImplTest {
         ReflectionTestUtils.setField(transferService, "transferDeviceMapper", transferDeviceMapper);
         ReflectionTestUtils.setField(transferService, "transferTransferMapper", transferTransferMapper);
         ReflectionTestUtils.setField(transferService, "transferTaskMapper", transferTaskMapper);
+        ReflectionTestUtils.setField(transferService, "fileService", fileService);
 
         FileConfig fileConfig = new FileConfig();
         ReflectionTestUtils.setField(fileConfig, "uploadDir", tempDir.toString());
@@ -279,5 +285,71 @@ class TransferServiceImplTest {
         assertThat(fallback.getAttempts().get(0).getStartTime()).isEqualTo(initial.getAttempts().get(0).getStartTime());
         assertThat(fallback.getAttempts().get(0).getFailureReason()).isEqualTo("peer_missed_offer");
         assertThat(fallback.getAttempts().get(0).getFallbackAt()).isNotNull();
+    }
+
+    @Test
+    void saveTransferToNetdiskShouldPersistSavedLifecycleState() throws Exception {
+        TransferDevice receiver = new TransferDevice();
+        receiver.setDeviceId("receiver-device");
+        receiver.setUserId(8L);
+
+        TransferTask task = new TransferTask();
+        task.setId(301L);
+        task.setUserId(8L);
+        task.setTaskKey("incoming|sender-device|report.pdf|12|1710000000000");
+        task.setSenderDeviceId("sender-device");
+        task.setReceiverDeviceId("receiver-device");
+        task.setFileName("report.pdf");
+        task.setFileSize(12L);
+        task.setContentType("application/pdf");
+        task.setTransferMode("relay");
+        task.setCurrentTransferMode("relay");
+        task.setStatus("ready");
+        task.setCompletedChunks(3);
+        task.setTotalChunks(3);
+        task.setAttemptsJson("[]");
+        task.setCreateTime(LocalDateTime.now());
+        task.setUpdateTime(task.getCreateTime());
+        task.setExpireTime(task.getCreateTime().plusHours(1));
+        taskStore.put(task.getId(), task);
+
+        Path assembledPath = tempDir.resolve("report.pdf");
+        Files.writeString(assembledPath, "hello report");
+
+        TransferRelay transfer = new TransferRelay();
+        transfer.setId(51L);
+        transfer.setTaskId(301L);
+        transfer.setTaskKey(task.getTaskKey());
+        transfer.setUserId(8L);
+        transfer.setSenderDeviceId("sender-device");
+        transfer.setReceiverDeviceId("receiver-device");
+        transfer.setFileName("report.pdf");
+        transfer.setFileSize(12L);
+        transfer.setContentType("application/pdf");
+        transfer.setChunkSize(4);
+        transfer.setTotalChunks(3);
+        transfer.setUploadedChunks(3);
+        transfer.setStatus("ready");
+        transfer.setAssembledPath(assembledPath.toString());
+        transfer.setExpireTime(LocalDateTime.now().plusHours(1));
+
+        when(transferDeviceMapper.selectById("receiver-device")).thenReturn(receiver);
+        when(transferTransferMapper.selectById(51L)).thenReturn(transfer);
+        when(transferTransferMapper.updateById(any(TransferRelay.class))).thenReturn(1);
+
+        FileInfoVO imported = new FileInfoVO();
+        imported.setId(900L);
+        imported.setOriginalName("report.pdf");
+        when(fileService.importLocalFile(any(Path.class), any(String.class), any(String.class), any(Long.class), any(Long.class)))
+                .thenReturn(imported);
+
+        FileInfoVO result = transferService.saveTransferToNetdisk(8L, 51L, "receiver-device", 0L);
+
+        assertThat(result.getId()).isEqualTo(900L);
+        assertThat(transfer.getStatus()).isEqualTo("completed");
+        assertThat(transfer.getDownloadedAt()).isNotNull();
+        TransferTask savedTask = taskStore.get(301L);
+        assertThat(savedTask.getSavedToNetdiskAt()).isNotNull();
+        assertThat(savedTask.getCompletedAt()).isNotNull();
     }
 }

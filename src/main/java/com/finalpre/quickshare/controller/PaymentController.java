@@ -43,8 +43,9 @@ public class PaymentController {
         String returnUrl = request.containsKey("returnUrl")
                 ? request.get("returnUrl").toString()
                 : buildBaseUrl(httpRequest) + "/";
+        String notifyUrl = buildBaseUrl(httpRequest) + "/api/payment/notify";
 
-        String redirectUrl = paymentService.createOrder(userId, planId, providerId, payType, returnUrl);
+        String redirectUrl = paymentService.createOrder(userId, planId, providerId, payType, returnUrl, notifyUrl);
 
         Map<String, String> result = new HashMap<>();
         result.put("redirectUrl", redirectUrl);

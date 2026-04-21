@@ -10,6 +10,7 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 - an admin console for runtime policy, storage, mail, payment, and user management
 - local filesystem and S3-compatible object storage backends
 - Office document preview through LibreOffice and PDF.js
+- a tracked Expo / React Native mobile client in `mobile/` with generated native Android and iOS projects
 
 ## Current State
 
@@ -22,6 +23,34 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
   - Node 18 / npm 9
   - Docker plus `docker-compose`
 - The latest remote browser smoke confirmed a real QuickDrop same-account transfer finishing as `direct`, not just `relay`.
+- The repository also now contains a tracked mobile client under `mobile/`, plus generated native Android and iOS projects under `mobile/android/` and `mobile/ios/`.
+
+## Mobile Client
+
+The repository includes a checked-in mobile app:
+
+- Expo / React Native app entry: `mobile/App.tsx`
+- Mobile source tree: `mobile/src/`
+- Native Android project: `mobile/android/`
+- Native iOS project: `mobile/ios/`
+
+Current verified mobile baseline includes:
+
+- guest home/share access and login-gated netdisk
+- Google sign-in entry and registration flow
+- file browsing, upload, preview, download, and share-link creation
+- pickup lookup plus save-to-netdisk
+- same-account transfer sync with incoming/outgoing task visibility
+- Android debug/release builds, emulator launch, and payment deep-link validation
+- iOS readiness checks plus CI-backed simulator build/install/launch proof
+
+See also:
+
+- `docs/mobile/README.md`
+- `docs/mobile/testing.md`
+- `docs/mobile/android.md`
+- `docs/mobile/ios.md`
+- `docs/mobile/compatibility.md`
 
 ## Highlights
 

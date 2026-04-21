@@ -68,11 +68,14 @@ This design phase is intentionally distinct from feature work:
 | `share.html` | **Migrated** | ~262 → ~4 |
 | `login.html` | **Migrated** | ~215 → ~18 |
 | `register.html` | **Migrated** | ~400 → ~15 |
-| `index.html` | Pending | |
-| `pricing.html` | Pending | |
-| `netdisk.html` | Pending | |
-| `transfer.html` | Pending | |
-| `admin.html` | Pending | |
+| `pricing.html` | **Migrated (token/base imports)** | token blocks removed |
+| `payment-result.html` | **Migrated (token/base imports)** | token blocks removed |
+| `index.html` | **Token/base adopted** | homepage now imports shared token/base layer |
+| `netdisk.html` | **Token/base adopted** | logged-in core app surface imports shared token/base layer |
+| `admin.html` | **Token/base adopted** | admin surface imports shared token/base layer |
+| `transfer.html` | **Migrated (designed redirect surface)** | stub replaced with token-based redirect card |
+| `transfer-share.html` | **Migrated (designed redirect surface)** | pickup redirect now uses shared token/base layer |
+| `pdf-viewer.html` | **Token/base adopted** | viewer surface now imports shared token/base layer |
 
 ### What changed in login.html
 

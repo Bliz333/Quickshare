@@ -4,6 +4,8 @@
 
 This file covers the store-facing release checklist for both Google Play and the Apple App Store.
 
+It is an operational release guide, not a claim that store submission artifacts are tracked inside this repository.
+
 ## Shared Prerequisites
 
 Before any submission:
@@ -14,6 +16,11 @@ Before any submission:
 - screenshots are current
 - version number is final
 - testing is complete
+
+Repository implementation proof and store submission readiness are different bars:
+
+- repository proof = tracked code, native projects, tests, CI, and documented validation evidence exist in this repo
+- store readiness = signing, screenshots, metadata, review notes, and release operations are complete in the relevant store tooling
 
 ## Google Play Checklist
 

@@ -4,6 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QuickShare Redirect</title>
+    <link rel="stylesheet" href="css/design-tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <style>
+        body {
+            font-family: var(--font-family);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: radial-gradient(circle at top left, var(--color-primary-14), transparent 28%),
+                        radial-gradient(circle at bottom right, var(--color-success-10), transparent 28%),
+                        var(--bg);
+            color: var(--text);
+        }
+        .redirect-card {
+            width: min(420px, 100%);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            box-shadow: var(--sh-l);
+            padding: 28px 24px;
+            text-align: center;
+            display: grid;
+            gap: 12px;
+        }
+        .redirect-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
     <script>
         (function () {
             var params = new URLSearchParams(window.location.search);
@@ -20,7 +52,11 @@
     </script>
 </head>
 <body>
-<p>Pickup moved to <a id="target-link" href="share.html">share.html</a>.</p>
+<div class="redirect-card">
+    <h1>Pickup moved to Share</h1>
+    <p>QuickShare now uses the unified Share page for pickup tokens and public receive flows.</p>
+    <p><a id="target-link" class="redirect-link" href="share.html">Open share.html</a></p>
+</div>
 <script>
     (function () {
         var params = new URLSearchParams(window.location.search);

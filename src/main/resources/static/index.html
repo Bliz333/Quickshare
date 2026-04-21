@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/design-tokens.css">
+    <link rel="stylesheet" href="css/base.css">
 
     <script>
         (function(){var s=localStorage.getItem('quickshare-theme');
@@ -23,40 +25,6 @@
     <style>
         html.lang-pending body{opacity:0}
         html.lang-ready body{opacity:1;transition:opacity .18s ease}
-
-        /* ══════════════════════════════════════
-           Light theme — clean blue-white
-        ══════════════════════════════════════ */
-        :root{
-            --ease:cubic-bezier(.4,0,.2,1);
-            --spring:cubic-bezier(.34,1.4,.64,1);
-            --primary:#3b82f6;--primary-light:#60a5fa;--primary-dark:#2563eb;
-            --success:#10b981;--danger:#ef4444;--warning:#f59e0b;
-            --text:#1a1a2e;--text2:#64748b;--text3:#94a3b8;
-            --bg:#f0f4fa;--card:#ffffff;
-            --border:rgba(148,163,184,.16);--border-s:rgba(148,163,184,.26);
-            --glass:rgba(255,255,255,.7);
-            --orb1:rgba(59,130,246,.25);--orb2:rgba(96,165,250,.20);--orb3:rgba(16,185,129,.14);
-            --sh-s:0 1px 3px rgba(0,0,0,.04);
-            --sh-m:0 8px 28px rgba(15,23,42,.06);
-            --sh-l:0 20px 60px rgba(15,23,42,.1)
-        }
-        /* ══════════════════════════════════════
-           Dark theme — Linear.app inspired
-           Near-black bg, ultra-subtle borders,
-           muted accent, professional depth
-        ══════════════════════════════════════ */
-        .dark-mode{
-            --primary:#7c8cf5;--primary-light:#9ba5f8;--primary-dark:#6366f1;
-            --text:#ececf1;--text2:#8b8b97;--text3:#5c5c66;
-            --bg:#101012;--card:rgba(24,24,27,.85);
-            --border:rgba(255,255,255,.06);--border-s:rgba(255,255,255,.1);
-            --glass:rgba(24,24,27,.7);
-            --orb1:rgba(99,102,241,.12);--orb2:rgba(124,140,245,.08);--orb3:rgba(16,185,129,.06);
-            --sh-s:0 1px 3px rgba(0,0,0,.4);
-            --sh-m:0 8px 28px rgba(0,0,0,.4);
-            --sh-l:0 20px 60px rgba(0,0,0,.5)
-        }
 
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         body{
@@ -463,6 +431,15 @@
 
         .hidden{display:none!important}
 
+        .home-design-rail{width:100%;max-width:980px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:8px}
+        .home-design-card{padding:16px 18px;border:1px solid var(--border);border-radius:18px;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--sh-s);transition:transform .22s var(--ease),border-color .22s var(--ease),box-shadow .22s var(--ease)}
+        .home-design-card:hover{transform:translateY(-2px);border-color:var(--color-primary-26);box-shadow:var(--sh-m)}
+        .home-design-eyebrow{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--color-primary-08);color:var(--primary-dark);font-size:.68rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+        .dark-mode .home-design-eyebrow{color:var(--primary-light)}
+        .home-design-title{margin-top:12px;font-size:1rem;font-weight:700;letter-spacing:-.02em}
+        .home-design-copy{margin-top:6px;color:var(--text2);font-size:.78rem;line-height:1.6}
+        .home-design-meta{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .home-design-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--card);border:1px solid var(--border);font-size:.68rem;font-weight:600;color:var(--text2)}
         @media(max-width:580px){
             .recv-card.has-preview{max-width:calc(100vw - 40px)}
             .topbar{padding:0 14px}
@@ -480,6 +457,7 @@
             .share-cta-bar a{padding:6px 12px 6px 6px;gap:8px;max-width:min(280px,calc(100vw - 24px))}
             .share-cta-icon{width:28px;height:28px;font-size:.66rem;border-radius:8px}
             .share-cta-label{font-size:.72rem}
+            .home-design-rail{grid-template-columns:1fr;gap:10px;margin-top:0}
         }
     </style>
 </head>
@@ -504,13 +482,13 @@
             <span class="sr-only" data-i18n="homeNoticeButton">Notifications</span>
             <span id="homeNotificationBadge" class="notif-dot"></span>
         </button>
-        <button class="t-btn" onclick="location.href='netdisk.html'" title="Cloud Storage">
+        <button class="t-btn" type="button" onclick="location.href='netdisk.html'" title="Cloud Storage">
             <i class="fa-solid fa-hard-drive"></i>
         </button>
-        <button class="t-btn" id="darkModeToggle" onclick="toggleTheme()" title="Theme">
+        <button class="t-btn" id="darkModeToggle" type="button" onclick="toggleTheme()" title="Theme">
             <i class="fa-solid fa-moon"></i>
         </button>
-        <button class="t-btn t-btn-label" id="langBtn" onclick="toggleLanguage()">EN</button>
+        <button class="t-btn t-btn-label" id="langBtn" type="button" onclick="toggleLanguage()">EN</button>
         <span id="authButtons">
             <a href="login.html" class="t-btn t-btn-label" style="text-decoration:none" data-i18n="loginBtn">Login</a>
         </span>
@@ -545,9 +523,9 @@
         </div>
     </div>
     <div class="home-notice-tabs">
-        <button id="homeNoticeTabAll" class="home-notice-tab active"
+        <button id="homeNoticeTabAll" class="home-notice-tab active" type="button"
                 onclick="switchHomeNotificationTab('all')" data-i18n="homeNoticeTabAll">All</button>
-        <button id="homeNoticeTabPersonal" class="home-notice-tab"
+        <button id="homeNoticeTabPersonal" class="home-notice-tab" type="button"
                 onclick="switchHomeNotificationTab('personal')" data-i18n="homeNoticeTabPersonal">Personal</button>
     </div>
     <p id="homeNoticeLoginHint" class="home-notice-login-hint" data-i18n="homeNoticeLoginHint">Log in to see personal notifications.</p>
@@ -568,6 +546,35 @@
             <span id="wsStatusText" data-i18n="homeWsConnecting">Connecting&hellip;</span>
         </span>
     </div>
+    <section class="home-design-rail anim d3" aria-label="QuickShare product surfaces">
+        <article class="home-design-card">
+            <span class="home-design-eyebrow"><i class="fa-solid fa-bolt"></i> QuickDrop</span>
+            <h2 class="home-design-title">Direct transfer with less scanning</h2>
+            <p class="home-design-copy">The homepage now uses the shared design token palette and introduces a reusable feature-card language for primary web journeys.</p>
+            <div class="home-design-meta">
+                <span class="home-design-chip"><i class="fa-solid fa-circle-nodes"></i> same-account sync</span>
+                <span class="home-design-chip"><i class="fa-solid fa-wifi"></i> direct-first</span>
+            </div>
+        </article>
+        <article class="home-design-card">
+            <span class="home-design-eyebrow"><i class="fa-solid fa-share-nodes"></i> Share links</span>
+            <h2 class="home-design-title">One visual language across send flows</h2>
+            <p class="home-design-copy">Cards, chips, and tokenized surfaces create a more deliberate bridge between live transfer, public sharing, and cloud storage entry points.</p>
+            <div class="home-design-meta">
+                <span class="home-design-chip"><i class="fa-solid fa-palette"></i> token-driven</span>
+                <span class="home-design-chip"><i class="fa-solid fa-layer-group"></i> reusable components</span>
+            </div>
+        </article>
+        <article class="home-design-card">
+            <span class="home-design-eyebrow"><i class="fa-solid fa-hard-drive"></i> Cloud drive</span>
+            <h2 class="home-design-title">Production UI slice, not a mockup</h2>
+            <p class="home-design-copy">This homepage slice ships in the tracked frontend and is backed by the repo-visible design system artifact under static/css and docs.</p>
+            <div class="home-design-meta">
+                <span class="home-design-chip"><i class="fa-solid fa-file-code"></i> repo evidence</span>
+                <span class="home-design-chip"><i class="fa-solid fa-globe"></i> web-first</span>
+            </div>
+        </article>
+    </section>
     <div class="peers anim d3">
         <div class="section-header">
             <strong class="section-title" data-i18n="homeNearbyTitle">附近设备</strong>
@@ -613,8 +620,8 @@
     <div class="pair-row">
         <input id="homePairCodeInput" class="pair-input" type="text" maxlength="6"
                placeholder="Enter code" data-i18n-placeholder="homePairCodePlaceholder">
-        <button class="pair-btn pair-btn-fill" onclick="joinByPairCode()" data-i18n="homePairCodeJoin">Join</button>
-        <button id="homeCreatePairCodeBtn" class="pair-btn pair-btn-ghost" data-i18n="homeCreatePairCode">Generate</button>
+        <button class="pair-btn pair-btn-fill" type="button" onclick="joinByPairCode()" data-i18n="homePairCodeJoin">Join</button>
+        <button id="homeCreatePairCodeBtn" class="pair-btn pair-btn-ghost" type="button" data-i18n="homeCreatePairCode">Generate</button>
     </div>
 </footer>
 
@@ -647,7 +654,7 @@
             <button id="receiveCopyTextBtn" class="recv-sec hidden" type="button" title="Copy text"><i class="fa-solid fa-copy"></i></button>
             <button id="receiveCopyLinkBtn" class="recv-sec" type="button" title="Copy link"><i class="fa-solid fa-link"></i></button>
             <button id="receiveSaveBtn" class="recv-sec hidden" type="button" title="Save to cloud"><i class="fa-solid fa-hard-drive"></i></button>
-            <button class="recv-sec" onclick="closeReceiveCard()" title="Close"><i class="fa-solid fa-xmark"></i></button>
+            <button class="recv-sec" type="button" onclick="closeReceiveCard()" title="Close"><i class="fa-solid fa-xmark"></i></button>
         </div>
     </div>
 </div>
@@ -730,10 +737,14 @@
         });
         function tick(){
             var factors=[80,60,45];
-            for(var i=0;i<orbs.length;i++){
-                var f=factors[i]||25;
-                var tx=(mx-0.5)*f;
-                var ty=(my-0.5)*f;
+            var i;
+            var f;
+            var tx;
+            var ty;
+            for(i=0;i<orbs.length;i++){
+                f=factors[i]||25;
+                tx=(mx-0.5)*f;
+                ty=(my-0.5)*f;
                 orbs[i].style.transform='translate('+tx+'px,'+ty+'px)';
             }
             requestAnimationFrame(tick);

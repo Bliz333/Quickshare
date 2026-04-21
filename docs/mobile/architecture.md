@@ -90,16 +90,33 @@ This is not a separate client technology choice; it is a scope choice.
 
 **Recommendation**: do not make this the day-one requirement.
 
-## Recommended Path
+## Current Implementation Update
 
-### Recommended product sequence
+The tracked repository has already moved beyond pure planning:
 
-1. **Decide the mobile client technology** (Flutter / React Native / native)
-2. **Ship core account and file flows first**
-3. **Add same-account device convenience second**
-4. **Treat full QuickDrop/direct-transfer parity as phase two**
+- the Expo mobile client exists under `mobile/`
+- generated native Android and iOS projects exist under `mobile/android/` and `mobile/ios/`
+- mobile direct-transfer groundwork is implemented, including:
+  - RTC config fetch
+  - direct-session creation
+  - WebSocket signaling client
+  - local peer-connection and data-channel setup
+  - packet protocol encode/decode
+  - incoming chunk persistence / assembly
+  - backend direct-attempt sync
 
-## Recommended v1 mobile scope
+That means QuickShare is no longer deciding whether to start mobile direct-transfer work; it is deciding how much further to harden and validate the current tracked implementation.
+
+## Current Product Shape
+
+### Sequence already reflected in the tracked baseline
+
+1. **A dedicated mobile client route was chosen** on top of the current backend
+2. **Core account and file flows were implemented first**
+3. **Same-account device convenience was added next**
+4. **Further QuickDrop/direct-transfer parity work is now optional hardening on top of the tracked baseline, not a prerequisite for the baseline to exist**
+
+## Baseline mobile scope already represented in the repository
 
 Ship first:
 
@@ -110,10 +127,10 @@ Ship first:
 - pickup shared file
 - save shared file to account storage
 
-Delay to a later phase:
+Optional follow-on work, not baseline gaps:
 
-- complete browser-parity QuickDrop UX
-- complex WebRTC-style direct device transfer flows
+- complete browser-parity QuickDrop UX across all edge cases
+- broader real-device / real-network validation of the already implemented direct-transfer path
 - advanced LAN discovery assumptions copied from the web UI
 
 ## Why the web frontend itself is not the ideal long-term mobile client

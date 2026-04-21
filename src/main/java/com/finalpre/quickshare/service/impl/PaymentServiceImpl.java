@@ -47,7 +47,7 @@ public class PaymentServiceImpl implements PaymentService {
     private QuotaService quotaService;
 
     @Override
-    public String createOrder(Long userId, Long planId, Long providerId, String payType, String returnUrl) {
+    public String createOrder(Long userId, Long planId, Long providerId, String payType, String returnUrl, String notifyUrl) {
         PaymentProvider provider = resolveProvider(providerId);
 
         Plan plan = planMapper.selectById(planId);
@@ -77,8 +77,6 @@ public class PaymentServiceImpl implements PaymentService {
         orderMapper.insert(order);
 
         // Build epay redirect URL
-        String notifyUrl = buildNotifyUrl(returnUrl);
-
         TreeMap<String, String> params = new TreeMap<>();
         params.put("pid", provider.getPid());
         params.put("type", normalizedPayType);
@@ -223,15 +221,6 @@ public class PaymentServiceImpl implements PaymentService {
         if (sb.length() > 0) sb.setLength(sb.length() - 1);
         sb.append(merchantKey);
         return DigestUtil.md5Hex(sb.toString());
-    }
-
-    private String buildNotifyUrl(String returnUrl) {
-        try {
-            java.net.URL url = new java.net.URL(returnUrl);
-            return url.getProtocol() + "://" + url.getAuthority() + "/api/payment/notify";
-        } catch (Exception e) {
-            return returnUrl.replaceAll("/[^/]*$", "/api/payment/notify");
-        }
     }
 
     private PaymentProvider resolveProvider(Long providerId) {

@@ -2,17 +2,124 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuickShare Redirect</title>
-    <meta http-equiv="refresh" content="0; url=index.html">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QuickShare Transfer Redirect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/design-tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <style>
+        body {
+            font-family: 'Outfit', system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: radial-gradient(circle at top left, var(--color-primary-14), transparent 28%),
+                        radial-gradient(circle at bottom right, var(--color-success-10), transparent 28%),
+                        var(--bg);
+            color: var(--text);
+        }
+        .redirect-card {
+            width: min(440px, 100%);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--sh-l);
+            padding: 32px 28px;
+            text-align: center;
+            display: grid;
+            gap: 14px;
+        }
+        .redirect-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto;
+            border-radius: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--color-primary-08);
+            color: var(--primary);
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+        .redirect-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: var(--tracking-tight);
+        }
+        .redirect-copy {
+            color: var(--text2);
+            line-height: 1.65;
+            font-size: .9rem;
+        }
+        .redirect-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+        .redirect-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 0 18px;
+            border-radius: 14px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all .22s var(--ease);
+        }
+        .redirect-link.primary {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            color: #fff;
+            box-shadow: var(--sh-m);
+        }
+        .redirect-link.secondary {
+            background: var(--card);
+            color: var(--text2);
+            border: 1px solid var(--border-s);
+        }
+        .redirect-link:hover { transform: translateY(-1px); }
+    </style>
     <script>
         (function () {
-            var target = 'index.html' + window.location.search + window.location.hash;
-            window.location.replace(target);
+            const saved = localStorage.getItem('quickshare-theme');
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark-mode');
+            }
         })();
     </script>
 </head>
 <body>
-<p>Quick transfer moved to <a href="index.html">index.html</a>.</p>
+<div class="redirect-card">
+    <div class="redirect-icon">⇄</div>
+    <h1 class="redirect-title">Transfer moved to the homepage</h1>
+    <p class="redirect-copy">
+        QuickShare now starts temporary and same-account transfer flows from the main homepage so discovery, pairing,
+        and receive feedback all stay in one place.
+    </p>
+    <div class="redirect-actions">
+        <a class="redirect-link primary" id="transfer-target-link" href="index.html">Open homepage transfer</a>
+        <a class="redirect-link secondary" href="share.html">Open share & pickup</a>
+    </div>
+</div>
+<script>
+    (function () {
+        const target = 'index.html' + window.location.search + window.location.hash;
+        const link = document.getElementById('transfer-target-link');
+        if (link) {
+            link.href = target;
+        }
+        window.setTimeout(function () {
+            window.location.replace(target);
+        }, 120);
+    })();
+</script>
 </body>
 </html>

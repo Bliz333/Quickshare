@@ -15,23 +15,9 @@
             }
         })();
     </script>
+    <link rel="stylesheet" href="css/design-tokens.css">
+    <link rel="stylesheet" href="css/base.css">
     <style>
-        :root {
-            --primary: #0ea5e9; --primary-light: #38bdf8; --primary-dark: #0284c7;
-            --accent: #14b8a6; --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
-            --text-main: #0f172a; --text-sub: #64748b;
-            --bg-light: #f8fafc; --bg-card: #ffffff; --border-color: #e2e8f0;
-            --glass-bg: rgba(255,255,255,0.82); --glass-border: rgba(255,255,255,0.58);
-            --shadow-panel: 0 24px 60px rgba(15,23,42,0.08);
-        }
-        .dark-mode {
-            --primary: #6366f1; --primary-light: #818cf8; --primary-dark: #4f46e5;
-            --accent: #22d3ee; --success: #34d399; --warning: #fbbf24; --danger: #f87171;
-            --text-main: #f1f5f9; --text-sub: #94a3b8;
-            --bg-light: #020617; --bg-card: #0f172a; --border-color: #1e293b;
-            --glass-bg: rgba(15,23,42,0.82); --glass-border: rgba(148,163,184,0.14);
-            --shadow-panel: 0 24px 60px rgba(2,6,23,0.45);
-        }
         body { font-family:'Outfit',sans-serif; background: radial-gradient(circle at top left,rgba(56,189,248,0.18),transparent 32%), radial-gradient(circle at bottom right,rgba(20,184,166,0.14),transparent 32%), var(--bg-light); color:var(--text-main); min-height:100vh; display:flex; align-items:center; justify-content:center; }
         .glass-card { background:var(--glass-bg); border:1px solid var(--glass-border); backdrop-filter:blur(18px); border-radius:28px; box-shadow:var(--shadow-panel); }
         .result-icon { width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:2rem; margin:0 auto 20px; }

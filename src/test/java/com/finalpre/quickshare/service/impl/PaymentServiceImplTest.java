@@ -62,11 +62,46 @@ class PaymentServiceImplTest {
         when(providerMapper.selectOne(any())).thenReturn(provider);
         when(planMapper.selectById(8L)).thenReturn(plan);
 
-        assertThatThrownBy(() -> paymentService.createOrder(7L, 8L, null, "qqpay", "https://quickshare.example/payment-result.html"))
+        assertThatThrownBy(() -> paymentService.createOrder(
+                7L,
+                8L,
+                null,
+                "qqpay",
+                "https://quickshare.example/payment-result.html",
+                "https://quickshare.example/api/payment/notify"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("当前支付商户不支持该支付方式");
 
         verify(orderMapper, never()).insert(any(PaymentOrder.class));
+    }
+
+    @Test
+    void createOrderShouldKeepReturnUrlAndNotifyUrlSeparate() {
+        PaymentProvider provider = buildProvider();
+        provider.setPayTypes("alipay,wxpay");
+
+        Plan plan = new Plan();
+        plan.setId(8L);
+        plan.setName("VIP Monthly");
+        plan.setStatus(1);
+        plan.setPrice(new BigDecimal("19.99"));
+        plan.setType("vip");
+        plan.setValue(30L);
+
+        when(providerMapper.selectOne(any())).thenReturn(provider);
+        when(planMapper.selectById(8L)).thenReturn(plan);
+
+        String redirectUrl = paymentService.createOrder(
+                7L,
+                8L,
+                null,
+                "alipay",
+                "quicksharemobile://payment-result",
+                "https://quickshare.example/api/payment/notify");
+
+        assertThat(redirectUrl)
+                .contains("return_url=quicksharemobile%3A%2F%2Fpayment-result")
+                .contains("notify_url=https%3A%2F%2Fquickshare.example%2Fapi%2Fpayment%2Fnotify");
     }
 
     @Test

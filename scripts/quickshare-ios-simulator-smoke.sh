@@ -17,6 +17,27 @@ APP_BUNDLE_ID="${IOS_APP_BUNDLE_ID:-com.anonymous.quicksharemobile}"
 SCREENSHOT_PATH="${IOS_SCREENSHOT_PATH:-$IOS_DIR/build/ios-simulator-launch.png}"
 APP_PATH="$DERIVED_DATA_PATH/Build/Products/${CONFIGURATION}-iphonesimulator/${SCHEME}.app"
 
+resolve_simulator_name() {
+  local requested="$1"
+  local available_list
+  local fallback
+
+  available_list="$(xcrun simctl list devices available)"
+  if printf '%s\n' "$available_list" | grep -Fq "${requested} ("; then
+    printf '%s' "$requested"
+    return 0
+  fi
+
+  fallback="$(printf '%s\n' "$available_list" | sed -n 's/^ *\(iPhone[^()]*\) (.*/\1/p' | head -n 1)"
+  if [[ -n "$fallback" ]]; then
+    printf '%s' "$fallback"
+    return 0
+  fi
+
+  echo "[ios-sim-smoke] no available iPhone simulator found" >&2
+  exit 1
+}
+
 if [[ ! -d "$IOS_DIR" ]]; then
   echo "[ios-sim-smoke] missing iOS directory: $IOS_DIR" >&2
   exit 1
@@ -32,6 +53,9 @@ mkdir -p "$(dirname "$SCREENSHOT_PATH")"
 
 pushd "$IOS_DIR" >/dev/null
 trap 'popd >/dev/null' EXIT
+
+SIMULATOR_NAME="$(resolve_simulator_name "$SIMULATOR_NAME")"
+echo "[ios-sim-smoke] using simulator: $SIMULATOR_NAME"
 
 echo "[ios-sim-smoke] pod install"
 pod install

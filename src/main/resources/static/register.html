@@ -10,7 +10,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- 防止主题闪烁 -->
     <script>
         (function() {
             const saved = localStorage.getItem('quickshare-theme');
@@ -20,407 +19,22 @@
         })();
     </script>
 
+    <!-- Design-system CSS layer: tokens → base → components -->
+    <link rel="stylesheet" href="css/design-tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+
     <style>
-        /* ==================== 浅色主题（默认） ==================== */
-        :root {
-            --primary: #3b82f6;
-            --primary-light: #60a5fa;
-            --primary-dark: #2563eb;
-            --accent: #06b6d4;
-            --success: #10b981;
-            --danger: #ef4444;
-            --text-main: #1a1a2e;
-            --text-sub: #64748b;
-            --bg-light: #f0f4fa;
-            --bg-card: #ffffff;
-            --border-color: rgba(148,163,184,.26);
-            --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.04);
-            --shadow-strong: 0 20px 40px rgba(15, 23, 42, 0.08);
-            --radius: 20px;
-        }
-
-        .dark-mode {
-            --primary: #7c8cf5;
-            --primary-light: #9ba5f8;
-            --primary-dark: #6366f1;
-            --accent: #3b82f6;
-            --success: #10b981;
-            --danger: #f87171;
-            --text-main: #ececf1;
-            --text-sub: #8b8b97;
-            --bg-light: #101012;
-            --bg-card: rgba(24,24,27,.92);
-            --border-color: rgba(255,255,255,.1);
-            --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.4);
-            --shadow-strong: 0 20px 40px rgba(0, 0, 0, 0.5);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-light);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px 15px;
-            overflow-x: hidden;
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        /* 动态背景 */
-        .bg-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; opacity: 0.3; }
-        .blob { position: absolute; filter: blur(100px); opacity: 0.6; border-radius: 50%; animation: float 20s infinite alternate; }
+        .bg-glow { z-index: -1; opacity: 0.3; }
         .blob-1 { top: -15%; left: -10%; width: 45vw; height: 45vw; background: #93c5fd; }
         .blob-2 { bottom: -15%; right: -10%; width: 55vw; height: 55vw; background: #f472b6; animation-delay: -7s; }
         .blob-3 { top: 40%; right: 20%; width: 25vw; height: 25vw; background: #7dd3fc; opacity: 0.4; animation-delay: -12s; }
-
         .dark-mode .blob-1 { background: #4f46e5; }
         .dark-mode .blob-2 { background: #be185d; }
         .dark-mode .blob-3 { background: #818cf8; }
-
-        @keyframes float {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            100% { transform: translate(40px, 40px) rotate(15deg); }
-        }
-
-        /* ========== 顶部按钮组 ========== */
-        .top-buttons {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            gap: 10px;
-            z-index: 100;
-        }
-
-        .top-btn {
-            background: var(--bg-card);
-            color: var(--text-sub);
-            border: 1px solid var(--border-color);
-            padding: 8px 14px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 500;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            box-shadow: var(--shadow-subtle);
-        }
-
-        .top-btn:hover {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            transform: translateY(-2px);
-        }
-
         #darkModeToggle { width: 40px; padding: 8px; }
-        #darkModeToggle i { font-size: 1rem; transition: transform 0.3s; }
+        #darkModeToggle i { font-size: 1rem; transition: transform .3s; }
         #darkModeToggle:hover i { transform: rotate(20deg) scale(1.1); }
-
-        .back-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-        }
-
-        /* Main Card */
-        .register-container {
-            position: relative;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            padding: 40px 35px;
-            width: 100%;
-            max-width: 480px;
-            box-shadow: var(--shadow-strong);
-            margin-top: 50px;
-            animation: fadeIn 0.5s ease-out;
-            transition: all 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.96) translateY(20px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-
-        .logo { text-align: center; margin-bottom: 30px; }
-        .logo h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary-dark);
-            margin-bottom: 6px;
-            transition: color 0.3s;
-            letter-spacing: -.02em;
-        }
-        .dark-mode .logo h1 { color: var(--primary-light); }
-        .logo p { color: var(--text-sub); font-size: 0.9rem; }
-
-        /* Form Groups */
-        .form-group { margin-bottom: 18px; }
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.85rem;
-            color: var(--text-sub);
-            font-weight: 600;
-            padding-left: 4px;
-        }
-        .form-group label i { margin-right: 5px; }
-
-        .input-wrapper { position: relative; }
-        .input-icon {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-sub);
-            pointer-events: none;
-            transition: 0.3s;
-            font-size: 0.9rem;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 12px 14px 12px 42px;
-            background: var(--bg-light);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            font-size: 0.95rem;
-            color: var(--text-main);
-            transition: 0.3s;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary);
-            background: var(--bg-card);
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
-        }
-        .dark-mode .form-control:focus {
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-        }
-        .form-control:focus + .input-icon { color: var(--primary); }
-        .form-control::placeholder { color: var(--text-sub); opacity: 0.6; }
-
-        .form-group small {
-            display: block;
-            color: var(--text-sub);
-            font-size: 0.72rem;
-            margin-top: 4px;
-            padding-left: 4px;
-            opacity: 0.8;
-        }
-
-        /* Grid for password fields */
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        /* Email Row */
-        .email-row {
-            display: flex;
-            gap: 10px;
-        }
-        .email-row .input-wrapper { flex: 1; }
-
-        .btn-code {
-            padding: 0 18px;
-            background: var(--bg-light);
-            border: 1px solid var(--border-color);
-            color: var(--primary);
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 0.82rem;
-            font-weight: 600;
-            transition: 0.3s;
-            white-space: nowrap;
-        }
-        .btn-code:hover:not(:disabled) {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-        .btn-code:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            color: var(--text-sub);
-        }
-
-        /* Submit Button */
-        .btn-submit {
-            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 12px;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        .btn-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
-        }
-        .btn-submit:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .dark-mode .btn-submit {
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-        .dark-mode .btn-submit:hover {
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
-        }
-
-        /* Recaptcha */
-        .captcha-container {
-            display: flex;
-            justify-content: center;
-            margin: 18px 0 5px;
-            transform: scale(0.92);
-            transform-origin: center;
-        }
-
-        /* Links */
-        .links {
-            margin-top: 22px;
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--text-sub);
-        }
-        .links a {
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 600;
-            margin-left: 5px;
-            transition: 0.2s;
-        }
-        .links a:hover {
-            color: var(--primary-dark);
-            text-decoration: underline;
-        }
-        .dark-mode .links a:hover { color: var(--primary-light); }
-
-        /* Divider */
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 20px 0;
-            color: var(--text-sub);
-            font-size: 0.8rem;
-        }
-        .divider::before, .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border-color);
-        }
-        .divider span { padding: 0 12px; }
-
-        /* Toast */
-        .toast-container { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 1000; }
-        .toast {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 12px 22px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: var(--shadow-strong);
-            transform: translateY(-30px);
-            opacity: 0;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-            font-size: 0.9rem;
-        }
-        .toast.show { transform: translateY(0); opacity: 1; }
-        .toast.success { border-left: 4px solid var(--success); }
-        .toast.success i { color: var(--success); }
-        .toast.error { border-left: 4px solid var(--danger); }
-        .toast.error i { color: var(--danger); }
-
-        /* Responsive */
-        @media (max-width: 520px) {
-            .register-container { padding: 30px 22px; margin-top: 70px; }
-            .form-row { grid-template-columns: 1fr; gap: 0; }
-            .email-row { flex-direction: column; gap: 10px; }
-            .btn-code { width: 100%; padding: 12px; }
-            .top-btn span { display: none; }
-            .back-btn { padding: 10px 14px; }
-            .captcha-container { transform: scale(0.85); }
-        }
-
-        .hidden { display: none !important; }
-
-        /* ─── Logo brand icon ─── */
-        .logo-icon{
-            width:46px;height:46px;border-radius:14px;
-            background:linear-gradient(135deg, var(--primary-light), var(--primary));
-            display:inline-flex;align-items:center;justify-content:center;
-            color:#fff;font-size:1.15rem;margin-bottom:14px;
-            box-shadow:0 6px 20px rgba(59,130,246,.18)
-        }
-        .dark-mode .logo-icon{box-shadow:0 6px 20px rgba(124,140,245,.12)}
-
-        /* ─── Card top accent ─── */
-        .register-container::before{
-            content:'';position:absolute;top:0;left:32px;right:32px;
-            height:3px;border-radius:0 0 3px 3px;
-            background:linear-gradient(90deg, var(--primary-light), var(--primary), var(--primary-light));
-            opacity:.65
-        }
-
-        /* ─── Social login buttons ─── */
-        .social-buttons{display:flex;gap:12px;margin-top:2px}
-        .social-btn{
-            flex:1;padding:11px;border:1px solid var(--border-color);
-            border-radius:12px;background:var(--card);color:var(--text-sub);
-            cursor:pointer;font-size:.84rem;font-weight:600;
-            display:flex;align-items:center;justify-content:center;gap:8px;
-            transition:all .3s;font-family:'Outfit',sans-serif
-        }
-        .social-btn:hover{
-            border-color:var(--primary);color:var(--primary);background:var(--bg-light);
-            transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,.1)
-        }
-        .social-btn:active{transform:translateY(0) scale(.98)}
-        .social-btn i{font-size:1.08rem}
-
-        /* ─── Card footer ─── */
-        .card-footer{
-            text-align:center;font-size:.9rem;color:var(--text-sub);
-            margin-top:24px;padding-top:20px;
-            border-top:1px solid var(--border-color)
-        }
-        .card-footer a{
-            color:var(--primary);text-decoration:none;font-weight:600;
-            margin-left:5px;transition:.2s
-        }
-        .card-footer a:hover{color:var(--primary-dark)}
-        .dark-mode .card-footer a:hover{color:var(--primary-light)}
     </style>
 </head>
 <body data-mascot-scene="register">
@@ -433,13 +47,11 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- 返回按钮 -->
 <a href="index.html" class="top-btn back-btn">
     <i class="fa-solid fa-arrow-left"></i>
     <span style="margin-left: 6px;" data-i18n="backHome">Back to Home</span>
 </a>
 
-<!-- 顶部按钮组 -->
 <div class="top-buttons">
     <button class="top-btn" id="darkModeToggle" onclick="toggleTheme()" title="Toggle theme">
         <i class="fa-solid fa-moon"></i>
@@ -455,7 +67,6 @@
     </div>
 
     <form id="registerForm" onsubmit="handleRegister(event)">
-        <!-- 用户名 -->
         <div class="form-group">
             <label data-i18n="usernameLabel"><i class="fa-regular fa-user"></i>Username *</label>
             <div class="input-wrapper">
@@ -465,7 +76,6 @@
             <small data-i18n="usernameHint">At least 3 characters</small>
         </div>
 
-        <!-- 密码 -->
         <div class="form-row">
             <div class="form-group">
                 <label data-i18n="passwordLabel"><i class="fa-solid fa-lock"></i>Password *</label>
@@ -483,7 +93,6 @@
             </div>
         </div>
 
-        <!-- 邮箱 -->
         <div class="form-group" id="emailGroup">
             <label data-i18n="emailLabel"><i class="fa-regular fa-envelope"></i>Email *</label>
             <div class="email-row">
@@ -497,7 +106,6 @@
             </div>
         </div>
 
-        <!-- 验证码 -->
         <div class="form-group" id="verificationCodeGroup">
             <label data-i18n="verificationCodeLabel"><i class="fa-solid fa-shield-halved"></i>Verification Code *</label>
             <div class="input-wrapper">
@@ -506,7 +114,6 @@
             </div>
         </div>
 
-        <!-- 昵称 -->
         <div class="form-group">
             <label data-i18n="nicknameLabel"><i class="fa-regular fa-face-smile"></i>Nickname (optional)</label>
             <div class="input-wrapper">
@@ -515,7 +122,6 @@
             </div>
         </div>
 
-        <!-- reCAPTCHA -->
         <div class="captcha-container hidden" id="captchaContainer">
         </div>
 
@@ -535,7 +141,6 @@
     </div>
 </div>
 
-<!-- JS 文件 -->
 <script src="js/config.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/lang-switch.js"></script>

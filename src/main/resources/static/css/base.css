@@ -1,0 +1,142 @@
+/**
+ * QuickShare Design System — Base Layer
+ * =======================================
+ *
+ * Reset, body defaults, utility classes, and shared primitives.
+ * Load AFTER design-tokens.css.
+ *
+ * Every page in QuickShare should import this file to get a
+ * consistent baseline.  Component-specific styles live in
+ * components.css.
+ *
+ * CHANGELOG:
+ *   v1 (2026-04-21) — Initial extraction from share.html inline styles.
+ */
+
+/* ═══════════════════════════════════════════════════
+   §1  RESET
+   ═══════════════════════════════════════════════════ */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   §2  BODY
+   ═══════════════════════════════════════════════════ */
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  transition: background var(--duration-slow) var(--ease-out),
+              color var(--duration-slow) var(--ease-out);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   §3  UTILITY CLASSES
+   ═══════════════════════════════════════════════════ */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.hidden {
+  display: none;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   §4  KEYFRAME ANIMATIONS
+   ═══════════════════════════════════════════════════ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ═══════════════════════════════════════════════════
+   §5  TOAST SYSTEM
+   ═══════════════════════════════════════════════════ */
+
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 18px;
+  border-radius: var(--radius-2xl);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  box-shadow: var(--sh-m);
+  transform: translateY(16px);
+  opacity: 0;
+  transition: all var(--duration-md) var(--ease-out);
+  pointer-events: auto;
+  max-width: min(360px, 90vw);
+  text-align: center;
+}
+
+.toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error   { border-left: 3px solid var(--danger);  }
+.toast.warning { border-left: 3px solid var(--warning); }
+.toast.info    { border-left: 3px solid var(--primary); }
+
+
+/* ═══════════════════════════════════════════════════
+   §6  SPINNER
+   ═══════════════════════════════════════════════════ */
+
+.loading-spinner {
+  width: 17px;
+  height: 17px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}

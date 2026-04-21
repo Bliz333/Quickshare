@@ -15,203 +15,29 @@
         document.documentElement.classList.add('dark-mode')})();
     </script>
 
+    <!-- Design-system CSS layer: tokens → base → components -->
+    <link rel="stylesheet" href="css/design-tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+
     <style>
-        :root{
-            --ease:cubic-bezier(.4,0,.2,1);
-            --primary:#3b82f6;--primary-light:#60a5fa;--primary-dark:#2563eb;
-            --success:#10b981;--danger:#ef4444;
-            --text:#1a1a2e;--text2:#64748b;--text3:#94a3b8;
-            --bg:#f0f4fa;--card:#ffffff;
-            --border:rgba(148,163,184,.16);--border-s:rgba(148,163,184,.26);
-            --orb1:rgba(59,130,246,.25);--orb2:rgba(96,165,250,.20);--orb3:rgba(16,185,129,.14);
-            --sh:0 20px 60px rgba(15,23,42,.08)
+        body {
+            font-family: var(--font-family);
+            font-size: clamp(15px, 0.5vw + 13px, 18px);
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
         }
-        .dark-mode{
-            --primary:#7c8cf5;--primary-light:#9ba5f8;--primary-dark:#6366f1;
-            --text:#ececf1;--text2:#8b8b97;--text3:#5c5c66;
-            --bg:#101012;--card:rgba(24,24,27,.92);
-            --border:rgba(255,255,255,.06);--border-s:rgba(255,255,255,.1);
-            --orb1:rgba(99,102,241,.12);--orb2:rgba(124,140,245,.08);--orb3:rgba(16,185,129,.06);
-            --sh:0 20px 60px rgba(0,0,0,.4)
+        .t-btn {
+            border: 1px solid var(--border-s);
+            border-radius: 10px;
+            background: var(--card);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         }
-
-        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-        body{
-            font-family:'Outfit',system-ui,sans-serif;
-            font-size:clamp(15px, 0.5vw + 13px, 18px);
-            background:var(--bg);color:var(--text);
-            min-height:100vh;display:flex;justify-content:center;align-items:center;
-            padding:20px;overflow-x:hidden;
-            transition:background .4s var(--ease),color .4s var(--ease)
-        }
-
-        /* Animated background orbs */
-        .bg-glow{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
-        .bg-orb{
-            position:absolute;border-radius:50%;filter:blur(90px);
-            will-change:transform;transition:transform 1.2s cubic-bezier(.22,1,.36,1)
-        }
-        .bg-orb-1{width:45vw;height:45vw;max-width:500px;max-height:500px;background:var(--orb1);top:-8%;left:-6%}
-        .bg-orb-2{width:38vw;height:38vw;max-width:420px;max-height:420px;background:var(--orb2);bottom:-6%;right:-5%}
-        .bg-orb-3{width:25vw;height:25vw;max-width:300px;max-height:300px;background:var(--orb3);top:40%;left:50%}
-
-        /* Top controls */
-        .top-actions{
-            position:fixed;top:16px;right:16px;z-index:100;
-            display:flex;gap:4px
-        }
-        .back-link{
-            position:fixed;top:16px;left:16px;z-index:100;
-            display:inline-flex;align-items:center;gap:6px;
-            padding:7px 14px;border-radius:10px;
-            background:var(--card);border:1px solid var(--border-s);
-            color:var(--text2);text-decoration:none;font-size:.82rem;font-weight:600;
-            font-family:inherit;transition:all .22s var(--ease);
-            backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
-        }
-        .back-link:hover{border-color:var(--primary);color:var(--primary)}
-        .t-btn{
-            width:36px;height:36px;border:1px solid var(--border-s);border-radius:10px;
-            background:var(--card);color:var(--text2);cursor:pointer;font-size:.82rem;
-            display:inline-flex;align-items:center;justify-content:center;
-            transition:all .22s var(--ease);font-family:inherit;font-weight:600;
-            backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
-        }
-        .t-btn:hover{border-color:var(--primary);color:var(--primary)}
-        .t-btn:active{transform:scale(.9)}
-        .t-btn-label{width:auto;padding:0 12px;border-radius:10px;font-size:.76rem}
-
-        /* Login card */
-        @keyframes cardIn{from{opacity:0;transform:translateY(20px) scale(.98)}to{opacity:1;transform:none}}
-        .login-card{
-            position:relative;z-index:1;
-            background:var(--card);border:1px solid var(--border-s);
-            border-radius:20px;padding:44px 36px;
-            width:100%;max-width:400px;
-            box-shadow:var(--sh);
-            animation:cardIn .5s var(--ease) both;
-            backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)
-        }
-        .dark-mode .login-card{background:rgba(24,24,27,.88)}
-
-        .logo{text-align:center;margin-bottom:32px}
-        .logo h1{font-size:1.85rem;font-weight:700;color:var(--primary-dark);margin-bottom:6px;letter-spacing:-.02em}
-        .dark-mode .logo h1{color:var(--primary-light)}
-        .logo p{font-size:.88rem;color:var(--text2);font-weight:400}
-
-        .form-group{margin-bottom:18px}
-        .form-group label{
-            display:block;margin-bottom:6px;font-size:.8rem;
-            color:var(--text2);font-weight:600
-        }
-        .input-wrap{position:relative}
-        .input-icon{
-            position:absolute;left:14px;top:50%;transform:translateY(-50%);
-            color:var(--text3);pointer-events:none;transition:color .2s;font-size:.85rem
-        }
-        .form-group input{
-            width:100%;padding:13px 14px 13px 42px;
-            background:var(--bg);border:1px solid var(--border-s);
-            border-radius:12px;font-size:.9rem;color:var(--text);
-            font-family:inherit;outline:none;
-            transition:border-color .22s,box-shadow .22s,background .22s
-        }
-        .form-group input:focus{
-            border-color:var(--primary);
-            box-shadow:0 0 0 3px rgba(59,130,246,.1);
-            background:var(--card)
-        }
-        .dark-mode .form-group input{background:rgba(255,255,255,.04)}
-        .dark-mode .form-group input:focus{box-shadow:0 0 0 3px rgba(124,140,245,.1);background:rgba(255,255,255,.06)}
-        .form-group input:focus+.input-icon{color:var(--primary)}
-        .form-group input::placeholder{color:var(--text3)}
-
-        .btn{
-            width:100%;padding:14px;border:none;border-radius:12px;
-            background:linear-gradient(135deg,var(--primary-light),var(--primary));
-            color:#fff;font-size:.92rem;font-weight:600;cursor:pointer;
-            font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;
-            margin-top:6px;transition:all .22s var(--ease);
-            box-shadow:0 4px 16px rgba(59,130,246,.2)
-        }
-        .btn:hover{filter:brightness(1.06);transform:translateY(-1px)}
-        .btn:active{transform:translateY(0) scale(.98)}
-        .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-        .dark-mode .btn{box-shadow:0 4px 16px rgba(124,140,245,.15)}
-
-        .divider{display:flex;align-items:center;margin:22px 0;color:var(--text3);font-size:.8rem}
-        .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border-s)}
-        .divider span{padding:0 14px}
-
-        .links{text-align:center;font-size:.88rem;color:var(--text2)}
-        .links a{color:var(--primary);text-decoration:none;font-weight:600;margin-left:4px;transition:color .2s}
-        .links a:hover{color:var(--primary-dark)}
-        .dark-mode .links a:hover{color:var(--primary-light)}
-
-        /* Toast */
-        .toast-container{position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:1000}
-        .toast{
-            background:var(--card);border:1px solid var(--border-s);color:var(--text);
-            padding:12px 20px;border-radius:12px;margin-bottom:8px;
-            display:flex;align-items:center;gap:10px;box-shadow:var(--sh);
-            transform:translateY(-20px);opacity:0;transition:all .3s var(--ease);white-space:nowrap
-        }
-        .toast.show{transform:translateY(0);opacity:1}
-        .toast.success{border-left:3px solid var(--success)}.toast.success i{color:var(--success)}
-        .toast.error{border-left:3px solid var(--danger)}.toast.error i{color:var(--danger)}
-
-        @media(max-width:480px){
-            .login-card{padding:36px 24px}
-            .back-link span{display:none}
-        }
-
-        /* ─── Logo brand icon ─── */
-        .logo-icon{
-            width:46px;height:46px;border-radius:14px;
-            background:linear-gradient(135deg,var(--primary-light),var(--primary));
-            display:inline-flex;align-items:center;justify-content:center;
-            color:#fff;font-size:1.15rem;margin-bottom:14px;
-            box-shadow:0 6px 20px rgba(59,130,246,.18)
-        }
-        .dark-mode .logo-icon{box-shadow:0 6px 20px rgba(124,140,245,.12)}
-
-        /* ─── Card top accent ─── */
-        .login-card::before{
-            content:'';position:absolute;top:0;left:32px;right:32px;
-            height:3px;border-radius:0 0 3px 3px;
-            background:linear-gradient(90deg,var(--primary-light),var(--primary),var(--primary-light));
-            opacity:.65
-        }
-
-        /* ─── Social login buttons ─── */
-        .social-buttons{display:flex;gap:12px;margin-top:2px}
-        .social-btn{
-            flex:1;padding:11px;border:1px solid var(--border-s);
-            border-radius:12px;background:var(--card);color:var(--text2);
-            cursor:pointer;font-size:.84rem;font-weight:600;
-            display:flex;align-items:center;justify-content:center;gap:8px;
-            transition:all .22s var(--ease);font-family:inherit
-        }
-        .social-btn:hover{
-            border-color:var(--primary);color:var(--primary);background:var(--bg);
-            transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,.1)
-        }
-        .dark-mode .social-btn:hover{box-shadow:0 4px 12px rgba(124,140,245,.1)}
-        .social-btn:active{transform:translateY(0) scale(.98)}
-        .social-btn i{font-size:1.08rem}
-
-        /* ─── Card footer ─── */
-        .card-footer{
-            text-align:center;font-size:.88rem;color:var(--text2);
-            margin-top:24px;padding-top:20px;
-            border-top:1px solid var(--border)
-        }
-        .card-footer a{
-            color:var(--primary);text-decoration:none;font-weight:600;
-            margin-left:4px;transition:color .2s
-        }
-        .card-footer a:hover{color:var(--primary-dark)}
-        .dark-mode .card-footer a:hover{color:var(--primary-light)}
+        .t-btn:active { transform: scale(.9); }
+        .t-btn-label { border-radius: 10px; font-size: .76rem; }
     </style>
 </head>
 <body data-mascot-scene="login">
@@ -287,7 +113,6 @@
 <script>
     initMascots();
 
-    /* Mouse-following orbs */
     (function(){
         var orbs=document.querySelectorAll('.bg-orb');
         var mx=0.5,my=0.5;

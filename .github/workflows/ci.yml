@@ -44,7 +44,7 @@ jobs:
         run: ./mvnw -B -q package -DskipTests
 
       - name: Repo smoke
-        run: ./scripts/quickshare-smoke.sh
+        run: cp .env.example .env && SMOKE_UP=1 ./scripts/quickshare-smoke.sh
 
   playwright-mock:
     runs-on: ubuntu-latest

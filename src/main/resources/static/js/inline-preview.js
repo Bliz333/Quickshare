@@ -73,6 +73,16 @@
             .replace(/>/g, '&gt;');
     }
 
+    function collapseBrokenPreview(el) {
+        if (!el || !el.closest) return;
+        var wrap = el.closest('.inline-preview-wrap');
+        if (wrap) wrap.style.display = 'none';
+        var card = el.closest('.recv-card');
+        if (!card) return;
+        var visibleWraps = card.querySelectorAll('.inline-preview-wrap:not([style*="display: none"])');
+        if (!visibleWraps.length) card.classList.remove('has-preview');
+    }
+
     // ── Public: getInlinePreviewKind ────────────────────────────────────
 
     /**
@@ -119,7 +129,7 @@
                 return '<div class="inline-preview-wrap inline-preview-image-wrap">'
                     + '<img class="inline-preview-img" src="' + escapeAttr(imgSrc) + '"'
                     + ' alt="' + escapeAttr(name) + '" loading="lazy"'
-                    + ' onerror="this.closest(\'.inline-preview-wrap\').style.display=\'none\'"'
+                    + ' onerror="window.collapseBrokenInlinePreview&&window.collapseBrokenInlinePreview(this)"'
                     + ' onclick="this.closest(\'.inline-preview-wrap\').classList.toggle(\'zoomed\')"'
                     + ' />'
                     + '</div>';
@@ -127,14 +137,14 @@
             case 'audio':
                 return '<div class="inline-preview-wrap inline-preview-audio-wrap">'
                     + '<audio class="inline-preview-audio" controls preload="metadata"'
-                    + ' onerror="this.closest(\'.inline-preview-wrap\').style.display=\'none\'"'
+                    + ' onerror="window.collapseBrokenInlinePreview&&window.collapseBrokenInlinePreview(this)"'
                     + ' src="' + escapeAttr(url) + '"></audio>'
                     + '</div>';
 
             case 'video':
                 return '<div class="inline-preview-wrap inline-preview-video-wrap">'
                     + '<video class="inline-preview-video" controls preload="metadata"'
-                    + ' onerror="this.closest(\'.inline-preview-wrap\').style.display=\'none\'"'
+                    + ' onerror="window.collapseBrokenInlinePreview&&window.collapseBrokenInlinePreview(this)"'
                     + ' src="' + escapeAttr(url) + '"></video>'
                     + '</div>';
 
@@ -149,6 +159,7 @@
                     + '&name=' + encodeURIComponent(name) + '&kind=pdf&embedded=1';
                 return '<div class="inline-preview-wrap inline-preview-iframe-wrap">'
                     + '<iframe class="inline-preview-iframe" src="' + escapeAttr(viewerUrl) + '"'
+                    + ' onerror="window.collapseBrokenInlinePreview&&window.collapseBrokenInlinePreview(this)"'
                     + ' title="' + escapeAttr(name) + '"></iframe>'
                     + '</div>';
             }
@@ -159,6 +170,7 @@
                     + '&name=' + encodeURIComponent(name) + '&kind=office&embedded=1';
                 return '<div class="inline-preview-wrap inline-preview-iframe-wrap">'
                     + '<iframe class="inline-preview-iframe" src="' + escapeAttr(viewerUrl2) + '"'
+                    + ' onerror="window.collapseBrokenInlinePreview&&window.collapseBrokenInlinePreview(this)"'
                     + ' title="' + escapeAttr(name) + '"></iframe>'
                     + '</div>';
             }
@@ -185,7 +197,11 @@
                 fetch(url)
                     .then(function (r) { return r.ok ? r.text() : Promise.reject('fail'); })
                     .then(function (txt) { pre.textContent = txt; })
-                    .catch(function () { pre.textContent = ''; });
+                    .catch(function () {
+                        pre.textContent = '(Preview unavailable)';
+                        pre.style.opacity = '0.68';
+                        pre.style.fontStyle = 'italic';
+                    });
             })(pres[i]);
         }
     }
@@ -224,8 +240,10 @@
             '.inline-preview-text{width:100%;max-height:min(40vh,420px);overflow-y:auto;text-align:left;padding:10px 12px;border:1px solid var(--border,#e2e8f0);border-radius:10px;background:var(--bg,#f8fafc);color:var(--text,#0f172a);font-family:\'Outfit\',monospace;font-size:.8rem;line-height:1.55;white-space:pre-wrap;word-break:break-word;margin:0}',
             '.inline-preview-iframe{width:100%;height:min(64vh,820px);border:none;border-radius:12px}',
             '@media(max-width:580px){',
-            '  .inline-preview-img,.inline-preview-video{max-height:160px}',
-            '  .inline-preview-iframe{height:160px}',
+            '  .inline-preview-wrap{max-width:100%;box-sizing:border-box}',
+            '  .inline-preview-img,.inline-preview-video{max-height:min(40vh,240px)}',
+            '  .inline-preview-text{max-height:120px}',
+            '  .inline-preview-iframe{height:min(50vh,360px)}',
             '}'
         ].join('\n');
         document.head.appendChild(style);
@@ -237,5 +255,6 @@
     window.renderInlinePreviewHtml = renderInlinePreviewHtml;
     window.fillTextPreviews = fillTextPreviews;
     window.cleanupInlinePreview = cleanupInlinePreview;
+    window.collapseBrokenInlinePreview = collapseBrokenPreview;
     window.injectInlinePreviewStyles = injectInlinePreviewStyles;
 })();

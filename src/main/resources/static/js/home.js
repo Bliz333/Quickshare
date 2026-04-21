@@ -917,7 +917,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         : null;
     const isTextPlain = ct.startsWith('text/plain');
     const shouldUseWideModal = Boolean(previewKind);
-    const previewRequestWidth = Math.max(520, Math.min(Math.round(window.innerWidth * 0.6), 1600));
+    const previewRequestWidth = Math.max(280, Math.min(Math.round(window.innerWidth * 0.8), 1600));
 
     if (iconEl) iconEl.className = previewKind === 'text' ? 'fa-solid fa-align-left' : 'fa-solid fa-file-arrow-down';
     if (labelEl) labelEl.textContent = previewKind === 'text'

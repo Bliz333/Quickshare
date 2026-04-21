@@ -464,6 +464,7 @@
         .hidden{display:none!important}
 
         @media(max-width:580px){
+            .recv-card.has-preview{max-width:calc(100vw - 40px)}
             .topbar{padding:0 14px}
             .arena{padding:0 16px;gap:22px}
             .peer-toolbar{justify-content:stretch}
@@ -634,7 +635,7 @@
         <p class="recv-label" data-i18n="receiveFromLabel">File received</p>
         <h3 id="receiveFileName" class="recv-name">filename</h3>
         <p id="receiveFileSize" class="recv-size"></p>
-        <div id="receivePreviewPanel" class="inline-preview-wrap hidden"></div>
+        <div id="receivePreviewPanel" class="hidden"></div>
         <div id="receiveTextPanel" class="recv-text-wrap hidden">
             <pre id="receiveTextContent" class="recv-text-content"></pre>
         </div>

@@ -14,6 +14,9 @@ PLAYWRIGHT_NPM_CACHE_DIR="${PLAYWRIGHT_NPM_CACHE_DIR:-/tmp/quickshare-playwright
 E2E_ADMIN_USERNAME="${E2E_ADMIN_USERNAME:-admin}"
 E2E_ADMIN_PASSWORD="${E2E_ADMIN_PASSWORD:-ChangeMeAdmin123!}"
 EXPECT_QUICKDROP_FINAL_MODE="${EXPECT_QUICKDROP_FINAL_MODE:-}"
+PLAYWRIGHT_SMOKE_UP="${PLAYWRIGHT_SMOKE_UP:-${SMOKE_UP:-0}}"
+PLAYWRIGHT_HEALTH_ATTEMPTS="${PLAYWRIGHT_HEALTH_ATTEMPTS:-30}"
+PLAYWRIGHT_HEALTH_SLEEP_SECONDS="${PLAYWRIGHT_HEALTH_SLEEP_SECONDS:-2}"
 
 log() {
     printf '[playwright-smoke] %s\n' "$*"
@@ -28,7 +31,36 @@ require_cmd() {
     command -v "$1" >/dev/null 2>&1 || fail "missing command: $1"
 }
 
+compose_cmd() {
+    if command -v docker-compose >/dev/null 2>&1; then
+        docker-compose "$@"
+    else
+        docker compose "$@"
+    fi
+}
+
+wait_for_health_ready() {
+    local body=""
+
+    for ((i = 1; i <= PLAYWRIGHT_HEALTH_ATTEMPTS; i++)); do
+        body="$(curl -sS --max-time 10 "${PLAYWRIGHT_BASE_URL}/api/health" 2>/dev/null || true)"
+        if [[ "$body" == *'"status":"UP"'* && "$body" == *'"database":"UP"'* && "$body" == *'"redis":"UP"'* ]]; then
+            return 0
+        fi
+        sleep "$PLAYWRIGHT_HEALTH_SLEEP_SECONDS"
+    done
+
+    fail "health endpoint did not become ready at ${PLAYWRIGHT_BASE_URL}"
+}
+
 require_cmd docker
+
+if [[ "$PLAYWRIGHT_SMOKE_UP" == "1" ]]; then
+    log "docker compose up --build -d"
+    compose_cmd up --build -d
+    log "wait for /api/health readiness"
+    wait_for_health_ready
+fi
 
 mkdir -p "$PLAYWRIGHT_NPM_CACHE_DIR"
 

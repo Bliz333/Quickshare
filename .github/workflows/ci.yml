@@ -96,7 +96,7 @@ jobs:
             --project=${{ matrix.browser }}
 
       - name: Playwright smoke
-        run: ./scripts/quickshare-playwright-smoke.sh
+        run: cp .env.example .env && SMOKE_UP=1 ./scripts/quickshare-playwright-smoke.sh
 
   ios-build:
     runs-on: macos-latest

@@ -49,9 +49,12 @@
         <button class="t-btn" type="button" id="darkModeToggle" onclick="toggleTheme()" title="Theme">
             <i class="fa-solid fa-moon"></i>
         </button>
-        <button class="t-btn t-btn-label" type="button" id="langBtn" onclick="toggleLanguage()">EN</button>
+        <button class="t-btn t-btn-text" type="button" id="langBtn" onclick="toggleLanguage()">EN</button>
         <span id="authButtons">
-            <a href="login.html" class="t-btn t-btn-label" style="text-decoration:none" data-i18n="loginBtn">Login</a>
+            <a href="login.html" class="t-btn" style="text-decoration:none" title="Login" aria-label="Login" data-i18n-aria-label="loginBtn">
+                <i class="fa-solid fa-right-to-bracket"></i>
+                <span class="sr-only" data-i18n="loginBtn">Login</span>
+            </a>
         </span>
     </nav>
 </header>
@@ -242,7 +245,7 @@
             if(!el) return _orig?_orig(user):undefined;
             var name=user.nickname||user.username||'';
             var lang=typeof getCurrentLanguage==='function'?getCurrentLanguage():'zh';
-            el.innerHTML=`<span style="font-size:.8rem;font-weight:600;padding:0 4px">${name}</span><button class="t-btn t-btn-label" type="button" onclick="handleLogout()" title="${lang==='zh'?'退出':'Logout'}"><i class="fa-solid fa-right-from-bracket"></i></button>`;
+        el.innerHTML=`<span style="font-size:.8rem;font-weight:600;padding:0 4px">${name}</span><button class="t-btn" type="button" onclick="handleLogout()" title="${lang==='zh'?'退出':'Logout'}" aria-label="${lang==='zh'?'退出':'Logout'}"><i class="fa-solid fa-right-from-bracket"></i></button>`;
         };
     })();
 

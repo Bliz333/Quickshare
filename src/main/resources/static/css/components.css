@@ -76,6 +76,12 @@
   gap: var(--space-5);
 }
 
+.t-btn-text {
+  font-size: 0.72rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+}
+
 #authButtons {
   display: inline-flex;
   align-items: center;

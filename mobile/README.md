@@ -18,8 +18,10 @@ This directory contains the in-repository QuickShare mobile client.
 - same-account transfer sync with incoming/outgoing task visibility
 - direct-session preparation with WebSocket signaling, peer-connection setup, and direct-transfer transport tests
 - direct chunk protocol/storage tests plus incoming assembled-file save-to-netdisk path
-- Android debug and release build success
-- emulator install, launch, and payment deep-link runtime validation
+- baseline UI rendering proof for guest home, signed-in dashboard, auth, files, share, pricing, and account surfaces
+- baseline API-flow proof for auth, files, share creation, pickup, payment, transfer sync, relay/public-share upload, and save-to-netdisk
+- Android debug and release build success for the current portrait/light-mode baseline
+- emulator install, launch, and payment deep-link runtime validation for that baseline
 
 ## Common commands
 

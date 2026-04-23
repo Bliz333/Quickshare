@@ -32,9 +32,14 @@ Validate real app behavior:
 - download state
 - share-link creation and copy/share actions
 
-### 3. Manual device testing for release-grade confidence
+Current tracked mobile baseline notes:
 
-For store distribution or final release confidence, test on:
+- the app is currently configured as a portrait-first, light-mode baseline in `mobile/app.json`
+- broader device/theme permutations belong to later expansion or external release validation, not to the current repository baseline claim
+
+### 3. Manual device testing for external store-release confidence
+
+For future store distribution or external release confidence, test on:
 
 - at least one physical Android phone
 - at least one physical iPhone
@@ -46,6 +51,8 @@ Repository-level proof that already exists today:
 - `scripts/quickshare-ios-readiness.sh` checks the tracked iOS project structure and linking wiring
 - `scripts/quickshare-ios-simulator-smoke.sh` builds, installs, launches, and screenshots the iOS simulator app on macOS CI
 - Android validation includes native build, emulator launch, and payment deep-link reopening evidence
+- `mobile/src/components/mobileBaseline.test.tsx` covers the current baseline UI surfaces
+- `mobile/src/lib/apiBaseline.test.ts` covers the current baseline API-backed app flows
 
 ## Core Mobile Regression Checklist
 
@@ -57,12 +64,12 @@ Repository-level proof that already exists today:
 - open app from cold start
 - return from background
 - network loss and reconnect
-- dark mode
 - language switch if supported
+- theme permutations only if supported by the current app configuration
 
-## Release Gate Suggestion
+## External Store Release Gate Suggestion
 
-A mobile build should not be released unless all of the following pass:
+If preparing a future store release outside this repository, do not release unless all of the following pass:
 
 - automated unit/integration checks
 - manual physical-device smoke tests
@@ -75,7 +82,7 @@ For QuickShare specifically, repository acceptance and release acceptance are di
 - repository acceptance = tracked code, tests, native projects, and CI-backed simulator/emulator validation are present and passing
 - release acceptance = physical-device coverage, signing, distribution, and release operations are complete
 
-The second bar is intentionally stricter, but it should not be used to erase the first bar when evaluating whether the repository already contains a real implemented mobile client.
+The second bar is intentionally stricter, but it should not be used to erase the first bar when evaluating whether the repository already contains a real implemented mobile client with repository-visible compatibility evidence.
 
 ## Recommended Monitoring After Release
 

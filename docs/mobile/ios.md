@@ -2,7 +2,7 @@
 
 ## Goal
 
-This document describes the end-to-end iOS workflow for the generated QuickShare iOS project that now exists in the repository, while also documenting the remaining Apple-side runtime and release hardening work.
+This document describes the end-to-end iOS workflow for the generated QuickShare iOS project that now exists in the repository, while also documenting the separate Apple-side distribution operations that may be needed outside the repository.
 
 ## Current repository-verified baseline
 
@@ -12,8 +12,9 @@ This document describes the end-to-end iOS workflow for the generated QuickShare
 - `scripts/quickshare-ios-readiness.sh` validates the tracked iOS project structure, bundle identifier, linking hooks, and Expo pod wiring
 - `scripts/quickshare-ios-simulator-smoke.sh` performs `pod install`, simulator `xcodebuild`, app installation, app launch, and screenshot capture for the generated project
 - CI runs that simulator smoke script on macOS and uploads the screenshot artifact as launch proof
+- the latest successful simulator proof is recorded in `docs/mobile/ios-simulator-proof.md` and stored at `mobile/ios/build/ios-simulator-launch.png`
 
-The remaining gap is physical iPhone validation and distribution hardening beyond the simulator path, which require Apple tooling and cannot be completed from the current Linux execution environment. Those are release-operation tasks beyond the tracked repository baseline, not evidence that the repository lacks an iOS client implementation.
+Physical iPhone validation and distribution hardening beyond the simulator path are separate Apple-side release operations that require Apple tooling and cannot be completed from the current Linux execution environment. Those workflows sit outside the tracked repository baseline and do not negate the repository-visible iOS implementation and simulator compatibility proof.
 
 ## Toolchain Baseline
 

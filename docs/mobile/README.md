@@ -13,13 +13,13 @@ QuickShare is currently a **web product with an in-repository mobile client and 
 - Expo / React Native mobile app under `mobile/`
 - generated native Android project under `mobile/android/`
 - generated native iOS project under `mobile/ios/`
-- no store publishing pipeline yet
+- store-release operations are documented separately from the tracked implementation baseline
 
 These docs describe the current implemented mobile baseline in the tracked repository, plus the separate operational guides used when preparing Android and iOS store releases.
 
 ## Current Implemented Mobile Baseline
 
-The repository now contains a working mobile client baseline with these verified capabilities:
+The repository now contains a working mobile client baseline with implemented capabilities backed by tracked code and targeted validation evidence:
 
 - guest-accessible Home and Share flows
 - login-gated personal netdisk access
@@ -31,24 +31,26 @@ The repository now contains a working mobile client baseline with these verified
 - incoming relay transfer download/save actions
 - direct-transfer baseline including signaling, packet protocol, local persistence, and backend attempt sync
 - plan list, order list, in-app payment return handling, and pending-order polling
-- Android debug and release builds, emulator install, launch, and deep-link runtime validation
-- generated native iOS project, repo-level readiness checks, and CI-validated simulator build/install/launch proof
+- baseline UI coverage for guest home, signed-in dashboard, login, registration, file browser, share center, pricing, and account surfaces
+- baseline API-flow coverage for auth, files, share links, pickup, payment, transfer sync, relay/public-share upload, and save-to-netdisk
+- Android debug and release builds, emulator install, launch, and deep-link runtime validation for the current portrait/light-mode mobile baseline
+- generated native iOS project, repo-level readiness checks, and CI-validated simulator build/install/launch proof for the current mobile baseline
 
 Store-release operations remain documented separately in `android.md`, `ios.md`, `store-submission.md`, and `testing.md`.
 
 ## Current compatibility evidence
 
-What the tracked repository currently proves directly:
+What the tracked repository currently proves directly for the current mobile baseline:
 
 - Android: typecheck, unit tests, native debug/release build, emulator launch, deep-link handling
-- iOS: generated native project exists in `mobile/ios/`, is regenerated in CI from the Expo app config, passes `scripts/quickshare-ios-readiness.sh`, and has a macOS CI simulator build/install/launch + screenshot artifact path through `scripts/quickshare-ios-simulator-smoke.sh`
+- iOS: generated native project exists in `mobile/ios/`, is regenerated in CI from the Expo app config, passes `scripts/quickshare-ios-readiness.sh`, and now has a repository-visible macOS CI simulator launch screenshot at `mobile/ios/build/ios-simulator-launch.png` with provenance in `docs/mobile/ios-simulator-proof.md`
 
-What still requires Apple tooling outside this Linux environment:
+External Apple release operations, when needed outside this Linux environment:
 
 - physical iPhone validation
 - signing / archive / TestFlight readiness
 
-Those remaining items are Apple-runtime and distribution hardening work, not evidence that the tracked repository lacks an iOS client implementation.
+Those Apple-side operations are separate distribution work, not evidence that the tracked repository lacks compatibility proof for the implemented baseline.
 
 For a compact evidence map, see [compatibility.md](compatibility.md).
 

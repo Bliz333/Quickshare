@@ -61,9 +61,9 @@ async function handleLogin(event) {
 
             showToast(t('loginSuccess'), 'success');
 
-            // 跳转到网盘页面
+            // 跳转到首页
             setTimeout(() => {
-                window.location.href = 'netdisk.html';
+                window.location.href = 'index.html';
             }, 1000);
         } else {
             throw new Error(result.message || t('loginFailed'));
@@ -83,8 +83,8 @@ function checkAlreadyLoggedIn() {
     const user = localStorage.getItem('user');
 
     if (token && user) {
-        // 已登录，跳转到网盘
-        window.location.href = 'netdisk.html';
+        // 已登录，跳转到首页
+        window.location.href = 'index.html';
     }
 }
 

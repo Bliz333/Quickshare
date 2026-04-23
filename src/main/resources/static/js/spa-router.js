@@ -7,6 +7,10 @@
  */
 'use strict';
 (function () {
+    if (window.__QUICKSHARE_DISABLE_SPA__ !== false) {
+        window.spaNavigate = function () { return false; };
+        return;
+    }
     var SPA_PAGES = {
         'index.html': 'home',
         'login.html': 'login',

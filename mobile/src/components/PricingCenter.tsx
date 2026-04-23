@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { Theme } from '../theme';
 import type { QuickSharePaymentOptions, QuickSharePaymentOrder, QuickSharePlan } from '../types/quickshare';
 
 interface PricingCenterProps {
@@ -28,139 +29,226 @@ export function PricingCenter({
   onSelectOrder,
 }: PricingCenterProps) {
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Plans</Text>
-        {paymentOptions ? <Text style={styles.helperText}>Provider: {paymentOptions.providerName || 'Unknown'} · Methods: {(paymentOptions.payTypes || []).join(' / ')}</Text> : <Text style={styles.helperText}>No payment provider is enabled right now.</Text>}
+    <ScrollView contentContainerStyle={s.content}>
+      <View style={s.card}>
+        <Text style={s.eyebrow}>Plans</Text>
+        {paymentOptions ? <Text style={s.helperText}>Provider: {paymentOptions.providerName || 'Unknown'} · Methods: {(paymentOptions.payTypes || []).join(' / ')}</Text> : <Text style={s.helperText}>No payment provider is enabled right now.</Text>}
         {plans.map((plan) => (
-          <View key={plan.id} style={styles.planCard}>
-            <Text style={styles.planTitle}>{plan.name || `Plan #${plan.id}`}</Text>
-            <Text style={styles.planMeta}>{plan.description || ''}</Text>
-            <Text style={styles.planMeta}>Type: {plan.type || 'unknown'} · Value: {plan.value ?? '-'}</Text>
-            <Text style={styles.planPrice}>¥{plan.price ?? 0}</Text>
-            <Pressable onPress={() => onCreateOrder(plan)} style={({ pressed }) => [styles.primaryButton, pressed ? styles.pressed : null]}>
-              <Text style={styles.primaryButtonText}>Create payment order</Text>
+          <View key={plan.id} style={s.planCard}>
+            <View style={s.planHeader}>
+              <View style={s.planIcon}><Text style={s.planIconText}>★</Text></View>
+              <View style={s.planHeaderText}>
+                <Text style={s.planTitle}>{plan.name || `Plan #${plan.id}`}</Text>
+                <Text style={s.planMeta}>{plan.description || ''}</Text>
+              </View>
+              <Text style={s.planPrice}>¥{plan.price ?? 0}</Text>
+            </View>
+            <View style={s.chipRow}>
+              <View style={[s.metaChip, { backgroundColor: Theme.primary06 }]}>
+                <Text style={s.metaChipLabel}>Type</Text>
+                <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{plan.type || 'unknown'}</Text>
+              </View>
+              <View style={[s.metaChip, { backgroundColor: Theme.success10 }]}>
+                <Text style={s.metaChipLabel}>Value</Text>
+                <Text style={[s.metaChipValue, { color: Theme.successDark }]}>{plan.value ?? '-'}</Text>
+              </View>
+            </View>
+            <Pressable onPress={() => onCreateOrder(plan)} style={({ pressed }) => [s.primaryButton, pressed ? s.pressed : null]}>
+              <Text style={s.primaryButtonText}>Create payment order</Text>
             </Pressable>
           </View>
         ))}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>My orders</Text>
-        <Pressable onPress={onRefreshOrders} style={({ pressed }) => [styles.secondaryButton, pressed ? styles.pressed : null]}>
-          <Text style={styles.secondaryButtonText}>{loading ? 'Refreshing…' : 'Refresh orders'}</Text>
+      <View style={s.card}>
+        <Text style={s.eyebrow}>My orders</Text>
+        <Pressable onPress={onRefreshOrders} style={({ pressed }) => [s.secondaryButton, pressed ? s.pressed : null]}>
+          <Text style={s.secondaryButtonText}>{loading ? 'Refreshing…' : 'Refresh orders'}</Text>
         </Pressable>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text style={s.errorText}>{error}</Text> : null}
         {orders.length ? orders.map((order) => (
-          <Pressable key={order.orderNo} onPress={() => onSelectOrder(order)} style={({ pressed }) => [styles.orderCard, pressed ? styles.pressed : null]}>
-            <Text style={styles.orderTitle}>{order.planName || order.orderNo}</Text>
-            <Text style={styles.orderMeta}>Status: {order.status || 'unknown'} · Pay type: {order.payType || 'unknown'}</Text>
-            <Text style={styles.orderMeta}>Amount: ¥{order.amount ?? 0}</Text>
+          <Pressable key={order.orderNo} onPress={() => onSelectOrder(order)} style={({ pressed }) => [s.orderCard, pressed ? s.pressed : null]}>
+            <View style={s.orderHeader}>
+              <Text style={s.orderTitle}>{order.planName || order.orderNo}</Text>
+              <View style={[s.statusChip, { backgroundColor: order.status === 'paid' ? Theme.success10 : order.status === 'pending' ? Theme.warning08 : Theme.primary06 }]}>
+                <Text style={[s.statusChipText, { color: order.status === 'paid' ? Theme.successDark : order.status === 'pending' ? Theme.warningDark : Theme.primaryDark }]}>{order.status || 'unknown'}</Text>
+              </View>
+            </View>
+            <Text style={s.orderMeta}>Pay type: {order.payType || 'unknown'}</Text>
+            <Text style={s.orderMeta}>Amount: ¥{order.amount ?? 0}</Text>
           </Pressable>
-        )) : <Text style={styles.helperText}>No payment orders yet.</Text>}
+        )) : <Text style={s.helperText}>No payment orders yet.</Text>}
       </View>
 
       {selectedOrder ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Selected order</Text>
-          <Text style={styles.orderTitle}>{selectedOrder.orderNo}</Text>
-          <Text style={styles.orderMeta}>Plan: {selectedOrder.planName || '-'}</Text>
-          <Text style={styles.orderMeta}>Status: {selectedOrder.status || '-'}</Text>
-          <Text style={styles.orderMeta}>Trade no: {selectedOrder.tradeNo || '-'}</Text>
-          <Text style={styles.orderMeta}>Created: {selectedOrder.createTime || '-'}</Text>
-          {paymentMeta ? <Text style={styles.helperText}>{paymentMeta}</Text> : null}
+        <View style={s.card}>
+          <Text style={s.eyebrow}>Selected order</Text>
+          <Text style={s.orderTitle}>{selectedOrder.orderNo}</Text>
+          <View style={s.chipRow}>
+            <View style={[s.metaChip, { backgroundColor: Theme.primary06 }]}>
+              <Text style={s.metaChipLabel}>Plan</Text>
+              <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{selectedOrder.planName || '-'}</Text>
+            </View>
+            <View style={[s.metaChip, { backgroundColor: Theme.success10 }]}>
+              <Text style={s.metaChipLabel}>Status</Text>
+              <Text style={[s.metaChipValue, { color: Theme.successDark }]}>{selectedOrder.status || '-'}</Text>
+            </View>
+          </View>
+          <Text style={s.orderMeta}>Trade no: {selectedOrder.tradeNo || '-'}</Text>
+          <Text style={s.orderMeta}>Created: {selectedOrder.createTime || '-'}</Text>
+          {paymentMeta ? <Text style={s.helperText}>{paymentMeta}</Text> : null}
         </View>
       ) : null}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   content: {
-    gap: 16,
-    paddingBottom: 48,
+    gap: Theme.space6,
+    paddingBottom: Theme.space24,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 18,
+    backgroundColor: Theme.surface,
+    borderColor: Theme.borderStrong,
+    borderRadius: Theme.radius2xl,
     borderWidth: 1,
-    gap: 12,
-    padding: 18,
+    gap: Theme.space5,
+    padding: Theme.space9,
   },
-  sectionTitle: {
-    color: '#0f172a',
-    fontSize: 18,
-    fontWeight: '800',
+  eyebrow: {
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeSm,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   helperText: {
-    color: '#64748b',
-    fontSize: 13,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeCaption,
   },
   planCard: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 14,
-    gap: 6,
-    padding: 14,
+    backgroundColor: Theme.surfaceTint,
+    borderRadius: Theme.radiusXl,
+    gap: Theme.space4,
+    padding: Theme.space7,
+  },
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.space4,
+  },
+  planIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Theme.radiusLg,
+    backgroundColor: Theme.primary08,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planIconText: {
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeLg,
+    fontWeight: '800',
+  },
+  planHeaderText: {
+    flex: 1,
+    gap: 2,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Theme.space3,
+  },
+  metaChip: {
+    borderRadius: Theme.radiusMd,
+    paddingHorizontal: Theme.space5,
+    paddingVertical: Theme.space3,
+    gap: 1,
+  },
+  metaChipLabel: {
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeXs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  metaChipValue: {
+    fontSize: Theme.fontSizeCaption,
+    fontWeight: '700',
   },
   planTitle: {
-    color: '#0f172a',
-    fontSize: 15,
+    color: Theme.text,
+    fontSize: Theme.fontSizeMd,
     fontWeight: '700',
   },
   planMeta: {
-    color: '#475569',
-    fontSize: 13,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeCaption,
   },
   planPrice: {
-    color: '#2563eb',
-    fontSize: 18,
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeXl,
     fontWeight: '800',
   },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
+    backgroundColor: Theme.primaryDark,
+    borderRadius: Theme.radiusLg,
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: Theme.touchMin,
   },
   primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+    color: Theme.textInverse,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '800',
   },
   secondaryButton: {
     alignItems: 'center',
-    backgroundColor: '#dbeafe',
-    borderRadius: 12,
+    backgroundColor: Theme.surfaceTint,
+    borderRadius: Theme.radiusLg,
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: Theme.touchMin,
   },
   secondaryButtonText: {
-    color: '#1d4ed8',
-    fontSize: 14,
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '700',
   },
   orderCard: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
+    backgroundColor: Theme.surfaceSunken,
+    borderColor: Theme.borderStrong,
+    borderRadius: Theme.radiusXl,
     borderWidth: 1,
-    gap: 4,
-    padding: 14,
+    gap: Theme.space3,
+    padding: Theme.space7,
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Theme.space4,
+  },
+  statusChip: {
+    borderRadius: Theme.radiusMd,
+    paddingHorizontal: Theme.space4,
+    paddingVertical: Theme.space2,
+  },
+  statusChipText: {
+    fontSize: Theme.fontSizeCaption,
+    fontWeight: '700',
   },
   orderTitle: {
-    color: '#0f172a',
-    fontSize: 14,
+    color: Theme.text,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '700',
   },
   orderMeta: {
-    color: '#475569',
-    fontSize: 13,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeCaption,
   },
   errorText: {
-    color: '#b91c1c',
-    fontSize: 13,
+    color: Theme.danger,
+    fontSize: Theme.fontSizeCaption,
     fontWeight: '700',
   },
   pressed: {

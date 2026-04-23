@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { formatBytes } from '../lib/format';
+import { Theme } from '../theme';
 import type { QuickShareNotification, QuickShareUser } from '../types/quickshare';
 
 interface AccountPanelProps {
@@ -23,9 +24,15 @@ export function AccountPanel({
   profile,
 }: AccountPanelProps) {
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Account</Text>
+    <ScrollView contentContainerStyle={s.content}>
+      <View style={s.heroCard}>
+        <View style={s.heroIcon}><Text style={s.heroIconText}>{(profile.nickname || profile.username || 'Q').slice(0, 1).toUpperCase()}</Text></View>
+        <Text style={s.heroTitle}>Account</Text>
+        <Text style={s.heroSubtitle}>{profile.nickname || profile.username}</Text>
+      </View>
+
+      <View style={s.card}>
+        <Text style={s.eyebrow}>Identity</Text>
         <InfoRow label="Username" value={profile.username} />
         <InfoRow label="Nickname" value={profile.nickname || '-'} />
         <InfoRow label="Email" value={profile.email || '-'} />
@@ -33,37 +40,37 @@ export function AccountPanel({
         <InfoRow label="VIP expiry" value={profile.vipExpireTime || '-'} />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Quota</Text>
+      <View style={s.card}>
+        <Text style={s.eyebrow}>Quota</Text>
         <InfoRow label="Storage used" value={formatBytes(profile.storageUsed)} />
         <InfoRow label="Storage limit" value={formatBytes(profile.storageLimit)} />
         <InfoRow label="Download used" value={String(profile.downloadUsed ?? 0)} />
         <InfoRow label="Download limit" value={String(profile.downloadLimit ?? 0)} />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Environment</Text>
+      <View style={s.card}>
+        <Text style={s.eyebrow}>Environment</Text>
         <InfoRow label="API base" value={apiBaseUrl} />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Notifications</Text>
-        {notificationLoading ? <Text style={styles.metaText}>Refreshing notifications…</Text> : null}
-        {notificationError ? <Text style={styles.errorText}>{notificationError}</Text> : null}
+      <View style={s.card}>
+        <Text style={s.eyebrow}>Notifications</Text>
+        {notificationLoading ? <Text style={s.metaText}>Refreshing notifications…</Text> : null}
+        {notificationError ? <Text style={s.errorText}>{notificationError}</Text> : null}
 
-        <Text style={styles.sectionLabel}>Personal</Text>
+        <Text style={s.sectionLabel}>Personal</Text>
         {personalNotifications.length ? personalNotifications.map((notification) => (
           <NotificationCard key={`personal-${notification.id}`} notification={notification} />
-        )) : <Text style={styles.metaText}>No personal notifications yet.</Text>}
+        )) : <Text style={s.metaText}>No personal notifications yet.</Text>}
 
-        <Text style={styles.sectionLabel}>Global</Text>
+        <Text style={s.sectionLabel}>Global</Text>
         {globalNotifications.length ? globalNotifications.map((notification) => (
           <NotificationCard key={`global-${notification.id}`} notification={notification} />
-        )) : <Text style={styles.metaText}>No global notifications yet.</Text>}
+        )) : <Text style={s.metaText}>No global notifications yet.</Text>}
       </View>
 
-      <Pressable onPress={onSignOut} style={({ pressed }) => [styles.signOutButton, pressed ? styles.signOutPressed : null]}>
-        <Text style={styles.signOutText}>Sign out</Text>
+      <Pressable onPress={onSignOut} style={({ pressed }) => [s.signOutButton, pressed ? s.signOutPressed : null]}>
+        <Text style={s.signOutText}>Sign out</Text>
       </Pressable>
     </ScrollView>
   );
@@ -71,101 +78,135 @@ export function AccountPanel({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
+    <View style={s.row}>
+      <Text style={s.label}>{label}</Text>
+      <Text style={s.value}>{value}</Text>
     </View>
   );
 }
 
 function NotificationCard({ notification }: { notification: QuickShareNotification }) {
   return (
-    <View style={styles.notificationCard}>
-      <Text style={styles.notificationTitle}>{notification.subject || 'Untitled notification'}</Text>
-      <Text style={styles.metaText}>{notification.createTime || '-'}</Text>
-      <Text style={styles.notificationBody}>{notification.body || '-'}</Text>
+    <View style={s.notificationCard}>
+      <Text style={s.notificationTitle}>{notification.subject || 'Untitled notification'}</Text>
+      <Text style={s.metaText}>{notification.createTime || '-'}</Text>
+      <Text style={s.notificationBody}>{notification.body || '-'}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   content: {
-    gap: 16,
-    paddingBottom: 48,
+    gap: Theme.space6,
+    paddingBottom: Theme.space24,
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: 12,
-    padding: 18,
+  heroCard: {
+    backgroundColor: Theme.surfaceTintDark,
+    borderRadius: Theme.radius3xl,
+    padding: Theme.space12,
+    alignItems: 'center',
+    gap: Theme.space4,
   },
-  title: {
-    color: '#0f172a',
-    fontSize: 18,
+  heroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: Theme.radius2xl,
+    backgroundColor: Theme.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroIconText: {
+    color: Theme.textInverse,
+    fontSize: Theme.fontSize2xl,
     fontWeight: '800',
   },
+  heroTitle: {
+    color: Theme.text,
+    fontSize: Theme.fontSize2xl,
+    fontWeight: '800',
+  },
+  heroSubtitle: {
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeBase,
+  },
+  card: {
+    backgroundColor: Theme.surface,
+    borderColor: Theme.borderStrong,
+    borderRadius: Theme.radius2xl,
+    borderWidth: 1,
+    gap: Theme.space5,
+    padding: Theme.space9,
+  },
+  eyebrow: {
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeSm,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   row: {
-    gap: 4,
+    gap: Theme.space2,
+    backgroundColor: Theme.surfaceSunken,
+    borderRadius: Theme.radiusLg,
+    padding: Theme.space5,
   },
   label: {
-    color: '#64748b',
-    fontSize: 12,
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeSm,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   value: {
-    color: '#0f172a',
-    fontSize: 14,
+    color: Theme.text,
+    fontSize: Theme.fontSizeBase,
   },
   sectionLabel: {
-    color: '#64748b',
-    fontSize: 12,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeSm,
     fontWeight: '700',
     marginTop: 4,
     textTransform: 'uppercase',
   },
   notificationCard: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
+    backgroundColor: Theme.surfaceSunken,
+    borderColor: Theme.borderStrong,
+    borderRadius: Theme.radiusLg,
     borderWidth: 1,
-    gap: 6,
-    padding: 12,
+    gap: Theme.space3,
+    padding: Theme.space6,
   },
   notificationTitle: {
-    color: '#0f172a',
-    fontSize: 14,
+    color: Theme.text,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '700',
   },
   notificationBody: {
-    color: '#334155',
-    fontSize: 13,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeCaption,
     lineHeight: 18,
   },
   metaText: {
-    color: '#64748b',
-    fontSize: 12,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeSm,
   },
   errorText: {
-    color: '#b91c1c',
-    fontSize: 13,
+    color: Theme.danger,
+    fontSize: Theme.fontSizeCaption,
     fontWeight: '700',
   },
   signOutButton: {
     alignItems: 'center',
-    backgroundColor: '#dc2626',
-    borderRadius: 14,
+    backgroundColor: Theme.danger,
+    borderRadius: Theme.radiusXl,
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: Theme.touchMin,
   },
   signOutPressed: {
     opacity: 0.88,
   },
   signOutText: {
-    color: '#ffffff',
-    fontSize: 15,
+    color: Theme.textInverse,
+    fontSize: Theme.fontSizeMd,
     fontWeight: '800',
   },
 });

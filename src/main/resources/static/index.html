@@ -60,18 +60,18 @@
         }
         .brand{font-size:1rem;font-weight:700;color:var(--primary-dark);letter-spacing:-.02em}
         .dark-mode .brand{color:var(--primary-light)}
-        .topbar-r{display:flex;align-items:center;gap:2px}
+        .topbar-r{display:flex;align-items:center;gap:var(--space-2)}
         .t-btn{
-            width:34px;height:34px;border:none;border-radius:8px;background:transparent;
-            color:var(--text2);cursor:pointer;font-size:.82rem;
+            width:36px;height:36px;border:none;border-radius:50%;background:transparent;
+            color:var(--text2);cursor:pointer;font-size:.85rem;
             display:inline-flex;align-items:center;justify-content:center;
             transition:all .22s var(--ease);position:relative;font-family:inherit;font-weight:600
         }
-        .t-btn:hover{background:var(--border-s);color:var(--text)}
+        .t-btn:hover{background:var(--primary);color:#fff}
         .t-btn:active{transform:scale(.9)}
         .t-btn.has-unread{color:var(--primary)}
-        .t-btn-label{width:auto;padding:0 11px;border-radius:8px;font-size:.76rem;gap:4px}
-        #authButtons{display:inline-flex;align-items:center;gap:3px}
+        .t-btn-label{width:auto;padding:0 var(--space-12);border-radius:var(--radius-full);font-size:.78rem;gap:var(--space-5)}
+        #authButtons{display:inline-flex;align-items:center;gap:var(--space-4)}
         .notif-dot{
             position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;
             background:#f97316;border:1.5px solid var(--bg);display:none
@@ -546,35 +546,6 @@
             <span id="wsStatusText" data-i18n="homeWsConnecting">Connecting&hellip;</span>
         </span>
     </div>
-    <section class="home-design-rail anim d3" aria-label="QuickShare product surfaces">
-        <article class="home-design-card">
-            <span class="home-design-eyebrow"><i class="fa-solid fa-bolt"></i> QuickDrop</span>
-            <h2 class="home-design-title">Direct transfer with less scanning</h2>
-            <p class="home-design-copy">The homepage now uses the shared design token palette and introduces a reusable feature-card language for primary web journeys.</p>
-            <div class="home-design-meta">
-                <span class="home-design-chip"><i class="fa-solid fa-circle-nodes"></i> same-account sync</span>
-                <span class="home-design-chip"><i class="fa-solid fa-wifi"></i> direct-first</span>
-            </div>
-        </article>
-        <article class="home-design-card">
-            <span class="home-design-eyebrow"><i class="fa-solid fa-share-nodes"></i> Share links</span>
-            <h2 class="home-design-title">One visual language across send flows</h2>
-            <p class="home-design-copy">Cards, chips, and tokenized surfaces create a more deliberate bridge between live transfer, public sharing, and cloud storage entry points.</p>
-            <div class="home-design-meta">
-                <span class="home-design-chip"><i class="fa-solid fa-palette"></i> token-driven</span>
-                <span class="home-design-chip"><i class="fa-solid fa-layer-group"></i> reusable components</span>
-            </div>
-        </article>
-        <article class="home-design-card">
-            <span class="home-design-eyebrow"><i class="fa-solid fa-hard-drive"></i> Cloud drive</span>
-            <h2 class="home-design-title">Production UI slice, not a mockup</h2>
-            <p class="home-design-copy">This homepage slice ships in the tracked frontend and is backed by the repo-visible design system artifact under static/css and docs.</p>
-            <div class="home-design-meta">
-                <span class="home-design-chip"><i class="fa-solid fa-file-code"></i> repo evidence</span>
-                <span class="home-design-chip"><i class="fa-solid fa-globe"></i> web-first</span>
-            </div>
-        </article>
-    </section>
     <div class="peers anim d3">
         <div class="section-header">
             <strong class="section-title" data-i18n="homeNearbyTitle">附近设备</strong>

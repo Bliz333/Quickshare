@@ -1,5 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Theme } from '../theme';
+
 interface LoginFormProps {
   loading: boolean;
   googleEnabled: boolean;
@@ -27,6 +29,12 @@ export function LoginForm({
 }: LoginFormProps) {
   return (
     <View style={styles.card}>
+      <View style={styles.accentBar} />
+      <View style={styles.brandRow}>
+        <View style={styles.brandIcon}>
+          <Text style={styles.brandIconText}>Q</Text>
+        </View>
+      </View>
       <Text style={styles.eyebrow}>QuickShare Mobile</Text>
       <Text style={styles.title}>Sign in to your account</Text>
       <Text style={styles.description}>
@@ -78,52 +86,84 @@ export function LoginForm({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ffffff',
-    borderColor: '#dbeafe',
-    borderRadius: 20,
+    backgroundColor: Theme.surface,
+    borderColor: Theme.borderStrong,
+    borderRadius: Theme.radius3xl,
     borderWidth: 1,
-    gap: 12,
-    padding: 24,
+    gap: Theme.space6,
+    overflow: 'hidden',
+    padding: Theme.space12,
     width: '100%',
   },
+  accentBar: {
+    position: 'absolute',
+    top: 0,
+    left: Theme.space12,
+    right: Theme.space12,
+    height: 3,
+    backgroundColor: Theme.primary,
+    borderBottomLeftRadius: Theme.radiusFull,
+    borderBottomRightRadius: Theme.radiusFull,
+  },
+  brandRow: {
+    alignItems: 'center',
+    marginTop: Theme.space2,
+  },
+  brandIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Theme.radiusXl,
+    backgroundColor: Theme.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandIconText: {
+    color: Theme.textInverse,
+    fontSize: Theme.fontSizeXl,
+    fontWeight: '800',
+  },
   eyebrow: {
-    color: '#2563eb',
-    fontSize: 12,
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeSm,
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
   title: {
-    color: '#0f172a',
-    fontSize: 24,
-    fontWeight: '700',
+    color: Theme.text,
+    fontSize: Theme.fontSize2xl,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   description: {
-    color: '#475569',
-    fontSize: 14,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeBase,
     lineHeight: 20,
+    textAlign: 'center',
   },
   input: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
+    backgroundColor: Theme.surfaceSunken,
+    borderColor: Theme.borderInput,
+    borderRadius: Theme.radiusLg,
     borderWidth: 1,
-    color: '#0f172a',
-    fontSize: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    color: Theme.text,
+    fontSize: Theme.fontSizeMd,
+    minHeight: Theme.touchMin,
+    paddingHorizontal: Theme.space7,
+    paddingVertical: Theme.space6,
   },
   errorText: {
-    color: '#b91c1c',
-    fontSize: 14,
+    color: Theme.danger,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '600',
   },
   button: {
     alignItems: 'center',
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
+    backgroundColor: Theme.primaryDark,
+    borderRadius: Theme.radiusLg,
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: Theme.touchMin,
   },
   buttonPressed: {
     opacity: 0.88,
@@ -132,22 +172,22 @@ const styles = StyleSheet.create({
     opacity: 0.72,
   },
   buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
+    color: Theme.textInverse,
+    fontSize: Theme.fontSizeLg,
     fontWeight: '700',
   },
   googleButton: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
+    backgroundColor: Theme.surfaceTint,
+    borderColor: Theme.borderStrong,
+    borderRadius: Theme.radiusLg,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: Theme.touchMin,
   },
   googleButtonText: {
-    color: '#0f172a',
-    fontSize: 16,
+    color: Theme.text,
+    fontSize: Theme.fontSizeLg,
     fontWeight: '700',
   },
 });

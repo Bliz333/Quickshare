@@ -184,6 +184,40 @@
             background: radial-gradient(circle, rgba(129, 140, 248, 0.3), transparent 72%);
         }
 
+        .topbar-circle-btn {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            min-height: 36px;
+            padding: 0;
+            border-radius: 9999px;
+            border: none;
+            background: transparent;
+            color: var(--text-sub);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex: 0 0 36px;
+            position: relative;
+        }
+
+        .topbar-circle-btn:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .topbar-circle-btn-outline {
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+        }
+
+        .topbar-circle-btn-text {
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+
         .dialog-header {
             position: relative;
             display: flex;
@@ -589,7 +623,7 @@
         }
     </script>
 </head>
-<body class="bg-page text-text-main h-screen flex overflow-hidden selection:bg-brand-100 selection:text-brand-700">
+<body class="bg-page text-text-main h-screen flex flex-row overflow-hidden selection:bg-brand-100 selection:text-brand-700">
 
 <div class="bg-glow">
     <div class="blob blob-1"></div>
@@ -702,11 +736,11 @@
         </div>
 
         <div class="flex items-center gap-2 md:gap-4 text-text-sub shrink-0 ml-2">
-            <button class="hidden md:block p-2 hover:bg-brand-50 rounded-lg transition-colors" onclick="location.href='index.html'" title="分享首页">
+            <button class="topbar-circle-btn hidden md:inline-flex" onclick="location.href='index.html'" title="分享首页">
                 <i class="fa-solid fa-share-nodes"></i>
             </button>
             <div class="relative">
-                <button class="p-2 hover:bg-brand-50 rounded-lg transition-colors w-8 h-8 flex flex-col items-center justify-center" onclick="toggleTransferPanel()" id="transferBtn" title="文件传输">
+                <button class="topbar-circle-btn" onclick="toggleTransferPanel()" id="transferBtn" title="文件传输">
                     <!-- 传输图标 - 单边箭头粗线圆角版 -->
                     <svg id="transferIcon" class="w-5 h-5 transition-all duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
                         <!-- 左边上传：长竖线 + 左单边箭头 -->
@@ -717,19 +751,19 @@
                         <polyline points="20,17 16,21" class="text-text-sub"/>
                     </svg>
                     <!-- 底部进度条 - 默认隐藏 -->
-                    <div id="transferProgressWrap" class="w-6 h-1 bg-border rounded-full overflow-hidden mt-0.5 hidden transition-all duration-300">
+                    <div id="transferProgressWrap" class="w-6 h-1 bg-border rounded-full overflow-hidden mt-0.5 hidden transition-all duration-300" style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%)">
                         <div id="transferProgressBar" class="h-full bg-brand-500 rounded-full transition-all duration-300" style="width: 0%"></div>
                     </div>
                 </button>
                 <!-- 任务数量徽章 -->
                 <span id="transferCount" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full hidden items-center justify-center font-bold shadow-sm border border-white">0</span>
             </div>
-            <button class="p-2 hover:bg-brand-50 rounded-full transition-colors w-9 h-9 flex items-center justify-center" onclick="toggleTheme()" id="darkModeToggle" title="切换主题">
+            <button class="topbar-circle-btn" onclick="toggleTheme()" id="darkModeToggle" title="切换主题">
                 <i class="fa-solid fa-moon"></i>
             </button>
 
 
-            <button class="px-3 hover:bg-brand-50 rounded-full transition-colors text-xs font-bold h-9 inline-flex items-center justify-center border border-border" onclick="toggleLanguage()" id="langBtn">EN</button>
+            <button class="topbar-circle-btn topbar-circle-btn-outline topbar-circle-btn-text" onclick="toggleLanguage()" id="langBtn">EN</button>
 
             <div class="hidden md:block h-4 w-px bg-border"></div>
 

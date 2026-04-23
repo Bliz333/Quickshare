@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { formatBytes } from '../lib/format';
+import { Theme } from '../theme';
 import type { QuickShareFileInfo, QuickShareUser } from '../types/quickshare';
 
 interface FileBrowserProps {
@@ -69,94 +70,118 @@ export function FileBrowser({
   const displayName = profile.nickname || profile.username || profile.email || 'QuickShare User';
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.headerCard}>
-        <View style={styles.headerTopRow}>
-          <View style={styles.headerIdentity}>
-            <Text style={styles.headerTitle}>My Netdisk</Text>
-            <Text style={styles.headerSubtitle}>{displayName}</Text>
+    <View style={s.wrapper}>
+      <View style={s.headerCard}>
+        <View style={s.headerTopRow}>
+          <View style={s.headerIdentity}>
+            <Text style={s.headerTitle}>My Netdisk</Text>
+            <Text style={s.headerSubtitle}>{displayName}</Text>
           </View>
-          <Pressable onPress={onSignOut} style={({ pressed }) => [styles.ghostButton, pressed ? styles.ghostButtonPressed : null]}>
-            <Text style={styles.ghostButtonText}>Sign out</Text>
+          <Pressable onPress={onSignOut} style={({ pressed }) => [s.ghostButton, pressed ? s.pressed : null]}>
+            <Text style={s.ghostButtonText}>Sign out</Text>
           </Pressable>
         </View>
-        <Text style={styles.headerMeta}>
-          Folder: {currentFolderId === null ? 'Root' : `#${currentFolderId}`} · Files: {files.length}
-        </Text>
-        <ScrollView contentContainerStyle={styles.breadcrumbRow} horizontal showsHorizontalScrollIndicator={false}>
-          {path.map((segment, index) => (
-            <View key={`${segment.id ?? 'root'}-${index}`} style={styles.breadcrumbItem}>
-              <Pressable onPress={() => onPathPress(segment.id)}>
-                <Text style={styles.breadcrumbText}>{segment.label}</Text>
-              </Pressable>
-              {index < path.length - 1 ? <Text style={styles.breadcrumbDivider}>/</Text> : null}
-            </View>
-          ))}
-        </ScrollView>
+        <View style={s.breadcrumbRow}>
+          <ScrollView contentContainerStyle={s.breadcrumbScroll} horizontal showsHorizontalScrollIndicator={false}>
+            {path.map((segment, index) => (
+              <View key={`${segment.id ?? 'root'}-${index}`} style={s.breadcrumbItem}>
+                <Pressable onPress={() => onPathPress(segment.id)}>
+                  <Text style={[s.breadcrumbText, index === path.length - 1 ? s.breadcrumbActive : null]}>{segment.label}</Text>
+                </Pressable>
+                {index < path.length - 1 ? <Text style={s.breadcrumbDivider}>›</Text> : null}
+              </View>
+            ))}
+          </ScrollView>
+          <View style={s.fileCountBadge}>
+            <Text style={s.fileCountText}>{files.length}</Text>
+          </View>
+        </View>
       </View>
 
-      <View style={styles.actionsRow}>
-        <Pressable onPress={onRefresh} style={({ pressed }) => [styles.primaryButton, pressed ? styles.primaryButtonPressed : null]}>
-          <Text style={styles.primaryButtonText}>{loading ? 'Refreshing…' : 'Refresh list'}</Text>
+      <View style={s.actionsRow}>
+        <Pressable onPress={onUpload} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null]}>
+          <Text style={s.filledBtnText}>Upload</Text>
         </Pressable>
-        <Pressable disabled={!isLoggedIn} onPress={onUpload} style={({ pressed }) => [styles.secondaryButton, pressed ? styles.secondaryButtonPressed : null, !isLoggedIn ? styles.disabledButton : null]}>
-          <Text style={styles.secondaryButtonText}>Upload</Text>
+        <Pressable onPress={onRefresh} style={({ pressed }) => [s.outlineBtn, pressed ? s.pressed : null]}>
+          <Text style={s.outlineBtnText}>{loading ? 'Refreshing…' : 'Refresh'}</Text>
         </Pressable>
       </View>
 
-      <View style={styles.createFolderRow}>
+      <View style={s.createFolderRow}>
         <TextInput
           onChangeText={onCreateFolderNameChange}
           placeholder="New folder name"
-          placeholderTextColor="#94a3b8"
-          style={styles.folderInput}
+          placeholderTextColor={Theme.textTertiary}
+          style={s.textInput}
           value={createFolderName}
           editable={isLoggedIn}
         />
-        <Pressable disabled={!isLoggedIn} onPress={onCreateFolder} style={({ pressed }) => [styles.secondaryButton, pressed ? styles.secondaryButtonPressed : null, !isLoggedIn ? styles.disabledButton : null]}>
-          <Text style={styles.secondaryButtonText}>Create</Text>
+        <Pressable disabled={!isLoggedIn} onPress={onCreateFolder} style={({ pressed }) => [s.outlineBtn, pressed ? s.pressed : null, !isLoggedIn ? s.disabled : null]}>
+          <Text style={s.outlineBtnText}>Create</Text>
         </Pressable>
       </View>
 
       {actionTargetLabel ? (
-        <View style={styles.actionPanel}>
-          <Text style={styles.actionPanelTitle}>{actionMode === 'rename' ? 'Rename item' : 'Move item'}</Text>
-          <Text style={styles.helperText}>Target: {actionTargetLabel}</Text>
+        <View style={s.actionPanel}>
+          <Text style={s.actionPanelTitle}>{actionMode === 'rename' ? 'Rename item' : 'Move item'}</Text>
+          <View style={s.actionTargetChip}>
+            <Text style={s.actionTargetText}>{actionTargetLabel}</Text>
+          </View>
           {actionMode === 'rename' ? (
             <TextInput
               onChangeText={onRenameDraftChange}
               placeholder="New item name"
-              placeholderTextColor="#94a3b8"
-              style={styles.folderInput}
+              placeholderTextColor={Theme.textTertiary}
+              style={s.textInput}
               value={actionDraftName}
             />
           ) : (
-            <TextInput
-              onChangeText={onMoveTargetChange}
-              placeholder="Target folder ID (0 = Root)"
-              placeholderTextColor="#94a3b8"
-              style={styles.folderInput}
-              value={actionMoveTargetId}
-            />
+            <>
+              {allFolders.length > 0 ? (
+                <ScrollView style={s.folderPicker} contentContainerStyle={s.folderPickerContent}>
+                  <Pressable onPress={() => onMoveTargetChange('0')} style={({ pressed }) => [s.folderPickerItem, pressed ? s.pressed : null, actionMoveTargetId === '0' ? s.folderPickerItemSelected : null]}>
+                    <Text style={s.folderPickerIcon}>📁</Text>
+                    <Text style={s.folderPickerLabel}>Root</Text>
+                    <Text style={s.folderPickerId}>#0</Text>
+                  </Pressable>
+                  {allFolders.slice(0, 12).map((folder) => {
+                    const folderName = folder.name || folder.originalName || folder.fileName || `Folder #${folder.id}`;
+                    const folderId = String(folder.id);
+                    return (
+                      <Pressable key={folder.id} onPress={() => onMoveTargetChange(folderId)} style={({ pressed }) => [s.folderPickerItem, pressed ? s.pressed : null, actionMoveTargetId === folderId ? s.folderPickerItemSelected : null]}>
+                        <Text style={s.folderPickerIcon}>📁</Text>
+                        <Text style={s.folderPickerLabel} numberOfLines={1}>{folderName}</Text>
+                        <Text style={s.folderPickerId}>#{folder.id}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              ) : (
+                <TextInput
+                  onChangeText={onMoveTargetChange}
+                  placeholder="Target folder ID (0 = Root)"
+                  placeholderTextColor={Theme.textTertiary}
+                  style={s.textInput}
+                  value={actionMoveTargetId}
+                />
+              )}
+            </>
           )}
-          {actionMode === 'move' && allFolders.length ? (
-            <Text style={styles.helperText}>Available folders: {allFolders.map(folder => `${folder.id}:${folder.name || folder.originalName || folder.fileName}`).slice(0, 6).join(' · ')}</Text>
-          ) : null}
-          <Pressable onPress={onSubmitAction} style={({ pressed }) => [styles.primaryButton, pressed ? styles.primaryButtonPressed : null]}>
-            <Text style={styles.primaryButtonText}>{actionMode === 'rename' ? 'Apply rename' : 'Apply move'}</Text>
+          <Pressable onPress={onSubmitAction} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null]}>
+            <Text style={s.filledBtnText}>{actionMode === 'rename' ? 'Apply rename' : 'Apply move'}</Text>
           </Pressable>
         </View>
       ) : null}
 
-      {!isLoggedIn ? <Text style={styles.helperText}>Sign in to use your personal netdisk, upload files, and create folders.</Text> : null}
+      {!isLoggedIn ? <Text style={s.helperText}>Sign in to use your personal netdisk, upload files, and create folders.</Text> : null}
 
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? <Text style={s.errorText}>{error}</Text> : null}
 
-      <ScrollView contentContainerStyle={styles.listContent}>
+      <ScrollView contentContainerStyle={s.listContent}>
         {loading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator color="#2563eb" />
-            <Text style={styles.loadingText}>Loading files…</Text>
+          <View style={s.loadingState}>
+            <ActivityIndicator color={Theme.primary} />
+            <Text style={s.loadingText}>Loading files…</Text>
           </View>
         ) : files.length ? (
           files.map((entry) => {
@@ -166,40 +191,47 @@ export function FileBrowser({
               <Pressable
                 key={entry.id}
                 onPress={() => (isFolder ? onFolderPress(entry) : undefined)}
-                style={({ pressed }) => [styles.fileCard, pressed && isFolder ? styles.fileCardPressed : null]}
+                style={({ pressed }) => [s.fileCard, pressed && isFolder ? s.pressed : null]}
               >
-                <View style={styles.fileCardHeader}>
-                  <Text style={styles.fileEmoji}>{isFolder ? '📁' : '📄'}</Text>
-                  <View style={styles.fileTitleWrap}>
-                    <Text numberOfLines={2} style={styles.fileTitle}>{label}</Text>
-                    <Text style={styles.fileMeta}>
-                      {isFolder ? `Folder · ${entry.fileCount ?? 0} items` : `${entry.fileType || 'file'} · ${formatBytes(entry.fileSize)}`}
-                    </Text>
-                    {!isFolder ? (
-                      <View style={styles.rowButtons}>
-                        <ActionChip accessibilityLabel={`Preview ${label}`} label="Preview" onPress={() => onPreviewFile(entry)} />
-                        <ActionChip accessibilityLabel={`Download ${label}`} label="Download" onPress={() => onDownloadFile(entry)} />
-                        <ActionChip accessibilityLabel={`Share ${label}`} label="Share" onPress={() => onShareFile(entry)} />
-                        <ActionChip accessibilityLabel={`Rename ${label}`} label="Rename" onPress={() => onSelectRename(entry)} />
-                        <ActionChip accessibilityLabel={`Move ${label}`} label="Move" onPress={() => onSelectMove(entry)} />
-                        <ActionChip accessibilityLabel={`Delete ${label}`} label="Delete" onPress={() => onDeleteItem(entry)} />
-                      </View>
-                    ) : (
-                      <View style={styles.rowButtons}>
-                        <ActionChip accessibilityLabel={`Rename ${label}`} label="Rename" onPress={() => onSelectRename(entry)} />
-                        <ActionChip accessibilityLabel={`Move ${label}`} label="Move" onPress={() => onSelectMove(entry)} />
-                        <ActionChip accessibilityLabel={`Delete ${label}`} label="Delete" onPress={() => onDeleteItem(entry)} />
-                      </View>
-                    )}
+                <View style={s.fileCardHeader}>
+                  <View style={[s.fileIconContainer, { backgroundColor: isFolder ? Theme.primary08 : Theme.accent10 }]}>
+                    <Text style={s.fileIconText}>{isFolder ? '📁' : '📄'}</Text>
                   </View>
+                  <View style={s.fileTitleWrap}>
+                    <Text numberOfLines={2} style={s.fileTitle}>{label}</Text>
+                    <Text style={s.fileMeta}>
+                      {isFolder ? `${entry.fileCount ?? 0} items` : `${entry.fileType || 'file'} · ${formatBytes(entry.fileSize)}`}
+                    </Text>
+                  </View>
+                </View>
+                <View style={s.fileActions}>
+                  {!isFolder ? (
+                    <>
+                      <ActionChip label="Preview" color={Theme.primary} onPress={() => onPreviewFile(entry)} />
+                      <ActionChip label="Download" color={Theme.primary} onPress={() => onDownloadFile(entry)} />
+                      <ActionChip label="Share" color={Theme.accent} onPress={() => onShareFile(entry)} />
+                      <ActionChip label="Rename" color={Theme.textSecondary} onPress={() => onSelectRename(entry)} />
+                      <ActionChip label="Move" color={Theme.textSecondary} onPress={() => onSelectMove(entry)} />
+                      <ActionChip label="Delete" color={Theme.danger} onPress={() => onDeleteItem(entry)} />
+                    </>
+                  ) : (
+                    <>
+                      <ActionChip label="Rename" color={Theme.textSecondary} onPress={() => onSelectRename(entry)} />
+                      <ActionChip label="Move" color={Theme.textSecondary} onPress={() => onSelectMove(entry)} />
+                      <ActionChip label="Delete" color={Theme.danger} onPress={() => onDeleteItem(entry)} />
+                    </>
+                  )}
                 </View>
               </Pressable>
             );
           })
         ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No files in this folder yet.</Text>
-            <Text style={styles.emptyText}>
+          <View style={s.emptyState}>
+            <View style={s.emptyIcon}>
+              <Text style={s.emptyIconText}>📂</Text>
+            </View>
+            <Text style={s.emptyTitle}>No files in this folder yet.</Text>
+            <Text style={s.emptyText}>
               Upload a file, create a folder, or open another tab to work with sharing and pickup flows.
             </Text>
           </View>
@@ -209,237 +241,319 @@ export function FileBrowser({
   );
 }
 
-function ActionChip({ accessibilityLabel, label, onPress }: { accessibilityLabel: string; label: string; onPress: () => void }) {
+function ActionChip({ label, color, onPress }: { label: string; color: string; onPress: () => void }) {
   return (
-    <Pressable accessibilityLabel={accessibilityLabel} onPress={onPress} style={({ pressed }) => [styles.chipButton, pressed ? styles.chipButtonPressed : null]}>
-      <Text style={styles.chipButtonText}>{label}</Text>
+    <Pressable onPress={onPress} style={({ pressed }) => [s.chipButton, { borderColor: `${color}26` }, pressed ? s.pressed : null]}>
+      <Text style={[s.chipButtonText, { color }]}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   wrapper: {
     flex: 1,
-    gap: 16,
+    gap: Theme.space6,
   },
   headerCard: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 20,
-    gap: 10,
-    padding: 20,
+    backgroundColor: Theme.surfaceTintDark,
+    borderRadius: Theme.radius2xl,
+    gap: Theme.space5,
+    padding: Theme.space10,
   },
   headerTopRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
+    gap: Theme.space6,
     justifyContent: 'space-between',
   },
   headerIdentity: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   headerTitle: {
-    color: '#0f172a',
-    fontSize: 24,
+    color: Theme.text,
+    fontSize: Theme.fontSize2xl,
     fontWeight: '800',
   },
   headerSubtitle: {
-    color: '#1d4ed8',
-    fontSize: 14,
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '600',
   },
-  headerMeta: {
-    color: '#334155',
-    fontSize: 13,
-  },
   breadcrumbRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: Theme.space3,
+  },
+  breadcrumbScroll: {
+    alignItems: 'center',
+    gap: Theme.space1,
   },
   breadcrumbItem: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 6,
+    gap: Theme.space1,
   },
   breadcrumbText: {
-    color: '#0f172a',
-    fontSize: 13,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeCaption,
     fontWeight: '600',
   },
+  breadcrumbActive: {
+    color: Theme.primaryDark,
+    fontWeight: '800',
+  },
   breadcrumbDivider: {
-    color: '#64748b',
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeBase,
+  },
+  fileCountBadge: {
+    backgroundColor: Theme.primary14,
+    borderRadius: Theme.radiusFull,
+    paddingHorizontal: Theme.space3,
+    paddingVertical: Theme.space1,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  fileCountText: {
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeCaption,
+    fontWeight: '800',
   },
   actionsRow: {
     flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'flex-start',
+    gap: Theme.space5,
   },
   createFolderRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
+    gap: Theme.space5,
   },
-  folderInput: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
+  textInput: {
+    backgroundColor: Theme.surfaceSunken,
+    borderColor: Theme.borderInput,
+    borderRadius: Theme.radiusLg,
     borderWidth: 1,
-    color: '#0f172a',
+    color: Theme.text,
     flex: 1,
-    fontSize: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    fontSize: Theme.fontSizeBase,
+    paddingHorizontal: Theme.space7,
+    paddingVertical: Theme.space6,
+    minHeight: Theme.touchMin,
   },
-  primaryButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  filledBtn: {
+    backgroundColor: Theme.primaryDark,
+    borderRadius: Theme.radiusLg,
+    paddingHorizontal: Theme.space8,
+    paddingVertical: Theme.space6,
+    minHeight: Theme.touchMin,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  primaryButtonPressed: {
-    opacity: 0.88,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+  filledBtnText: {
+    color: Theme.textInverse,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '700',
   },
-  secondaryButton: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  outlineBtn: {
+    backgroundColor: Theme.surfaceTint,
+    borderRadius: Theme.radiusLg,
+    paddingHorizontal: Theme.space8,
+    paddingVertical: Theme.space6,
+    minHeight: Theme.touchMin,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  secondaryButtonPressed: {
-    opacity: 0.88,
-  },
-  secondaryButtonText: {
-    color: '#1d4ed8',
-    fontSize: 14,
+  outlineBtnText: {
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '700',
   },
-  disabledButton: {
-    opacity: 0.45,
-  },
-  helperText: {
-    color: '#64748b',
-    fontSize: 13,
-  },
-  actionPanel: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 10,
-    padding: 14,
-  },
-  actionPanelTitle: {
-    color: '#0f172a',
-    fontSize: 15,
-    fontWeight: '800',
+  disabled: {
+    opacity: 0.4,
   },
   ghostButton: {
-    borderColor: '#93c5fd',
-    borderRadius: 12,
+    borderColor: Theme.primaryLight,
+    borderRadius: Theme.radiusLg,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  ghostButtonPressed: {
-    opacity: 0.88,
+    paddingHorizontal: Theme.space7,
+    paddingVertical: Theme.space5,
+    minHeight: Theme.touchMin - 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ghostButtonText: {
-    color: '#1d4ed8',
-    fontSize: 13,
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeCaption,
     fontWeight: '700',
   },
+  helperText: {
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeCaption,
+    lineHeight: 18,
+  },
   errorText: {
-    color: '#b91c1c',
-    fontSize: 14,
+    color: Theme.danger,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '600',
   },
+  actionPanel: {
+    backgroundColor: Theme.surface,
+    borderRadius: Theme.radiusXl,
+    borderWidth: 1,
+    borderColor: Theme.borderStrong,
+    gap: Theme.space5,
+    padding: Theme.space7,
+  },
+  actionPanelTitle: {
+    color: Theme.text,
+    fontSize: Theme.fontSizeMd,
+    fontWeight: '800',
+  },
+  actionTargetChip: {
+    backgroundColor: Theme.surfaceTint,
+    borderRadius: Theme.radiusMd,
+    paddingHorizontal: Theme.space5,
+    paddingVertical: Theme.space3,
+    alignSelf: 'flex-start',
+  },
+  actionTargetText: {
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeCaption,
+    fontWeight: '700',
+  },
+  folderPicker: {
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: Theme.borderInput,
+    borderRadius: Theme.radiusLg,
+  },
+  folderPickerContent: {
+    gap: 0,
+  },
+  folderPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.space4,
+    paddingHorizontal: Theme.space5,
+    paddingVertical: Theme.space5,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.border,
+  },
+  folderPickerItemSelected: {
+    backgroundColor: Theme.primary06,
+  },
+  folderPickerIcon: {
+    fontSize: Theme.fontSizeLg,
+  },
+  folderPickerLabel: {
+    flex: 1,
+    color: Theme.text,
+    fontSize: Theme.fontSizeBase,
+    fontWeight: '600',
+  },
+  folderPickerId: {
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeCaption,
+  },
   listContent: {
-    gap: 12,
-    paddingBottom: 48,
+    gap: Theme.space5,
+    paddingBottom: Theme.space24,
   },
   loadingState: {
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 32,
+    gap: Theme.space5,
+    paddingVertical: Theme.space16,
   },
   loadingText: {
-    color: '#475569',
-    fontSize: 14,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeBase,
   },
   fileCard: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
+    backgroundColor: Theme.surface,
+    borderRadius: Theme.radius2xl,
     borderWidth: 1,
-    padding: 16,
-  },
-  fileCardPressed: {
-    opacity: 0.88,
+    borderColor: Theme.borderStrong,
+    padding: Theme.space5,
+    gap: Theme.space4,
   },
   fileCardHeader: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
+    gap: Theme.space5,
   },
-  fileEmoji: {
-    fontSize: 24,
+  fileIconContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: Theme.radiusLg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fileIconText: {
+    fontSize: Theme.fontSizeXl,
   },
   fileTitleWrap: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   fileTitle: {
-    color: '#0f172a',
-    fontSize: 15,
+    color: Theme.text,
+    fontSize: Theme.fontSizeMd,
     fontWeight: '700',
   },
   fileMeta: {
-    color: '#64748b',
-    fontSize: 13,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeCaption,
   },
-  rowButtons: {
+  fileActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 6,
+    gap: Theme.space3,
+    paddingLeft: 47,
   },
   chipButton: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  chipButtonPressed: {
-    opacity: 0.88,
+    backgroundColor: Theme.surface,
+    borderRadius: Theme.radiusMd,
+    borderWidth: 1,
+    paddingHorizontal: Theme.space5,
+    paddingVertical: Theme.space3,
   },
   chipButtonText: {
-    color: '#1d4ed8',
-    fontSize: 12,
+    fontSize: Theme.fontSizeCaption,
     fontWeight: '700',
   },
   emptyState: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
+    backgroundColor: Theme.surface,
+    borderRadius: Theme.radius2xl,
     borderWidth: 1,
-    gap: 8,
-    padding: 24,
+    borderColor: Theme.borderStrong,
+    gap: Theme.space5,
+    padding: Theme.space12,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: Theme.radius2xl,
+    backgroundColor: Theme.surfaceTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconText: {
+    fontSize: 28,
   },
   emptyTitle: {
-    color: '#0f172a',
-    fontSize: 16,
+    color: Theme.text,
+    fontSize: Theme.fontSizeMd,
     fontWeight: '700',
   },
   emptyText: {
-    color: '#64748b',
-    fontSize: 14,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeBase,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  pressed: {
+    opacity: 0.85,
   },
 });

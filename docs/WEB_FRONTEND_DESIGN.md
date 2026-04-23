@@ -22,7 +22,7 @@ The homepage rail remains the clearest proof point for the intended language aro
 - consistent message framing across QuickDrop, share links, and cloud drive
 
 ## Production intent
-This is not a mockup-only artifact. The tracked frontend now includes a real design-system migration footprint, with the remaining work focused on deeper consolidation rather than proving the design phase exists at all.
+This is not a mockup-only artifact. The tracked frontend now includes a real design-system migration footprint, and the design phase is repository-visible and complete as a baseline. Any deeper consolidation is follow-on polish rather than proof that design work is still missing.
 
 ## Reviewer checklist
 - Repo-visible design artifact exists in `docs/WEB_FRONTEND_DESIGN.md`.

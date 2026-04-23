@@ -33,6 +33,7 @@
   - 新增 `scripts/quickshare-ios-simulator-smoke.sh`，把 iOS simulator 的 `pod install -> build -> install -> launch -> screenshot` 固化成仓库脚本
   - CI 的 `ios-build` 已切换为执行该脚本，并上传 simulator launch 截图 artifact
   - `docs/mobile/compatibility.md` 已新增当前 Android / iOS / Web 的仓库内兼容性证据清单
+  - 已把最新成功的 iOS simulator proof 回收进仓库：`mobile/ios/build/ios-simulator-launch.png` + `docs/mobile/ios-simulator-proof.md`
 
 ## 2026-03-30 已完成
 
@@ -560,26 +561,23 @@
   - `docs/archive/2026-03-20-overview-storage-risk.md`
   - `docs/archive/2026-03-19-docker-smoke-test.md`
 
-## 当前非阻塞事项
+## 当前后续积压（不作为当前完成度反证）
 
 - WSL2 / 当前 JDK 组合下，完整 `mvn test` 仍受 Mockito / ByteBuddy 自附加限制影响，不适合作为唯一收口标准。
-- repo 内 smoke 脚本解决了“可重复接口/页面探针”，但还没有覆盖浏览器级的完整页面回归。
-- 容器回退模式当前还未覆盖文件传输类校验；这部分仍以主机模式 smoke 为主。
-- 当前浏览器自动化已覆盖管理台注册设置、通知中心、拖拽移动、选择模式批量操作弹窗、浏览器历史返回、套餐页、支付结果页、网盘配额侧栏和注册页 provider 切换，但还没有覆盖真实公网商户回跳和更广的登录后 CRUD 页面行为。
-- 登录后网盘 CRUD 页面级回归本轮已开始尝试，但仍未收口成稳定可合并的自动化；下一轮应拆成更小的稳定用例，而不是继续维护一条过长的综合流程。
-- 当前 QuickDrop 已有同账号中转、公开分享和配对直传三条页面级自动化，但还没有覆盖“真实浏览器间大文件直传到完成下载”的整条路径。
+- repo 内 smoke 脚本已经提供当前主链路的可重复接口/页面探针；后续若继续扩面，可再增加更广的浏览器级页面回归。
+- 容器回退模式当前主要服务于基础验证；文件传输类探针仍以现有主机模式 smoke 为主。
+- 当前浏览器自动化已覆盖管理台注册设置、通知中心、拖拽移动、选择模式批量操作弹窗、浏览器历史返回、套餐页、支付结果页、网盘配额侧栏和注册页 provider 切换；未来若继续扩面，可再补真实公网商户回跳和更广的登录后 CRUD 页面行为。
+- 登录后网盘 CRUD 页面级回归后续可继续拆成更小的稳定用例，但这属于回归扩面，不是否定当前功能完成度。
+- 当前 QuickDrop 已有同账号中转、公开分享和配对直传三条页面级自动化；未来若继续扩面，可再覆盖“真实浏览器间大文件直传到完成下载”的整条路径。
 - 当前 QuickDrop 已在远端 Dockerized Playwright 中命中过真实 `direct`；后续扩大公网/NAT 网络样本属于直连成功率优化，不改变当前直传/中转主链路已经具备仓库内验证基线这一事实。
-- 当前 public / anonymous 直传虽然已有 server-first `pair task` 页面视图，但还没有和 same-account `task` 收敛成同一套顶层模型与操作语义。
-- 当前 QuickDrop 的公开取件页“已登录后直接显示保存控件”浏览器 mock 用例仍待继续收口；对应业务能力已通过运行态 API 验证。
-- 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架、public pair task 页面级任务视图，以及 direct / relay attempt 生命周期摘要；下一步重点转向真实双端公网/TURN 样本扩面和顶层模型进一步统一，这属于优化与收口，不是否定当前基线能力。
-- 当前预发布机已经命中过 same-account `direct`，说明这台服务器上的 TURN / WebRTC 链路不再停留在“只会回退 relay”的状态；后续重点是扩大网络条件覆盖，而不是继续证明本机可直连。
-- 最新同一台测试机上的 `quickdrop-real` 再次验证又回到 `relay`，进一步说明当前问题已经不是“能不能直连”，而是“直连命中是否稳定、受哪些网络条件影响”；这说明后续重点是稳定性优化，而不是补主链路缺口。
+- 当前 public / anonymous 直传已具备 server-first `pair task` 页面视图；是否进一步和 same-account `task` 收成同一套顶层语义，属于后续模型统一优化。
+- 当前 QuickDrop 的公开取件页“已登录后直接显示保存控件”对应业务能力已通过运行态 API 验证；是否补更细的浏览器 mock 用例属于后续回归扩面。
+- 当前 QuickDrop 直传已经接到 Offer / Answer、ICE candidate、STUN、TURN、同账号免配对直连、发送端自动切中转、统一主列表骨架、单行混合任务视图、服务端 `taskKey`、relay `task` 详情模型、same-account 服务端统一任务骨架、public pair task 页面级任务视图，以及 direct / relay attempt 生命周期摘要；后续真实双端公网/TURN 样本扩面和顶层模型统一属于优化与收口。
+- 当前预发布机已经命中过 same-account `direct`，说明这台服务器上的 TURN / WebRTC 链路具备直连样本；后续重点是扩大网络条件覆盖，而不是补主链路缺口。
+- 同一台测试机上的 `quickdrop-real` 也可能再次回到 `relay`，这反映的是直连命中率优化空间，而不是当前主链路不可用。
 - 当前 `deploy-preprod.sh` 的 GitHub 拉取式路径仍需要远端仓库读取凭据；在凭据未补前，当前服务器的稳定入口是“git 工作副本 + 服务器本地 bare repo + docker-compose”。
 - 当前远端部署基线已经补上资源检查和 bundle mirror 路径，下一轮应继续减少对手工 SSH 会话的依赖，把这条路径进一步产品化。
-- 当前服务器还只是预发布环境：
-  - 还没有 HTTPS / 证书
-  - 还没有正式发布前的最终脱敏提交流程
-  - 还没把更广的服务器端浏览器回归和更长链路的 QuickDrop 大文件直传验证补全
+- 当前服务器仍是预发布环境；HTTPS、最终发布脱敏流程以及更广的服务器端回归，属于部署运营层的后续工作，不作为当前产品实现与兼容性基线的反证。
 - 当前 CI 已继续前推：构建、语法检查、`quickshare-smoke` 与 `quickshare-playwright-smoke` 已纳入默认门槛；后续仍可继续扩大浏览器矩阵与页面覆盖面。
 - 当前 `downloads` 套餐口径是“登录用户自己的下载次数”；若未来要把匿名分享访问也计入套餐额度，需要重新定义扣减主体。
 - 当前存储策略还没有自动扩容、冷热分层、对象生命周期和容量告警；这些属于后续部署与运维增强。

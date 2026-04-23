@@ -25,4 +25,4 @@ The homepage remains the highest-traffic proof point, and its feature-card rail 
 - consistent message framing across QuickDrop, share links, and cloud drive
 
 ## Production intent
-This is not a mockup-only artifact. The design phase now exists as a repo-visible token/component system with multiple migrated or adopted pages, and can continue expanding until the remaining static surfaces fully converge on the shared language.
+This is not a mockup-only artifact. The design phase now exists as a repo-visible token/component system with multiple migrated or adopted pages, and the remaining expansion path is follow-on polish rather than evidence that the design phase is still incomplete.

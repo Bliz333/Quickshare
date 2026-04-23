@@ -8,18 +8,56 @@
 (function () {
     'use strict';
 
-    var socialState = { googleClientId: null };
+    var socialState = {
+        googleClientId: null,
+        configRequestId: 0,
+        configRetryCount: 0,
+        gisScriptRequested: false,
+        gisRetryCount: 0,
+        configRetryTimer: null
+    };
+
+    var MAX_CONFIG_RETRIES = 4;
+    var MAX_GIS_RETRIES = 3;
+
+    function scheduleConfigRetry() {
+        if (socialState.configRetryTimer || socialState.configRetryCount >= MAX_CONFIG_RETRIES) {
+            return;
+        }
+        socialState.configRetryCount += 1;
+        socialState.configRetryTimer = window.setTimeout(function () {
+            socialState.configRetryTimer = null;
+            loadSocialConfig();
+        }, 1500);
+    }
 
     function loadSocialConfig() {
+        var requestId = ++socialState.configRequestId;
         fetch(API_BASE + '/public/registration-settings')
             .then(function (r) { return r.json(); })
             .then(function (result) {
+                if (requestId !== socialState.configRequestId) {
+                    return;
+                }
                 if (result.code === 200 && result.data) {
                     socialState.googleClientId = result.data.googleClientId || null;
                     renderSocialButtons();
+                    if (socialState.googleClientId) {
+                        socialState.configRetryCount = 0;
+                    }
+                    if (!socialState.googleClientId) {
+                        scheduleConfigRetry();
+                    }
+                    return;
                 }
+                scheduleConfigRetry();
             })
-            .catch(function () {});
+            .catch(function () {
+                if (requestId !== socialState.configRequestId) {
+                    return;
+                }
+                scheduleConfigRetry();
+            });
     }
 
     function renderSocialButtons() {
@@ -55,15 +93,30 @@
         }
 
         if (window.google && window.google.accounts && window.google.accounts.id) {
+            socialState.gisScriptRequested = false;
             onReady();
             return;
         }
+
+        if (socialState.gisScriptRequested || socialState.gisRetryCount >= MAX_GIS_RETRIES) {
+            return;
+        }
+
+        socialState.gisScriptRequested = true;
+        socialState.gisRetryCount += 1;
 
         var script = document.createElement('script');
         script.src = 'https://accounts.google.com/gsi/client';
         script.async = true;
         script.defer = true;
-        script.onload = onReady;
+        script.onload = function () {
+            socialState.gisScriptRequested = false;
+            onReady();
+        };
+        script.onerror = function () {
+            socialState.gisScriptRequested = false;
+            scheduleConfigRetry();
+        };
         document.head.appendChild(script);
     }
 
@@ -116,7 +169,7 @@
                 localStorage.setItem('user', JSON.stringify(result.data));
                 var lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'en';
                 showToast(lang === 'zh' ? '登录成功' : 'Signed in', 'success');
-                setTimeout(function () { window.location.href = 'netdisk.html'; }, 800);
+                setTimeout(function () { window.location.href = 'index.html'; }, 800);
             } else {
                 throw new Error(result.message || 'Login failed');
             }
@@ -127,9 +180,11 @@
         });
     }
 
-    if (document.readyState === 'complete') {
+    window.addEventListener('quickshare:languagechange', renderSocialButtons);
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
         loadSocialConfig();
     } else {
-        window.addEventListener('load', loadSocialConfig);
+        document.addEventListener('DOMContentLoaded', loadSocialConfig);
     }
 })();

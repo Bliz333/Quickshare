@@ -17,6 +17,11 @@
             }
         })();
     </script>
+    <script>
+        (function(){document.documentElement.classList.add('lang-pending');
+        var l=localStorage.getItem('quickshare-lang');
+        if(l==='en'||l==='zh')document.documentElement.lang=l==='en'?'en':'zh-CN'})();
+    </script>
 
     <style>
         /* ==================== 主题变量 ==================== */
@@ -58,6 +63,8 @@
             color: var(--text-main);
             transition: background-color 0.3s, color 0.3s;
         }
+        html.lang-pending body{opacity:0}
+        html.lang-ready body{opacity:1;transition:opacity .18s ease}
 
         .bg-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; opacity: 0.15; pointer-events: none; }
         .blob { position: absolute; filter: blur(120px); opacity: 0.4; border-radius: 50%; animation: float 25s infinite alternate; }
@@ -622,12 +629,12 @@
 
 <!-- Sidebar -->
 <aside class="w-64 bg-card border-r border-border flex flex-col shrink-0 z-20 sidebar transition-colors duration-300">
-    <div class="h-16 flex items-center px-6 border-b border-border">
-        <div class="w-8 h-8 bg-gradient-to-br from-brand-500 to-ai-500 rounded-lg flex items-center justify-center text-white mr-3 shadow-md shadow-brand-500/20">
+    <a href="index.html" class="h-16 flex items-center px-6 border-b border-border group">
+        <div class="w-8 h-8 bg-gradient-to-br from-brand-500 to-ai-500 rounded-lg flex items-center justify-center text-white mr-3 shadow-md shadow-brand-500/20 transition-transform group-hover:-translate-y-0.5">
             <i class="fa-solid fa-cloud"></i>
         </div>
-        <span class="font-bold text-lg tracking-tight text-text-main">QuickShare</span>
-    </div>
+        <span class="font-bold text-lg tracking-tight text-text-main hover:text-brand-600 transition-colors">QuickShare</span>
+    </a>
 
     <nav class="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
         <div class="px-2 mb-6">

@@ -12,6 +12,7 @@ import { LoginForm } from './src/components/LoginForm';
 import { PricingCenter } from './src/components/PricingCenter';
 import { RegisterForm } from './src/components/RegisterForm';
 import { ShareCenter } from './src/components/ShareCenter';
+import { Theme } from './src/theme';
 import {
   buildOwnedFileDownloadUrl,
   buildOwnedFilePreviewUrl,
@@ -1811,61 +1812,72 @@ function TabButton({ active, label, onPress }: { active: boolean; label: string;
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: Theme.bg,
     flex: 1,
   },
   screen: {
     flex: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 20,
+    paddingHorizontal: Theme.space9,
+    paddingVertical: Theme.space8,
   },
   tabBar: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
+    gap: Theme.space3,
+    marginBottom: Theme.space6,
+    padding: Theme.space3,
+    borderRadius: Theme.radius2xl,
+    backgroundColor: Theme.surface,
+    borderWidth: 1,
+    borderColor: Theme.borderStrong,
   },
   tabButton: {
     alignItems: 'center',
-    backgroundColor: '#dbeafe',
-    borderRadius: 12,
+    backgroundColor: 'transparent',
+    borderRadius: Theme.radiusLg,
     flex: 1,
     justifyContent: 'center',
-    minHeight: 42,
+    minHeight: Theme.touchMin,
   },
   tabButtonActive: {
-    backgroundColor: '#2563eb',
+    backgroundColor: Theme.primaryDark,
   },
   tabButtonPressed: {
     opacity: 0.88,
   },
   tabButtonText: {
-    color: '#1d4ed8',
-    fontSize: 13,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeCaption,
     fontWeight: '700',
   },
   tabButtonTextActive: {
-    color: '#ffffff',
+    color: Theme.textInverse,
   },
   tabContent: {
     flex: 1,
   },
   loginScreen: {
     flex: 1,
-    gap: 16,
+    gap: Theme.space6,
     justifyContent: 'center',
   },
   connectionHint: {
-    color: '#64748b',
-    fontSize: 12,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeSm,
     textAlign: 'center',
   },
   authToggle: {
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: Theme.space2,
+    backgroundColor: Theme.surface,
+    borderColor: Theme.borderStrong,
+    borderRadius: Theme.radiusLg,
+    borderWidth: 1,
+    minHeight: Theme.touchMin,
+    justifyContent: 'center',
   },
   authToggleText: {
-    color: '#1d4ed8',
-    fontSize: 14,
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '700',
   },
 });

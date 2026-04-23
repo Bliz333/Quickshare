@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { formatBytes } from '../lib/format';
+import { Theme } from '../theme';
 import type {
   QuickShareDirectTransportSummary,
   QuickShareShareLink,
@@ -81,125 +82,166 @@ export function HomeDashboard({
   const displayName = profile?.nickname || profile?.username || 'Guest';
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.heroCard}>
-        <Text style={styles.heroEyebrow}>QuickShare Mobile</Text>
-        <Text style={styles.heroTitle}>Hi, {displayName}</Text>
-        <Text style={styles.heroText}>
-          Share from entry like the web homepage, then log in only when you need personal netdisk features.
+    <ScrollView contentContainerStyle={s.content}>
+      <View style={s.heroCard}>
+        <View style={s.heroIconWrap}>
+          <View style={s.heroIcon}>
+            <Text style={s.heroIconText}>Q</Text>
+          </View>
+        </View>
+        <Text style={s.heroEyebrow}>QuickShare Mobile</Text>
+        <Text style={s.heroTitle}>Hi, {displayName}</Text>
+        <Text style={s.heroText}>
+          Share files instantly, manage your cloud storage, and connect your devices.
         </Text>
       </View>
 
-      <View style={styles.quickActionsRow}>
-        <QuickAction label="Direct Share" emoji="📤" onPress={onCreateDirectShare} />
-        <QuickAction label="My Files" emoji="📁" onPress={onGoToFiles} />
-        <QuickAction label="Share Center" emoji="🔗" onPress={onGoToShare} />
+      <View style={s.quickActionsRow}>
+        <QuickAction icon="↗" label="Direct Share" tint={Theme.primary08} tintDark={Theme.primary14} tintText={Theme.primary} onPress={onCreateDirectShare} />
+        <QuickAction icon="☰" label="My Files" tint={Theme.success10} tintDark={Theme.success05} tintText={Theme.success} onPress={onGoToFiles} />
+        <QuickAction icon="⬡" label="Share Center" tint={Theme.accent10} tintDark={Theme.accent18} tintText={Theme.accent} onPress={onGoToShare} />
       </View>
 
-      <View style={styles.quickActionsRow}>
-        <QuickAction label="Account" emoji="👤" onPress={onGoToAccount} />
-        <QuickAction label="Plans" emoji="💳" onPress={onGoToPricing} />
-        {!profile ? <QuickAction label="Google Sign-in" emoji="🟢" onPress={onGoToGoogleLogin} /> : null}
+      <View style={s.quickActionsRow}>
+        <QuickAction icon="◎" label="Account" tint={Theme.primary08} tintDark={Theme.primary14} tintText={Theme.primaryDark} onPress={onGoToAccount} />
+        <QuickAction icon="★" label="Plans" tint={Theme.warning08} tintDark={Theme.warning08} tintText={Theme.warning} onPress={onGoToPricing} />
+        {!profile ? <QuickAction icon="G" label="Google Sign-in" tint={Theme.success10} tintDark={Theme.success05} tintText={Theme.success} onPress={onGoToGoogleLogin} /> : null}
       </View>
 
       {profile ? (
-        <View style={styles.metricsCard}>
-          <Text style={styles.sectionTitle}>Storage</Text>
-          <Text style={styles.metricText}>
-            Used {formatBytes(profile.storageUsed)} / {formatBytes(profile.storageLimit)}
-          </Text>
-          <Text style={styles.metricText}>
-            Downloads {profile.downloadUsed ?? 0} / {profile.downloadLimit ?? 0}
-          </Text>
+        <View style={s.surfaceCard}>
+          <Text style={s.eyebrow}>Storage</Text>
+          <View style={s.metricsRow}>
+            <View style={[s.metricChip, { backgroundColor: Theme.primary06 }]}>
+              <Text style={s.metricChipLabel}>Used</Text>
+              <Text style={[s.metricChipValue, { color: Theme.primaryDark }]}>{formatBytes(profile.storageUsed)}</Text>
+            </View>
+            <View style={[s.metricChip, { backgroundColor: Theme.primary06 }]}>
+              <Text style={s.metricChipLabel}>Limit</Text>
+              <Text style={[s.metricChipValue, { color: Theme.primaryDark }]}>{formatBytes(profile.storageLimit)}</Text>
+            </View>
+            <View style={[s.metricChip, { backgroundColor: Theme.success10 }]}>
+              <Text style={s.metricChipLabel}>Downloads</Text>
+              <Text style={[s.metricChipValue, { color: Theme.successDark }]}>{profile.downloadUsed ?? 0}/{profile.downloadLimit ?? 0}</Text>
+            </View>
+          </View>
         </View>
       ) : (
-        <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Guest mode</Text>
-          <Text style={styles.infoText}>You can upload, create share links, open public shares, and check pickup tokens without signing in.</Text>
-          <Text style={styles.infoText}>Sign in only when you want to use your personal netdisk.</Text>
+        <View style={s.surfaceCard}>
+          <Text style={s.eyebrow}>Guest mode</Text>
+          <Text style={s.bodyText}>You can upload, create share links, open public shares, and check pickup tokens without signing in.</Text>
+          <Text style={s.bodyText}>Sign in only when you want to use your personal netdisk.</Text>
         </View>
       )}
 
       {latestShare ? (
-        <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Latest share link</Text>
-          <Text style={styles.infoTitle}>{latestShare.fileName || latestShare.shareCode}</Text>
-          <Text style={styles.infoText}>Share code: {latestShare.shareCode}</Text>
-          <Text style={styles.infoText}>Extract code: {latestShare.extractCode || 'auto-generated'}</Text>
+        <View style={s.surfaceCard}>
+          <Text style={s.eyebrow}>Latest share link</Text>
+          <Text style={s.cardTitle}>{latestShare.fileName || latestShare.shareCode}</Text>
+          <View style={s.chipRow}>
+            <View style={[s.metaChip, { backgroundColor: Theme.primary06 }]}>
+              <Text style={s.metaChipLabel}>Share code</Text>
+              <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{latestShare.shareCode}</Text>
+            </View>
+            <View style={[s.metaChip, { backgroundColor: Theme.primary06 }]}>
+              <Text style={s.metaChipLabel}>Extract code</Text>
+              <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{latestShare.extractCode || 'auto-generated'}</Text>
+            </View>
+          </View>
         </View>
       ) : null}
 
       {latestDirectSession ? (
-        <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Latest direct session</Text>
-          <Text style={styles.infoText}>Pair session: {latestDirectSession.pairSessionId || '-'}</Text>
-          <Text style={styles.infoText}>Peer: {latestDirectSession.peerLabel || latestDirectSession.peerDeviceId || '-'}</Text>
-          <Text style={styles.infoText}>Self device: {latestDirectSession.selfDeviceId || '-'}</Text>
-          {latestDirectControlMessage ? <Text style={styles.infoText}>Last control message: {latestDirectControlMessage}</Text> : null}
+        <View style={s.surfaceCard}>
+          <Text style={s.eyebrow}>Latest direct session</Text>
+          <View style={s.chipRow}>
+            <View style={[s.metaChip, { backgroundColor: Theme.accent10 }]}>
+              <Text style={s.metaChipLabel}>Pair session</Text>
+              <Text style={[s.metaChipValue, { color: Theme.accent }]}>{latestDirectSession.pairSessionId || '-'}</Text>
+            </View>
+            <View style={[s.metaChip, { backgroundColor: Theme.accent10 }]}>
+              <Text style={s.metaChipLabel}>Peer</Text>
+              <Text style={[s.metaChipValue, { color: Theme.accent }]}>{latestDirectSession.peerLabel || latestDirectSession.peerDeviceId || '-'}</Text>
+            </View>
+          </View>
+          {latestDirectControlMessage ? <Text style={s.bodyText}>Last control message: {latestDirectControlMessage}</Text> : null}
           {latestIncomingDirectFile ? (
-            <>
-              <Text style={styles.infoText}>Incoming file: {latestIncomingDirectFile}</Text>
-              <View style={styles.rowButtons}>
-                <SmallAction label="Save incoming file" onPress={onSaveIncomingDirectFile} />
-              </View>
-            </>
+            <View style={s.actionRail}>
+              <Text style={s.bodyText}>Incoming file ready: {latestIncomingDirectFile}</Text>
+              <Pressable onPress={onSaveIncomingDirectFile} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null]}>
+                <Text style={s.filledBtnText}>Save incoming file</Text>
+              </Pressable>
+            </View>
           ) : null}
           {latestDirectTransport ? (
-            <>
-              <Text style={styles.infoText}>Connection: {latestDirectTransport.connectionState || '-'}</Text>
-              <Text style={styles.infoText}>Signaling: {latestDirectTransport.signalingState || '-'}</Text>
-              <Text style={styles.infoText}>Control channel: {latestDirectTransport.controlChannelState || '-'}</Text>
-              <Text style={styles.infoText}>File channel: {latestDirectTransport.fileChannelState || '-'}</Text>
-              <Text style={styles.infoText}>Local offer ready: {latestDirectTransport.hasLocalOffer ? 'yes' : 'no'}</Text>
-            </>
+            <View style={s.statusGrid}>
+              <StatusDot label="Connection" value={latestDirectTransport.connectionState || '-'} color={latestDirectTransport.connectionState === 'connected' ? Theme.success : Theme.textTertiary} />
+              <StatusDot label="Signaling" value={latestDirectTransport.signalingState || '-'} color={Theme.textSecondary} />
+              <StatusDot label="Control" value={latestDirectTransport.controlChannelState || '-'} color={latestDirectTransport.controlChannelState === 'open' ? Theme.success : Theme.textTertiary} />
+              <StatusDot label="File" value={latestDirectTransport.fileChannelState || '-'} color={latestDirectTransport.fileChannelState === 'open' ? Theme.success : Theme.textTertiary} />
+            </View>
           ) : null}
         </View>
       ) : null}
 
       {latestTransferPickup ? (
-        <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Latest pickup token</Text>
-          <Text style={styles.infoTitle}>{latestTransferPickup.fileName || latestTransferPickup.shareToken}</Text>
-          <Text style={styles.infoText}>Token: {latestTransferPickup.shareToken}</Text>
-          <Text style={styles.infoText}>Status: {latestTransferPickup.status || 'unknown'}</Text>
+        <View style={s.surfaceCard}>
+          <Text style={s.eyebrow}>Latest pickup token</Text>
+          <Text style={s.cardTitle}>{latestTransferPickup.fileName || latestTransferPickup.shareToken}</Text>
+          <View style={s.chipRow}>
+            <View style={[s.metaChip, { backgroundColor: Theme.success10 }]}>
+              <Text style={s.metaChipLabel}>Token</Text>
+              <Text style={[s.metaChipValue, { color: Theme.successDark }]}>{latestTransferPickup.shareToken}</Text>
+            </View>
+            <View style={[s.metaChip, { backgroundColor: latestTransferPickup.status === 'ready' ? Theme.success10 : Theme.warning08 }]}>
+              <Text style={s.metaChipLabel}>Status</Text>
+              <Text style={[s.metaChipValue, { color: latestTransferPickup.status === 'ready' ? Theme.successDark : Theme.warningDark }]}>{latestTransferPickup.status || 'unknown'}</Text>
+            </View>
+          </View>
         </View>
       ) : null}
 
-      <View style={styles.infoCard}>
-        <Text style={styles.sectionTitle}>Homepage direct transfer</Text>
-        <Text style={styles.infoText}>Pick a file from the home screen and create a ready-to-receive pickup token without going through the netdisk first.</Text>
-        {directShareError ? <Text style={styles.errorText}>{directShareError}</Text> : null}
-        <Pressable onPress={onCreateDirectShare} style={({ pressed }) => [styles.primaryButton, pressed ? styles.quickActionPressed : null]}>
-          {directShareLoading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.primaryButtonText}>Create pickup from Home</Text>}
+      <View style={s.surfaceCard}>
+        <Text style={s.eyebrow}>Homepage direct transfer</Text>
+        <Text style={s.bodyText}>Pick a file and create a ready-to-receive pickup token without going through the netdisk first.</Text>
+        {directShareError ? <Text style={s.errorText}>{directShareError}</Text> : null}
+        <Pressable onPress={onCreateDirectShare} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null]}>
+          {directShareLoading ? <ActivityIndicator color={Theme.textInverse} /> : <Text style={s.filledBtnText}>Create pickup from Home</Text>}
         </Pressable>
       </View>
 
       {profile ? (
-        <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Connected devices</Text>
-          {syncLoading ? <Text style={styles.infoText}>Refreshing device list…</Text> : null}
-          {deviceTransferError ? <Text style={styles.errorText}>{deviceTransferError}</Text> : null}
-          {directSessionError ? <Text style={styles.errorText}>{directSessionError}</Text> : null}
+        <View style={s.surfaceCard}>
+          <Text style={s.eyebrow}>Connected devices</Text>
+          {syncLoading ? <Text style={s.bodyText}>Refreshing device list…</Text> : null}
+          {deviceTransferError ? <Text style={s.errorText}>{deviceTransferError}</Text> : null}
+          {directSessionError ? <Text style={s.errorText}>{directSessionError}</Text> : null}
           {devices.length ? devices.slice(0, 4).map((device) => (
-            <View key={device.deviceId} style={styles.deviceRow}>
-              <Text style={styles.infoText}>• {device.deviceName || device.deviceId} {device.current ? '(This device)' : device.online ? '(Online)' : '(Offline)'}</Text>
+            <View key={device.deviceId} style={s.deviceRow}>
+              <View style={s.deviceInfo}>
+                <View style={[s.deviceDot, { backgroundColor: device.current ? Theme.primary : device.online ? Theme.success : Theme.textTertiary }]} />
+                <Text style={s.deviceName}>{device.deviceName || device.deviceId}</Text>
+                <Text style={s.deviceBadge}>{device.current ? 'This device' : device.online ? 'Online' : 'Offline'}</Text>
+              </View>
               {!device.current ? (
-                <View style={styles.rowButtons}>
-                  <Pressable onPress={() => onSendToDevice(device.deviceId)} style={({ pressed }) => [styles.smallPrimaryButton, pressed ? styles.quickActionPressed : null, deviceTransferLoading ? styles.quickActionPressed : null]}>
-                    <Text style={styles.smallPrimaryButtonText}>{deviceTransferLoading ? 'Sending…' : 'Send file'}</Text>
+                <View style={s.actionRail}>
+                  <Pressable onPress={() => onSendToDevice(device.deviceId)} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null, deviceTransferLoading ? s.pressed : null]}>
+                    <Text style={s.filledBtnText}>{deviceTransferLoading ? 'Sending…' : 'Send file'}</Text>
                   </Pressable>
-                  <SmallAction label={directSessionLoading ? 'Preparing…' : 'Direct link'} onPress={() => onPrepareDirectSession(device.deviceId)} />
+                  <Pressable onPress={() => onPrepareDirectSession(device.deviceId)} style={({ pressed }) => [s.outlineBtn, pressed ? s.pressed : null]}>
+                    <Text style={s.outlineBtnText}>{directSessionLoading ? 'Preparing…' : 'Direct link'}</Text>
+                  </Pressable>
                 </View>
               ) : null}
             </View>
-          )) : <Text style={styles.infoText}>No same-account devices reported yet.</Text>}
+          )) : <Text style={s.bodyText}>No same-account devices reported yet.</Text>}
         </View>
       ) : null}
 
       {profile ? (
-        <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Recent transfer tasks</Text>
-          {transferTaskActionError ? <Text style={styles.errorText}>{transferTaskActionError}</Text> : null}
+        <View style={s.surfaceCard}>
+          <Text style={s.eyebrow}>Recent transfer tasks</Text>
+          {transferTaskActionError ? <Text style={s.errorText}>{transferTaskActionError}</Text> : null}
           {incomingTasks.length ? incomingTasks.slice(0, 4).map((task) => {
             const transferReady = Boolean(task.attempts?.some((attempt) => attempt.transferMode === 'relay' && attempt.transferId));
             return (
@@ -212,43 +254,45 @@ export function HomeDashboard({
                 task={task}
               />
             );
-          }) : <Text style={styles.infoText}>No incoming transfer tasks yet.</Text>}
+          }) : <Text style={s.bodyText}>No incoming transfer tasks yet.</Text>}
         </View>
       ) : null}
 
       {profile ? (
-        <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Outgoing transfers</Text>
+        <View style={s.surfaceCard}>
+          <Text style={s.eyebrow}>Outgoing transfers</Text>
           {outgoingTasks.length ? outgoingTasks.slice(0, 4).map((task) => (
             <TransferTaskCard key={task.id} onDelete={() => onDeleteTransferTask(task)} task={task} />
-          )) : <Text style={styles.infoText}>No outgoing transfer tasks yet.</Text>}
+          )) : <Text style={s.bodyText}>No outgoing transfer tasks yet.</Text>}
         </View>
       ) : null}
     </ScrollView>
   );
 }
 
-function QuickAction({ emoji, label, onPress }: { emoji: string; label: string; onPress: () => void }) {
+function QuickAction({ icon, label, tint, tintText, onPress }: { icon: string; label: string; tint: string; tintDark: string; tintText: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.quickAction, pressed ? styles.quickActionPressed : null]}>
-      <Text style={styles.quickActionEmoji}>{emoji}</Text>
-      <Text style={styles.quickActionLabel}>{label}</Text>
+    <Pressable onPress={onPress} style={({ pressed }) => [s.quickAction, pressed ? s.pressed : null]}>
+      <View style={[s.quickActionIcon, { backgroundColor: tint }]}>
+        <Text style={[s.quickActionIconText, { color: tintText }]}>{icon}</Text>
+      </View>
+      <Text style={s.quickActionLabel}>{label}</Text>
     </Pressable>
   );
 }
 
-function SmallAction({ label, onPress }: { label: string; onPress: () => void }) {
+function StatusDot({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.smallButton, pressed ? styles.smallButtonPressed : null]}>
-      <Text style={styles.smallButtonText}>{label}</Text>
-    </Pressable>
+    <View style={s.statusDotRow}>
+      <View style={[s.statusDot, { backgroundColor: color }]} />
+      <Text style={s.statusDotLabel}>{label}</Text>
+      <Text style={s.statusDotValue}>{value}</Text>
+    </View>
   );
 }
 
 function formatTaskTime(value?: string): string {
-  if (!value) {
-    return 'Not yet';
-  }
+  if (!value) return 'Not yet';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
@@ -266,179 +310,322 @@ function TransferTaskCard({
   onSave?: () => void;
   task: QuickShareTransferTask;
 }) {
+  const stage = task.stage || task.attemptStatus || 'unknown';
+  const mode = task.currentTransferMode || task.transferMode || 'relay';
   return (
-    <View style={styles.taskCard}>
-      <Text style={styles.infoText}>• {task.fileName || `Task #${task.id}`} · {task.stage || task.attemptStatus || 'unknown'}</Text>
-      <Text style={styles.infoText}>Mode: {task.currentTransferMode || task.transferMode || 'relay'} · Peer: {task.peerLabel || task.peerDeviceId || '-'}</Text>
-      <Text style={styles.infoText}>Progress: {task.completedChunks ?? 0}/{task.totalChunks ?? 0}</Text>
-      {task.failureReason ? <Text style={styles.errorText}>Failure: {task.failureReason}</Text> : null}
-      {task.startReason ? <Text style={styles.infoText}>Started: {task.startReason}</Text> : null}
-      {task.endReason ? <Text style={styles.infoText}>Ended: {task.endReason}</Text> : null}
-      {task.startTime ? <Text style={styles.infoText}>Start time: {formatTaskTime(task.startTime)}</Text> : null}
-      <Text style={styles.infoText}>Saved: {formatTaskTime(task.savedToNetdiskAt)}</Text>
-      <Text style={styles.infoText}>Completed: {formatTaskTime(task.completedAt)}</Text>
-      {task.failedAt ? <Text style={styles.infoText}>Failed at: {formatTaskTime(task.failedAt)}</Text> : null}
-      {task.fallbackAt ? <Text style={styles.infoText}>Fallback at: {formatTaskTime(task.fallbackAt)}</Text> : null}
+    <View style={s.taskCard}>
+      <View style={s.taskHeader}>
+        <Text style={s.taskFileName}>{task.fileName || `Task #${task.id}`}</Text>
+        <View style={[s.stageChip, { backgroundColor: stage === 'completed' ? Theme.success10 : Theme.primary06 }]}>
+          <Text style={[s.stageChipText, { color: stage === 'completed' ? Theme.successDark : Theme.primaryDark }]}>{stage}</Text>
+        </View>
+      </View>
+      <View style={s.chipRow}>
+        <View style={[s.metaChip, { backgroundColor: Theme.primary03 }]}>
+          <Text style={s.metaChipLabel}>Mode</Text>
+          <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{mode}</Text>
+        </View>
+        <View style={[s.metaChip, { backgroundColor: Theme.primary03 }]}>
+          <Text style={s.metaChipLabel}>Peer</Text>
+          <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{task.peerLabel || task.peerDeviceId || '-'}</Text>
+        </View>
+        <View style={[s.metaChip, { backgroundColor: Theme.primary03 }]}>
+          <Text style={s.metaChipLabel}>Progress</Text>
+          <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{task.completedChunks ?? 0}/{task.totalChunks ?? 0}</Text>
+        </View>
+      </View>
+      {task.failureReason ? <Text style={s.errorText}>Failure: {task.failureReason}</Text> : null}
+      {task.startTime ? <Text style={s.captionText}>Started: {formatTaskTime(task.startTime)}</Text> : null}
+      <Text style={s.captionText}>Completed: {formatTaskTime(task.completedAt)}</Text>
       {onDownload || onSave || onDelete ? (
-        <View style={styles.rowButtons}>
-          {onDownload ? <SmallAction label={actionLoading ? 'Working…' : 'Download'} onPress={onDownload} /> : null}
-          {onSave ? <SmallAction label={actionLoading ? 'Working…' : 'Save'} onPress={onSave} /> : null}
-          {onDelete ? <SmallAction label={actionLoading ? 'Working…' : 'Delete'} onPress={onDelete} /> : null}
+        <View style={s.actionRail}>
+          {onDownload ? <Pressable onPress={onDownload} style={({ pressed }) => [s.outlineBtn, pressed ? s.pressed : null]}><Text style={s.outlineBtnText}>{actionLoading ? 'Working…' : 'Download'}</Text></Pressable> : null}
+          {onSave ? <Pressable onPress={onSave} style={({ pressed }) => [s.outlineBtn, pressed ? s.pressed : null]}><Text style={s.outlineBtnText}>{actionLoading ? 'Working…' : 'Save'}</Text></Pressable> : null}
+          {onDelete ? <Pressable onPress={onDelete} style={({ pressed }) => [s.outlineBtnDanger, pressed ? s.pressed : null]}><Text style={s.outlineBtnDangerText}>{actionLoading ? 'Working…' : 'Delete'}</Text></Pressable> : null}
         </View>
       ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   content: {
-    gap: 16,
-    paddingBottom: 48,
+    gap: Theme.space6,
+    paddingBottom: Theme.space24,
   },
   heroCard: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 24,
-    gap: 8,
-    padding: 22,
+    backgroundColor: Theme.surfaceTintDark,
+    borderRadius: Theme.radius3xl,
+    gap: Theme.space4,
+    padding: Theme.space12,
+    paddingBottom: Theme.space14,
+  },
+  heroIconWrap: {
+    alignItems: 'flex-start',
+  },
+  heroIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Theme.radiusLg,
+    backgroundColor: Theme.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroIconText: {
+    color: Theme.textInverse,
+    fontSize: Theme.fontSizeXl,
+    fontWeight: '800',
   },
   heroEyebrow: {
-    color: '#2563eb',
-    fontSize: 12,
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeSm,
     fontWeight: '800',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   heroTitle: {
-    color: '#0f172a',
-    fontSize: 28,
+    color: Theme.text,
+    fontSize: Theme.fontSize3xl,
     fontWeight: '800',
   },
   heroText: {
-    color: '#334155',
-    fontSize: 14,
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeBase,
     lineHeight: 20,
   },
   quickActionsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Theme.space6,
   },
   quickAction: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#dbeafe',
-    borderRadius: 18,
+    backgroundColor: Theme.surface,
+    borderRadius: Theme.radius2xl,
     borderWidth: 1,
+    borderColor: Theme.borderStrong,
     flex: 1,
-    gap: 8,
-    paddingVertical: 18,
+    gap: Theme.space5,
+    paddingVertical: Theme.space7,
   },
-  quickActionPressed: {
-    opacity: 0.88,
+  quickActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Theme.radiusLg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  quickActionEmoji: {
-    fontSize: 24,
+  quickActionIconText: {
+    fontSize: Theme.fontSizeLg,
+    fontWeight: '800',
   },
   quickActionLabel: {
-    color: '#0f172a',
-    fontSize: 13,
+    color: Theme.text,
+    fontSize: Theme.fontSizeCaption,
     fontWeight: '700',
     textAlign: 'center',
   },
-  metricsCard: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 18,
+  surfaceCard: {
+    backgroundColor: Theme.surface,
+    borderRadius: Theme.radius2xl,
     borderWidth: 1,
-    gap: 8,
-    padding: 18,
+    borderColor: Theme.borderStrong,
+    gap: Theme.space5,
+    padding: Theme.space9,
   },
-  infoCard: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: 6,
-    padding: 18,
+  eyebrow: {
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeSm,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-  sectionTitle: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  metricText: {
-    color: '#475569',
-    fontSize: 14,
-  },
-  infoTitle: {
-    color: '#0f172a',
-    fontSize: 15,
+  cardTitle: {
+    color: Theme.text,
+    fontSize: Theme.fontSizeMd,
     fontWeight: '700',
   },
-  infoText: {
-    color: '#475569',
-    fontSize: 13,
+  bodyText: {
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeBase,
+    lineHeight: 20,
   },
-  deviceRow: {
-    gap: 8,
+  captionText: {
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeCaption,
   },
-  taskCard: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 6,
-    padding: 14,
+  metricsRow: {
+    flexDirection: 'row',
+    gap: Theme.space4,
   },
-  errorText: {
-    color: '#b91c1c',
-    fontSize: 13,
-    fontWeight: '700',
+  metricChip: {
+    borderRadius: Theme.radiusLg,
+    padding: Theme.space5,
+    flex: 1,
+    gap: 2,
   },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    justifyContent: 'center',
-    marginTop: 6,
-    minHeight: 46,
+  metricChipLabel: {
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeXs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+  metricChipValue: {
+    fontSize: Theme.fontSizeBase,
     fontWeight: '800',
   },
-  smallPrimaryButton: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#2563eb',
-    borderRadius: 10,
-    justifyContent: 'center',
-    minHeight: 36,
-    paddingHorizontal: 12,
-  },
-  smallPrimaryButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  smallButton: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  smallButtonPressed: {
-    opacity: 0.88,
-  },
-  smallButtonText: {
-    color: '#1d4ed8',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  rowButtons: {
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 6,
+    gap: Theme.space3,
+  },
+  metaChip: {
+    borderRadius: Theme.radiusMd,
+    paddingHorizontal: Theme.space5,
+    paddingVertical: Theme.space3,
+    gap: 1,
+  },
+  metaChipLabel: {
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeXs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  metaChipValue: {
+    fontSize: Theme.fontSizeCaption,
+    fontWeight: '700',
+  },
+  errorText: {
+    color: Theme.danger,
+    fontSize: Theme.fontSizeCaption,
+    fontWeight: '700',
+  },
+  filledBtn: {
+    backgroundColor: Theme.primaryDark,
+    borderRadius: Theme.radiusLg,
+    paddingHorizontal: Theme.space8,
+    paddingVertical: Theme.space3,
+    minHeight: Theme.touchMin,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filledBtnText: {
+    color: Theme.textInverse,
+    fontSize: Theme.fontSizeBase,
+    fontWeight: '700',
+  },
+  outlineBtn: {
+    backgroundColor: Theme.surfaceTint,
+    borderRadius: Theme.radiusLg,
+    paddingHorizontal: Theme.space6,
+    paddingVertical: Theme.space3,
+    minHeight: Theme.touchMin - 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  outlineBtnText: {
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeCaption,
+    fontWeight: '700',
+  },
+  outlineBtnDanger: {
+    backgroundColor: Theme.danger12,
+    borderRadius: Theme.radiusLg,
+    paddingHorizontal: Theme.space6,
+    paddingVertical: Theme.space3,
+    minHeight: Theme.touchMin - 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  outlineBtnDangerText: {
+    color: Theme.danger,
+    fontSize: Theme.fontSizeCaption,
+    fontWeight: '700',
+  },
+  actionRail: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Theme.space3,
+    marginTop: Theme.space2,
+  },
+  deviceRow: {
+    gap: Theme.space3,
+    paddingVertical: Theme.space2,
+  },
+  deviceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.space3,
+  },
+  deviceDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  deviceName: {
+    color: Theme.text,
+    fontSize: Theme.fontSizeBase,
+    fontWeight: '600',
+  },
+  deviceBadge: {
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeCaption,
+  },
+  taskCard: {
+    backgroundColor: Theme.surfaceSunken,
+    borderRadius: Theme.radiusXl,
+    borderWidth: 1,
+    borderColor: Theme.borderStrong,
+    gap: Theme.space3,
+    padding: Theme.space5,
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Theme.space3,
+  },
+  taskFileName: {
+    color: Theme.text,
+    fontSize: Theme.fontSizeBase,
+    fontWeight: '700',
+    flex: 1,
+  },
+  stageChip: {
+    borderRadius: Theme.radiusFull,
+    paddingHorizontal: Theme.space5,
+    paddingVertical: Theme.space1,
+  },
+  stageChipText: {
+    fontSize: Theme.fontSizeXs,
+    fontWeight: '800',
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Theme.space4,
+    marginTop: Theme.space2,
+  },
+  statusDotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.space2,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusDotLabel: {
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeXs,
+    fontWeight: '600',
+  },
+  statusDotValue: {
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeXs,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.85,
   },
 });

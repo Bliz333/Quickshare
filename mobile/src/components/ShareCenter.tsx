@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Theme } from '../theme';
 import type { QuickShareShareLink, QuickShareTransferPublicShare } from '../types/quickshare';
 
 interface ShareCenterProps {
@@ -30,82 +31,112 @@ interface ShareCenterProps {
 
 export function ShareCenter(props: ShareCenterProps) {
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Create share links</Text>
-        <Text style={styles.helperText}>
+    <ScrollView contentContainerStyle={s.content}>
+      <View style={s.card}>
+        <Text style={s.eyebrow}>Create share links</Text>
+        <Text style={s.bodyText}>
           Use the Files tab to upload or choose a file, then create a share link from the file row.
         </Text>
-        {props.createShareLoading ? <Text style={styles.pendingText}>Creating share link…</Text> : null}
+        {props.createShareLoading ? <Text style={s.pendingText}>Creating share link…</Text> : null}
         {props.latestShare ? (
-          <View style={styles.resultCard}>
-            <Text style={styles.resultTitle}>{props.latestShare.fileName || props.latestShare.shareCode}</Text>
-            <Text style={styles.resultText}>Share code: {props.latestShare.shareCode}</Text>
-            <Text style={styles.resultText}>Extract code: {props.latestShare.extractCode || '-'}</Text>
-            <View style={styles.rowButtons}>
-              <SmallAction label="Preview" onPress={props.onOpenLatestSharePreview} />
-              <SmallAction label="Download" onPress={props.onOpenLatestShareDownload} />
+          <View style={s.resultCard}>
+            <Text style={s.resultTitle}>{props.latestShare.fileName || props.latestShare.shareCode}</Text>
+            <View style={s.chipRow}>
+              <View style={[s.metaChip, { backgroundColor: Theme.primary06 }]}>
+                <Text style={s.metaChipLabel}>Share code</Text>
+                <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{props.latestShare.shareCode}</Text>
+              </View>
+              <View style={[s.metaChip, { backgroundColor: Theme.primary06 }]}>
+                <Text style={s.metaChipLabel}>Extract code</Text>
+                <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{props.latestShare.extractCode || '-'}</Text>
+              </View>
+            </View>
+            <View style={s.actionRail}>
+              <Pressable onPress={props.onOpenLatestSharePreview} style={({ pressed }) => [s.outlineBtn, pressed ? s.pressed : null]}>
+                <Text style={s.outlineBtnText}>Preview</Text>
+              </Pressable>
+              <Pressable onPress={props.onOpenLatestShareDownload} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null]}>
+                <Text style={s.filledBtnText}>Download</Text>
+              </Pressable>
             </View>
           </View>
         ) : null}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Open public share</Text>
+      <View style={s.card}>
+        <Text style={s.eyebrow}>Open public share</Text>
         <TextInput
           onChangeText={props.onPublicShareCodeChange}
           placeholder="Share code"
-          placeholderTextColor="#94a3b8"
-          style={styles.input}
+          placeholderTextColor={Theme.textTertiary}
+          style={s.textInput}
           value={props.publicShareCode}
         />
         <TextInput
           onChangeText={props.onPublicShareExtractCodeChange}
           placeholder="Extract code"
-          placeholderTextColor="#94a3b8"
-          style={styles.input}
+          placeholderTextColor={Theme.textTertiary}
+          style={s.textInput}
           value={props.publicShareExtractCode}
         />
-        {props.publicShareError ? <Text style={styles.errorText}>{props.publicShareError}</Text> : null}
-        <Pressable onPress={props.onLookupPublicShare} style={({ pressed }) => [styles.primaryButton, pressed ? styles.primaryButtonPressed : null]}>
-          <Text style={styles.primaryButtonText}>{props.publicShareLoading ? 'Loading…' : 'Lookup share'}</Text>
+        {props.publicShareError ? <Text style={s.errorText}>{props.publicShareError}</Text> : null}
+        <Pressable onPress={props.onLookupPublicShare} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null]}>
+          <Text style={s.filledBtnText}>{props.publicShareLoading ? 'Loading…' : 'Lookup share'}</Text>
         </Pressable>
         {props.publicShareResult ? (
-          <View style={styles.resultCard}>
-            <Text style={styles.resultTitle}>{props.publicShareResult.fileName || props.publicShareResult.shareCode}</Text>
-            <Text style={styles.resultText}>Type: {props.publicShareResult.fileType || 'unknown'}</Text>
-            <View style={styles.rowButtons}>
-              <SmallAction label="Preview" onPress={props.onOpenPublicSharePreview} />
-              <SmallAction label="Download" onPress={props.onOpenPublicShareDownload} />
+          <View style={s.resultCard}>
+            <Text style={s.resultTitle}>{props.publicShareResult.fileName || props.publicShareResult.shareCode}</Text>
+            <View style={[s.metaChip, { backgroundColor: Theme.accent10, alignSelf: 'flex-start' }]}>
+              <Text style={[s.metaChipValue, { color: Theme.accent }]}>{props.publicShareResult.fileType || 'unknown'}</Text>
+            </View>
+            <View style={s.actionRail}>
+              <Pressable onPress={props.onOpenPublicSharePreview} style={({ pressed }) => [s.outlineBtn, pressed ? s.pressed : null]}>
+                <Text style={s.outlineBtnText}>Preview</Text>
+              </Pressable>
+              <Pressable onPress={props.onOpenPublicShareDownload} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null]}>
+                <Text style={s.filledBtnText}>Download</Text>
+              </Pressable>
             </View>
           </View>
         ) : null}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Transfer pickup</Text>
+      <View style={s.card}>
+        <Text style={s.eyebrow}>Transfer pickup</Text>
         <TextInput
           onChangeText={props.onTransferPickupTokenChange}
           placeholder="Pickup token"
-          placeholderTextColor="#94a3b8"
-          style={styles.input}
+          placeholderTextColor={Theme.textTertiary}
+          style={s.textInput}
           value={props.transferPickupToken}
         />
-        {props.transferPickupError ? <Text style={styles.errorText}>{props.transferPickupError}</Text> : null}
-        <Pressable onPress={props.onLookupTransferPickup} style={({ pressed }) => [styles.primaryButton, pressed ? styles.primaryButtonPressed : null]}>
-          <Text style={styles.primaryButtonText}>{props.transferPickupLoading ? 'Loading…' : 'Lookup pickup'}</Text>
+        {props.transferPickupError ? <Text style={s.errorText}>{props.transferPickupError}</Text> : null}
+        <Pressable onPress={props.onLookupTransferPickup} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null]}>
+          <Text style={s.filledBtnText}>{props.transferPickupLoading ? 'Loading…' : 'Lookup pickup'}</Text>
         </Pressable>
-      {props.transferPickupResult ? (
-          <View style={styles.resultCard}>
-            <Text style={styles.resultTitle}>{props.transferPickupResult.fileName || props.transferPickupResult.shareToken}</Text>
-            <Text style={styles.resultText}>Status: {props.transferPickupResult.status || 'unknown'}</Text>
-            <Text style={styles.resultText}>Ready: {props.transferPickupResult.ready ? 'yes' : 'no'}</Text>
-            <Text style={styles.resultText}>Pickup token: {props.transferPickupResult.shareToken}</Text>
-            <Text style={styles.resultText}>Pickup URL: {props.transferPickupResult.pickupUrl || '-'}</Text>
-            <View style={styles.rowButtons}>
-              <SmallAction label="Preview" onPress={props.onOpenTransferPickupPreview} />
-              <SmallAction label="Download" onPress={props.onOpenTransferPickupDownload} />
-              <SmallAction label="Save" onPress={props.onSaveTransferPickup} />
+        {props.transferPickupResult ? (
+          <View style={s.resultCard}>
+            <Text style={s.resultTitle}>{props.transferPickupResult.fileName || props.transferPickupResult.shareToken}</Text>
+            <View style={s.chipRow}>
+              <View style={[s.metaChip, { backgroundColor: props.transferPickupResult.ready ? Theme.success10 : Theme.warning08 }]}>
+                <Text style={s.metaChipLabel}>Status</Text>
+                <Text style={[s.metaChipValue, { color: props.transferPickupResult.ready ? Theme.successDark : Theme.warningDark }]}>{props.transferPickupResult.status || 'unknown'}</Text>
+              </View>
+              <View style={[s.metaChip, { backgroundColor: Theme.primary06 }]}>
+                <Text style={s.metaChipLabel}>Token</Text>
+                <Text style={[s.metaChipValue, { color: Theme.primaryDark }]}>{props.transferPickupResult.shareToken}</Text>
+              </View>
+            </View>
+            <View style={s.actionRail}>
+              <Pressable onPress={props.onOpenTransferPickupPreview} style={({ pressed }) => [s.outlineBtn, pressed ? s.pressed : null]}>
+                <Text style={s.outlineBtnText}>Preview</Text>
+              </Pressable>
+              <Pressable onPress={props.onOpenTransferPickupDownload} style={({ pressed }) => [s.outlineBtn, pressed ? s.pressed : null]}>
+                <Text style={s.outlineBtnText}>Download</Text>
+              </Pressable>
+              <Pressable onPress={props.onSaveTransferPickup} style={({ pressed }) => [s.filledBtn, pressed ? s.pressed : null]}>
+                <Text style={s.filledBtnText}>Save</Text>
+              </Pressable>
             </View>
           </View>
         ) : null}
@@ -114,105 +145,116 @@ export function ShareCenter(props: ShareCenterProps) {
   );
 }
 
-function SmallAction({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.smallButton, pressed ? styles.smallButtonPressed : null]}>
-      <Text style={styles.smallButtonText}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   content: {
-    gap: 16,
-    paddingBottom: 48,
+    gap: Theme.space6,
+    paddingBottom: Theme.space24,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderRadius: 18,
+    backgroundColor: Theme.surface,
+    borderRadius: Theme.radius2xl,
     borderWidth: 1,
-    gap: 12,
-    padding: 18,
+    borderColor: Theme.borderStrong,
+    gap: Theme.space5,
+    padding: Theme.space9,
   },
-  sectionTitle: {
-    color: '#0f172a',
-    fontSize: 18,
-    fontWeight: '800',
+  eyebrow: {
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeSm,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-  helperText: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: 19,
+  bodyText: {
+    color: Theme.textSecondary,
+    fontSize: Theme.fontSizeBase,
+    lineHeight: 20,
   },
   pendingText: {
-    color: '#1d4ed8',
-    fontSize: 13,
+    color: Theme.primary,
+    fontSize: Theme.fontSizeCaption,
     fontWeight: '700',
   },
-  input: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
+  textInput: {
+    backgroundColor: Theme.surfaceSunken,
+    borderColor: Theme.borderInput,
+    borderRadius: Theme.radiusLg,
     borderWidth: 1,
-    color: '#0f172a',
-    fontSize: 15,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    color: Theme.text,
+    fontSize: Theme.fontSizeMd,
+    paddingHorizontal: Theme.space7,
+    paddingVertical: Theme.space6,
+    minHeight: Theme.touchMin,
   },
   errorText: {
-    color: '#b91c1c',
-    fontSize: 14,
+    color: Theme.danger,
+    fontSize: Theme.fontSizeBase,
     fontWeight: '600',
   },
-  primaryButton: {
+  filledBtn: {
+    backgroundColor: Theme.primaryDark,
+    borderRadius: Theme.radiusLg,
+    minHeight: Theme.touchMin,
     alignItems: 'center',
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
     justifyContent: 'center',
-    minHeight: 46,
+    paddingHorizontal: Theme.space8,
   },
-  primaryButtonPressed: {
-    opacity: 0.88,
+  filledBtnText: {
+    color: Theme.textInverse,
+    fontSize: Theme.fontSizeBase,
+    fontWeight: '700',
   },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '800',
+  outlineBtn: {
+    backgroundColor: Theme.surfaceTint,
+    borderRadius: Theme.radiusLg,
+    minHeight: Theme.touchMin - 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Theme.space6,
+  },
+  outlineBtnText: {
+    color: Theme.primaryDark,
+    fontSize: Theme.fontSizeCaption,
+    fontWeight: '700',
   },
   resultCard: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 14,
-    gap: 6,
-    padding: 14,
+    backgroundColor: Theme.surfaceTint,
+    borderRadius: Theme.radiusXl,
+    gap: Theme.space4,
+    padding: Theme.space7,
   },
   resultTitle: {
-    color: '#0f172a',
-    fontSize: 15,
+    color: Theme.text,
+    fontSize: Theme.fontSizeMd,
     fontWeight: '700',
   },
-  resultText: {
-    color: '#334155',
-    fontSize: 13,
-  },
-  rowButtons: {
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 6,
+    gap: Theme.space3,
   },
-  smallButton: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  metaChip: {
+    borderRadius: Theme.radiusMd,
+    paddingHorizontal: Theme.space5,
+    paddingVertical: Theme.space3,
+    gap: 1,
   },
-  smallButtonPressed: {
-    opacity: 0.88,
+  metaChipLabel: {
+    color: Theme.textTertiary,
+    fontSize: Theme.fontSizeXs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
-  smallButtonText: {
-    color: '#1d4ed8',
-    fontSize: 13,
+  metaChipValue: {
+    fontSize: Theme.fontSizeCaption,
     fontWeight: '700',
+  },
+  actionRail: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Theme.space3,
+  },
+  pressed: {
+    opacity: 0.85,
   },
 });

@@ -346,24 +346,42 @@ test.describe('Pricing and payment pages', () => {
     await expect(page.locator('.result-icon')).toHaveClass(/pending/);
   });
 
-  test('real default provider returns a redirect URL with localhost callback parameters', async ({ request, baseURL }) => {
+  test('payment create returns a redirect URL with localhost callback parameters', async ({ request, baseURL }) => {
     const { token } = await loginAsAdmin(request);
-    const paymentOptions = await readJson(await request.get('/api/public/payment-options'));
-
-    test.skip(!paymentOptions, 'No enabled default payment provider in current environment');
-
-    const providers = await getAdminProviders(request, token);
-    const provider = providers.find(item => item.id === paymentOptions.providerId);
-    expect(provider).toBeTruthy();
-
+    const stamp = Date.now();
+    let planId = null;
+    let providerId = null;
     let orderId = null;
+
     try {
+      const plan = await createPlan(request, token, {
+        name: `E2E Redirect Plan ${stamp}`,
+        description: 'Created for redirect URL test',
+        type: 'storage',
+        value: 1024,
+        price: 1.23,
+        sortOrder: 997,
+        status: 1
+      });
+      planId = plan.id;
+
+      const provider = await createProvider(request, token, {
+        name: `E2E Redirect Provider ${stamp}`,
+        apiUrl: `https://redirect-${stamp}.example.com`,
+        pid: `redirect-pid-${stamp}`,
+        merchantKey: `redirect-key-${stamp}`,
+        payTypes: 'alipay,wxpay',
+        enabled: 1,
+        sortOrder: 997
+      });
+      providerId = provider.id;
+
       const createData = await readJson(await request.post('/api/payment/create', {
         headers: { Authorization: `Bearer ${token}` },
         data: {
-          planId: 1,
-          providerId: paymentOptions.providerId,
-          payType: paymentOptions.payTypes[0],
+          planId,
+          providerId,
+          payType: 'alipay',
           returnUrl: `${baseURL}/payment-result.html`
         }
       }));
@@ -373,7 +391,7 @@ test.describe('Pricing and payment pages', () => {
 
       const redirect = new URL(createData.redirectUrl);
       expect(redirect.searchParams.get('pid')).toBe(provider.pid);
-      expect(redirect.searchParams.get('type')).toBe(paymentOptions.payTypes[0]);
+      expect(redirect.searchParams.get('type')).toBe('alipay');
       expect(redirect.searchParams.get('notify_url')).toBe(`${baseURL}/api/payment/notify`);
       expect(redirect.searchParams.get('return_url')).toBe(`${baseURL}/payment-result.html`);
       expect(redirect.searchParams.get('name')).toBeTruthy();
@@ -390,6 +408,8 @@ test.describe('Pricing and payment pages', () => {
       orderId = order.id;
     } finally {
       await deleteOrderIfExists(request, token, orderId);
+      await deleteProviderIfExists(request, token, providerId);
+      await deletePlanIfExists(request, token, planId);
     }
   });
 

@@ -965,7 +965,7 @@ test.describe('Transfer pages', () => {
     expect(relayTransferCreated).toBe(false);
   });
 
-  test.skip('supports public share create flow', async ({ page, baseURL }) => {
+test('supports public share create flow', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
       localStorage.setItem('quickshare-lang', 'en');
     });
@@ -2569,7 +2569,7 @@ test.describe('Transfer pages', () => {
     await expect(page.locator('#transferDirectTransferList .transfer-card')).toHaveCount(0);
   });
 
-  test.skip('renders signed-in pickup view with save-to-netdisk folder selector', async ({ page, baseURL }) => {
+test('renders signed-in pickup view with save-to-netdisk folder selector', async ({ page, baseURL }) => {
     await page.addInitScript(() => {
       localStorage.setItem('token', 'transfer-token');
       localStorage.setItem('user', JSON.stringify({

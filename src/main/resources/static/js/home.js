@@ -63,6 +63,31 @@ function bindElementListener(element, eventName, handler, key) {
     element[prop] = true;
 }
 
+function shouldSuppressHomePairCodeAutoFocus() {
+    const coarsePointer = typeof window.matchMedia === 'function'
+        ? window.matchMedia('(pointer: coarse)').matches
+        : false;
+    const narrowViewport = typeof window.matchMedia === 'function'
+        ? window.matchMedia('(max-width: 768px)').matches
+        : window.innerWidth <= 768;
+    return detectDeviceType() !== 'laptop' || (coarsePointer && narrowViewport);
+}
+
+function suppressHomePairCodeAutoFocus() {
+    const input = document.getElementById('homePairCodeInput');
+    if (!input || !shouldSuppressHomePairCodeAutoFocus()) {
+        return;
+    }
+
+    window.requestAnimationFrame(() => {
+        window.setTimeout(() => {
+            if (document.activeElement === input) {
+                input.blur();
+            }
+        }, 0);
+    });
+}
+
 // ─── 工具函数 ──────────────────────────────────────────────────────────────────
 
 function getOrCreateGuestId() {
@@ -1490,6 +1515,7 @@ async function initHomePage() {
     }
 
     renderPairState();
+    suppressHomePairCodeAutoFocus();
 
     // 整页拖拽（单一 peer 时自动目标）
     if (!homeState.globalEventsBound) {

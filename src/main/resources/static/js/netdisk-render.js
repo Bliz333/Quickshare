@@ -179,8 +179,12 @@ function renderListView(container, currentFolders, filteredFiles) {
         const safeName = escapeInlineJsString(folderName);
         const isSelected = isNetdiskItemSelected('folder', folder.id);
         const checkboxClass = selectionModeEnabled ? '' : 'hidden';
+        const itemCount = folder.fileCount || 0;
+        const folderTime = formatDate(folder.createTime || folder.createdAt);
+        const metaLine = `${itemCount} ${t('items')}` + (folderTime ? ` · ${folderTime}` : '');
+        const menuId = `folder-menu-${folder.id}`;
         html += `
-        <div class="group netdisk-drop-target grid grid-cols-12 gap-2 md:gap-4 p-3 md:p-4 border-b border-border items-center transition-colors cursor-pointer tap-highlight-transparent ${isSelected ? 'bg-brand-50/40' : 'hover:bg-brand-50/20'}"
+        <div class="group netdisk-drop-target flex items-center gap-3 px-4 py-2.5 border-b border-border transition-colors cursor-pointer tap-highlight-transparent ${isSelected ? 'bg-brand-50/40' : 'hover:bg-brand-50/20'}"
              onclick="handleNetdiskFolderPrimaryAction(${folder.id}, '${safeName}', event)"
              draggable="true"
              ondragstart="startNetdiskDrag('folder', ${folder.id}, event)"
@@ -188,26 +192,29 @@ function renderListView(container, currentFolders, filteredFiles) {
              ondragover="handleNetdiskDragOver(event, ${folder.id})"
              ondragleave="handleNetdiskDragLeave(event)"
              ondrop="handleNetdiskDrop(event, ${folder.id})">
-            <div class="col-span-8 md:col-span-6 flex items-center gap-3">
-                <label class="flex h-5 w-5 shrink-0 items-center justify-center ${checkboxClass}" onclick="event.stopPropagation()">
-                    <input type="checkbox" class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500" onchange="toggleNetdiskItemSelection('folder', ${folder.id}, event)" ${isSelected ? 'checked' : ''}>
-                </label>
-                <div class="w-10 h-10 shrink-0 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-500">
-                    <i class="fa-solid fa-folder text-lg"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-sm font-medium text-text-main group-hover:text-brand-600 truncate">${folderName}</p>
-                    <p class="text-xs text-text-sub mt-0.5 md:hidden">${folder.fileCount || 0} ${t('items')}</p>
-                </div>
+            <label class="flex h-5 w-5 shrink-0 items-center justify-center ${checkboxClass}" onclick="event.stopPropagation()">
+                <input type="checkbox" class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500" onchange="toggleNetdiskItemSelection('folder', ${folder.id}, event)" ${isSelected ? 'checked' : ''}>
+            </label>
+            <div class="w-9 h-9 shrink-0 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-500">
+                <i class="fa-solid fa-folder text-base"></i>
             </div>
-            <div class="hidden md:block col-span-2 text-sm text-text-sub">${folder.fileCount || 0} ${t('items')}</div>
-            <div class="hidden md:block col-span-3 text-sm text-text-sub">${formatDate(folder.createTime || folder.createdAt)}</div>
-            <div class="col-span-4 md:col-span-1 text-right flex justify-end items-center">
-                <div class="flex items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <button class="p-2 text-text-sub hover:text-brand-600" title="${t('openBtn')}" onclick="event.stopPropagation(); openFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-folder-open"></i></button>
-                    <button class="p-2 text-text-sub hover:text-brand-600" title="${t('moveBtn')}" onclick="event.stopPropagation(); moveFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
-                    <button class="p-2 text-text-sub hover:text-brand-600" title="${t('renameBtn')}" onclick="event.stopPropagation(); renameFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-pen"></i></button>
-                    <button class="p-2 text-text-sub hover:text-red-600" title="${t('deleteBtn')}" onclick="event.stopPropagation(); deleteFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-trash"></i></button>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-text-main group-hover:text-brand-600 truncate">${folderName}</p>
+                <p class="text-xs text-text-sub mt-0.5 truncate">${metaLine}</p>
+            </div>
+            <div class="relative shrink-0" onclick="event.stopPropagation()">
+                <button class="w-8 h-8 flex items-center justify-center rounded-full text-text-sub hover:bg-brand-50 hover:text-brand-600 transition-colors"
+                        onclick="toggleRowMenu('${menuId}', event)"
+                        aria-label="${t('actions') || 'Actions'}"
+                        aria-haspopup="true">
+                    <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+                <div id="${menuId}" class="row-action-menu">
+                    <button onclick="closeAllRowMenus(); openFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-folder-open"></i><span>${t('openBtn')}</span></button>
+                    <button onclick="closeAllRowMenus(); moveFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-arrow-right-arrow-left"></i><span>${t('moveBtn')}</span></button>
+                    <button onclick="closeAllRowMenus(); renameFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-pen"></i><span>${t('renameBtn')}</span></button>
+                    <div class="menu-divider"></div>
+                    <button class="danger-item" onclick="closeAllRowMenus(); deleteFolder(${folder.id}, '${safeName}')"><i class="fa-solid fa-trash"></i><span>${t('deleteBtn')}</span></button>
                 </div>
             </div>
         </div>`;
@@ -221,42 +228,46 @@ function renderListView(container, currentFolders, filteredFiles) {
         const isImage = isImageFile(file);
         const isSelected = isNetdiskItemSelected('file', file.id);
         const checkboxClass = selectionModeEnabled ? '' : 'hidden';
-
+        const fileSize = formatFileSize(file.fileSize || file.size);
+        const fileTime = formatDate(file.uploadTime || file.time);
+        const metaLine = fileSize + (fileTime ? ` · ${fileTime}` : '');
+        const menuId = `file-menu-${file.id}`;
         html += `
-        <div class="group grid grid-cols-12 gap-2 md:gap-4 p-3 md:p-4 border-b border-border items-center transition-colors cursor-pointer tap-highlight-transparent ${isSelected ? 'bg-brand-50/40' : 'hover:bg-brand-50/20'}"
+        <div class="group flex items-center gap-3 px-4 py-2.5 border-b border-border transition-colors cursor-pointer tap-highlight-transparent ${isSelected ? 'bg-brand-50/40' : 'hover:bg-brand-50/20'}"
              onclick="handleNetdiskFilePrimaryAction(${originalIndex}, ${file.id}, event)"
              draggable="true"
              ondragstart="startNetdiskDrag('file', ${file.id}, event)"
              ondragend="endNetdiskDrag()">
-            <div class="col-span-8 md:col-span-6 flex items-center gap-3">
-                <label class="flex h-5 w-5 shrink-0 items-center justify-center ${checkboxClass}" onclick="event.stopPropagation()">
-                    <input type="checkbox" class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500" onchange="toggleNetdiskItemSelection('file', ${file.id}, event)" ${isSelected ? 'checked' : ''}>
-                </label>
-                ${isImage ? `
-                <div class="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-page">
-                    <img src="${getThumbnailUrl(file)}" alt="${fileName}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full ${icon.bg} flex items-center justify-center ${icon.color}\\'><i class=\\'${icon.icon} text-lg\\'></i></div>'">
-                </div>
-                ` : `
-                <div class="w-10 h-10 shrink-0 rounded-lg ${icon.bg} flex items-center justify-center ${icon.color}">
-                    <i class="${icon.icon} text-lg"></i>
-                </div>
-                `}
-                <div class="min-w-0 flex-1">
-                    <p class="text-sm font-medium text-text-main group-hover:text-brand-600 truncate">${fileName}</p>
-                    <p class="text-xs text-text-sub mt-0.5 md:hidden flex items-center gap-2">
-                        <span>${formatFileSize(file.fileSize || file.size)}</span>
-                    </p>
-                </div>
+            <label class="flex h-5 w-5 shrink-0 items-center justify-center ${checkboxClass}" onclick="event.stopPropagation()">
+                <input type="checkbox" class="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500" onchange="toggleNetdiskItemSelection('file', ${file.id}, event)" ${isSelected ? 'checked' : ''}>
+            </label>
+            ${isImage ? `
+            <div class="w-9 h-9 shrink-0 rounded-lg overflow-hidden bg-page">
+                <img src="${getThumbnailUrl(file)}" alt="${fileName}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full ${icon.bg} flex items-center justify-center ${icon.color}\\'><i class=\\'${icon.icon}\\'></i></div>'">
             </div>
-            <div class="hidden md:block col-span-2 text-sm text-text-sub">${formatFileSize(file.fileSize || file.size)}</div>
-            <div class="hidden md:block col-span-3 text-sm text-text-sub">${formatDate(file.uploadTime || file.time)}</div>
-            <div class="col-span-4 md:col-span-1 text-right flex justify-end items-center">
-                <div class="flex items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-card/80 md:bg-transparent rounded-lg">
-                    <button class="p-2 text-text-sub hover:text-brand-600" title="${t('shareBtn')}" onclick="event.stopPropagation(); shareFile(${originalIndex})"><i class="fa-solid fa-share-nodes"></i></button>
-                    <button class="p-2 text-text-sub hover:text-brand-600" title="${t('downloadBtn')}" onclick="event.stopPropagation(); downloadFile(${originalIndex})"><i class="fa-solid fa-download"></i></button>
-                    <button class="p-2 text-text-sub hover:text-brand-600" title="${t('moveBtn')}" onclick="event.stopPropagation(); moveFile(${originalIndex})"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
-                    <button class="p-2 text-text-sub hover:text-brand-600" title="${t('renameBtn')}" onclick="event.stopPropagation(); renameFile(${originalIndex})"><i class="fa-solid fa-pen"></i></button>
-                    <button class="p-2 text-text-sub hover:text-red-600" title="${t('deleteBtn')}" onclick="event.stopPropagation(); deleteFile(${originalIndex})"><i class="fa-solid fa-trash"></i></button>
+            ` : `
+            <div class="w-9 h-9 shrink-0 rounded-lg ${icon.bg} flex items-center justify-center ${icon.color}">
+                <i class="${icon.icon} text-base"></i>
+            </div>
+            `}
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-text-main group-hover:text-brand-600 truncate">${fileName}</p>
+                <p class="text-xs text-text-sub mt-0.5 truncate">${metaLine}</p>
+            </div>
+            <div class="relative shrink-0" onclick="event.stopPropagation()">
+                <button class="w-8 h-8 flex items-center justify-center rounded-full text-text-sub hover:bg-brand-50 hover:text-brand-600 transition-colors"
+                        onclick="toggleRowMenu('${menuId}', event)"
+                        aria-label="${t('actions') || 'Actions'}"
+                        aria-haspopup="true">
+                    <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+                <div id="${menuId}" class="row-action-menu">
+                    <button onclick="closeAllRowMenus(); shareFile(${originalIndex})"><i class="fa-solid fa-share-nodes"></i><span>${t('shareBtn')}</span></button>
+                    <button onclick="closeAllRowMenus(); downloadFile(${originalIndex})"><i class="fa-solid fa-download"></i><span>${t('downloadBtn')}</span></button>
+                    <button onclick="closeAllRowMenus(); moveFile(${originalIndex})"><i class="fa-solid fa-arrow-right-arrow-left"></i><span>${t('moveBtn')}</span></button>
+                    <button onclick="closeAllRowMenus(); renameFile(${originalIndex})"><i class="fa-solid fa-pen"></i><span>${t('renameBtn')}</span></button>
+                    <div class="menu-divider"></div>
+                    <button class="danger-item" onclick="closeAllRowMenus(); deleteFile(${originalIndex})"><i class="fa-solid fa-trash"></i><span>${t('deleteBtn')}</span></button>
                 </div>
             </div>
         </div>`;

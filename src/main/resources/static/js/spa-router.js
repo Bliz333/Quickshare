@@ -90,6 +90,37 @@
         curtain.style.background = getComputedStyle(document.body).backgroundColor || '#f0f4fa';
     }
 
+    function stylesheetKey(link) {
+        var href = link.getAttribute('href');
+        if (!href) return '';
+        try { return new URL(href, location.href).href; } catch (e) { return href; }
+    }
+
+    function ensureStylesheets(doc) {
+        var existing = {};
+        var currentLinks = document.querySelectorAll('head link[rel~="stylesheet"][href]');
+        for (var i = 0; i < currentLinks.length; i++) {
+            existing[stylesheetKey(currentLinks[i])] = true;
+        }
+
+        var links = doc.querySelectorAll('head link[rel~="stylesheet"][href]');
+        var loads = [];
+        for (var j = 0; j < links.length; j++) {
+            var source = links[j];
+            var key = stylesheetKey(source);
+            if (!key || existing[key]) continue;
+
+            var clone = source.cloneNode(true);
+            existing[key] = true;
+            loads.push(new Promise(function (resolve) {
+                clone.onload = resolve;
+                clone.onerror = resolve;
+                document.head.appendChild(clone);
+            }));
+        }
+        return Promise.all(loads);
+    }
+
     /* ── script loading ── */
 
     function recordLoaded() {
@@ -147,7 +178,8 @@
 
         fetchPage(targetFile).then(function (html) {
             var doc = new DOMParser().parseFromString(html, 'text/html');
-
+            return ensureStylesheets(doc).then(function () { return doc; });
+        }).then(function (doc) {
             setTimeout(function () {
                 // 0. Give current page a chance to clean up long-lived resources
                 if (typeof window.__spaBeforeNavigate === 'function') {

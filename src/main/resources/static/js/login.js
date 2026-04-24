@@ -2,6 +2,34 @@
  * login.js - 登录页面逻辑
  */
 
+function getSafeAuthRedirectTarget(defaultTarget) {
+    const fallback = defaultTarget || 'index.html';
+    const raw = new URLSearchParams(window.location.search).get('redirect');
+    if (!raw) return fallback;
+
+    try {
+        const decoded = decodeURIComponent(raw);
+        if (!decoded || decoded.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(decoded)) {
+            return fallback;
+        }
+        return decoded.startsWith('/') ? decoded.slice(1) : decoded;
+    } catch (error) {
+        return fallback;
+    }
+}
+
+function getRegisterUrlWithRedirect() {
+    const target = getSafeAuthRedirectTarget('');
+    return target ? 'register.html?redirect=' + encodeURIComponent(target) : 'register.html';
+}
+
+function syncRegisterLinkRedirect() {
+    const link = document.querySelector('[data-auth-register-link]');
+    if (link) {
+        link.href = getRegisterUrlWithRedirect();
+    }
+}
+
 /**
  * 处理登录表单提交
  * @param {Event} event
@@ -61,9 +89,9 @@ async function handleLogin(event) {
 
             showToast(t('loginSuccess'), 'success');
 
-            // 跳转到首页
+            // 跳转回受保护入口，默认回首页。
             setTimeout(() => {
-                window.location.href = 'index.html';
+                window.location.href = getSafeAuthRedirectTarget('index.html');
             }, 1000);
         } else {
             throw new Error(result.message || t('loginFailed'));
@@ -83,14 +111,18 @@ function checkAlreadyLoggedIn() {
     const user = localStorage.getItem('user');
 
     if (token && user) {
-        // 已登录，跳转到首页
-        window.location.href = 'index.html';
+        // 已登录，跳转回受保护入口，默认回首页。
+        window.location.href = getSafeAuthRedirectTarget('index.html');
     }
 }
 
 // 页面加载时检查登录状态
 if (document.readyState === 'complete') {
+    syncRegisterLinkRedirect();
     checkAlreadyLoggedIn();
 } else {
-    window.addEventListener('load', checkAlreadyLoggedIn);
+    window.addEventListener('load', () => {
+        syncRegisterLinkRedirect();
+        checkAlreadyLoggedIn();
+    });
 }

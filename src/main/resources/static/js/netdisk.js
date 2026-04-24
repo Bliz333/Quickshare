@@ -1674,6 +1674,18 @@ function updateCurrentUserDisplay(user) {
     renderQuotaDisplay(user);
 }
 
+function getNetdiskLoginUrl() {
+    const redirectTarget = 'netdisk.html' + window.location.search + window.location.hash;
+    if (typeof buildAuthRedirectUrl === 'function') {
+        return buildAuthRedirectUrl('login.html', redirectTarget);
+    }
+    return 'login.html?redirect=' + encodeURIComponent(redirectTarget);
+}
+
+function redirectToNetdiskLogin() {
+    window.location.replace(getNetdiskLoginUrl());
+}
+
 async function checkLogin() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('share')) return true;
@@ -2306,10 +2318,7 @@ async function initNetdisk() {
     bindRowMenuGlobalEvents();
 
     if (!await checkLogin()) {
-        await showAppAlert(t('loginRequired'), {
-            icon: 'fa-right-to-bracket'
-        });
-        window.location.href = 'login.html';
+        redirectToNetdiskLogin();
         return;
     }
 

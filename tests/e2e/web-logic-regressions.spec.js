@@ -52,6 +52,7 @@ test.describe('Web logic regressions', () => {
     await page.locator('#password').fill('secret');
     await page.locator('#loginBtn').click();
     await page.waitForURL('**/index.html');
+    await page.evaluate(() => localStorage.clear());
 
     await page.goto(`${baseURL}/register.html`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#googleLoginBtn')).toBeVisible();
@@ -59,13 +60,21 @@ test.describe('Web logic regressions', () => {
   });
 
   test('netdisk brand returns to index and SPA router is disabled by default', async ({ page, baseURL }) => {
+    await page.goto(`${baseURL}/index.html`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      localStorage.setItem('token', 'e2e-token');
+      localStorage.setItem('user', JSON.stringify({ username: 'admin', nickname: 'Admin' }));
+    });
+
     await page.goto(`${baseURL}/netdisk.html`, { waitUntil: 'domcontentloaded' });
     const brandLink = page.locator('aside a[href="index.html"]').first();
     await expect(brandLink).toBeVisible();
     await expect(brandLink).toContainText('QuickShare');
     await expect(brandLink.locator('i.fa-cloud')).toBeVisible();
 
+    await page.evaluate(() => localStorage.clear());
     await page.goto(`${baseURL}/login.html`, { waitUntil: 'domcontentloaded' });
+    await page.waitForURL('**/login.html', { waitUntil: 'domcontentloaded' });
     const spaResult = await page.evaluate(() => ({
       disableFlag: window.__QUICKSHARE_DISABLE_SPA__ !== false,
       navigateResult: typeof window.spaNavigate === 'function' ? window.spaNavigate('register.html') : null,
@@ -76,4 +85,48 @@ test.describe('Web logic regressions', () => {
     expect(spaResult.navigateResult).toBe(false);
     expect(spaResult.htmlClass).toContain('lang-ready');
   });
+
+  test('anonymous netdisk entry redirects to login without rendering drive content or login notice', async ({ page, baseURL }) => {
+    await page.addInitScript(() => localStorage.clear());
+    const dialogs = [];
+    page.on('dialog', async (dialog) => {
+      dialogs.push(dialog.message());
+      await dialog.dismiss();
+    });
+
+    await page.goto(`${baseURL}/index.html`, { waitUntil: 'domcontentloaded' });
+    await page.locator('button[title="Cloud Storage"]').click();
+
+    await page.waitForURL('**/login.html?redirect=netdisk.html', { waitUntil: 'domcontentloaded' });
+    expect(dialogs).toEqual([]);
+    await expect(page.locator('#toastContainer')).not.toContainText('Please login first');
+    await expect(page.locator('#toastContainer')).not.toContainText('请先登录');
+  });
+
+  test('auth pages preserve protected redirect through login and register switching', async ({ page, baseURL }) => {
+    await page.addInitScript(() => localStorage.clear());
+    await page.route('**/api/auth/login', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            token: 'jwt-token',
+            username: 'admin',
+            nickname: 'Admin'
+          }
+        })
+      });
+    });
+
+    await page.goto(`${baseURL}/login.html?redirect=netdisk.html`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-auth-register-link]')).toHaveAttribute('href', 'register.html?redirect=netdisk.html');
+    await page.locator('#username').fill('admin');
+    await page.locator('#password').fill('secret');
+    await page.locator('#loginBtn').click();
+    await page.waitForURL('**/netdisk.html');
+  });
+
 });

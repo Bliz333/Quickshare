@@ -54,6 +54,19 @@
         var l=localStorage.getItem('quickshare-lang');
         if(l==='en'||l==='zh')document.documentElement.lang=l==='en'?'en':'zh-CN'})();
     </script>
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            if (params.has('share')) return;
+            var token = localStorage.getItem('token');
+            var user = null;
+            try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch (error) { user = {}; }
+            if (!token || !user.username) {
+                var redirect = 'netdisk.html' + window.location.search + window.location.hash;
+                window.location.replace('login.html?redirect=' + encodeURIComponent(redirect));
+            }
+        })();
+    </script>
 
     <style>
         /* ==================== 主题变量 ==================== */

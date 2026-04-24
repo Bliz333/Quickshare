@@ -56,6 +56,21 @@ function renderLoggedInState(user) {
     `;
 }
 
+function buildAuthRedirectUrl(targetPage, redirectTarget) {
+    const page = targetPage || 'login.html';
+    const redirect = redirectTarget || 'netdisk.html';
+    return page + '?redirect=' + encodeURIComponent(redirect);
+}
+
+function goToAuthForNetdisk() {
+    const user = getStoredAuthUser();
+    if (localStorage.getItem('token') && user && user.username) {
+        window.location.href = 'netdisk.html';
+        return;
+    }
+    window.location.href = buildAuthRedirectUrl('login.html', 'netdisk.html');
+}
+
 async function checkLoginState() {
     const token = localStorage.getItem('token');
     const user = getStoredAuthUser();

@@ -13,6 +13,34 @@ let captchaScriptLoaded = false;
 let captchaRenderQueued = false;
 let captchaWidgetId = null;
 
+function getSafeAuthRedirectTarget(defaultTarget) {
+    const fallback = defaultTarget || 'netdisk.html';
+    const raw = new URLSearchParams(window.location.search).get('redirect');
+    if (!raw) return fallback;
+
+    try {
+        const decoded = decodeURIComponent(raw);
+        if (!decoded || decoded.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(decoded)) {
+            return fallback;
+        }
+        return decoded.startsWith('/') ? decoded.slice(1) : decoded;
+    } catch (error) {
+        return fallback;
+    }
+}
+
+function getLoginUrlWithRedirect() {
+    const target = getSafeAuthRedirectTarget('');
+    return target ? 'login.html?redirect=' + encodeURIComponent(target) : 'login.html';
+}
+
+function syncLoginLinkRedirect() {
+    const link = document.querySelector('[data-auth-login-link]');
+    if (link) {
+        link.href = getLoginUrlWithRedirect();
+    }
+}
+
 function localizeRegisterErrorMessage(message) {
     const normalized = (message || '').trim();
     const directMap = {
@@ -306,9 +334,9 @@ async function handleRegister(event) {
 
             showToast(t('registerSuccess'), 'success');
 
-            // 跳转到网盘
+            // 跳转回受保护入口，默认进入网盘。
             setTimeout(() => {
-                window.location.href = 'netdisk.html';
+                window.location.href = getSafeAuthRedirectTarget('netdisk.html');
             }, 1500);
         } else {
             throw new Error(result.message || t('registerFailed'));
@@ -325,11 +353,12 @@ function checkAlreadyLoggedIn() {
     const user = localStorage.getItem('user');
 
     if (token && user) {
-        window.location.href = 'netdisk.html';
+        window.location.href = getSafeAuthRedirectTarget('netdisk.html');
     }
 }
 
 async function initRegisterPage() {
+    syncLoginLinkRedirect();
     checkAlreadyLoggedIn();
     await loadRegistrationSettings();
 

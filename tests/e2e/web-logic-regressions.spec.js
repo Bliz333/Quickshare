@@ -137,12 +137,19 @@ test.describe('Web logic regressions', () => {
     await page.waitForSelector('#mc-root', { state: 'attached' });
 
     const firstMascotRoot = await page.evaluateHandle(() => document.getElementById('mc-root'));
+    await page.waitForTimeout(300);
+    const homeMascotBox = await page.locator('#mc-root .mc-orange').boundingBox();
     await page.locator('.share-cta-bar a[href="share.html"]').click();
     await page.waitForURL('**/share.html', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('body')).toHaveAttribute('data-mascot-scene', 'share');
 
     const sameAfterShare = await page.evaluate((root) => root === document.getElementById('mc-root'), firstMascotRoot);
     expect(sameAfterShare).toBe(true);
+    const shareMascotBox = await page.locator('#mc-root .mc-orange').boundingBox();
+    const shareCardBox = await page.locator('#mainCard').boundingBox();
+    expect(Math.abs((shareMascotBox?.x || 0) - (homeMascotBox?.x || 0))).toBeLessThan(32);
+    expect(shareCardBox?.width || 0).toBeGreaterThan(450);
+    expect(shareCardBox?.width || 0).toBeLessThan(700);
 
     await page.locator('a[href="login.html"]').first().click();
     await page.waitForURL('**/login.html', { waitUntil: 'domcontentloaded' });
@@ -155,6 +162,11 @@ test.describe('Web logic regressions', () => {
     await page.locator('[data-auth-register-link]').click();
     await page.waitForURL('**/register.html?redirect=netdisk.html', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-auth-login-link]')).toHaveAttribute('href', 'login.html?redirect=netdisk.html');
+    const registerMascotBox = await page.locator('#mc-root .mc-orange').boundingBox();
+    const registerBox = await page.locator('.register-container').boundingBox();
+    expect(Math.abs((registerMascotBox?.x || 0) - (homeMascotBox?.x || 0))).toBeLessThan(36);
+    expect(registerBox?.y || 9999).toBeLessThan(180);
+    expect(registerBox?.width || 0).toBeGreaterThan(430);
   });
 
   test('register page is centered and login icon is distinct from logout', async ({ page, baseURL }) => {

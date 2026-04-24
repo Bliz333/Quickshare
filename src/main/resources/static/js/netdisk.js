@@ -1753,6 +1753,41 @@ function switchView(view) {
     renderFiles();
 }
 
+// ================== Row action menu (kebab) ==================
+let _rowMenuOutsideClickBound = false;
+
+function closeAllRowMenus() {
+    document.querySelectorAll('.row-action-menu.is-open').forEach(function(menu) {
+        menu.classList.remove('is-open');
+    });
+}
+
+function toggleRowMenu(menuId, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    var menu = document.getElementById(menuId);
+    if (!menu) return;
+
+    var wasOpen = menu.classList.contains('is-open');
+    closeAllRowMenus();
+    if (!wasOpen) {
+        menu.classList.add('is-open');
+    }
+}
+
+function bindRowMenuGlobalEvents() {
+    if (_rowMenuOutsideClickBound) return;
+    _rowMenuOutsideClickBound = true;
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.row-action-menu') && !e.target.closest('[aria-haspopup]')) {
+            closeAllRowMenus();
+        }
+    });
+}
+
 function showCategory(category) {
     let nextCategory = category;
     let triggerEvent = null;
@@ -2268,6 +2303,7 @@ function escapeHtml(text) {
 async function initNetdisk() {
     bindActionDialogEvents();
     bindNetdiskHistoryEvents();
+    bindRowMenuGlobalEvents();
 
     if (!await checkLogin()) {
         await showAppAlert(t('loginRequired'), {
@@ -2392,7 +2428,14 @@ document.addEventListener('DOMContentLoaded', initNetdisk);
 
 // ESC 关闭预览
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closePreview();
+    if (e.key === 'Escape') {
+        var openMenus = document.querySelectorAll('.row-action-menu.is-open');
+        if (openMenus.length > 0) {
+            closeAllRowMenus();
+            return;
+        }
+        closePreview();
+    }
 });
 
 document.addEventListener('quickshare:languagechange', () => {

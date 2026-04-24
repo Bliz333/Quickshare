@@ -4,6 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title data-i18n="title">我的网盘 - QuickShare</title>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'var(--primary)',
+                        'primary-light': 'var(--primary-light)',
+                        'primary-dark': 'var(--primary-dark)',
+                        page: 'var(--bg-light)',
+                        card: 'var(--bg-card)',
+                        border: 'var(--border-color)',
+                        text: {
+                            main: 'var(--text-main)',
+                            sub: 'var(--text-sub)'
+                        },
+                        brand: {
+                            50: 'rgba(14, 165, 233, 0.1)',
+                            100: 'rgba(14, 165, 233, 0.15)',
+                            500: 'var(--primary)',
+                            600: 'var(--primary-dark)',
+                            700: 'var(--primary-dark)',
+                            900: '#1E3A8A',
+                        },
+                        ai: {
+                            500: '#8B5CF6',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -68,6 +100,42 @@
         }
         html.lang-pending body{opacity:0}
         html.lang-ready body{opacity:1;transition:opacity .18s ease}
+
+        /* Tailwind CDN fallback for QuickShare custom theme colors. */
+        .bg-page { background-color: var(--bg-light); }
+        .bg-card { background-color: var(--bg-card); }
+        .bg-card\/80 { background-color: color-mix(in srgb, var(--bg-card) 80%, transparent); }
+        .bg-page\/50 { background-color: color-mix(in srgb, var(--bg-light) 50%, transparent); }
+        .bg-brand-50 { background-color: rgba(14, 165, 233, 0.1); }
+        .bg-brand-100 { background-color: rgba(14, 165, 233, 0.15); }
+        .bg-brand-500 { background-color: var(--primary); }
+        .bg-brand-600 { background-color: var(--primary-dark); }
+        .bg-ai-500 { background-color: #8B5CF6; }
+        .text-text-main { color: var(--text-main); }
+        .text-text-sub { color: var(--text-sub); }
+        .text-brand-500 { color: var(--primary); }
+        .text-brand-600 { color: var(--primary-dark); }
+        .text-brand-700 { color: var(--primary-dark); }
+        .border-border { border-color: var(--border-color); }
+        .from-brand-500 { --tw-gradient-from: var(--primary); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(14, 165, 233, 0)); }
+        .to-ai-500 { --tw-gradient-to: #8B5CF6; }
+        .bg-gradient-to-br { background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)); }
+        .shadow-brand-500\/20 { --tw-shadow-color: rgba(14, 165, 233, 0.2); }
+        .shadow-brand-500\/30 { --tw-shadow-color: rgba(14, 165, 233, 0.3); }
+        .hover\:bg-brand-50:hover { background-color: rgba(14, 165, 233, 0.1); }
+        .hover\:bg-brand-600:hover { background-color: var(--primary-dark); }
+        .hover\:text-brand-600:hover { color: var(--primary-dark); }
+        .hover\:text-text-main:hover { color: var(--text-main); }
+        .group:hover .group-hover\:text-brand-600 { color: var(--primary-dark); }
+
+        .dark-mode .bg-brand-50,
+        .dark-mode .hover\:bg-brand-50:hover { background-color: rgba(99, 102, 241, 0.16); }
+        .dark-mode .bg-brand-100 { background-color: rgba(99, 102, 241, 0.22); }
+        .dark-mode .text-brand-500,
+        .dark-mode .text-brand-600,
+        .dark-mode .text-brand-700,
+        .dark-mode .hover\:text-brand-600:hover,
+        .dark-mode .group:hover .group-hover\:text-brand-600 { color: var(--primary-light); }
 
         .bg-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; opacity: 0.15; pointer-events: none; }
         .blob { position: absolute; filter: blur(120px); opacity: 0.4; border-radius: 50%; animation: float 25s infinite alternate; }
@@ -588,6 +656,70 @@
 
         button, .cursor-pointer { touch-action: manipulation; }
 
+        /* Row action dropdown (kebab menu) */
+        .row-action-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            z-index: 120;
+            min-width: 172px;
+            padding: 6px 0;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 12px 36px rgba(15, 23, 42, 0.16);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateY(-4px) scale(0.97);
+            transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
+        }
+        .row-action-menu.is-open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+        .dark-mode .row-action-menu {
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+        }
+        .row-action-menu button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 9px 16px;
+            font-size: 0.84rem;
+            font-weight: 500;
+            color: var(--text-main);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.12s ease;
+        }
+        .row-action-menu button:hover {
+            background: var(--color-primary-06);
+        }
+        .row-action-menu button.danger-item {
+            color: var(--danger);
+        }
+        .row-action-menu button.danger-item:hover {
+            background: var(--color-danger-12);
+        }
+        .row-action-menu button i {
+            width: 16px;
+            text-align: center;
+            font-size: 0.82rem;
+        }
+        .row-action-menu .menu-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 4px 12px;
+        }
+
         .mask-image-linear {
             mask-image: linear-gradient(to right, black 80%, transparent 100%);
             -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
@@ -621,38 +753,6 @@
             transform: scale(1);
         }
     </style>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: 'var(--primary)',
-                        'primary-light': 'var(--primary-light)',
-                        'primary-dark': 'var(--primary-dark)',
-                        page: 'var(--bg-light)',
-                        card: 'var(--bg-card)',
-                        border: 'var(--border-color)',
-                        text: {
-                            main: 'var(--text-main)',
-                            sub: 'var(--text-sub)'
-                        },
-                        brand: {
-                            50: 'rgba(14, 165, 233, 0.1)',
-                            100: 'rgba(14, 165, 233, 0.15)',
-                            500: 'var(--primary)',
-                            600: 'var(--primary-dark)',
-                            700: 'var(--primary-dark)',
-                            900: '#1E3A8A',
-                        },
-                        ai: {
-                            500: '#8B5CF6',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
 </head>
 <body class="bg-page text-text-main h-screen flex flex-row overflow-hidden selection:bg-brand-100 selection:text-brand-700">
 
@@ -767,8 +867,8 @@
         </div>
 
         <div class="flex items-center gap-2 md:gap-4 text-text-sub shrink-0 ml-2">
-            <button class="topbar-circle-btn hidden md:inline-flex" onclick="location.href='index.html'" title="分享首页">
-                <i class="fa-solid fa-share-nodes"></i>
+            <button type="button" class="topbar-circle-btn inline-flex" onclick="location.href='index.html'" title="首页" aria-label="返回首页">
+                <i class="fa-solid fa-house"></i>
             </button>
             <div class="relative">
                 <button class="topbar-circle-btn" onclick="toggleTransferPanel()" id="transferBtn" title="文件传输">
@@ -853,12 +953,9 @@
         </div>
 
         <div id="listView">
-            <div class="bg-card/80 backdrop-blur-sm border border-border rounded-xl overflow-hidden shadow-sm">
-                <div class="grid grid-cols-12 gap-4 p-4 border-b border-border text-xs font-medium text-text-sub uppercase bg-page/50">
-                    <div class="col-span-6" data-i18n="name">名称</div>
-                    <div class="col-span-2" data-i18n="size">大小</div>
-                    <div class="col-span-3" data-i18n="modifiedTime">修改时间</div>
-                    <div class="col-span-1 text-right" data-i18n="actions">操作</div>
+            <div class="bg-card/80 backdrop-blur-sm border border-border rounded-xl overflow-visible shadow-sm">
+                <div id="listHeaderRow" class="hidden md:flex items-center px-4 py-2 border-b border-border text-xs font-medium text-text-sub bg-page/50">
+                    <div class="flex-1 min-w-0" data-i18n="name">名称</div>
                 </div>
                 <div id="listContent"></div>
             </div>

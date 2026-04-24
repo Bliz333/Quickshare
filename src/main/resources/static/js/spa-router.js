@@ -262,9 +262,18 @@
                         } catch (e) {}
                     }
 
-                    // 8. Re-hook mascot scene hooks (upload area etc.)
+                    // 8. Re-hook reusable widgets for the new DOM.
                     if (typeof window._mascotSceneHooksFn === 'function') {
                         try { window._mascotSceneHooksFn(); } catch (e) {}
+                    }
+                    if (typeof window.initLoginPage === 'function' && targetFile === 'login.html') {
+                        try { window.initLoginPage(); } catch (e) {}
+                    }
+                    if (typeof window.initRegisterPage === 'function' && targetFile === 'register.html') {
+                        try { window.initRegisterPage(); } catch (e) {}
+                    }
+                    if (typeof window.initSocialLoginButtons === 'function') {
+                        try { window.initSocialLoginButtons(); } catch (e) {}
                     }
 
                     // 8.5 Re-init page-specific runtime for already-loaded scripts

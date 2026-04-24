@@ -133,6 +133,21 @@ test.describe('Web logic regressions', () => {
 
   test('SPA navigation keeps the mascot layer alive and preserves auth redirects', async ({ page, baseURL }) => {
     await page.addInitScript(() => localStorage.clear());
+    await page.route('**/api/public/registration-settings', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            googleClientId: 'google-test-client',
+            emailVerificationEnabled: false,
+            recaptchaEnabled: false
+          }
+        })
+      });
+    });
     await page.goto(`${baseURL}/index.html`, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#mc-root', { state: 'attached' });
 
@@ -159,9 +174,16 @@ test.describe('Web logic regressions', () => {
     expect(sameAfterLogin).toBe(true);
 
     await page.goto(`${baseURL}/login.html?redirect=netdisk.html`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#googleLoginBtn')).toBeVisible();
     await page.locator('[data-auth-register-link]').click();
     await page.waitForURL('**/register.html?redirect=netdisk.html', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-auth-login-link]')).toHaveAttribute('href', 'login.html?redirect=netdisk.html');
+    await expect(page.locator('#googleLoginBtn')).toBeVisible();
+    await page.locator('[data-auth-login-link]').click();
+    await page.waitForURL('**/login.html?redirect=netdisk.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#googleLoginBtn')).toBeVisible();
+    await page.locator('[data-auth-register-link]').click();
+    await page.waitForURL('**/register.html?redirect=netdisk.html', { waitUntil: 'domcontentloaded' });
     const registerMascotBox = await page.locator('#mc-root .mc-orange').boundingBox();
     const registerBox = await page.locator('.register-container').boundingBox();
     expect(Math.abs((registerMascotBox?.x || 0) - (homeMascotBox?.x || 0))).toBeLessThan(36);

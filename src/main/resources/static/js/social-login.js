@@ -180,11 +180,23 @@
         });
     }
 
+    function initSocialLoginButtons() {
+        if (!document.getElementById('socialButtons')) {
+            return;
+        }
+        if (socialState.googleClientId) {
+            renderSocialButtons();
+            return;
+        }
+        loadSocialConfig();
+    }
+
+    window.initSocialLoginButtons = initSocialLoginButtons;
     window.addEventListener('quickshare:languagechange', renderSocialButtons);
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        loadSocialConfig();
+        initSocialLoginButtons();
     } else {
-        document.addEventListener('DOMContentLoaded', loadSocialConfig);
+        document.addEventListener('DOMContentLoaded', initSocialLoginButtons);
     }
 })();

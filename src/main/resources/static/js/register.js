@@ -12,6 +12,7 @@ let registrationSettings = {
 let captchaScriptLoaded = false;
 let captchaRenderQueued = false;
 let captchaWidgetId = null;
+let registerThemeHookBound = false;
 
 function getSafeAuthRedirectTarget(defaultTarget) {
     const fallback = defaultTarget || 'netdisk.html';
@@ -363,7 +364,8 @@ async function initRegisterPage() {
     await loadRegistrationSettings();
 
     const originalToggleTheme = window.toggleTheme;
-    if (typeof originalToggleTheme === 'function') {
+    if (!registerThemeHookBound && typeof originalToggleTheme === 'function') {
+        registerThemeHookBound = true;
         window.toggleTheme = function() {
             originalToggleTheme();
             if (registrationSettings.recaptchaEnabled) {
@@ -372,6 +374,8 @@ async function initRegisterPage() {
         };
     }
 }
+
+window.initRegisterPage = initRegisterPage;
 
 if (document.readyState === 'complete') {
     initRegisterPage();

@@ -116,13 +116,16 @@ function checkAlreadyLoggedIn() {
     }
 }
 
-// 页面加载时检查登录状态
-if (document.readyState === 'complete') {
+function initLoginPage() {
     syncRegisterLinkRedirect();
     checkAlreadyLoggedIn();
+}
+
+window.initLoginPage = initLoginPage;
+
+// 页面加载时检查登录状态
+if (document.readyState === 'complete') {
+    initLoginPage();
 } else {
-    window.addEventListener('load', () => {
-        syncRegisterLinkRedirect();
-        checkAlreadyLoggedIn();
-    });
+    window.addEventListener('load', initLoginPage);
 }

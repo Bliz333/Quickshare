@@ -7,7 +7,7 @@
  */
 'use strict';
 (function () {
-    if (window.__QUICKSHARE_DISABLE_SPA__ !== false) {
+    if (window.__QUICKSHARE_DISABLE_SPA__ === true) {
         window.spaNavigate = function () { return false; };
         return;
     }
@@ -22,16 +22,37 @@
     var loaded = {};
     var cache = {};
     var busy = false;
+    var queuedTransition = null;
     var curtain = null;
-    var currentFile = getFile(location.href);
+    var currentTarget = normalizeTarget(location.href) || { file: 'index.html', url: 'index.html' };
+    var currentFile = currentTarget.file;
+    var currentUrl = currentTarget.url;
 
     /* ── helpers ── */
 
     function getFile(url) {
+        var target = normalizeTarget(url);
+        return target ? target.file : '';
+    }
+
+    function normalizeTarget(url) {
         try {
-            var p = new URL(url, location.href).pathname;
-            return (p.split('/').pop() || 'index.html').toLowerCase();
-        } catch (e) { return ''; }
+            var parsed = new URL(url, location.href);
+            if (parsed.origin !== location.origin) return null;
+            var file = (parsed.pathname.split('/').pop() || 'index.html').toLowerCase();
+            return {
+                file: file,
+                url: file + parsed.search + parsed.hash
+            };
+        } catch (e) { return null; }
+    }
+
+    function targetFromState(state) {
+        if (!state || !state.spa) return normalizeTarget(location.href);
+        return {
+            file: String(state.spa || '').split('?')[0].split('#')[0].toLowerCase(),
+            url: state.spaUrl || state.spa
+        };
     }
 
     function isSpa(file) { return SPA_PAGES.hasOwnProperty(file); }
@@ -98,9 +119,18 @@
 
     /* ── transition ── */
 
-    function transition(targetFile, options) {
+    function transition(target, options) {
         options = options || {};
-        if (busy || targetFile === currentFile) return;
+        target = typeof target === 'string' ? normalizeTarget(target) : target;
+        if (!target || !isSpa(target.file)) return;
+
+        var targetFile = target.file;
+        var targetUrl = target.url || target.file;
+        if (busy) {
+            queuedTransition = { target: target, options: options };
+            return;
+        }
+        if (targetUrl === currentUrl) return;
         busy = true;
 
         var mcRoot = document.getElementById('mc-root');
@@ -219,14 +249,20 @@
                         setTimeout(function () {
                             if (mcRoot) mcRoot.style.zIndex = '';
                             currentFile = targetFile;
+                            currentUrl = targetUrl;
                             busy = false;
+                            if (queuedTransition) {
+                                var queued = queuedTransition;
+                                queuedTransition = null;
+                                transition(queued.target, queued.options);
+                            }
                         }, 220);
                     });
                 });
 
                 // 10. Update history only for direct navigations, not browser back/forward
                 if (!options.fromHistory) {
-                    history.pushState({ spa: targetFile }, doc.title, targetFile);
+                    history.pushState({ spa: targetFile, spaUrl: targetUrl }, doc.title, targetUrl);
                 }
 
             }, 200); // wait for curtain fade-in
@@ -249,32 +285,35 @@
         var href = link.getAttribute('href');
         if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return;
         if (e.ctrlKey || e.metaKey || e.shiftKey) return; // allow modifier-key opens
-        var file = getFile(href);
-        if (file && isSpa(file)) {
+        if (link.target && link.target !== '_self') return;
+        if (link.hasAttribute('download') || link.dataset.noSpa === 'true') return;
+        var target = normalizeTarget(href);
+        if (target && isSpa(target.file)) {
             e.preventDefault();
             e.stopPropagation();
-            transition(file);
+            transition(target);
         }
     }, true);
 
     // Back / forward
     window.addEventListener('popstate', function (e) {
-        if (e.state && e.state.spa) {
-            transition(e.state.spa, { fromHistory: true });
+        var target = targetFromState(e.state);
+        if (target && isSpa(target.file)) {
+            transition(target, { fromHistory: true });
         }
     });
 
     // Expose for programmatic navigation
-    window.spaNavigate = function (file) {
-        file = (file || '').split('/').pop().toLowerCase();
-        if (isSpa(file)) { transition(file); return true; }
+    window.spaNavigate = function (url) {
+        var target = normalizeTarget(url || 'index.html');
+        if (target && isSpa(target.file)) { transition(target); return true; }
         return false;
     };
 
     /* ── init ── */
 
     recordLoaded();
-    history.replaceState({ spa: currentFile }, document.title);
+    history.replaceState({ spa: currentFile, spaUrl: currentUrl }, document.title);
 
     // Prefetch other mascot pages on idle
     if (typeof requestIdleCallback === 'function') {

@@ -59,7 +59,7 @@ test.describe('Web logic regressions', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('netdisk brand returns to index and SPA router is disabled by default', async ({ page, baseURL }) => {
+  test('netdisk brand returns to index and SPA router stays enabled by default', async ({ page, baseURL }) => {
     await page.goto(`${baseURL}/index.html`, { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => {
       localStorage.setItem('token', 'e2e-token');
@@ -76,13 +76,14 @@ test.describe('Web logic regressions', () => {
     await page.goto(`${baseURL}/login.html`, { waitUntil: 'domcontentloaded' });
     await page.waitForURL('**/login.html', { waitUntil: 'domcontentloaded' });
     const spaResult = await page.evaluate(() => ({
-      disableFlag: window.__QUICKSHARE_DISABLE_SPA__ !== false,
+      disabledFlag: window.__QUICKSHARE_DISABLE_SPA__ === true,
       navigateResult: typeof window.spaNavigate === 'function' ? window.spaNavigate('register.html') : null,
       htmlClass: document.documentElement.className,
     }));
 
-    expect(spaResult.disableFlag).toBe(true);
-    expect(spaResult.navigateResult).toBe(false);
+    expect(spaResult.disabledFlag).toBe(false);
+    expect(spaResult.navigateResult).toBe(true);
+    await page.waitForURL('**/register.html', { waitUntil: 'domcontentloaded' });
     expect(spaResult.htmlClass).toContain('lang-ready');
   });
 
@@ -127,6 +128,53 @@ test.describe('Web logic regressions', () => {
     await page.locator('#password').fill('secret');
     await page.locator('#loginBtn').click();
     await page.waitForURL('**/netdisk.html');
+  });
+
+
+  test('SPA navigation keeps the mascot layer alive and preserves auth redirects', async ({ page, baseURL }) => {
+    await page.addInitScript(() => localStorage.clear());
+    await page.goto(`${baseURL}/index.html`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#mc-root', { state: 'attached' });
+
+    const firstMascotRoot = await page.evaluateHandle(() => document.getElementById('mc-root'));
+    await page.locator('.share-cta-bar a[href="share.html"]').click();
+    await page.waitForURL('**/share.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('body')).toHaveAttribute('data-mascot-scene', 'share');
+
+    const sameAfterShare = await page.evaluate((root) => root === document.getElementById('mc-root'), firstMascotRoot);
+    expect(sameAfterShare).toBe(true);
+
+    await page.locator('a[href="login.html"]').first().click();
+    await page.waitForURL('**/login.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('body')).toHaveAttribute('data-mascot-scene', 'login');
+
+    const sameAfterLogin = await page.evaluate((root) => root === document.getElementById('mc-root'), firstMascotRoot);
+    expect(sameAfterLogin).toBe(true);
+
+    await page.goto(`${baseURL}/login.html?redirect=netdisk.html`, { waitUntil: 'domcontentloaded' });
+    await page.locator('[data-auth-register-link]').click();
+    await page.waitForURL('**/register.html?redirect=netdisk.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-auth-login-link]')).toHaveAttribute('href', 'login.html?redirect=netdisk.html');
+  });
+
+  test('register page is centered and login icon is distinct from logout', async ({ page, baseURL }) => {
+    await page.addInitScript(() => localStorage.clear());
+    await page.goto(`${baseURL}/register.html`, { waitUntil: 'domcontentloaded' });
+
+    const layout = await page.locator('.register-container').evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return {
+        leftGap: rect.left,
+        rightGap: window.innerWidth - rect.right,
+        iconClass: el.querySelector('.logo-icon i')?.className || '',
+      };
+    });
+    expect(Math.abs(layout.leftGap - layout.rightGap)).toBeLessThan(8);
+    expect(layout.iconClass).toContain('fa-user-pen');
+
+    await page.goto(`${baseURL}/index.html`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#authButtons a[href="login.html"] i')).toHaveClass(/fa-circle-user/);
+    await expect(page.locator('#authButtons a[href="login.html"] i')).not.toHaveClass(/fa-right-from-bracket/);
   });
 
 });

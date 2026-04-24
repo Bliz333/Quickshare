@@ -51,7 +51,7 @@
         let authEl = '';
         if (!loggedIn) {
             authEl = `<a href="login.html" class="qs-nav-login">
-                <i class="fa-solid fa-right-to-bracket"></i>
+                <i class="fa-regular fa-circle-user"></i>
                 <span>${lang === 'zh' ? '登录' : 'Login'}</span>
             </a>`;
         }

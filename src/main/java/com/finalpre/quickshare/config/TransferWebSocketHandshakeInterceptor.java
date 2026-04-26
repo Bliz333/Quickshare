@@ -30,14 +30,14 @@ public class TransferWebSocketHandshakeInterceptor implements HandshakeIntercept
         }
 
         HttpServletRequest raw = servletRequest.getServletRequest();
-        String token = raw.getParameter("token");
+        String token = resolveValidAccessToken(raw);
         String deviceId = raw.getParameter("deviceId");
         String guestId = raw.getParameter("guestId");
         String deviceName = raw.getParameter("deviceName");
         String deviceType = raw.getParameter("deviceType");
 
         Long userId = null;
-        if (token != null && !token.isBlank() && jwtUtil.validateAccessToken(token)) {
+        if (token != null) {
             userId = jwtUtil.getUserIdFromToken(token);
         }
 
@@ -64,6 +64,28 @@ public class TransferWebSocketHandshakeInterceptor implements HandshakeIntercept
                                ServerHttpResponse response,
                                WebSocketHandler wsHandler,
                                Exception exception) {
+    }
+
+    private String resolveValidAccessToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String headerToken = authHeader.substring(7);
+            if (jwtUtil.validateAccessToken(headerToken)) {
+                return headerToken;
+            }
+        }
+
+        String cookieToken = AuthCookieSupport.resolveAccessToken(request);
+        if (jwtUtil.validateAccessToken(cookieToken)) {
+            return cookieToken;
+        }
+
+        String paramToken = request.getParameter("token");
+        if (jwtUtil.validateAccessToken(paramToken)) {
+            return paramToken;
+        }
+
+        return null;
     }
 
     private String resolveClientIp(HttpServletRequest request) {

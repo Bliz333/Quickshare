@@ -190,7 +190,6 @@ function buildWsUrl() {
     params.set('deviceName', getHomeDeviceName());
     params.set('deviceType', detectDeviceType());
     if (homeState.token) {
-        params.set('token', homeState.token);
         params.set('deviceId', getHomeDeviceId());
     } else {
         params.set('guestId', getOrCreateGuestId());

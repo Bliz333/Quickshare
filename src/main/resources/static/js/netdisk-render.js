@@ -16,25 +16,21 @@ function isImageFile(file) {
 
 // 获取缩略图 URL (200px, webp)
 function getThumbnailUrl(file) {
-    const token = localStorage.getItem('token');
-    return `${API_BASE}/files/${file.id}/preview?token=${encodeURIComponent(token)}&max_size=200&format=webp`;
+    return `${API_BASE}/files/${file.id}/preview?max_size=200&format=webp`;
 }
 
 // 获取预览图 URL (720p, webp)
 function getPreviewUrl(file) {
-    const token = localStorage.getItem('token');
-    return `${API_BASE}/files/${file.id}/preview?token=${encodeURIComponent(token)}&max_size=720&format=webp`;
+    return `${API_BASE}/files/${file.id}/preview?max_size=720&format=webp`;
 }
 
 // 获取原图 URL
 function getOriginalUrl(file) {
-    const token = localStorage.getItem('token');
-    return `${API_BASE}/files/${file.id}/preview?token=${encodeURIComponent(token)}`;
+    return `${API_BASE}/files/${file.id}/preview`;
 }
 
 function getDownloadUrl(file) {
-    const token = localStorage.getItem('token');
-    return `${API_BASE}/files/${file.id}/download?token=${encodeURIComponent(token)}`;
+    return `${API_BASE}/files/${file.id}/download`;
 }
 
 function getPdfViewerUrl(file, kind) {
@@ -50,6 +46,15 @@ function escapeInlineJsString(value) {
     return String(value || '')
         .replace(/\\/g, '\\\\')
         .replace(/'/g, "\\'");
+}
+
+function escapeNetdiskHtml(value) {
+    if (typeof escapeHtml === 'function') {
+        return escapeHtml(value == null ? '' : String(value));
+    }
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
 }
 
 // ================== 文件图标配置 ==================
@@ -163,8 +168,9 @@ function updateBreadcrumb() {
         breadcrumbPath.innerHTML = '';
     } else {
         breadcrumbPath.innerHTML = folderPath.map((folder, index) => {
+            const safeFolderName = escapeNetdiskHtml(folder.name);
             return `<i class="fa-solid fa-chevron-right text-xs mx-2 text-text-sub"></i>
-                    <span class="hover:text-brand-600 cursor-pointer hover:underline" onclick="navigateToFolderByIndex(${index})">${folder.name}</span>`;
+                    <span class="hover:text-brand-600 cursor-pointer hover:underline" onclick="navigateToFolderByIndex(${index})">${safeFolderName}</span>`;
         }).join('');
     }
 }
@@ -176,6 +182,7 @@ function renderListView(container, currentFolders, filteredFiles) {
     // 渲染文件夹
     currentFolders.forEach(folder => {
         const folderName = folder.name || t('unnamedFolder');
+        const escapedFolderName = escapeNetdiskHtml(folderName);
         const safeName = escapeInlineJsString(folderName);
         const isSelected = isNetdiskItemSelected('folder', folder.id);
         const checkboxClass = selectionModeEnabled ? '' : 'hidden';
@@ -199,7 +206,7 @@ function renderListView(container, currentFolders, filteredFiles) {
                 <i class="fa-solid fa-folder text-base"></i>
             </div>
             <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-text-main group-hover:text-brand-600 truncate">${folderName}</p>
+                <p class="text-sm font-medium text-text-main group-hover:text-brand-600 truncate">${escapedFolderName}</p>
                 <p class="text-xs text-text-sub mt-0.5 truncate">${metaLine}</p>
             </div>
             <div class="relative shrink-0" onclick="event.stopPropagation()">
@@ -224,6 +231,7 @@ function renderListView(container, currentFolders, filteredFiles) {
     filteredFiles.forEach(file => {
         const originalIndex = files.indexOf(file);
         const fileName = file.originalName || file.fileName || file.name;
+        const escapedFileName = escapeNetdiskHtml(fileName);
         const icon = getFileIcon(file);
         const isImage = isImageFile(file);
         const isSelected = isNetdiskItemSelected('file', file.id);
@@ -243,7 +251,7 @@ function renderListView(container, currentFolders, filteredFiles) {
             </label>
             ${isImage ? `
             <div class="w-9 h-9 shrink-0 rounded-lg overflow-hidden bg-page">
-                <img src="${getThumbnailUrl(file)}" alt="${fileName}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full ${icon.bg} flex items-center justify-center ${icon.color}\\'><i class=\\'${icon.icon}\\'></i></div>'">
+                <img src="${getThumbnailUrl(file)}" alt="${escapedFileName}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full ${icon.bg} flex items-center justify-center ${icon.color}\\'><i class=\\'${icon.icon}\\'></i></div>'">
             </div>
             ` : `
             <div class="w-9 h-9 shrink-0 rounded-lg ${icon.bg} flex items-center justify-center ${icon.color}">
@@ -251,7 +259,7 @@ function renderListView(container, currentFolders, filteredFiles) {
             </div>
             `}
             <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-text-main group-hover:text-brand-600 truncate">${fileName}</p>
+                <p class="text-sm font-medium text-text-main group-hover:text-brand-600 truncate">${escapedFileName}</p>
                 <p class="text-xs text-text-sub mt-0.5 truncate">${metaLine}</p>
             </div>
             <div class="relative shrink-0" onclick="event.stopPropagation()">
@@ -283,6 +291,7 @@ function renderGridView(container, currentFolders, filteredFiles) {
     // 渲染文件夹
     currentFolders.forEach(folder => {
         const folderName = folder.name || t('unnamedFolder');
+        const escapedFolderName = escapeNetdiskHtml(folderName);
         const safeName = escapeInlineJsString(folderName);
         const isSelected = isNetdiskItemSelected('folder', folder.id);
         const checkboxClass = selectionModeEnabled ? '' : 'hidden';
@@ -306,7 +315,7 @@ function renderGridView(container, currentFolders, filteredFiles) {
             <div class="w-full h-24 md:h-32 rounded-lg bg-yellow-500/10 flex items-center justify-center mb-2 md:mb-3 text-yellow-400 group-hover:text-yellow-500 transition-colors">
                 <i class="fa-solid fa-folder text-5xl md:text-7xl drop-shadow-sm"></i>
             </div>
-            <p class="font-medium text-text-main truncate text-sm">${folderName}</p>
+            <p class="font-medium text-text-main truncate text-sm">${escapedFolderName}</p>
             <p class="text-xs text-text-sub mt-1">${folder.fileCount || 0} ${t('items')}</p>
         </div>`;
     });
@@ -315,6 +324,7 @@ function renderGridView(container, currentFolders, filteredFiles) {
     filteredFiles.forEach(file => {
         const originalIndex = files.indexOf(file);
         const fileName = file.originalName || file.fileName || file.name;
+        const escapedFileName = escapeNetdiskHtml(fileName);
         const icon = getFileIcon(file);
         const isImage = isImageFile(file);
         const isSelected = isNetdiskItemSelected('file', file.id);
@@ -337,14 +347,14 @@ function renderGridView(container, currentFolders, filteredFiles) {
             </div>
             ${isImage ? `
             <div class="w-full h-24 md:h-32 rounded-lg overflow-hidden mb-2 md:mb-3 bg-page">
-                <img src="${getThumbnailUrl(file)}" alt="${fileName}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-full h-full ${icon.bg} flex items-center justify-center ${icon.color}\\'><i class=\\'${icon.icon} text-4xl md:text-5xl\\'></i></div>'">
+                <img src="${getThumbnailUrl(file)}" alt="${escapedFileName}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-full h-full ${icon.bg} flex items-center justify-center ${icon.color}\\'><i class=\\'${icon.icon} text-4xl md:text-5xl\\'></i></div>'">
             </div>
             ` : `
             <div class="w-full h-24 md:h-32 rounded-lg ${icon.bg} flex items-center justify-center mb-2 md:mb-3 ${icon.color} group-hover:scale-105 transition-transform">
                 <i class="${icon.icon} text-4xl md:text-5xl"></i>
             </div>
             `}
-            <p class="font-medium text-text-main truncate text-sm">${fileName}</p>
+            <p class="font-medium text-text-main truncate text-sm">${escapedFileName}</p>
             <p class="text-xs text-text-sub mt-1">${formatFileSize(file.fileSize || file.size)}</p>
         </div>`;
     });
@@ -370,6 +380,7 @@ async function previewFile(index) {
     container.innerHTML = '';
     const type = file.fileType || file.type || '';
     const fileName = file.originalName || file.fileName;
+    const escapedFileName = escapeNetdiskHtml(fileName);
     const previewDecision = typeof window.getFilePreviewDecision === 'function'
         ? window.getFilePreviewDecision(file)
         : { allowed: false, kind: null, reason: 'unsupported' };
@@ -383,7 +394,7 @@ async function previewFile(index) {
                 <i class="${icon.icon} text-4xl"></i>
             </div>
             <h3 class="text-lg font-medium mb-2">${message}</h3>
-            <p class="text-gray-400 mb-4">${fileName}</p>
+            <p class="text-gray-400 mb-4">${escapedFileName}</p>
             <button class="bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-6 rounded-lg transition-colors" onclick="event.stopPropagation(); downloadFile(${index})">
                 <i class="fa-solid fa-download mr-2"></i>${t('downloadBtn')}
             </button>
@@ -400,7 +411,7 @@ async function previewFile(index) {
 
         container.innerHTML = `
         <div class="relative inline-block">
-            <img src="${previewUrl}" class="preview-image shadow-2xl" alt="${fileName}" style="max-width: 90vw; max-height: 85vh; object-fit: contain;">
+            <img src="${previewUrl}" class="preview-image shadow-2xl" alt="${escapedFileName}" style="max-width: 90vw; max-height: 85vh; object-fit: contain;">
             <a href="${originalUrl}" target="_blank" onclick="event.stopPropagation()"
                class="absolute bottom-4 right-4 z-50 bg-black/50 hover:bg-black/70 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-md transition-all border border-white/10 flex items-center gap-2 no-underline">
                 <i class="fa-solid fa-expand"></i>
@@ -460,7 +471,7 @@ async function previewFile(index) {
                 <i class="${icon.icon} text-4xl"></i>
             </div>
             <h3 class="text-lg font-medium mb-2">${t('cannotPreview')}</h3>
-            <p class="text-gray-400 mb-4">${fileName}</p>
+            <p class="text-gray-400 mb-4">${escapedFileName}</p>
             <button class="bg-brand-600 hover:bg-brand-700 text-white py-2.5 px-6 rounded-lg transition-colors" onclick="event.stopPropagation(); downloadFile(${index})">
                 <i class="fa-solid fa-download mr-2"></i>${t('downloadBtn')}
             </button>

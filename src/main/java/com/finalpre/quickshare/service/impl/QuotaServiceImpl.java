@@ -5,8 +5,6 @@ import com.finalpre.quickshare.entity.User;
 import com.finalpre.quickshare.mapper.UserMapper;
 import com.finalpre.quickshare.service.QuotaService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Update;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -121,6 +119,17 @@ public class QuotaServiceImpl implements QuotaService {
         if (limit > 0 && used + fileSizeBytes > limit) {
             throw new IllegalStateException("存储空间不足，请购买更多空间");
         }
+    }
+
+    @Override
+    public boolean reserveStorageQuota(Long userId, long fileSizeBytes) {
+        if (userId == null) return false;
+        int updated = userMapper.reserveStorageQuota(userId, fileSizeBytes, DEFAULT_STORAGE_LIMIT_BYTES);
+        if (updated > 0) {
+            return true;
+        }
+        checkStorageQuota(userId, fileSizeBytes);
+        return false;
     }
 
     @Override

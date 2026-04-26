@@ -28,6 +28,10 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expirationTime;
 
+    public long getAccessTokenExpirationSeconds() {
+        return Math.max(expirationTime / 1000L, 0L);
+    }
+
     // 延迟初始化密钥
     private SecretKey getSecretKey() {
         return Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));

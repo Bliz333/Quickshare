@@ -35,16 +35,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
         String token = null;
+        boolean tokenFromHeader = false;
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-        } else {
+            String headerToken = authHeader.substring(7);
+            if (jwtUtil.validateAccessToken(headerToken)) {
+                token = headerToken;
+                tokenFromHeader = true;
+            }
+        }
+        if (token == null || token.isBlank()) {
+            String cookieToken = AuthCookieSupport.resolveAccessToken(request);
+            if (jwtUtil.validateAccessToken(cookieToken)) {
+                token = cookieToken;
+            }
+        }
+        if (token == null || token.isBlank()) {
             String paramToken = request.getParameter("token");
-            if (paramToken != null && !paramToken.isBlank()) {
+            if (jwtUtil.validateAccessToken(paramToken)) {
                 token = paramToken;
             }
         }
 
-        if (token == null || !jwtUtil.validateAccessToken(token)) {
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -65,6 +77,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         );
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (tokenFromHeader) {
+            AuthCookieSupport.writeAccessTokenCookie(request, response, token, jwtUtil.getAccessTokenExpirationSeconds());
+        }
         filterChain.doFilter(request, response);
     }
 }

@@ -38,7 +38,26 @@ const QuickShareSession = (() => {
         return normalizedUser;
     }
 
+    function notifyServerLogout(token) {
+        try {
+            const url = `${API_BASE}/auth/logout`;
+            const headers = token
+                ? { 'Authorization': `Bearer ${token}` }
+                : {};
+            fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                keepalive: true,
+                headers
+            }).catch(() => {});
+        } catch (error) {
+            // ignore logout transport failures during local session cleanup
+        }
+    }
+
     function clear() {
+        const token = getToken();
+        notifyServerLogout(token);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
     }

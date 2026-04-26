@@ -3,6 +3,7 @@ package com.finalpre.quickshare.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.finalpre.quickshare.common.Result;
 import com.finalpre.quickshare.common.UserRole;
+import com.finalpre.quickshare.config.AuthCookieSupport;
 import com.finalpre.quickshare.entity.User;
 import com.finalpre.quickshare.mapper.UserMapper;
 import com.finalpre.quickshare.service.RegistrationSettingsService;
@@ -10,6 +11,8 @@ import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.UserVO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -44,7 +47,9 @@ public class SocialLoginController {
     private RegistrationSettingsService registrationSettingsService;
 
     @PostMapping("/google")
-    public Result<UserVO> googleLogin(@RequestBody Map<String, String> body) {
+    public Result<UserVO> googleLogin(@RequestBody Map<String, String> body,
+                                      HttpServletRequest request,
+                                      HttpServletResponse response) {
         String googleClientId = registrationSettingsService.getPolicy().googleClientId();
         String idToken = body.get("idToken");
         if (idToken == null || idToken.isBlank()) {
@@ -76,6 +81,7 @@ public class SocialLoginController {
             BeanUtils.copyProperties(user, vo);
             vo.setToken(token);
             vo.setRole(UserRole.normalize(user.getRole()));
+            AuthCookieSupport.writeAccessTokenCookie(request, response, token, jwtUtil.getAccessTokenExpirationSeconds());
             return Result.success(vo);
 
         } catch (Exception e) {

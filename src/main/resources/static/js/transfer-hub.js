@@ -1602,8 +1602,6 @@ function buildTransferInlinePreviewHtml(transfer, task) {
     }
 
     let previewUrl = buildRelayTransferPreviewUrl(source.transferId);
-    const token = typeof getAuthToken === 'function' ? getAuthToken() : (localStorage.getItem('token') || '');
-    if (token) previewUrl += '&token=' + encodeURIComponent(token);
 
     return window.renderInlinePreviewHtml({
         previewUrl: previewUrl,

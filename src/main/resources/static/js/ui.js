@@ -16,10 +16,15 @@ function showToast(message, type = 'success') {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    const icon = type === 'success'
-        ? '<i class="fa-solid fa-check-circle"></i>'
-        : '<i class="fa-solid fa-circle-exclamation"></i>';
-    toast.innerHTML = `${icon} <span>${message}</span>`;
+    const icon = document.createElement('i');
+    icon.className = type === 'success'
+        ? 'fa-solid fa-check-circle'
+        : 'fa-solid fa-circle-exclamation';
+    const text = document.createElement('span');
+    text.textContent = message == null ? '' : String(message);
+    toast.appendChild(icon);
+    toast.appendChild(document.createTextNode(' '));
+    toast.appendChild(text);
     container.appendChild(toast);
 
     setTimeout(() => toast.classList.add('show'), 10);

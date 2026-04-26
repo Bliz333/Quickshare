@@ -26,6 +26,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -65,6 +66,7 @@ public class FileServiceImpl implements FileService {
     private QuotaService quotaService;
 
     @Override
+    @Transactional
     public FileInfoVO uploadFile(MultipartFile file, Long userId, Long folderId) {
         try {
             Long targetFolderId = normalizeParentId(folderId);
@@ -99,10 +101,8 @@ public class FileServiceImpl implements FileService {
                 return convertToVO(sameLogicalFile);
             }
 
-            // Check storage quota only when a new logical file will be created
-            if (userId != null) {
-                quotaService.checkStorageQuota(userId, file.getSize());
-            }
+            // Reserve storage quota atomically only when a new logical file will be created.
+            quotaService.reserveStorageQuota(userId, file.getSize());
 
             String contentType = file.getContentType();
             if (contentType == null || contentType.isEmpty()) {
@@ -136,11 +136,6 @@ public class FileServiceImpl implements FileService {
 
             fileInfoMapper.insert(fileInfo);
 
-            // Record storage usage
-            if (userId != null) {
-                quotaService.recordStorageUsed(userId, file.getSize());
-            }
-
             return convertToVO(fileInfo);
 
         } catch (IOException e) {
@@ -149,6 +144,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    @Transactional
     public FileInfoVO importLocalFile(Path sourcePath, String originalName, String contentType, Long userId, Long folderId) {
         if (sourcePath == null || !Files.exists(sourcePath) || !Files.isRegularFile(sourcePath)) {
             throw new ResourceNotFoundException("临时文件不存在");
@@ -183,7 +179,7 @@ public class FileServiceImpl implements FileService {
                     return convertToVO(sameLogicalFile);
                 }
 
-                quotaService.checkStorageQuota(userId, size);
+                quotaService.reserveStorageQuota(userId, size);
 
                 FileInfo reusableStorageFile = findReusableStorageFile(md5, size);
                 String fileName = reusableStorageFile != null && reusableStorageFile.getFileName() != null && !reusableStorageFile.getFileName().isBlank()
@@ -210,7 +206,6 @@ public class FileServiceImpl implements FileService {
                 fileInfo.setParentId(targetFolderId);
 
                 fileInfoMapper.insert(fileInfo);
-                quotaService.recordStorageUsed(userId, size);
                 return convertToVO(fileInfo);
             }
         } catch (IOException e) {
@@ -219,6 +214,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    @Transactional
     public ShareLinkVO createShareLink(ShareRequestDTO request, Long userId) {
         // 检查文件是否存在
         FileInfo fileInfo = fileInfoMapper.selectById(request.getFileId());
@@ -475,6 +471,7 @@ public class FileServiceImpl implements FileService {
      * 删除文件（逻辑删除）
      */
     @Override
+    @Transactional
     public void deleteFile(Long fileId, Long userId) {
         // 查询文件
         FileInfo fileInfo = fileInfoMapper.selectById(fileId);
@@ -500,6 +497,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    @Transactional
     public void moveFile(Long fileId, Long targetFolderId, Long userId) {
         FileInfo fileInfo = fileInfoMapper.selectById(fileId);
         if (fileInfo == null || Integer.valueOf(1).equals(fileInfo.getDeleted())) {
@@ -527,6 +525,7 @@ public class FileServiceImpl implements FileService {
      * 重命名文件
      */
     @Override
+    @Transactional
     public void renameFile(Long fileId, String newName, Long userId) {
         FileInfo fileInfo = fileInfoMapper.selectById(fileId);
         if (fileInfo == null) {
@@ -576,6 +575,7 @@ public class FileServiceImpl implements FileService {
      * 创建文件夹
      */
     @Override
+    @Transactional
     public FileInfoVO createFolder(String folderName, Long parentId, Long userId) {
         String normalizedFolderName = normalizeItemName(folderName, "文件夹名");
         Long normalizedParentId = normalizeParentId(parentId);
@@ -678,6 +678,7 @@ public class FileServiceImpl implements FileService {
      * 删除文件夹
      */
     @Override
+    @Transactional
     public void deleteFolder(Long folderId, Long userId) {
         FileInfo folder = fileInfoMapper.selectById(folderId);
 
@@ -720,6 +721,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    @Transactional
     public void moveFolder(Long folderId, Long targetFolderId, Long userId) {
         FileInfo folder = fileInfoMapper.selectById(folderId);
         if (folder == null || Integer.valueOf(1).equals(folder.getDeleted())) {
@@ -751,6 +753,7 @@ public class FileServiceImpl implements FileService {
      * 重命名文件夹
      */
     @Override
+    @Transactional
     public void renameFolder(Long folderId, String newName, Long userId) {
         FileInfo folder = fileInfoMapper.selectById(folderId);
         if (folder == null) {

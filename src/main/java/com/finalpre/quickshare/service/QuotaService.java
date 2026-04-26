@@ -14,6 +14,9 @@ public interface QuotaService {
     /** Check if user has enough storage for a file of given size. Throws if exceeded. */
     void checkStorageQuota(Long userId, long fileSizeBytes);
 
+    /** Atomically reserve storage for an upload. Returns false for guest/no-user uploads. */
+    boolean reserveStorageQuota(Long userId, long fileSizeBytes);
+
     /** Record storage usage after successful upload. */
     void recordStorageUsed(Long userId, long fileSizeBytes);
 

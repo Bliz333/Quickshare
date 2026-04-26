@@ -1,13 +1,17 @@
 package com.finalpre.quickshare.controller;
 
 import com.finalpre.quickshare.common.Result;
+import com.finalpre.quickshare.config.AuthCookieSupport;
 import com.finalpre.quickshare.dto.LoginDTO;
 import com.finalpre.quickshare.dto.RegisterDTO;
 import com.finalpre.quickshare.service.RegistrationSettingsService;
 import com.finalpre.quickshare.service.UserService;
 import com.finalpre.quickshare.service.VerificationCodeService;
 import com.finalpre.quickshare.service.RegistrationSettingsPolicy;
+import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.UserVO;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,6 +32,9 @@ public class AuthController {
 
     @Autowired
     private RegistrationSettingsService registrationSettingsService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     /**
      * 发送邮箱验证码
@@ -50,7 +57,9 @@ public class AuthController {
      * 注册
      */
     @PostMapping("/register")
-    public Result<UserVO> register(@RequestBody RegisterDTO dto) {
+    public Result<UserVO> register(@RequestBody RegisterDTO dto,
+                                   HttpServletRequest request,
+                                   HttpServletResponse response) {
         RegistrationSettingsPolicy registrationSettings = registrationSettingsService.getPolicy();
         if (registrationSettings.emailVerificationEnabled()) {
             if (dto.getEmail() == null || dto.getEmail().isBlank()) {
@@ -66,6 +75,7 @@ public class AuthController {
         }
 
         UserVO vo = userService.register(dto);
+        writeAuthCookie(request, response, vo);
         return Result.success(vo);
     }
 
@@ -73,9 +83,25 @@ public class AuthController {
      * 登录
      */
     @PostMapping("/login")
-    public Result<UserVO> login(@RequestBody LoginDTO dto) {
+    public Result<UserVO> login(@RequestBody LoginDTO dto,
+                                HttpServletRequest request,
+                                HttpServletResponse response) {
         UserVO vo = userService.login(dto);
+        writeAuthCookie(request, response, vo);
         return Result.success(vo);
+    }
+
+    @PostMapping("/logout")
+    public Result<String> logout(HttpServletRequest request, HttpServletResponse response) {
+        AuthCookieSupport.clearAccessTokenCookie(request, response);
+        return Result.success("ok");
+    }
+
+    private void writeAuthCookie(HttpServletRequest request, HttpServletResponse response, UserVO vo) {
+        if (vo == null || vo.getToken() == null || vo.getToken().isBlank()) {
+            return;
+        }
+        AuthCookieSupport.writeAccessTokenCookie(request, response, vo.getToken(), jwtUtil.getAccessTokenExpirationSeconds());
     }
 
 }

@@ -5,6 +5,12 @@
 // 已选择的文件列表
 let selectedFiles = [];
 
+function escapeUploadHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+}
+
 function getSelectedDisplayName(file) {
     return file?.webkitRelativePath || file?.name || '';
 }
@@ -107,9 +113,10 @@ function displayFileList() {
     selectedFiles.forEach((file, index) => {
         const item = document.createElement('div');
         item.className = 'file-item';
+        const displayName = escapeUploadHtml(getSelectedDisplayName(file));
         item.innerHTML = `
             <div class="file-item-info">
-                <strong><i class="fa-regular fa-file"></i> ${getSelectedDisplayName(file)}</strong>
+                <strong><i class="fa-regular fa-file"></i> ${displayName}</strong>
                 <small>${formatFileSize(file.size)}</small>
             </div>
             <button class="remove-file-btn" onclick="removeFile(${index})">
@@ -229,12 +236,16 @@ function displayShareLinks(links) {
         if (link.extractCode) {
             fullUrl += `&code=${link.extractCode}`;
         }
+        const safeFileName = escapeUploadHtml(link.fileName);
+        const safeFullUrl = escapeUploadHtml(fullUrl);
+        const safeShareCode = escapeUploadHtml(link.shareCode);
+        const safeExtractCode = escapeUploadHtml(link.extractCode || t('none'));
 
         html += `
             <div class="result-card-container">
                 <h4 style="color:var(--text-main); margin-bottom:15px; display: flex; align-items: center; gap: 8px;">
                     <i class="fa-regular fa-file-lines" style="color: var(--accent);"></i>
-                    <span>${idx + 1}. ${link.fileName}</span>
+                    <span>${idx + 1}. ${safeFileName}</span>
                 </h4>
 
                 <div class="result-item full-link">
@@ -242,7 +253,7 @@ function displayShareLinks(links) {
                         <i class="fa-solid fa-link"></i> ${t('fullLink')}
                     </span>
                     <div class="result-value-row">
-                        <span class="result-value" id="fullUrl${idx}">${fullUrl}</span>
+                        <span class="result-value" id="fullUrl${idx}">${safeFullUrl}</span>
                         <button class="copy-btn" onclick="copyText('fullUrl${idx}', this)">
                             <i class="fa-regular fa-copy"></i>
                             <span class="copy-btn-text" data-i18n="copy">${t('copy')}</span>
@@ -256,7 +267,7 @@ function displayShareLinks(links) {
                             <i class="fa-solid fa-hashtag"></i> ${t('shareCode')}
                         </span>
                         <div class="result-value-row">
-                            <span class="result-value" id="shareCode${idx}">${link.shareCode}</span>
+                            <span class="result-value" id="shareCode${idx}">${safeShareCode}</span>
                             <button class="copy-btn" onclick="copyText('shareCode${idx}', this)">
                                 <i class="fa-regular fa-copy"></i>
                                 <span class="copy-btn-text" data-i18n="copy">${t('copy')}</span>
@@ -269,7 +280,7 @@ function displayShareLinks(links) {
                             <i class="fa-solid fa-key"></i> ${t('extractCode')}
                         </span>
                         <div class="result-value-row">
-                            <span class="result-value" id="extractCode${idx}">${link.extractCode || t('none')}</span>
+                            <span class="result-value" id="extractCode${idx}">${safeExtractCode}</span>
                             ${link.extractCode ? `
                                 <button class="copy-btn" onclick="copyText('extractCode${idx}', this)">
                                     <i class="fa-regular fa-copy"></i>

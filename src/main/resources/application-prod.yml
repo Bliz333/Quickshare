@@ -55,7 +55,7 @@ file:
   max-size: ${FILE_MAX_SIZE_BYTES:-1}
 
 jwt:
-  secret: ${JWT_SECRET:change-this-secret-at-least-256-bits}
+  secret: ${JWT_SECRET:}
   expiration: ${JWT_EXPIRATION_MS:86400000}
 
 recaptcha:

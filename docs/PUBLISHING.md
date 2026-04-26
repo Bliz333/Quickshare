@@ -64,11 +64,11 @@ git diff --stat
 
 ## 5. 提交与推送
 
-- 先确认提交身份不会暴露本机用户名 / 主机名 / 私人邮箱：
+- 先确认提交身份使用仓库拥有者的 GitHub 身份，不要写入机器人、AI 工具或临时维护者账号：
 
 ```bash
-git config user.name "QuickShare Maintainer"
-git config user.email "quickshare-maintainer@users.noreply.github.com"
+git config user.name "Bliz333"
+git config user.email "athesfly@gmail.com"
 git log -1 --format='%an <%ae> | %cn <%ce>'
 ```
 

@@ -52,6 +52,8 @@ public class FileController {
 
     private static final Long GUEST_USER_ID = 0L;
     private static final long DEFAULT_GUEST_UPLOAD_MAX_SIZE_BYTES = 2L * 1024L * 1024L * 1024L;
+    private static final int DEFAULT_FILE_PAGE_SIZE = 200;
+    private static final int MAX_FILE_PAGE_SIZE = 200;
 
     @Value("${app.upload.guest-max-size-bytes:2147483648}")
     private long guestUploadMaxSizeBytes = DEFAULT_GUEST_UPLOAD_MAX_SIZE_BYTES;
@@ -116,7 +118,7 @@ public class FileController {
 
     /**
      * 获取当前用户当前目录的文件列表（支持可选分页）
-     * 不传 pageSize 时返回全量 List，传 pageSize 时返回分页结果
+     * 不传 pageSize 时返回首批受限 List，传 pageSize 时返回分页结果
      */
     @GetMapping("/files")
     public Result<?> getUserFiles(
@@ -129,13 +131,20 @@ public class FileController {
 
         if (pageSize != null && pageSize > 0) {
             int page = (pageNum != null && pageNum > 0) ? pageNum : 1;
-            int size = Math.min(pageSize, 200);
+            int size = Math.min(pageSize, MAX_FILE_PAGE_SIZE);
             PageVO<FileInfoVO> result = fileService.getFilesByFolderPaged(targetFolderId, userId, page, size);
             return Result.success(result);
         }
 
-        List<FileInfoVO> fileList = fileService.getFilesByFolder(targetFolderId, userId);
-        return Result.success(fileList);
+        PageVO<FileInfoVO> result = fileService.getFilesByFolderPaged(targetFolderId, userId, 1, DEFAULT_FILE_PAGE_SIZE);
+        if (result == null || result.getRecords() == null) {
+            List<FileInfoVO> fileList = fileService.getFilesByFolder(targetFolderId, userId)
+                    .stream()
+                    .limit(DEFAULT_FILE_PAGE_SIZE)
+                    .toList();
+            return Result.success(fileList);
+        }
+        return Result.success(result.getRecords());
     }
 
     /**

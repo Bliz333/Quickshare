@@ -65,10 +65,10 @@ DEPLOY_INCLUDE_WORKTREE=1 DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK=0 DEPLOY_RUN_SMOKE=1
 
 QuickDrop relay / public pickup 已接入浏览器端 AES-GCM E2EE。涉及 `home.js`、`transfer-hub.js`、`transfer-direct.js`、`download.js` 或 `e2ee.js` 的改动，除常规 JS / Playwright 验证外，还应至少确认：
 
-- 上传到 relay / public pickup 的 payload 是密文路径，服务器不持久化解密 key。
+- 上传到 relay / public pickup 的 payload 是密文路径，中转存储不保存明文文件载荷。
 - 带 `#key=...` 的公开取件链接能在浏览器端完成本地解密下载。
-- 同账号 relay 能通过 WebSocket signal 把 E2EE metadata 交给接收端并完成本地解密。
-- E2EE relay 下服务器端 Office 预览和“保存到网盘”保持禁用，避免密文被当作明文处理。
+- 同账号 / 匿名配对 relay 能通过 WebSocket signal 把 E2EE key metadata 交给接收端并完成本地解密；当前 WebSocket 由服务器终止，测试和文档不得宣称该模式对实时信令服务端操作者 server-blind。
+- E2EE relay 下浏览器 UI 的服务器端 Office 预览和“保存到网盘”保持禁用，避免密文被当作明文处理；后端 API 级强制拒绝仍需后续补齐。
 
 如果需要拆开执行，等价序列为：
 

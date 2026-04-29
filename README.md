@@ -40,17 +40,17 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 - Same-account device discovery without pairing codes
 - Browser direct transfer before relay fallback
 - Public pickup links and anonymous paired direct transfer
-- Relay fallback uses browser-side AES-GCM encryption; the server stores and streams encrypted chunks, while decryption keys stay in the sender / receiver browser context or URL fragment.
+- Relay fallback uses browser-side AES-GCM encryption; the server stores and streams encrypted chunks instead of plaintext payloads.
 - Server-backed unified task model with direct-attempt write-back
 - Task detail lifecycle with stage, failure reason, fallback reason, and save-to-netdisk feedback
 
 ### Security model for relay transfers
 
 - Direct browser transfers still prefer peer-to-peer delivery when the network allows it.
-- When QuickDrop falls back to server relay or public pickup, files are encrypted in the browser with Web Crypto AES-GCM before upload. Chunk IVs and metadata are stored with the encrypted payload, but the raw key is not persisted by the server.
+- When QuickDrop falls back to server relay or public pickup, files are encrypted in the browser with Web Crypto AES-GCM before upload. Chunk IVs and metadata are stored with the encrypted payload, so relay storage keeps ciphertext instead of plaintext.
 - Public pickup links carry the decryption key in the URL fragment (`#key=...`), which browsers do not send in HTTP requests. Anyone with the full URL can decrypt, so share it like a secret.
-- Same-account relay delivery passes the E2EE metadata through the authenticated WebSocket signal path so the receiving browser can decrypt locally.
-- Because the server cannot read E2EE relay payloads, server-side Office conversion and save-to-netdisk are disabled for encrypted relay files until a client-side or user-key-backed preview/save flow is added.
+- Same-account and paired relay delivery currently pass the E2EE key metadata through the authenticated, server-terminated WebSocket signal path so the receiving browser can decrypt locally. The key is not persisted with relay storage, but this mode is not server-blind against the live signaling service operator.
+- Because relay storage contains ciphertext rather than plaintext, server-side Office conversion and save-to-netdisk are disabled in the browser UI for encrypted relay files until a client-side or user-key-backed preview/save flow is added. The current enforcement is client-side; API callers that bypass the UI can still store ciphertext.
 
 ### Admin-facing
 

@@ -12,7 +12,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import java.util.concurrent.TimeUnit;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -133,12 +132,13 @@ class RequestRateLimitServiceImplTest {
     }
 
     @Test
-    void checkGuestUploadAllowedShouldFailOpenWhenRedisUnavailable() {
+    void checkGuestUploadAllowedShouldFailClosedWhenRedisUnavailable() {
         when(rateLimitPolicyService.getGuestUploadRule()).thenReturn(new RateLimitRule(true, 10L, 600L));
         when(redisTemplate.opsForValue()).thenThrow(new RuntimeException("redis unavailable"));
 
-        assertThatCode(() -> requestRateLimitService.checkGuestUploadAllowed("203.0.113.9"))
-                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> requestRateLimitService.checkGuestUploadAllowed("203.0.113.9"))
+                .isInstanceOf(RateLimitExceededException.class)
+                .hasMessage("匿名上传过于频繁，请稍后再试");
     }
 
     @Test
@@ -153,11 +153,12 @@ class RequestRateLimitServiceImplTest {
     }
 
     @Test
-    void checkPublicShareExtractCodeFailureAllowedShouldFailOpenWhenRedisUnavailable() {
+    void checkPublicShareExtractCodeFailureAllowedShouldFailClosedWhenRedisUnavailable() {
         when(rateLimitPolicyService.getPublicShareExtractCodeErrorRule()).thenReturn(new RateLimitRule(true, 5L, 600L));
         when(redisTemplate.opsForValue()).thenThrow(new RuntimeException("redis unavailable"));
 
-        assertThatCode(() -> requestRateLimitService.checkPublicShareExtractCodeFailureAllowed("203.0.113.9", "ABCD1234"))
-                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> requestRateLimitService.checkPublicShareExtractCodeFailureAllowed("203.0.113.9", "ABCD1234"))
+                .isInstanceOf(RateLimitExceededException.class)
+                .hasMessage("提取码尝试次数过多，请稍后再试");
     }
 }

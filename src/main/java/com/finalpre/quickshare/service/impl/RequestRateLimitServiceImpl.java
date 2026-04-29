@@ -91,9 +91,10 @@ public class RequestRateLimitServiceImpl implements RequestRateLimitService {
         } catch (RateLimitExceededException ex) {
             throw ex;
         } catch (Exception ex) {
-            log.warn("Rate limit check failed, allow request to continue. scene={}, key={}, reason={}",
+            log.warn("Rate limit check failed, reject request to preserve throttling. scene={}, key={}, reason={}",
                     PUBLIC_SHARE_EXTRACT_CODE_ERROR_SCENE, key, ex.getMessage());
             log.debug("Rate limit check stack", ex);
+            throw new RateLimitExceededException(PUBLIC_SHARE_EXTRACT_CODE_ERROR_MESSAGE);
         }
     }
 
@@ -119,9 +120,10 @@ public class RequestRateLimitServiceImpl implements RequestRateLimitService {
         } catch (RateLimitExceededException ex) {
             throw ex;
         } catch (Exception ex) {
-            log.warn("Rate limit record failed, allow request to continue. scene={}, key={}, reason={}",
+            log.warn("Rate limit record failed, reject request to preserve throttling. scene={}, key={}, reason={}",
                     PUBLIC_SHARE_EXTRACT_CODE_ERROR_SCENE, key, ex.getMessage());
             log.debug("Rate limit record stack", ex);
+            throw new RateLimitExceededException(PUBLIC_SHARE_EXTRACT_CODE_ERROR_MESSAGE);
         }
     }
 
@@ -167,9 +169,10 @@ public class RequestRateLimitServiceImpl implements RequestRateLimitService {
         } catch (RateLimitExceededException ex) {
             throw ex;
         } catch (Exception ex) {
-            log.warn("Rate limit check failed, allow request to continue. scene={}, clientIp={}, reason={}",
+            log.warn("Rate limit check failed, reject request to preserve throttling. scene={}, clientIp={}, reason={}",
                     scene, normalizedClientIp, ex.getMessage());
             log.debug("Rate limit check stack", ex);
+            throw new RateLimitExceededException(message);
         }
     }
 

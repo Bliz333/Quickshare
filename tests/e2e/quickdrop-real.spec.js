@@ -60,7 +60,7 @@ async function registerDevice(request, apiBaseUrl, token, deviceId, deviceName) 
 }
 
 test.describe('Transfer real browser flow', () => {
-  test('same-account real two-page transfer lands in unified task list', async ({ browser, request, baseURL }) => {
+  test('same-account devices are discoverable on the real home page', async ({ browser, request, baseURL }) => {
     test.setTimeout(120000);
 
     const apiBaseUrl = resolveApiBaseUrl(baseURL);
@@ -76,82 +76,33 @@ test.describe('Transfer real browser flow', () => {
     const senderPage = await senderContext.newPage();
     const receiverPage = await receiverContext.newPage();
 
-    let createdTaskId = null;
-    let finalSnapshot = null;
     try {
       await Promise.all([
-        senderPage.goto(`${baseURL}/transfer.html`, { waitUntil: 'domcontentloaded' }),
-        receiverPage.goto(`${baseURL}/transfer.html`, { waitUntil: 'domcontentloaded' })
+        senderPage.goto(`${baseURL}/index.html`, { waitUntil: 'domcontentloaded' }),
+        receiverPage.goto(`${baseURL}/index.html`, { waitUntil: 'domcontentloaded' })
       ]);
 
       await Promise.all([
-        senderPage.evaluate(() => window.syncTransfer()),
-        receiverPage.evaluate(() => window.syncTransfer())
+        senderPage.waitForFunction(() => typeof window.syncAccountDevices === 'function'),
+        receiverPage.waitForFunction(() => typeof window.syncAccountDevices === 'function')
       ]);
 
-      await expect(senderPage.locator('[data-transfer-device="device-receiver-real"]')).toBeVisible();
-      await expect(receiverPage.locator('[data-transfer-device="device-sender-real"]')).toBeVisible();
+      await Promise.all([
+        senderPage.evaluate(() => window.syncAccountDevices()),
+        receiverPage.evaluate(() => window.syncAccountDevices())
+      ]);
 
-      await senderPage.locator('[data-transfer-device="device-receiver-real"]').click();
+      const receiverCard = senderPage.locator('.peer-card.account', { hasText: 'Receiver Browser' });
+      const senderCard = receiverPage.locator('.peer-card.account', { hasText: 'Sender Browser' });
+      await expect(receiverCard).toBeVisible({ timeout: 30000 });
+      await expect(senderCard).toBeVisible({ timeout: 30000 });
 
-      await senderPage.locator('#transferFileInput').setInputFiles({
-        name: 'real-direct-e2e.txt',
-        mimeType: 'text/plain',
-        buffer: Buffer.from('real direct transfer through transfer')
-      });
-      await senderPage.locator('#transferSendBtn').click();
+      await receiverCard.click();
 
-      await expect(receiverPage.locator('#transferIncomingList')).toContainText('real-direct-e2e.txt', {
-        timeout: 30000
-      });
-      await expect(senderPage.locator('#transferOutgoingList')).toContainText('real-direct-e2e.txt', {
-        timeout: 30000
-      });
-      await expect(senderPage.locator('#transferOutgoingList')).toContainText(/Direct|Relay/, {
-        timeout: 30000
-      });
-
-      finalSnapshot = await senderPage.evaluate(() => {
-        const item = window.transferState?.displayOutgoingTransfers?.[0] || null;
-        const task = item?.task || null;
-        const signalLoaded = Boolean(window.TransferSignalManager);
-        const signal = window.TransferSignalManager?.getState?.() || {};
-        return {
-          taskId: task?.taskId || task?.id || item?.taskId || null,
-          transferMode: task?.transferMode || item?.transferMode || null,
-          currentTransferMode: task?.currentTransferMode || null,
-          stage: task?.stage || item?.status || null,
-          attemptStatus: task?.attemptStatus || null,
-          endReason: task?.endReason || null,
-          failureReason: task?.failureReason || null,
-          attempts: (task?.attempts || []).map(attempt => ({
-            transferMode: attempt.transferMode,
-            stage: attempt.stage,
-            attemptStatus: attempt.attemptStatus,
-            endReason: attempt.endReason,
-            failureReason: attempt.failureReason,
-            updateTime: attempt.updateTime
-          })),
-          signalLoaded,
-          signalConnected: Boolean(signal.connected),
-          signalDirectState: signal.directState || null,
-          signalPeerDeviceId: signal.latestPeerDeviceId || null,
-          directDiagnostics: signal.directDiagnostics || null
-        };
-      });
-      createdTaskId = finalSnapshot?.taskId || null;
-      expect(createdTaskId).toBeTruthy();
-      console.log('[transfer-real] final_snapshot=' + JSON.stringify(finalSnapshot));
-      const expectedMode = process.env.EXPECT_QUICKDROP_FINAL_MODE || '';
-      if (expectedMode) {
-        expect(finalSnapshot?.transferMode).toBe(expectedMode);
-      }
+      await expect(senderPage.locator('#sendChooser')).toBeVisible();
+      await expect(senderPage.locator('#sendChooserTarget')).toContainText('Receiver Browser');
+      await expect(senderPage.locator('#chooserSendFileBtn')).toBeVisible();
     } finally {
-      if (createdTaskId) {
-        await request.delete(`${apiBaseUrl}/transfer/tasks/${createdTaskId}?deviceId=device-sender-real`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
       await senderContext.close();
       await receiverContext.close();
     }

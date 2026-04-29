@@ -7,7 +7,7 @@
 - **中转端到端加密**：
   - 新增 `src/main/resources/static/js/e2ee.js`，统一封装浏览器 Web Crypto AES-GCM key 生成、分片加密、分片解密和 URL-safe key 编码。
   - 首页 QuickShare、同账号 Transfer Hub、匿名 / public pickup relay fallback 现在会在浏览器端先加密文件，再上传到服务器中转；中转存储保存密文分片和必要元数据，不保存明文文件载荷。
-  - 公开取件链接通过 URL fragment 携带解密 key；同账号 / 匿名配对 relay 通过已认证、由服务器终止的 WebSocket 信令把 E2EE key metadata 传给接收端浏览器，该 key 不与中转文件一起持久化保存，但当前实时信令服务端仍可观察到 key。
+  - 公开取件链接通过 URL fragment 携带解密 key；同账号 / 匿名配对 relay 改为通过 WebSocket 交换接收端 ECDH 公钥材料和浏览器长期身份签名，两端用 HKDF 本地派生 AES-GCM 文件密钥，信令服务端不再接收原始文件密钥。
 - **预览与网盘边界**：
   - E2EE relay 文件由接收端浏览器本地解密后再预览 / 下载。
   - 因中转存储不保存明文，E2EE relay 下浏览器 UI 暂不走服务器端 Office 转换预览，也暂不允许直接保存到网盘，避免把密文误当明文导入；后端 API 级强制拒绝会留到后续用户密钥 / 客户端预览方案一起收口。

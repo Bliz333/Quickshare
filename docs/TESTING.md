@@ -67,7 +67,7 @@ QuickDrop relay / public pickup 已接入浏览器端 AES-GCM E2EE。涉及 `hom
 
 - 上传到 relay / public pickup 的 payload 是密文路径，中转存储不保存明文文件载荷。
 - 带 `#key=...` 的公开取件链接能在浏览器端完成本地解密下载。
-- 同账号 / 匿名配对 relay 能通过 WebSocket signal 把 E2EE key metadata 交给接收端并完成本地解密；当前 WebSocket 由服务器终止，测试和文档不得宣称该模式对实时信令服务端操作者 server-blind。
+- 同账号 / 匿名配对 relay 能通过 WebSocket signal 交换 ECDH 公钥材料和浏览器长期身份签名，两端本地派生 AES-GCM 文件密钥；信令 payload 不应包含可直接导入解密文件的 raw AES key。
 - E2EE relay 下浏览器 UI 的服务器端 Office 预览和“保存到网盘”保持禁用，避免密文被当作明文处理；后端 API 级强制拒绝仍需后续补齐。
 
 如果需要拆开执行，等价序列为：

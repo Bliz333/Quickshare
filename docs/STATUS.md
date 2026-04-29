@@ -21,7 +21,7 @@
   - 新增 `src/main/resources/static/js/e2ee.js`，统一使用浏览器 Web Crypto AES-GCM 做分片加密 / 解密
   - 首页 QuickShare relay、同账号 Transfer Hub relay、匿名 public pickup fallback 均改为上传密文分片
   - 公开取件链接通过 URL fragment 携带解密 key，服务器不会在 HTTP 请求里收到 key
-  - 同账号 / 匿名配对 relay 通过已认证、由服务器终止的 WebSocket signal 把 E2EE key metadata 传给接收端浏览器；key 不与中转文件一起持久化保存，但当前实时信令服务端仍可观察到 key
+  - 同账号 / 匿名配对 relay 通过 WebSocket 交换接收端 ECDH 公钥材料和浏览器长期身份签名，两端用 HKDF 本地派生 AES-GCM 文件密钥；信令服务端不再接收原始文件密钥
 - E2EE relay 的产品边界已明确：
   - 中转存储不保存明文，因此 encrypted relay 文件在浏览器 UI 中暂不走 LibreOffice Office 转换预览
   - encrypted relay 文件在浏览器 UI 中暂不允许直接保存到网盘，避免把密文作为明文导入用户空间；API 级强制拒绝仍需后续补齐

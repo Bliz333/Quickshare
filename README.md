@@ -49,7 +49,7 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 - Direct browser transfers still prefer peer-to-peer delivery when the network allows it.
 - When QuickDrop falls back to server relay or public pickup, files are encrypted in the browser with Web Crypto AES-GCM before upload. Chunk IVs and metadata are stored with the encrypted payload, so relay storage keeps ciphertext instead of plaintext.
 - Public pickup links carry the decryption key in the URL fragment (`#key=...`), which browsers do not send in HTTP requests. Anyone with the full URL can decrypt, so share it like a secret.
-- Same-account and paired relay delivery currently pass the E2EE key metadata through the authenticated, server-terminated WebSocket signal path so the receiving browser can decrypt locally. The key is not persisted with relay storage, but this mode is not server-blind against the live signaling service operator.
+- Same-account and paired relay delivery exchange recipient ECDH public key material over WebSocket, verify it with a browser-held P-256 identity signature, and derive the AES-GCM file key locally with HKDF. The signaling server forwards public key material and signatures, not the raw file key.
 - Because relay storage contains ciphertext rather than plaintext, server-side Office conversion and save-to-netdisk are disabled in the browser UI for encrypted relay files until a client-side or user-key-backed preview/save flow is added. The current enforcement is client-side; API callers that bypass the UI can still store ciphertext.
 
 ### Admin-facing

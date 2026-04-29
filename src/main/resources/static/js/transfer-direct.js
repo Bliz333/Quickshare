@@ -56,6 +56,7 @@ const TransferDirectTransfer = (() => {
         receiveQueue: Promise.resolve(),
         announcedIncomingTransfers: new Set(),
         announcedRelayShares: new Set(),
+        relayPeerKeyOffer: null,
         dbPromise: null
     };
 
@@ -77,6 +78,23 @@ const TransferDirectTransfer = (() => {
         return window.TransferSignalManager && typeof TransferSignalManager.getState === 'function'
             ? TransferSignalManager.getState()
             : {};
+    }
+
+    async function announceRelayRecipientKey(pairSessionId) {
+        if (!window.QuickShareE2EE?.prepareRelayRecipient || !window.TransferSignalManager?.sendSignal) {
+            return;
+        }
+        const sessionId = String(pairSessionId || getSignalState().pairSessionId || '').trim();
+        if (!sessionId) return;
+        const offer = await window.QuickShareE2EE.prepareRelayRecipient(sessionId);
+        TransferSignalManager.sendSignal('relay-e2ee-offer', offer);
+    }
+
+    async function completeIncomingRelayE2ee(e2ee) {
+        if (!e2ee?.encrypted || !window.QuickShareE2EE?.completeRelayRecipientE2ee) {
+            return e2ee;
+        }
+        return window.QuickShareE2EE.completeRelayRecipientE2ee(e2ee);
     }
 
     function extractDeviceId(channelId) {
@@ -2052,18 +2070,22 @@ const TransferDirectTransfer = (() => {
         let e2ee = null;
         let encryptKey = null;
         if (window.QuickShareE2EE) {
-            const generated = await window.QuickShareE2EE.generateKey();
-            encryptKey = generated.key;
-            e2ee = {
-                encrypted: true,
-                version: 1,
-                key: generated.rawKey,
+            if (!state.relayPeerKeyOffer && window.TransferSignalManager?.sendSignal) {
+                TransferSignalManager.sendSignal('relay-e2ee-offer-request', { pairSessionId: signalContext.pairSessionId });
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            if (!state.relayPeerKeyOffer || !window.QuickShareE2EE.encryptForRelayRecipient) {
+                throw new Error('Recipient encryption key is unavailable');
+            }
+            const prepared = await window.QuickShareE2EE.encryptForRelayRecipient(state.relayPeerKeyOffer, {
                 fileName: currentFile.name,
                 fileSize: currentFile.size,
                 contentType: currentFile.type || 'application/octet-stream',
                 chunkSize,
                 totalChunks
-            };
+            });
+            encryptKey = prepared.key;
+            e2ee = prepared.e2ee;
         }
         state.activeSend = {
             transferId: created.shareToken,
@@ -2935,8 +2957,20 @@ const TransferDirectTransfer = (() => {
 
         document.addEventListener('transfer:signal-message', event => {
             const payload = event.detail || {};
+            if (payload.type === 'pair-ready') {
+                announceRelayRecipientKey(payload.pairSessionId).catch(error => console.warn('Failed to announce relay E2EE key:', error));
+            }
+            if (payload.type === 'signal' && payload.signalType === 'relay-e2ee-offer' && payload.payload) {
+                state.relayPeerKeyOffer = payload.payload;
+            }
+            if (payload.type === 'signal' && payload.signalType === 'relay-e2ee-offer-request') {
+                announceRelayRecipientKey(payload.payload?.pairSessionId).catch(error => console.warn('Failed to answer relay E2EE key request:', error));
+            }
             if (payload.type === 'signal' && payload.signalType === 'relay-done' && payload.payload) {
-                presentRelayShareArrivalDialog(payload.payload).catch(error => {
+                Promise.resolve(payload.payload.e2ee)
+                    .then(e2ee => completeIncomingRelayE2ee(e2ee))
+                    .then(e2ee => presentRelayShareArrivalDialog({ ...payload.payload, e2ee }))
+                    .catch(error => {
                     showToast(error.message, 'error');
                 });
             }

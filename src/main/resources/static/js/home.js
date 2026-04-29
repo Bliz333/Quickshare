@@ -49,6 +49,7 @@ const homeState = {
     batchFileInfo: null,
     batchE2ee: null,
     batchPairTimer: null,
+    relayPeerKeyOffer: null,
     batchProgress: { done: 0, total: 0, failed: 0 },
     accountSyncTimer: null,
     globalEventsBound: false,
@@ -330,6 +331,7 @@ function handleWsMessage(msg) {
             homeState.pairSessionId = msg.pairSessionId;
             homeState.peerChannelId = msg.peerChannelId;
             homeState.peerLabel = msg.peerLabel || homeState.peerLabel || msg.peerChannelId || null;
+            announceHomeRelayRecipientKey(msg.pairSessionId).catch(error => console.warn('Failed to announce relay E2EE key:', error));
             if (homeState.batchPhase === 'sending') {
                 onBatchPairReady(msg);
             } else {
@@ -338,8 +340,15 @@ function handleWsMessage(msg) {
             break;
 
         case 'signal':
-            if (msg.signalType === 'relay-done' && msg.payload) {
-                showReceiveCard(msg.payload);
+            if (msg.signalType === 'relay-e2ee-offer' && msg.payload) {
+                homeState.relayPeerKeyOffer = msg.payload;
+            } else if (msg.signalType === 'relay-e2ee-offer-request') {
+                announceHomeRelayRecipientKey(msg.payload?.pairSessionId).catch(error => console.warn('Failed to answer relay E2EE key request:', error));
+            } else if (msg.signalType === 'relay-done' && msg.payload) {
+                Promise.resolve(msg.payload.e2ee)
+                    .then(e2ee => completeHomeRelayE2ee(e2ee))
+                    .then(e2ee => showReceiveCard({ ...msg.payload, e2ee }))
+                    .catch(error => showHomeToast(error.message || 'Decrypt key exchange failed', 'error'));
             }
             break;
 
@@ -361,6 +370,26 @@ function sendWs(obj) {
     if (homeState.ws && homeState.ws.readyState === WebSocket.OPEN) {
         homeState.ws.send(JSON.stringify(obj));
     }
+}
+
+async function announceHomeRelayRecipientKey(pairSessionId) {
+    if (!window.QuickShareE2EE?.prepareRelayRecipient) return;
+    const sessionId = String(pairSessionId || homeState.pairSessionId || '').trim();
+    if (!sessionId) return;
+    const offer = await window.QuickShareE2EE.prepareRelayRecipient(sessionId);
+    sendWs({
+        type: 'signal',
+        pairSessionId: sessionId,
+        signalType: 'relay-e2ee-offer',
+        payload: offer
+    });
+}
+
+async function completeHomeRelayE2ee(e2ee) {
+    if (!e2ee?.encrypted || !window.QuickShareE2EE?.completeRelayRecipientE2ee) {
+        return e2ee;
+    }
+    return window.QuickShareE2EE.completeRelayRecipientE2ee(e2ee);
 }
 
 // ─── 设备环渲染 ────────────────────────────────────────────────────────────────
@@ -688,23 +717,39 @@ async function onPairReady(msg) {
 
 // ─── 公开 Share API 上传（无需登录） ──────────────────────────────────────────
 
-async function uploadToPublicShare(file, onProgress) {
+async function uploadToPublicShare(file, onProgress, recipientOffer = null) {
     const totalChunks = Math.ceil(file.size / HOME_CHUNK_SIZE) || 1;
     let e2ee = null;
     let encryptKey = null;
     if (window.QuickShareE2EE) {
-        const generated = await window.QuickShareE2EE.generateKey();
-        encryptKey = generated.key;
-        e2ee = {
-            encrypted: true,
-            version: 1,
-            key: generated.rawKey,
-            fileName: file.name,
-            fileSize: file.size,
-            contentType: file.type || 'application/octet-stream',
-            chunkSize: HOME_CHUNK_SIZE,
-            totalChunks
-        };
+        if (recipientOffer && window.QuickShareE2EE.encryptForRelayRecipient) {
+            const prepared = await window.QuickShareE2EE.encryptForRelayRecipient(recipientOffer, {
+                fileName: file.name,
+                fileSize: file.size,
+                contentType: file.type || 'application/octet-stream',
+                chunkSize: HOME_CHUNK_SIZE,
+                totalChunks
+            });
+            encryptKey = prepared.key;
+            e2ee = prepared.e2ee;
+        } else {
+            const generated = await window.QuickShareE2EE.generateKey();
+            encryptKey = generated.key;
+            e2ee = {
+                encrypted: true,
+                version: 1,
+                key: generated.rawKey,
+                fileName: file.name,
+                fileSize: file.size,
+                contentType: file.type || 'application/octet-stream',
+                chunkSize: HOME_CHUNK_SIZE,
+                totalChunks
+            };
+        }
+    }
+
+    if (recipientOffer && !encryptKey) {
+        throw new Error('Recipient encryption key is unavailable');
     }
 
     const createRes = await fetch(`${apiBase()}/api/public/transfer/shares`, {
@@ -762,11 +807,23 @@ function sendRelayDoneSignal(pairSessionId, fileInfo, shareToken, e2ee) {
 
 async function sendViaPublicShare(file, pairSessionId) {
     homeState.transferState = 'sending';
+    if (!homeState.relayPeerKeyOffer) {
+        sendWs({
+            type: 'signal',
+            pairSessionId,
+            signalType: 'relay-e2ee-offer-request',
+            payload: { pairSessionId }
+        });
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    if (!homeState.relayPeerKeyOffer) {
+        throw new Error('Recipient encryption key is unavailable');
+    }
     const uploaded = await uploadToPublicShare(file, (pct) => {
         const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
         const statusText = lang === 'zh' ? `上传中 ${pct}%` : `Uploading ${pct}%`;
         showSendProgress(file.name, pct, statusText);
-    });
+    }, homeState.relayPeerKeyOffer);
     const shareToken = uploaded.shareToken;
     sendRelayDoneSignal(pairSessionId, {
         fileName: file.name,

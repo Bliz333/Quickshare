@@ -61,7 +61,8 @@ const transferState = {
     accountHistoryExpanded: false,
     deviceSettingsExpanded: false,
     pickerMenuExpanded: false,
-    relayE2eeSignalBound: false
+    relayE2eeSignalBound: false,
+    relayPeerKeyOffer: null
 };
 
 function transferText(key, fallback) {
@@ -180,6 +181,24 @@ function getTransferDeviceId() {
     }
     localStorage.setItem(TRANSFER_DEVICE_ID_KEY, deviceId);
     return deviceId;
+}
+
+async function announceTransferRelayRecipientKey(pairSessionId) {
+    if (!window.QuickShareE2EE?.prepareRelayRecipient || !window.TransferSignalManager?.sendSignal) {
+        return;
+    }
+    const signalState = typeof TransferSignalManager.getState === 'function' ? TransferSignalManager.getState() : {};
+    const sessionId = String(pairSessionId || signalState.pairSessionId || '').trim();
+    if (!sessionId) return;
+    const offer = await window.QuickShareE2EE.prepareRelayRecipient(sessionId);
+    TransferSignalManager.sendSignal('relay-e2ee-offer', offer);
+}
+
+async function completeTransferRelayE2ee(e2ee) {
+    if (!e2ee?.encrypted || !window.QuickShareE2EE?.completeRelayRecipientE2ee) {
+        return e2ee;
+    }
+    return window.QuickShareE2EE.completeRelayRecipientE2ee(e2ee);
 }
 
 function detectTransferDeviceType() {
@@ -2469,27 +2488,38 @@ async function sendSingleTransferFile(selectedItem, batchIndex, batchTotal) {
         let encryptKey = null;
         if (window.QuickShareE2EE) {
             if (e2ee?.encrypted) {
+                if (!e2ee.key) {
+                    throw new Error('Local relay encryption key is unavailable; start this transfer again');
+                }
                 encryptKey = await window.QuickShareE2EE.importKey(e2ee.key);
             } else {
-                const generated = await window.QuickShareE2EE.generateKey();
-                encryptKey = generated.key;
-                e2ee = {
-                    encrypted: true,
-                    version: 1,
-                    key: generated.rawKey,
+                if (!transferState.relayPeerKeyOffer && window.TransferSignalManager?.sendSignal) {
+                    TransferSignalManager.sendSignal('relay-e2ee-offer-request', { taskKey });
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+                if (!transferState.relayPeerKeyOffer || !window.QuickShareE2EE.encryptForRelayRecipient) {
+                    throw new Error('Recipient encryption key is unavailable');
+                }
+                const prepared = await window.QuickShareE2EE.encryptForRelayRecipient(transferState.relayPeerKeyOffer, {
                     fileName: file.name,
                     fileSize: file.size,
                     contentType: file.type || 'application/octet-stream',
                     chunkSize: session.chunkSize,
                     totalChunks
+                });
+                encryptKey = prepared.key;
+                e2ee = {
+                    ...prepared.e2ee,
+                    key: await window.QuickShareE2EE.exportRawKey(prepared.key)
                 };
                 setTransferRelayE2ee(session.id, e2ee);
             }
             if (window.TransferSignalManager?.sendSignal) {
+                const { key, ...signalE2ee } = e2ee;
                 window.TransferSignalManager.sendSignal('relay-e2ee-key', {
                     transferId: session.id,
                     taskKey,
-                    e2ee
+                    e2ee: signalE2ee
                 });
             }
         }
@@ -2653,13 +2683,31 @@ function bindTransferEvents() {
     if (!transferState.relayE2eeSignalBound) {
         document.addEventListener('transfer:signal-message', event => {
             const payload = event.detail || {};
-            if (payload.type !== 'signal' || payload.signalType !== 'relay-e2ee-key') {
+            if (payload.type === 'pair-ready') {
+                announceTransferRelayRecipientKey(payload.pairSessionId).catch(error => console.warn('Failed to announce relay E2EE key:', error));
                 return;
             }
-            const data = payload.payload || {};
-            if (data.transferId && data.e2ee?.encrypted) {
-                setTransferRelayE2ee(data.transferId, data.e2ee);
-                renderTransferTransfers();
+            if (payload.type !== 'signal') {
+                return;
+            }
+            if (payload.signalType === 'relay-e2ee-offer' && payload.payload) {
+                transferState.relayPeerKeyOffer = payload.payload;
+                return;
+            }
+            if (payload.signalType === 'relay-e2ee-offer-request') {
+                announceTransferRelayRecipientKey(payload.payload?.pairSessionId).catch(error => console.warn('Failed to answer relay E2EE key request:', error));
+                return;
+            }
+            if (payload.signalType === 'relay-e2ee-key') {
+                const data = payload.payload || {};
+                if (data.transferId && data.e2ee?.encrypted) {
+                    completeTransferRelayE2ee(data.e2ee)
+                        .then(e2ee => {
+                            setTransferRelayE2ee(data.transferId, e2ee);
+                            renderTransferTransfers();
+                        })
+                        .catch(error => showToast(error.message || 'Decrypt key exchange failed', 'error'));
+                }
             }
         });
         transferState.relayE2eeSignalBound = true;

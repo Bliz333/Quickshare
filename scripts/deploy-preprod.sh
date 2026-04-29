@@ -21,6 +21,7 @@ DEPLOY_RUN_SMOKE="${DEPLOY_RUN_SMOKE:-0}"
 DEPLOY_RUN_BROWSER_SMOKE="${DEPLOY_RUN_BROWSER_SMOKE:-0}"
 DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK="${DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK:-1}"
 DEPLOY_ENABLE_SNAPSHOT_FALLBACK="${DEPLOY_ENABLE_SNAPSHOT_FALLBACK:-1}"
+DEPLOY_INCLUDE_WORKTREE="${DEPLOY_INCLUDE_WORKTREE:-0}"
 DEPLOY_SSH_TIMEOUT_SECONDS="${DEPLOY_SSH_TIMEOUT_SECONDS:-900}"
 DEPLOY_HEALTH_URL="${DEPLOY_HEALTH_URL:-http://127.0.0.1:8080/api/health}"
 DEPLOY_RTC_URL="${DEPLOY_RTC_URL:-http://127.0.0.1:8080/api/public/transfer/rtc-config}"
@@ -33,11 +34,17 @@ DEPLOY_CLEANUP_REMOTE_ARTIFACTS="${DEPLOY_CLEANUP_REMOTE_ARTIFACTS:-1}"
 DEPLOY_TIMEOUT_BIN="${DEPLOY_TIMEOUT_BIN:-}"
 
 LOCAL_HEAD="$(git rev-parse HEAD)"
+LOCAL_TREE_LABEL="$LOCAL_HEAD"
+if [[ "$DEPLOY_INCLUDE_WORKTREE" == "1" ]]; then
+    LOCAL_TREE_LABEL="${LOCAL_HEAD}-worktree-$(date +%Y%m%d%H%M%S)"
+    DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK="0"
+    DEPLOY_ENABLE_SNAPSHOT_FALLBACK="1"
+fi
 LOCAL_REMOTE_HEAD="$(git rev-parse --verify "${DEPLOY_GIT_REMOTE}/${DEPLOY_GIT_BRANCH}" 2>/dev/null || true)"
-GIT_BUNDLE_LOCAL="/tmp/quickshare-deploy-${LOCAL_HEAD}.bundle"
-GIT_BUNDLE_REMOTE="/root/quickshare-deploy-${LOCAL_HEAD}.bundle"
-SNAPSHOT_ARCHIVE_LOCAL="/tmp/quickshare-deploy-src-${LOCAL_HEAD}.tar.gz"
-SNAPSHOT_ARCHIVE_REMOTE="/root/quickshare-deploy-src-${LOCAL_HEAD}.tar.gz"
+GIT_BUNDLE_LOCAL="/tmp/quickshare-deploy-${LOCAL_TREE_LABEL}.bundle"
+GIT_BUNDLE_REMOTE="/root/quickshare-deploy-${LOCAL_TREE_LABEL}.bundle"
+SNAPSHOT_ARCHIVE_LOCAL="/tmp/quickshare-deploy-src-${LOCAL_TREE_LABEL}.tar.gz"
+SNAPSHOT_ARCHIVE_REMOTE="/root/quickshare-deploy-src-${LOCAL_TREE_LABEL}.tar.gz"
 
 log() {
     printf '[deploy] %s\n' "$*"
@@ -97,7 +104,13 @@ if [[ "$DEPLOY_ENABLE_SNAPSHOT_FALLBACK" == "1" ]]; then
     require_cmd "$DEPLOY_SCP_BIN"
     log "preparing source snapshot fallback archive ${SNAPSHOT_ARCHIVE_LOCAL}"
     rm -f "$SNAPSHOT_ARCHIVE_LOCAL"
-    git archive --format=tar "$LOCAL_HEAD" | gzip > "$SNAPSHOT_ARCHIVE_LOCAL"
+    if [[ "$DEPLOY_INCLUDE_WORKTREE" == "1" ]]; then
+        log "including current working tree in source snapshot"
+        git ls-files -z --cached --others --exclude-standard \
+            | tar --null -T - -czf "$SNAPSHOT_ARCHIVE_LOCAL"
+    else
+        git archive --format=tar "$LOCAL_HEAD" | gzip > "$SNAPSHOT_ARCHIVE_LOCAL"
+    fi
     log "uploading source snapshot to ${DEPLOY_TARGET}:${SNAPSHOT_ARCHIVE_REMOTE}"
     "$DEPLOY_SCP_BIN" "$SNAPSHOT_ARCHIVE_LOCAL" "${DEPLOY_TARGET}:${SNAPSHOT_ARCHIVE_REMOTE}"
 fi
@@ -217,6 +230,14 @@ cleanup_transfer_artifacts() {
     rm -f "$GIT_BUNDLE_REMOTE" "$SNAPSHOT_ARCHIVE_REMOTE"
 }
 
+cleanup_old_transfer_artifacts() {
+    find /root -maxdepth 1 -type f \
+        \( -name 'quickshare-deploy-*.bundle' -o -name 'quickshare-deploy-src-*.tar.gz' \) \
+        ! -path "$GIT_BUNDLE_REMOTE" \
+        ! -path "$SNAPSHOT_ARCHIVE_REMOTE" \
+        -delete
+}
+
 ensure_remote_capacity() {
     local stage="$1"
     local min_disk_mb="${DEPLOY_MIN_DISK_MB:-2048}"
@@ -230,7 +251,7 @@ ensure_remote_capacity() {
 
     if [[ "$disk_mb" -lt "$min_disk_mb" && "$prune_on_low_disk" == "1" ]]; then
         log "disk below threshold (${disk_mb}MB < ${min_disk_mb}MB); pruning unused Docker images and transfer artifacts"
-        cleanup_transfer_artifacts
+        cleanup_old_transfer_artifacts
         docker image prune -af >/dev/null 2>&1 || true
         disk_mb="$(available_disk_mb)"
         mem_mb="$(available_mem_mb)"

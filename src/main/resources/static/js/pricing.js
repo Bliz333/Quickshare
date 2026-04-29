@@ -388,7 +388,7 @@ async function loadOrders() {
 
     renderOrdersLoading();
     try {
-        currentOrders = await apiRequest('/payment/orders') || [];
+        currentOrders = await apiRequest('/payment/orders?limit=20') || [];
         renderOrders();
     } catch (error) {
         console.error('Failed to load orders:', error);

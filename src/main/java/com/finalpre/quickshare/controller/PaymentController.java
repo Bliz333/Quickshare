@@ -20,6 +20,9 @@ import java.util.Map;
 @RequestMapping("/api/payment")
 public class PaymentController {
 
+    private static final int DEFAULT_ORDER_HISTORY_LIMIT = 20;
+    private static final int MAX_ORDER_HISTORY_LIMIT = 100;
+
     @Autowired
     private PaymentService paymentService;
 
@@ -79,12 +82,15 @@ public class PaymentController {
      * User's own order history.
      */
     @GetMapping("/orders")
-    public Result<List<PaymentOrder>> getMyOrders(Authentication authentication) {
+    public Result<List<PaymentOrder>> getMyOrders(@RequestParam(required = false) Integer limit,
+                                                  Authentication authentication) {
         Long userId = requireUserId(authentication);
+        int normalizedLimit = normalizeOrderHistoryLimit(limit);
         List<PaymentOrder> orders = paymentOrderMapper.selectList(
                 new QueryWrapper<PaymentOrder>()
                         .eq("user_id", userId)
-                        .orderByDesc("create_time"));
+                        .orderByDesc("create_time")
+                        .last("LIMIT " + normalizedLimit));
         return Result.success(orders);
     }
 
@@ -103,6 +109,13 @@ public class PaymentController {
             throw new org.springframework.security.access.AccessDeniedException("请先登录");
         }
         return (Long) authentication.getPrincipal();
+    }
+
+    private int normalizeOrderHistoryLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_ORDER_HISTORY_LIMIT;
+        }
+        return Math.min(limit, MAX_ORDER_HISTORY_LIMIT);
     }
 
     private String buildBaseUrl(HttpServletRequest request) {

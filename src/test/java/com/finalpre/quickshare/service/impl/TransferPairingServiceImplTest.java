@@ -250,4 +250,29 @@ class TransferPairingServiceImplTest {
         assertThat(task.getAttempts().get(0).getFailureReason()).isEqualTo("peer_reported_error");
         assertThat(task.getAttempts().get(0).getFailedAt()).isNotNull();
     }
+
+    @Test
+    void deletePairTaskAttemptShouldNotDeleteTaskWhenAttemptsJsonIsCorrupted() {
+        TransferPairTask task = new TransferPairTask();
+        task.setId(900L);
+        task.setPairSessionId("pair-corrupted");
+        task.setTaskKey("pair:corrupted-transfer");
+        task.setLeftChannelId("guest:self");
+        task.setRightChannelId("guest:peer");
+        task.setFileName("corrupted.txt");
+        task.setFileSize(12L);
+        task.setContentType("text/plain");
+        task.setTotalChunks(2);
+        task.setCompletedChunks(1);
+        task.setStatus("sending");
+        task.setTransferMode("direct");
+        task.setCurrentTransferMode("direct");
+        task.setAttemptsJson("{not valid json");
+        pairTaskStore.put(task.getId(), task);
+
+        transferPairingService.deletePairTaskAttempt(900L, "pair-corrupted", "guest:self", "direct-1");
+
+        assertThat(pairTaskStore).containsKey(900L);
+        assertThat(pairTaskStore.get(900L).getAttemptsJson()).isEqualTo("{not valid json");
+    }
 }

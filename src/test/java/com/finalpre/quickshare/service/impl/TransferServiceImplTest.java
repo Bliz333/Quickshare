@@ -32,6 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -279,5 +281,89 @@ class TransferServiceImplTest {
         assertThat(fallback.getAttempts().get(0).getStartTime()).isEqualTo(initial.getAttempts().get(0).getStartTime());
         assertThat(fallback.getAttempts().get(0).getFailureReason()).isEqualTo("peer_missed_offer");
         assertThat(fallback.getAttempts().get(0).getFallbackAt()).isNotNull();
+    }
+
+    @Test
+    void deleteDirectAttemptShouldNotDeleteTaskWhenAttemptsJsonIsCorrupted() {
+        TransferDevice device = new TransferDevice();
+        device.setDeviceId("sender-device");
+        device.setUserId(8L);
+        when(transferDeviceMapper.selectById("sender-device")).thenReturn(device);
+
+        TransferTask task = new TransferTask();
+        task.setId(901L);
+        task.setUserId(8L);
+        task.setTaskKey("outgoing|receiver-device|clip.txt|6|1710000000000");
+        task.setSenderDeviceId("sender-device");
+        task.setReceiverDeviceId("receiver-device");
+        task.setFileName("clip.txt");
+        task.setFileSize(6L);
+        task.setContentType("text/plain");
+        task.setTotalChunks(3);
+        task.setCompletedChunks(1);
+        task.setStatus("sending");
+        task.setTransferMode("direct");
+        task.setCurrentTransferMode("direct");
+        task.setAttemptsJson("{not valid json");
+        task.setExpireTime(LocalDateTime.now().plusHours(1));
+        taskStore.put(task.getId(), task);
+
+        transferService.deleteDirectAttempt(8L, 901L, "sender-device", "direct-1");
+
+        assertThat(taskStore).containsKey(901L);
+        assertThat(taskStore.get(901L).getAttemptsJson()).isEqualTo("{not valid json");
+    }
+
+    @Test
+    void deleteTransferShouldNotDeleteRelayWhenTaskAttemptsJsonIsCorrupted() throws Exception {
+        TransferDevice device = new TransferDevice();
+        device.setDeviceId("sender-device");
+        device.setUserId(8L);
+        when(transferDeviceMapper.selectById("sender-device")).thenReturn(device);
+
+        Path assembledPath = tempDir.resolve("relay-corrupted.txt");
+        Files.writeString(assembledPath, "relay body");
+
+        TransferRelay transfer = new TransferRelay();
+        transfer.setId(77L);
+        transfer.setUserId(8L);
+        transfer.setTaskId(902L);
+        transfer.setTransferKey("relay-corrupted-key");
+        transfer.setTaskKey("outgoing|receiver-device|relay.txt|10|1710000000000");
+        transfer.setSenderDeviceId("sender-device");
+        transfer.setReceiverDeviceId("receiver-device");
+        transfer.setFileName("relay.txt");
+        transfer.setFileSize(10L);
+        transfer.setContentType("text/plain");
+        transfer.setTotalChunks(1);
+        transfer.setUploadedChunks(1);
+        transfer.setStatus("ready");
+        transfer.setAssembledPath(assembledPath.toString());
+        transfer.setExpireTime(LocalDateTime.now().plusHours(1));
+        when(transferTransferMapper.selectById(77L)).thenReturn(transfer);
+
+        TransferTask task = new TransferTask();
+        task.setId(902L);
+        task.setUserId(8L);
+        task.setTaskKey(transfer.getTaskKey());
+        task.setSenderDeviceId("sender-device");
+        task.setReceiverDeviceId("receiver-device");
+        task.setFileName("relay.txt");
+        task.setFileSize(10L);
+        task.setContentType("text/plain");
+        task.setTotalChunks(1);
+        task.setCompletedChunks(1);
+        task.setStatus("ready");
+        task.setTransferMode("relay");
+        task.setCurrentTransferMode("relay");
+        task.setAttemptsJson("{not valid json");
+        task.setExpireTime(LocalDateTime.now().plusHours(1));
+        taskStore.put(task.getId(), task);
+
+        transferService.deleteTransfer(8L, 77L, "sender-device");
+
+        assertThat(Files.exists(assembledPath)).isTrue();
+        verify(transferTransferMapper, never()).deleteById(77L);
+        assertThat(taskStore.get(902L).getAttemptsJson()).isEqualTo("{not valid json");
     }
 }

@@ -373,7 +373,11 @@ public class TransferServiceImpl implements TransferService {
     public void deleteDirectAttempt(Long userId, Long taskId, String deviceId, String clientTransferId) {
         requireOwnedDevice(userId, deviceId);
         TransferTask task = requireOwnedTask(userId, taskId);
-        List<TransferTaskAttemptVO> attempts = parseTaskAttempts(task.getAttemptsJson());
+        List<TransferTaskAttemptVO> attempts = tryParseTaskAttempts(task.getAttemptsJson());
+        if (attempts == null) {
+            log.warn("Skip deleting Transfer direct attempt because attempts JSON is corrupted. taskId={}", taskId);
+            return;
+        }
         attempts.removeIf(attempt -> MODE_DIRECT.equals(attempt.getTransferMode())
                 && Objects.equals(attempt.getTransferId(), normalizeClientTransferId(clientTransferId)));
         saveTaskWithAttempts(task, attempts);
@@ -383,11 +387,22 @@ public class TransferServiceImpl implements TransferService {
     public void deleteTransfer(Long userId, Long transferId, String deviceId) {
         requireOwnedDevice(userId, deviceId);
         TransferRelay transfer = requireOwnedTransfer(userId, transferId);
+        if (transfer.getTaskId() != null) {
+            TransferTask existingTask = transferTaskMapper.selectById(transfer.getTaskId());
+            if (existingTask != null && tryParseTaskAttempts(existingTask.getAttemptsJson()) == null) {
+                log.warn("Skip deleting Transfer relay because task attempts JSON is corrupted. transferId={}, taskId={}", transferId, existingTask.getId());
+                return;
+            }
+        }
         TransferTask task = ensureTaskAssociatedForRelay(transfer);
         deleteTransferFiles(transfer);
         transferTransferMapper.deleteById(transferId);
         if (task != null) {
-            List<TransferTaskAttemptVO> attempts = parseTaskAttempts(task.getAttemptsJson());
+            List<TransferTaskAttemptVO> attempts = tryParseTaskAttempts(task.getAttemptsJson());
+            if (attempts == null) {
+                log.warn("Skip updating Transfer task after relay deletion because attempts JSON is corrupted. taskId={}", task.getId());
+                return;
+            }
             attempts.removeIf(attempt -> MODE_RELAY.equals(attempt.getTransferMode())
                     && Objects.equals(attempt.getTransferId(), String.valueOf(transferId)));
             saveTaskWithAttempts(task, attempts);
@@ -873,6 +888,11 @@ public class TransferServiceImpl implements TransferService {
     }
 
     private List<TransferTaskAttemptVO> parseTaskAttempts(String attemptsJson) {
+        List<TransferTaskAttemptVO> attempts = tryParseTaskAttempts(attemptsJson);
+        return attempts == null ? new ArrayList<>() : attempts;
+    }
+
+    private List<TransferTaskAttemptVO> tryParseTaskAttempts(String attemptsJson) {
         if (attemptsJson == null || attemptsJson.isBlank()) {
             return new ArrayList<>();
         }
@@ -880,8 +900,9 @@ public class TransferServiceImpl implements TransferService {
             return new ArrayList<>(QUICKDROP_OBJECT_MAPPER.readValue(attemptsJson, new TypeReference<List<TransferTaskAttemptVO>>() {
             }));
         } catch (IOException ex) {
-            log.warn("Failed to parse Transfer task attempts", ex);
-            return new ArrayList<>();
+            log.warn("Failed to parse Transfer task attempts: {}", ex.getMessage());
+            log.debug("Transfer task attempts parse stack", ex);
+            return null;
         }
     }
 

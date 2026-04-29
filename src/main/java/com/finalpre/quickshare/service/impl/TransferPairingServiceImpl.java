@@ -25,6 +25,7 @@ import com.finalpre.quickshare.vo.TransferPairTaskVO;
 import com.finalpre.quickshare.vo.TransferTaskAttemptVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@Slf4j
 public class TransferPairingServiceImpl implements TransferPairingService {
 
     private static final ObjectMapper QUICKDROP_OBJECT_MAPPER = JsonMapper.builder()
@@ -273,7 +275,11 @@ public class TransferPairingServiceImpl implements TransferPairingService {
         }
 
         String normalizedClientTransferId = normalizeClientTransferId(clientTransferId);
-        List<TransferTaskAttemptVO> attempts = parseAttempts(task.getAttemptsJson());
+        List<TransferTaskAttemptVO> attempts = tryParseAttempts(task.getAttemptsJson());
+        if (attempts == null) {
+            log.warn("Skip deleting Transfer pair task attempt because attempts JSON is corrupted. taskId={}", taskId);
+            return;
+        }
         attempts.removeIf(attempt -> Objects.equals(attempt.getTransferId(), normalizedClientTransferId));
         if (attempts.isEmpty()) {
             transferPairTaskMapper.deleteById(taskId);
@@ -413,6 +419,11 @@ public class TransferPairingServiceImpl implements TransferPairingService {
     }
 
     private List<TransferTaskAttemptVO> parseAttempts(String attemptsJson) {
+        List<TransferTaskAttemptVO> attempts = tryParseAttempts(attemptsJson);
+        return attempts == null ? new ArrayList<>() : attempts;
+    }
+
+    private List<TransferTaskAttemptVO> tryParseAttempts(String attemptsJson) {
         if (attemptsJson == null || attemptsJson.isBlank()) {
             return new ArrayList<>();
         }
@@ -420,7 +431,9 @@ public class TransferPairingServiceImpl implements TransferPairingService {
             return new ArrayList<>(QUICKDROP_OBJECT_MAPPER.readValue(attemptsJson, new TypeReference<List<TransferTaskAttemptVO>>() {
             }));
         } catch (IOException ex) {
-            return new ArrayList<>();
+            log.warn("Failed to parse Transfer pair task attempts: {}", ex.getMessage());
+            log.debug("Transfer pair task attempts parse stack", ex);
+            return null;
         }
     }
 

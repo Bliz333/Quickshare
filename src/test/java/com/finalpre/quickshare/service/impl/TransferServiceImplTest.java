@@ -5,13 +5,16 @@ import com.finalpre.quickshare.config.TransferProperties;
 import com.finalpre.quickshare.dto.TransferCreateRequest;
 import com.finalpre.quickshare.dto.TransferDirectAttemptSyncRequest;
 import com.finalpre.quickshare.entity.TransferDevice;
+import com.finalpre.quickshare.entity.TransferPublicShare;
 import com.finalpre.quickshare.entity.TransferTask;
 import com.finalpre.quickshare.entity.TransferRelay;
 import com.finalpre.quickshare.mapper.TransferDeviceMapper;
+import com.finalpre.quickshare.mapper.TransferPublicShareMapper;
 import com.finalpre.quickshare.mapper.TransferTaskMapper;
 import com.finalpre.quickshare.mapper.TransferRelayMapper;
 import com.finalpre.quickshare.vo.TransferTaskVO;
 import com.finalpre.quickshare.vo.TransferRelayVO;
+import com.finalpre.quickshare.vo.TransferPublicShareVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +52,9 @@ class TransferServiceImplTest {
     private TransferRelayMapper transferTransferMapper;
 
     @Mock
+    private TransferPublicShareMapper transferPublicShareMapper;
+
+    @Mock
     private TransferTaskMapper transferTaskMapper;
 
     private TransferServiceImpl transferService;
@@ -60,6 +66,7 @@ class TransferServiceImplTest {
         transferService = new TransferServiceImpl();
         ReflectionTestUtils.setField(transferService, "transferDeviceMapper", transferDeviceMapper);
         ReflectionTestUtils.setField(transferService, "transferTransferMapper", transferTransferMapper);
+        ReflectionTestUtils.setField(transferService, "transferPublicShareMapper", transferPublicShareMapper);
         ReflectionTestUtils.setField(transferService, "transferTaskMapper", transferTaskMapper);
 
         FileConfig fileConfig = new FileConfig();
@@ -91,6 +98,37 @@ class TransferServiceImplTest {
             taskStore.remove(invocation.getArgument(0));
             return 1;
         }).when(transferTaskMapper).deleteById(any(Long.class));
+    }
+
+    @Test
+    void uploadPublicShareChunkShouldAssembleEncryptedRelayPayloadWithAesGcmOverhead() throws Exception {
+        TransferPublicShare share = new TransferPublicShare();
+        share.setId(61L);
+        share.setShareToken("encrypted-share");
+        share.setFileName("secret.txt");
+        share.setFileSize(10L);
+        share.setContentType("text/plain");
+        share.setChunkSize(5);
+        share.setTotalChunks(2);
+        share.setUploadedChunks(0);
+        share.setStatus("pending_upload");
+        share.setExpireTime(LocalDateTime.now().plusHours(1));
+
+        when(transferPublicShareMapper.selectOne(any())).thenReturn(share);
+        when(transferPublicShareMapper.updateById(any(TransferPublicShare.class))).thenReturn(1);
+
+        byte[] firstEncryptedChunk = new byte[33];
+        byte[] secondEncryptedChunk = new byte[33];
+
+        TransferPublicShareVO firstChunk = transferService.uploadPublicShareChunk("encrypted-share", 0, firstEncryptedChunk);
+        assertThat(firstChunk.getStatus()).isEqualTo("uploading");
+
+        TransferPublicShareVO completed = transferService.uploadPublicShareChunk("encrypted-share", 1, secondEncryptedChunk);
+
+        assertThat(completed.getStatus()).isEqualTo("ready");
+        assertThat(completed.isReady()).isTrue();
+        assertThat(share.getAssembledPath()).isNotBlank();
+        assertThat(Files.size(Path.of(share.getAssembledPath()))).isEqualTo(66L);
     }
 
     @Test

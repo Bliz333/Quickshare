@@ -69,6 +69,7 @@ public class TransferServiceImpl implements TransferService {
 
     private static final int MIN_CHUNK_SIZE = 256 * 1024;
     private static final int MAX_CHUNK_SIZE = 8 * 1024 * 1024;
+    private static final int AES_GCM_RELAY_OVERHEAD_BYTES_PER_CHUNK = 28;
 
     private static final ObjectMapper QUICKDROP_OBJECT_MAPPER = JsonMapper.builder()
             .addModule(new JavaTimeModule())
@@ -1386,7 +1387,7 @@ public class TransferServiceImpl implements TransferService {
             }
         }
 
-        if (Files.size(assembledPath) != transfer.getFileSize()) {
+        if (!isExpectedRelayPayloadSize(Files.size(assembledPath), transfer.getFileSize(), transfer.getTotalChunks())) {
             throw new IllegalStateException("组装后的文件大小校验失败");
         }
 
@@ -1412,12 +1413,22 @@ public class TransferServiceImpl implements TransferService {
             }
         }
 
-        if (Files.size(assembledPath) != share.getFileSize()) {
+        if (!isExpectedRelayPayloadSize(Files.size(assembledPath), share.getFileSize(), share.getTotalChunks())) {
             throw new IllegalStateException("组装后的文件大小校验失败");
         }
 
         deleteDirectoryQuietly(getPublicShareChunksDir(share));
         return assembledPath;
+    }
+
+    private boolean isExpectedRelayPayloadSize(long assembledSize, Long plainFileSize, Integer totalChunks) {
+        long expectedPlainSize = plainFileSize == null ? 0L : plainFileSize;
+        if (assembledSize == expectedPlainSize) {
+            return true;
+        }
+        int chunks = totalChunks == null || totalChunks <= 0 ? 1 : totalChunks;
+        long expectedEncryptedSize = expectedPlainSize + ((long) chunks * AES_GCM_RELAY_OVERHEAD_BYTES_PER_CHUNK);
+        return assembledSize == expectedEncryptedSize;
     }
 
     private void deleteTransferFiles(TransferRelay transfer) {

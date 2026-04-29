@@ -10,6 +10,7 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 - an admin console for runtime policy, storage, mail, payment, and user management
 - local filesystem and S3-compatible object storage backends
 - Office document preview through LibreOffice and PDF.js
+- browser-side AES-GCM encryption for QuickDrop relay / pickup payloads, so relay storage keeps ciphertext instead of plaintext
 
 ## Current State
 
@@ -39,8 +40,17 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 - Same-account device discovery without pairing codes
 - Browser direct transfer before relay fallback
 - Public pickup links and anonymous paired direct transfer
+- Relay fallback uses browser-side AES-GCM encryption; the server stores and streams encrypted chunks, while decryption keys stay in the sender / receiver browser context or URL fragment.
 - Server-backed unified task model with direct-attempt write-back
 - Task detail lifecycle with stage, failure reason, fallback reason, and save-to-netdisk feedback
+
+### Security model for relay transfers
+
+- Direct browser transfers still prefer peer-to-peer delivery when the network allows it.
+- When QuickDrop falls back to server relay or public pickup, files are encrypted in the browser with Web Crypto AES-GCM before upload. Chunk IVs and metadata are stored with the encrypted payload, but the raw key is not persisted by the server.
+- Public pickup links carry the decryption key in the URL fragment (`#key=...`), which browsers do not send in HTTP requests. Anyone with the full URL can decrypt, so share it like a secret.
+- Same-account relay delivery passes the E2EE metadata through the authenticated WebSocket signal path so the receiving browser can decrypt locally.
+- Because the server cannot read E2EE relay payloads, server-side Office conversion and save-to-netdisk are disabled for encrypted relay files until a client-side or user-key-backed preview/save flow is added.
 
 ### Admin-facing
 
@@ -111,6 +121,7 @@ Important settings:
 | `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` | S3-compatible storage settings |
 | `BOOTSTRAP_ADMIN_ENABLED` | Creates the initial admin account on startup |
 | `ADMIN_CONSOLE_SLUG` | Hidden admin path segment |
+| `SERVER_COMPRESSION_ENABLED` | Enables gzip-compatible HTTP compression for API/static responses |
 | `REGISTRATION_EMAIL_VERIFICATION_ENABLED` | Enables email verification during registration |
 | `QUICKDROP_STUN_URLS` | STUN servers for QuickDrop direct transfer |
 | `QUICKDROP_TURN_URLS` | Preferred TURN URLs for public-network direct transfer |
@@ -126,6 +137,13 @@ The project now uses a remote-first validation workflow:
 Recommended acceptance flow:
 
 ```bash
+./scripts/release-ready.sh
+# For a full runtime release candidate on a provisioned host:
+RELEASE_READY_FULL=1 ./scripts/release-ready.sh
+# To test uncommitted local changes on the preprod host without creating a git commit:
+DEPLOY_INCLUDE_WORKTREE=1 DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK=0 DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
+
+# Equivalent expanded flow:
 ./scripts/quickshare-resource-check.sh --ensure
 ./scripts/check-js.sh
 ./mvnw -q -DskipTests compile
@@ -218,6 +236,10 @@ Notes:
 | Preview | LibreOffice headless plus PDF.js |
 | Frontend | Vanilla JS, HTML, CSS |
 | Validation | JUnit, repo smoke scripts, Playwright, Dockerized browser smoke |
+
+## Author
+
+Bliz333
 
 ## License
 

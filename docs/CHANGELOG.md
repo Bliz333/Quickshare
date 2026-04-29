@@ -2,6 +2,38 @@
 
 本文件用于汇总每一轮可追溯的项目更新，详细内容存放在 `docs/archive/`。
 
+## 2026-04-28 (QuickDrop 中转 E2EE 与预发布验证)
+
+- **中转端到端加密**：
+  - 新增 `src/main/resources/static/js/e2ee.js`，统一封装浏览器 Web Crypto AES-GCM key 生成、分片加密、分片解密和 URL-safe key 编码。
+  - 首页 QuickShare、同账号 Transfer Hub、匿名 / public pickup relay fallback 现在会在浏览器端先加密文件，再上传到服务器中转；服务器只保存密文分片和必要元数据，不保存解密密钥。
+  - 公开取件链接通过 URL fragment 携带解密 key，同账号 relay 通过已认证 WebSocket 信令把 E2EE 元数据传给接收端浏览器。
+- **预览与网盘边界**：
+  - E2EE relay 文件由接收端浏览器本地解密后再预览 / 下载。
+  - 因服务器无法读取密文，E2EE relay 下暂不走服务器端 Office 转换预览，也暂不允许直接保存到网盘，避免把密文误当明文导入。
+- **预发布验证**：
+  - 已用 `DEPLOY_INCLUDE_WORKTREE=1 DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK=0 DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh` 将当前工作树部署到测试服务器。
+  - 远端 health、RTC config、API smoke、浏览器 smoke 均已通过，并确认 `/js/e2ee.js`、`/index.html`、`/share.html` 能从部署包正常访问。
+
+## 2026-04-26 (1.0 Release Candidate 收口门禁与生产风险加固)
+
+- **轻量性能优化**：
+  - `GET /api/payment/orders` 新增默认 `limit=20`、最大 `100` 的查询上限，套餐页显式请求最近 20 条订单，避免订单历史无限增长拖慢页面。
+  - 默认 / prod / local example 配置启用 Spring Boot HTTP compression，压缩 JSON、HTML、CSS、JS、SVG 等响应，降低 JS-heavy 页面和 API 的传输体积。
+- **预发布验证便利性**：
+  - `deploy-preprod.sh` 新增 `DEPLOY_INCLUDE_WORKTREE=1` 工作树快照模式，可在未创建 git commit 前把当前改动部署到测试服务器验证；正式发布仍建议使用干净 commit / branch。
+- **新增 1.0 发布门禁脚本**：
+  - 新增 `scripts/release-ready.sh`，统一串联 JS 语法检查、Java 编译、关键定向 JUnit 与 package。
+  - 支持 `RELEASE_READY_FULL=1` 追加资源预检、Docker Compose 重建、仓库 smoke、Dockerized browser smoke 和资源报告。
+  - GitHub Actions 现先跑 release readiness baseline，再保留完整 Maven test suite。
+- **生产风险加固**：
+  - Redis 限流异常从 fail-open 改为 fail-closed，避免 Redis 故障时公开上传/下载/提取码防刷直接失效；这是 1.0 发布态对“防刷优先于 Redis 故障时继续放行”的明确取舍。
+  - Transfer / paired Transfer 删除单个 attempt 或 relay 时，如果历史 `attemptsJson` 损坏，会保留任务并记录告警，不再把解析失败误判为空 attempts 后删除任务或 relay 记录。
+- **回归测试**：
+  - 新增 `ProdSecurityConfigurationValidatorTest` 覆盖生产密钥缺失和强配置通过路径。
+  - 新增 `JwtUtilTest` 覆盖用户 token、guest upload token 与畸形 JWT 的验证边界。
+  - 扩展限流与 Transfer service 测试，覆盖 Redis 故障 fail-closed 和损坏 attempts JSON 不误删任务 / relay。
+
 ## 2026-04-20 (Quick Share 接收预览 + 可读性增强 + 移动端前置条件收口)
 
 - **首页接收弹窗补齐 inline preview**：

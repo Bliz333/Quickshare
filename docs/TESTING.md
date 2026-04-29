@@ -50,10 +50,33 @@ docker system df
 当前远端默认命令序列：
 
 ```bash
+RELEASE_READY_FULL=1 ./scripts/release-ready.sh
+```
+
+如果需要在未创建 git commit 前直接把当前工作树部署到预发布机验证，可显式使用工作树快照模式：
+
+```bash
+DEPLOY_INCLUDE_WORKTREE=1 DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK=0 DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
+```
+
+该模式只用于预发布验证当前工作树；正式发布仍应使用干净 git commit / branch。
+
+1.0 收口后，Redis 限流异常采用 fail-closed：当 Redis 计数不可用时，公开上传、公开下载、分享访问和提取码错误计数会返回对应的限流错误，而不是继续放行。这样牺牲 Redis 故障时的部分可用性，换取发布态默认不绕过防刷策略；线上排障时应优先检查 Redis 健康状态。
+
+QuickDrop relay / public pickup 已接入浏览器端 AES-GCM E2EE。涉及 `home.js`、`transfer-hub.js`、`transfer-direct.js`、`download.js` 或 `e2ee.js` 的改动，除常规 JS / Playwright 验证外，还应至少确认：
+
+- 上传到 relay / public pickup 的 payload 是密文路径，服务器不持久化解密 key。
+- 带 `#key=...` 的公开取件链接能在浏览器端完成本地解密下载。
+- 同账号 relay 能通过 WebSocket signal 把 E2EE metadata 交给接收端并完成本地解密。
+- E2EE relay 下服务器端 Office 预览和“保存到网盘”保持禁用，避免密文被当作明文处理。
+
+如果需要拆开执行，等价序列为：
+
+```bash
 ./scripts/quickshare-resource-check.sh --ensure
 ./scripts/check-js.sh
 ./mvnw -q -DskipTests compile
-./mvnw -q -Dtest=PlanControllerTest,PaymentServiceImplTest,AdminServiceImplTest,FileControllerTest,FileServiceImplTest,HealthControllerTest,LocalStorageRuntimeInspectorTest,AdminPolicyServiceImplTest,QuickDropServiceImplTest,QuickDropPairingServiceImplTest,UserServiceImplTest test
+./mvnw -q -Dtest=PlanControllerTest,PaymentServiceImplTest,AdminServiceImplTest,FileControllerTest,FileServiceImplTest,HealthControllerTest,LocalStorageRuntimeInspectorTest,AdminPolicyServiceImplTest,TransferServiceImplTest,TransferPairingServiceImplTest,UserServiceImplTest test
 docker-compose up --build -d --remove-orphans
 ./scripts/quickshare-smoke.sh
 ./scripts/quickshare-playwright-smoke.sh
@@ -429,7 +452,7 @@ DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
 - QuickDrop 直传/信令/配对码改动，至少补：
 
 ```bash
-./mvnw -q -Dtest=QuickDropPairingServiceImplTest,QuickDropServiceImplTest test
+./mvnw -q -Dtest=TransferPairingServiceImplTest,TransferServiceImplTest test
 node --check src/main/resources/static/js/quickdrop-signal.js
 node --check src/main/resources/static/js/quickdrop-direct.js
 node --check src/main/resources/static/js/quickdrop.js
@@ -439,7 +462,7 @@ npx playwright test tests/e2e/quickdrop.spec.js
 - 如果这轮主要改的是同账号任务详情 / hybrid 行收口，至少补：
 
 ```bash
-./mvnw -q -Dtest=QuickDropServiceImplTest test
+./mvnw -q -Dtest=TransferServiceImplTest test
 node --check src/main/resources/static/js/quickdrop.js
 node --check src/main/resources/static/js/lang-switch.js
 docker compose up --build -d app
@@ -449,7 +472,7 @@ npx playwright test tests/e2e/quickdrop.spec.js --grep "same-account merged task
 - 如果这轮已经改到同账号统一任务骨架 / direct 状态回写，至少补：
 
 ```bash
-./mvnw -q -Dtest=QuickDropServiceImplTest test
+./mvnw -q -Dtest=TransferServiceImplTest test
 node --check src/main/resources/static/js/quickdrop-direct.js
 node --check src/main/resources/static/js/quickdrop.js
 node --check tests/e2e/quickdrop-real.spec.js
@@ -462,7 +485,7 @@ npx playwright test tests/e2e/quickdrop-real.spec.js
 - 如果这轮改的是公开配对 / 匿名直传服务端记录层，至少补：
 
 ```bash
-./mvnw -q -Dtest=QuickDropPairingServiceImplTest test
+./mvnw -q -Dtest=TransferPairingServiceImplTest test
 node --check src/main/resources/static/js/quickdrop-direct.js
 node --check tests/e2e/quickdrop.spec.js
 docker compose up --build -d app
@@ -472,7 +495,7 @@ npx playwright test tests/e2e/quickdrop.spec.js --grep "receives a paired direct
 - 如果这轮改的是公开配对 / 匿名直传页面级任务视图，至少补：
 
 ```bash
-./mvnw -q -Dtest=QuickDropPairingServiceImplTest test
+./mvnw -q -Dtest=TransferPairingServiceImplTest test
 node --check src/main/resources/static/js/quickdrop-direct.js
 node --check src/main/resources/static/js/lang-switch.js
 node --check tests/e2e/quickdrop.spec.js

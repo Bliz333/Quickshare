@@ -41,7 +41,7 @@ rg -n "token|Authorization: Bearer|JWT_SECRET|SETTING_ENCRYPT_KEY|MAIL_PASSWORD|
 - 对 QuickDrop 当前建议至少补：
 
 ```bash
-./mvnw -q -Dtest=QuickDropServiceImplTest test
+./mvnw -q -Dtest=TransferServiceImplTest test
 npx playwright test tests/e2e/quickdrop.spec.js
 docker compose up --build -d app
 ```

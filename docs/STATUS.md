@@ -1,4 +1,4 @@
-# QuickShare 当前状态（2026-04-20）
+# QuickShare 当前状态（2026-04-28）
 
 顶层状态文档从今天开始只保留“当前真实状态”。历史分阶段记录继续保存在 `docs/archive/`，不再把旧里程碑和现状混写在一起。
 
@@ -11,8 +11,24 @@
   - 本地存储与 S3 兼容存储
   - LibreOffice + PDF.js 文档预览
   - 套餐、订单、配额、易支付接入
-- 2026-03-20 已完成上一轮 UI 收口、文件管理增强和文档同步；当前工作树今天继续补了订单系统加固、用户侧订单历史和支付方式能力展示。
-- 仓库内 smoke 基线已开始落盘，新增 `scripts/quickshare-smoke.sh` 用于把当前 Docker 验收步骤固定成可重复执行的脚本。
+  - QuickDrop direct 优先传输，以及 relay / public pickup 的浏览器端 AES-GCM 加密中转
+- 当前分支已完成 1.0 Release Candidate 门禁、生产风险加固、E2EE relay 改造和预发布部署验证。
+- 仓库内 release readiness / smoke 基线已落盘，`scripts/release-ready.sh`、`scripts/quickshare-smoke.sh` 和 Playwright smoke 共同构成当前验收入口。
+
+## 2026-04-28 已完成
+
+- QuickDrop 中转端到端加密已接入：
+  - 新增 `src/main/resources/static/js/e2ee.js`，统一使用浏览器 Web Crypto AES-GCM 做分片加密 / 解密
+  - 首页 QuickShare relay、同账号 Transfer Hub relay、匿名 public pickup fallback 均改为上传密文分片
+  - 公开取件链接通过 URL fragment 携带解密 key，服务器不会在 HTTP 请求里收到 key
+  - 同账号 relay 通过已认证 WebSocket signal 把 E2EE 元数据传给接收端浏览器，本地解密后再预览 / 下载
+- E2EE relay 的产品边界已明确：
+  - 服务器端无法读取密文，因此 encrypted relay 文件暂不走 LibreOffice Office 转换预览
+  - encrypted relay 文件暂不允许直接保存到网盘，避免把密文作为明文导入用户空间
+- 1.0 发布门禁和预发布验证已通过：
+  - 本地 `./scripts/check-js.sh`、E2EE roundtrip、`tests/e2e/quickdrop.spec.js` 和 `./scripts/release-ready.sh` 已通过
+  - 测试服务器工作树部署已通过 health、RTC config、API smoke 和 browser smoke
+  - 远端已确认 `/js/e2ee.js`、`/index.html`、`/share.html`、`/api/health` 可正常访问
 
 ## 2026-04-20 已完成
 
@@ -70,7 +86,7 @@
 - 远端回归已经形成可复现基线：
   - `./scripts/check-js.sh` 已通过
   - `./mvnw -q -DskipTests compile` 已通过
-  - 定向 JUnit 已通过：`PlanControllerTest`、`PaymentServiceImplTest`、`AdminServiceImplTest`、`FileControllerTest`、`FileServiceImplTest`、`HealthControllerTest`、`LocalStorageRuntimeInspectorTest`、`AdminPolicyServiceImplTest`、`QuickDropServiceImplTest`、`QuickDropPairingServiceImplTest`、`UserServiceImplTest`
+  - 定向 JUnit 已通过：`PlanControllerTest`、`PaymentServiceImplTest`、`AdminServiceImplTest`、`FileControllerTest`、`FileServiceImplTest`、`HealthControllerTest`、`LocalStorageRuntimeInspectorTest`、`AdminPolicyServiceImplTest`、`TransferServiceImplTest`、`TransferPairingServiceImplTest`、`UserServiceImplTest`
   - `./scripts/quickshare-smoke.sh` 已在远端通过
   - `./scripts/quickshare-playwright-smoke.sh` 已在远端通过，默认执行的 `tests/e2e/quickdrop-real.spec.js` 本轮真实命中 `direct`
 - QuickDrop 远端真实链路已完成新一轮复核：
@@ -112,7 +128,7 @@
   - same-account `task` 与 public `pair task` 现在都会返回 `attemptStatus`、开始/结束/失败原因，以及 `start / fallback / failed / completed / saved` 关键时间戳
   - `quickdrop.html` 和配对直传详情弹窗已显示 direct / relay attempt 时间线、fallback 原因和“已转存到网盘”反馈，不再只有粗粒度进度
   - 浏览器本地 direct 记录与服务端任务回写现已共用同一组生命周期字段，删除 / 保存 / 下载后的详情语义保持一致
-  - 已补 `QuickDropServiceImplTest`、`QuickDropPairingServiceImplTest` 与 `tests/e2e/quickdrop.spec.js` 对应回归
+  - 已补 `TransferServiceImplTest`、`TransferPairingServiceImplTest` 与 `tests/e2e/quickdrop.spec.js` 对应回归
 - 上一轮未提交的 QuickDrop 页面收口已重新验收并正式提交，当前 GitHub 分支已有可恢复基线。
 - 公开文档中的真实域名 / 服务器 IP 已完成脱敏，发布流程已补上 `git` 提交身份检查与修正步骤。
 - 当前本机到 GitHub 与测试服务器的远端接入链路都已完成配置，后续可直接继续做部署验证与远端回归。

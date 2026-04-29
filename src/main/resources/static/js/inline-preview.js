@@ -214,7 +214,7 @@
      */
     function cleanupInlinePreview(container) {
         if (!container) return;
-        var els = container.querySelectorAll('img[src^="blob:"], video[src^="blob:"], audio[src^="blob:"]');
+        var els = container.querySelectorAll('img[src^="blob:"], video[src^="blob:"], audio[src^="blob:"], iframe[src^="blob:"]');
         for (var i = 0; i < els.length; i++) {
             try { URL.revokeObjectURL(els[i].src); } catch (ignore) {}
         }

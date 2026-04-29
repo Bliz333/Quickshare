@@ -47,6 +47,7 @@ const homeState = {
     batchCurrentTargetId: null,
     batchShareToken: null,
     batchFileInfo: null,
+    batchE2ee: null,
     batchPairTimer: null,
     batchProgress: { done: 0, total: 0, failed: 0 },
     accountSyncTimer: null,
@@ -401,6 +402,7 @@ function resetBatchState() {
     homeState.batchCurrentTargetId = null;
     homeState.batchShareToken = null;
     homeState.batchFileInfo = null;
+    homeState.batchE2ee = null;
     homeState.batchProgress = { done: 0, total: 0, failed: 0 };
     homeState.chooserMode = 'single';
 }
@@ -687,6 +689,24 @@ async function onPairReady(msg) {
 // ─── 公开 Share API 上传（无需登录） ──────────────────────────────────────────
 
 async function uploadToPublicShare(file, onProgress) {
+    const totalChunks = Math.ceil(file.size / HOME_CHUNK_SIZE) || 1;
+    let e2ee = null;
+    let encryptKey = null;
+    if (window.QuickShareE2EE) {
+        const generated = await window.QuickShareE2EE.generateKey();
+        encryptKey = generated.key;
+        e2ee = {
+            encrypted: true,
+            version: 1,
+            key: generated.rawKey,
+            fileName: file.name,
+            fileSize: file.size,
+            contentType: file.type || 'application/octet-stream',
+            chunkSize: HOME_CHUNK_SIZE,
+            totalChunks
+        };
+    }
+
     const createRes = await fetch(`${apiBase()}/api/public/transfer/shares`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
@@ -705,13 +725,15 @@ async function uploadToPublicShare(file, onProgress) {
     if (!shareToken) throw new Error('未获取到 shareToken');
 
     // 2. 分片上传
-    const totalChunks = Math.ceil(file.size / HOME_CHUNK_SIZE) || 1;
     for (let i = 0; i < totalChunks; i++) {
         const chunk = file.slice(i * HOME_CHUNK_SIZE, (i + 1) * HOME_CHUNK_SIZE);
+        const body = encryptKey
+            ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, i)
+            : chunk;
         const res = await fetch(`${apiBase()}/api/public/transfer/shares/${shareToken}/chunks/${i}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/octet-stream', ...authHeader() },
-            body: chunk,
+            body,
         });
         if (!res.ok) throw new Error(`分片 ${i + 1}/${totalChunks} 上传失败`);
         const pct = Math.round(((i + 1) / totalChunks) * 100);
@@ -720,10 +742,10 @@ async function uploadToPublicShare(file, onProgress) {
         }
     }
 
-    return shareToken;
+    return { shareToken, e2ee };
 }
 
-function sendRelayDoneSignal(pairSessionId, fileInfo, shareToken) {
+function sendRelayDoneSignal(pairSessionId, fileInfo, shareToken, e2ee) {
     sendWs({
         type: 'signal',
         pairSessionId,
@@ -733,22 +755,24 @@ function sendRelayDoneSignal(pairSessionId, fileInfo, shareToken) {
             fileName: fileInfo.fileName,
             fileSize: fileInfo.fileSize,
             contentType: fileInfo.contentType,
+            e2ee: e2ee || null,
         },
     });
 }
 
 async function sendViaPublicShare(file, pairSessionId) {
     homeState.transferState = 'sending';
-    const shareToken = await uploadToPublicShare(file, (pct) => {
+    const uploaded = await uploadToPublicShare(file, (pct) => {
         const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
         const statusText = lang === 'zh' ? `上传中 ${pct}%` : `Uploading ${pct}%`;
         showSendProgress(file.name, pct, statusText);
     });
+    const shareToken = uploaded.shareToken;
     sendRelayDoneSignal(pairSessionId, {
         fileName: file.name,
         fileSize: file.size,
         contentType: file.type || 'application/octet-stream',
-    }, shareToken);
+    }, shareToken, uploaded.e2ee);
 
     return shareToken;
 }
@@ -805,10 +829,11 @@ async function startBatchTransfer(file) {
     homeState.transferFile = null;
     hideSendChooser();
     try {
-        const shareToken = await uploadToPublicShare(file, (pct) => {
+        const uploaded = await uploadToPublicShare(file, (pct) => {
             showSendProgress(file.name, pct, homeTextFmt('homeBatchUploading', 'Uploading once… {pct}%', { pct }), batchProgressText());
         });
-        homeState.batchShareToken = shareToken;
+        homeState.batchShareToken = uploaded.shareToken;
+        homeState.batchE2ee = uploaded.e2ee;
         homeState.batchFileInfo = {
             fileName: file.name,
             fileSize: file.size,
@@ -863,7 +888,7 @@ function onBatchPairReady(msg) {
         || homeState.batchQueue.find(item => item.status === 'pairing');
     if (!current) return;
 
-    sendRelayDoneSignal(msg.pairSessionId, homeState.batchFileInfo, homeState.batchShareToken);
+    sendRelayDoneSignal(msg.pairSessionId, homeState.batchFileInfo, homeState.batchShareToken, homeState.batchE2ee);
     current.status = 'sent';
     homeState.batchProgress.done += 1;
     homeState.batchCurrentTargetId = null;
@@ -909,7 +934,7 @@ function finishBatchTransfer() {
 
 var _receiveCardVersion = 0;
 
-function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
+function showReceiveCard({ shareToken, fileName, fileSize, contentType, e2ee }) {
     _receiveCardVersion++;
     const currentVersion = _receiveCardVersion;
     const modal = document.getElementById('receiveModal');
@@ -932,7 +957,8 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         shareToken,
         fileName,
         fileSize,
-        contentType: contentType || 'application/octet-stream'
+        contentType: contentType || 'application/octet-stream',
+        e2ee: e2ee || null
     };
 
     const ct = contentType || 'application/octet-stream';
@@ -940,8 +966,10 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         ? window.getInlinePreviewKind(fileName, ct)
         : null;
     const isTextPlain = ct.startsWith('text/plain');
-    const shouldUseWideModal = Boolean(previewKind);
+    const encryptedOfficePreview = Boolean(e2ee?.encrypted && previewKind === 'office');
+    const shouldUseWideModal = Boolean(previewKind && !encryptedOfficePreview);
     const previewRequestWidth = Math.max(280, Math.min(Math.round(window.innerWidth * 0.8), 1600));
+    const cardEl = modal.querySelector('.recv-card');
 
     if (iconEl) iconEl.className = previewKind === 'text' ? 'fa-solid fa-align-left' : 'fa-solid fa-file-arrow-down';
     if (labelEl) labelEl.textContent = previewKind === 'text'
@@ -953,11 +981,25 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
     const url = `${apiBase()}/api/public/transfer/shares/${shareToken}/download`;
     btn.href = url;
     btn.download = fileName || 'download';
+    btn.onclick = null;
+    if (e2ee?.encrypted && window.QuickShareE2EE) {
+        btn.onclick = async (event) => {
+            event.preventDefault();
+            try {
+                await window.QuickShareE2EE.downloadDecrypted(url, e2ee, fileName || 'download');
+            } catch (error) {
+                showHomeToast(error.message || 'Decrypt failed', 'error');
+            }
+        };
+    }
 
     if (isTextPlain && textPanel && textContent) {
         textPanel.classList.remove('hidden');
         textContent.textContent = '…';
-        fetch(url).then(r => r.ok ? r.text() : Promise.reject('fetch failed'))
+        const textPromise = e2ee?.encrypted && window.QuickShareE2EE
+            ? window.QuickShareE2EE.fetchAndDecrypt(url, e2ee).then(blob => blob.text())
+            : fetch(url).then(r => r.ok ? r.text() : Promise.reject('fetch failed'));
+        textPromise
             .then(txt => { if (_receiveCardVersion === currentVersion) textContent.textContent = txt; })
             .catch(() => { if (_receiveCardVersion === currentVersion) textContent.textContent = '(' + homeText('homeTextLoadFailed', '加载失败') + ')'; });
     } else if (textPanel) {
@@ -969,6 +1011,29 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         if (typeof window.injectInlinePreviewStyles === 'function') window.injectInlinePreviewStyles();
         const previewUrl = `${apiBase()}/api/public/transfer/shares/${shareToken}/preview`;
         const downloadUrl = `${apiBase()}/api/public/transfer/shares/${shareToken}/download`;
+        if (e2ee?.encrypted && window.QuickShareE2EE && previewKind !== 'office') {
+            previewPanel.innerHTML = '<div class="inline-preview-wrap"><div style="padding:12px;color:var(--text2,#64748b);font-size:.82rem"><i class="fa-solid fa-spinner fa-spin"></i></div></div>';
+            previewPanel.classList.remove('hidden');
+            window.QuickShareE2EE.fetchAndDecrypt(downloadUrl, e2ee)
+                .then(blob => {
+                    if (_receiveCardVersion !== currentVersion) return;
+                    const blobUrl = URL.createObjectURL(blob);
+                    previewPanel.innerHTML = window.renderInlinePreviewHtml({
+                        previewUrl: blobUrl,
+                        kind: previewKind,
+                        fileName: fileName,
+                        maxWidth: previewRequestWidth,
+                        downloadUrl: blobUrl
+                    });
+                    if (previewKind === 'text' && typeof window.fillTextPreviews === 'function') window.fillTextPreviews(previewPanel);
+                })
+                .catch(() => {
+                    if (_receiveCardVersion === currentVersion) previewPanel.classList.add('hidden');
+                });
+        } else if (e2ee?.encrypted && previewKind === 'office') {
+            previewPanel.innerHTML = '';
+            previewPanel.classList.add('hidden');
+        } else
         if (previewKind === 'text' && !isTextPlain) {
             previewPanel.innerHTML = window.renderInlinePreviewHtml({
                 previewUrl: previewUrl,
@@ -997,7 +1062,6 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         previewPanel.classList.add('hidden');
     }
 
-    const cardEl = modal.querySelector('.recv-card');
     if (cardEl) {
         cardEl.classList.toggle('has-preview', shouldUseWideModal);
     }
@@ -1007,8 +1071,8 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType }) {
         copyBtn.disabled = !shareToken;
     }
     if (saveBtn) {
-        saveBtn.classList.toggle('hidden', !isLoggedIn());
-        saveBtn.disabled = !shareToken || !isLoggedIn();
+        saveBtn.classList.toggle('hidden', !isLoggedIn() || Boolean(e2ee?.encrypted));
+        saveBtn.disabled = !shareToken || !isLoggedIn() || Boolean(e2ee?.encrypted);
     }
     modal.classList.add('visible');
     showHomeToast(isTextPlain ? homeText('homeTextReceived', '收到文本!') : homeText('homeFileReceived', '收到文件!'), 'success');
@@ -1057,7 +1121,10 @@ async function copyReceivedShareLink() {
         showHomeToast(homeText('homeReceiveCopyLinkMissing', '当前没有可复制的链接'), 'warning');
         return;
     }
-    const url = `${window.location.origin}/share.html?pickup=${encodeURIComponent(share.shareToken)}`;
+    let url = `${window.location.origin}/share.html?pickup=${encodeURIComponent(share.shareToken)}`;
+    if (share.e2ee?.encrypted && window.QuickShareE2EE) {
+        url += `#${window.QuickShareE2EE.buildFragment(share.e2ee)}`;
+    }
     try {
         await navigator.clipboard.writeText(url);
         showHomeToast(homeText('homeReceiveCopyLinkSuccess', '取件链接已复制'), 'success');

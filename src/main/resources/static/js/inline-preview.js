@@ -125,7 +125,8 @@
 
         switch (kind) {
             case 'image':
-                var imgSrc = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'max_size=' + maxW;
+                var localObjectUrl = url.indexOf('blob:') === 0 || url.indexOf('data:') === 0;
+                var imgSrc = localObjectUrl ? url : url + (url.indexOf('?') >= 0 ? '&' : '?') + 'max_size=' + maxW;
                 return '<div class="inline-preview-wrap inline-preview-image-wrap">'
                     + '<img class="inline-preview-img" src="' + escapeAttr(imgSrc) + '"'
                     + ' alt="' + escapeAttr(name) + '" loading="lazy"'

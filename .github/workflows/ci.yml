@@ -32,7 +32,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build and test
+      - name: Release readiness baseline
+        run: ./scripts/release-ready.sh
+        env:
+          SPRING_PROFILES_ACTIVE: test
+
+      - name: Full Maven test suite
         run: ./mvnw -B -q test -Dspring.flyway.enabled=false
         env:
           SPRING_PROFILES_ACTIVE: test
@@ -65,5 +70,7 @@ jobs:
         run: |
           npx playwright test \
             tests/e2e/home-notifications.spec.js \
+            tests/e2e/netdisk-quota.spec.js \
+            tests/e2e/pricing-payment.spec.js \
             tests/e2e/quickdrop.spec.js \
             tests/e2e/register-captcha.spec.js

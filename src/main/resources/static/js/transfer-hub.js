@@ -2,6 +2,7 @@ const TRANSFER_DEVICE_ID_KEY = 'transfer-device-id';
 const TRANSFER_DEVICE_NAME_KEY = 'transfer-device-name';
 const TRANSFER_PENDING_UPLOADS_KEY = 'transfer-pending-uploads';
 const TRANSFER_TASK_LINKS_KEY = 'transfer-task-links';
+const TRANSFER_RELAY_E2EE_KEY = 'transfer-relay-e2ee';
 const TRANSFER_SYNC_INTERVAL_MS = 5000;
 const TRANSFER_HASH_TEMPORARY_HISTORY = '#temporary-history';
 const TRANSFER_HASH_ACCOUNT_HISTORY = '#account-history';
@@ -59,7 +60,8 @@ const transferState = {
     directHistoryExpanded: false,
     accountHistoryExpanded: false,
     deviceSettingsExpanded: false,
-    pickerMenuExpanded: false
+    pickerMenuExpanded: false,
+    relayE2eeSignalBound: false
 };
 
 function transferText(key, fallback) {
@@ -70,6 +72,37 @@ function transferEscapeHtml(value) {
     const div = document.createElement('div');
     div.textContent = value == null ? '' : String(value);
     return div.innerHTML;
+}
+
+function loadTransferRelayE2eeMap() {
+    try {
+        return JSON.parse(localStorage.getItem(TRANSFER_RELAY_E2EE_KEY) || '{}') || {};
+    } catch {
+        return {};
+    }
+}
+
+function saveTransferRelayE2eeMap(map) {
+    localStorage.setItem(TRANSFER_RELAY_E2EE_KEY, JSON.stringify(map || {}));
+}
+
+function setTransferRelayE2ee(transferId, e2ee) {
+    if (!transferId || !e2ee?.encrypted) return;
+    const map = loadTransferRelayE2eeMap();
+    map[String(transferId)] = e2ee;
+    saveTransferRelayE2eeMap(map);
+}
+
+function getTransferRelayE2ee(transferId) {
+    if (!transferId) return null;
+    return loadTransferRelayE2eeMap()[String(transferId)] || null;
+}
+
+function removeTransferRelayE2ee(transferId) {
+    if (!transferId) return;
+    const map = loadTransferRelayE2eeMap();
+    delete map[String(transferId)];
+    saveTransferRelayE2eeMap(map);
 }
 
 function normalizeTransferPreviewExtension(fileName) {
@@ -1591,6 +1624,15 @@ function buildRelayTransferDownloadUrl(transferId) {
     return `${API_BASE}/transfer/transfers/${transferId}/download?deviceId=${encodeURIComponent(getTransferDeviceId())}`;
 }
 
+async function getRelayTransferPreviewUrl(transferId) {
+    const e2ee = getTransferRelayE2ee(transferId);
+    if (!e2ee?.encrypted || !window.QuickShareE2EE) {
+        return buildRelayTransferPreviewUrl(transferId);
+    }
+    const blob = await window.QuickShareE2EE.fetchAndDecrypt(buildRelayTransferDownloadUrl(transferId), e2ee);
+    return URL.createObjectURL(blob);
+}
+
 function buildTransferInlinePreviewHtml(transfer, task) {
     if (typeof window.getInlinePreviewKind !== 'function' || typeof window.renderInlinePreviewHtml !== 'function') return '';
     const source = getTransferPreviewSource(transfer, task);
@@ -1601,7 +1643,15 @@ function buildTransferInlinePreviewHtml(transfer, task) {
         return `<div class="inline-preview-wrap" data-direct-inline-preview="${transferEscapeHtml(String(source.transferId || ''))}"><div style="padding:12px;color:var(--text2,#64748b);font-size:.82rem"><i class="fa-solid fa-spinner fa-spin"></i></div></div>`;
     }
 
-    let previewUrl = buildRelayTransferPreviewUrl(source.transferId);
+    const e2ee = getTransferRelayE2ee(source.transferId);
+    if (e2ee?.encrypted && source.kind !== 'office') {
+        return `<div class="inline-preview-wrap" data-relay-inline-preview="${transferEscapeHtml(String(source.transferId || ''))}"><div style="padding:12px;color:var(--text2,#64748b);font-size:.82rem"><i class="fa-solid fa-spinner fa-spin"></i></div></div>`;
+    }
+    if (e2ee?.encrypted && source.kind === 'office') {
+        return '';
+    }
+
+    const previewUrl = buildRelayTransferPreviewUrl(source.transferId);
 
     return window.renderInlinePreviewHtml({
         previewUrl: previewUrl,
@@ -1612,6 +1662,31 @@ function buildTransferInlinePreviewHtml(transfer, task) {
 }
 
 var _directPreviewBlobUrls = {};
+var _relayPreviewBlobUrls = {};
+
+async function fillTransferRelayInlinePreviews() {
+    Object.keys(_relayPreviewBlobUrls).forEach(function (key) {
+        try { URL.revokeObjectURL(_relayPreviewBlobUrls[key]); } catch (ignore) {}
+    });
+    _relayPreviewBlobUrls = {};
+    const placeholders = document.querySelectorAll('[data-relay-inline-preview]');
+    if (!placeholders.length || !window.QuickShareE2EE) return;
+    for (const el of placeholders) {
+        const transferId = el.getAttribute('data-relay-inline-preview');
+        const e2ee = getTransferRelayE2ee(transferId);
+        if (!transferId || !e2ee?.encrypted) continue;
+        try {
+            const blobUrl = await getRelayTransferPreviewUrl(transferId);
+            _relayPreviewBlobUrls[transferId] = blobUrl;
+            const kind = getTransferPreviewKind(e2ee.fileName, e2ee.contentType);
+            if (kind === 'office') { el.innerHTML = ''; continue; }
+            el.innerHTML = window.renderInlinePreviewHtml({ previewUrl: blobUrl, kind: kind || 'image', fileName: e2ee.fileName || '', maxWidth: 400 });
+            if (kind === 'text' && typeof window.fillTextPreviews === 'function') window.fillTextPreviews(el);
+        } catch (e) {
+            el.innerHTML = '';
+        }
+    }
+}
 
 async function fillTransferDirectInlinePreviews() {
     Object.keys(_directPreviewBlobUrls).forEach(function (key) {
@@ -1656,6 +1731,23 @@ async function openTransferPreviewItem(transfer) {
             throw new Error(transferText('cannotPreview', 'This file type cannot be previewed'));
         }
         await TransferDirectTransfer.openPreviewWindow(previewSource.transferId);
+        return;
+    }
+
+    const e2ee = getTransferRelayE2ee(previewSource.transferId);
+    if (e2ee?.encrypted) {
+        if (previewSource.kind === 'office') {
+            throw new Error(transferText('cannotPreview', 'This file type cannot be previewed'));
+        }
+        const blobUrl = await getRelayTransferPreviewUrl(previewSource.transferId);
+        if (previewSource.kind === 'pdf') {
+            const viewerUrl = `pdf-viewer.html?file=${encodeURIComponent(blobUrl)}&download=${encodeURIComponent(blobUrl)}&name=${encodeURIComponent(task.fileName || 'preview')}&kind=pdf`;
+            window.open(viewerUrl, '_blank', 'noopener');
+            window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5 * 60 * 1000);
+            return;
+        }
+        window.open(blobUrl, '_blank', 'noopener');
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5 * 60 * 1000);
         return;
     }
 
@@ -1777,6 +1869,7 @@ function renderTransferTransfers() {
         document.getElementById('transferOutgoingEmpty'),
         'outgoing'
     );
+    fillTransferRelayInlinePreviews();
     fillTransferDirectInlinePreviews();
     const incomingList = document.getElementById('transferIncomingList');
     if (incomingList && typeof window.fillTextPreviews === 'function') window.fillTextPreviews(incomingList);
@@ -2262,6 +2355,7 @@ async function deleteTransferTransferGroup(relayTransferId, directTransferId) {
             method: 'DELETE'
         });
         removeTransferRelayTaskKey(relayTransferId);
+        removeTransferRelayE2ee(relayTransferId);
     }
     if (directTransferId && window.TransferDirectTransfer?.deleteTransfer) {
         await TransferDirectTransfer.deleteTransfer(directTransferId, { skipConfirm: true });
@@ -2371,6 +2465,34 @@ async function sendSingleTransferFile(selectedItem, batchIndex, batchTotal) {
         const uploadedIndexes = new Set(session.uploadedChunkIndexes || []);
         const totalChunks = session.totalChunks || Math.max(1, Math.ceil(file.size / session.chunkSize));
         const batchLabel = batchTotal > 1 ? `${batchIndex + 1}/${batchTotal} · ` : '';
+        let e2ee = getTransferRelayE2ee(session.id);
+        let encryptKey = null;
+        if (window.QuickShareE2EE) {
+            if (e2ee?.encrypted) {
+                encryptKey = await window.QuickShareE2EE.importKey(e2ee.key);
+            } else {
+                const generated = await window.QuickShareE2EE.generateKey();
+                encryptKey = generated.key;
+                e2ee = {
+                    encrypted: true,
+                    version: 1,
+                    key: generated.rawKey,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    contentType: file.type || 'application/octet-stream',
+                    chunkSize: session.chunkSize,
+                    totalChunks
+                };
+                setTransferRelayE2ee(session.id, e2ee);
+            }
+            if (window.TransferSignalManager?.sendSignal) {
+                window.TransferSignalManager.sendSignal('relay-e2ee-key', {
+                    transferId: session.id,
+                    taskKey,
+                    e2ee
+                });
+            }
+        }
 
         transferState.activeUpload = {
             fileName: `${batchLabel}${selectedItem.label}`,
@@ -2387,6 +2509,9 @@ async function sendSingleTransferFile(selectedItem, batchIndex, batchTotal) {
             const start = chunkIndex * session.chunkSize;
             const end = Math.min(file.size, start + session.chunkSize);
             const chunk = file.slice(start, end);
+            const body = encryptKey
+                ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, chunkIndex)
+                : chunk;
 
             const response = await fetch(`${API_BASE}/transfer/transfers/${session.id}/chunks/${chunkIndex}?deviceId=${encodeURIComponent(getTransferDeviceId())}`, {
                 method: 'PUT',
@@ -2394,7 +2519,7 @@ async function sendSingleTransferFile(selectedItem, batchIndex, batchTotal) {
                     ...getAuthHeaders(),
                     'Content-Type': 'application/octet-stream'
                 },
-                body: chunk
+                body
             });
 
             const text = await response.text();
@@ -2471,10 +2596,15 @@ async function deleteTransferTransfer(transferId) {
         method: 'DELETE'
     });
     removeTransferRelayTaskKey(transferId);
+    removeTransferRelayE2ee(transferId);
     await syncTransfer();
 }
 
 async function saveTransferToNetdisk(transferId) {
+    if (getTransferRelayE2ee(transferId)?.encrypted) {
+        showToast(transferText('transferEncryptedSaveUnavailable', 'End-to-end encrypted relay files cannot be saved to netdisk yet. Download and decrypt first.'), 'warning');
+        return null;
+    }
     const folderId = Number(document.getElementById('transferSaveFolderSelect')?.value || 0);
     const response = await transferRequest(`/transfer/transfers/${transferId}/save`, {
         method: 'POST',
@@ -2492,6 +2622,14 @@ async function saveTransferToNetdisk(transferId) {
 }
 
 function downloadTransfer(transferId) {
+    const e2ee = getTransferRelayE2ee(transferId);
+    const url = `${API_BASE}/transfer/transfers/${transferId}/download?deviceId=${encodeURIComponent(getTransferDeviceId())}`;
+    if (e2ee?.encrypted && window.QuickShareE2EE) {
+        window.QuickShareE2EE.downloadDecrypted(url, e2ee, e2ee.fileName || 'download')
+            .then(() => setTimeout(() => syncTransfer(true), 1200))
+            .catch(error => showToast(error.message || 'Decrypt failed', 'error'));
+        return;
+    }
     window.location.href = `${API_BASE}/transfer/transfers/${transferId}/download?deviceId=${encodeURIComponent(getTransferDeviceId())}`;
     setTimeout(() => {
         syncTransfer(true);
@@ -2511,6 +2649,21 @@ function bindTransferEvents() {
     const lanDeviceList = document.getElementById('transferLanDeviceList');
     const incomingList = document.getElementById('transferIncomingList');
     const outgoingList = document.getElementById('transferOutgoingList');
+
+    if (!transferState.relayE2eeSignalBound) {
+        document.addEventListener('transfer:signal-message', event => {
+            const payload = event.detail || {};
+            if (payload.type !== 'signal' || payload.signalType !== 'relay-e2ee-key') {
+                return;
+            }
+            const data = payload.payload || {};
+            if (data.transferId && data.e2ee?.encrypted) {
+                setTransferRelayE2ee(data.transferId, data.e2ee);
+                renderTransferTransfers();
+            }
+        });
+        transferState.relayE2eeSignalBound = true;
+    }
 
     if (fileInput) {
         fileInput.addEventListener('change', handleTransferFileChange);

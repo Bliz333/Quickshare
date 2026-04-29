@@ -2049,6 +2049,22 @@ const TransferDirectTransfer = (() => {
 
         const chunkSize = Number(created.chunkSize || TRANSFER_GUEST_RELAY_CHUNK_SIZE);
         const totalChunks = Number(created.totalChunks || Math.max(1, Math.ceil(currentFile.size / chunkSize)));
+        let e2ee = null;
+        let encryptKey = null;
+        if (window.QuickShareE2EE) {
+            const generated = await window.QuickShareE2EE.generateKey();
+            encryptKey = generated.key;
+            e2ee = {
+                encrypted: true,
+                version: 1,
+                key: generated.rawKey,
+                fileName: currentFile.name,
+                fileSize: currentFile.size,
+                contentType: currentFile.type || 'application/octet-stream',
+                chunkSize,
+                totalChunks
+            };
+        }
         state.activeSend = {
             transferId: created.shareToken,
             fileName: currentFile.name,
@@ -2072,13 +2088,16 @@ const TransferDirectTransfer = (() => {
             const start = chunkIndex * chunkSize;
             const end = Math.min(currentFile.size, start + chunkSize);
             const chunk = currentFile.slice(start, end);
+            const body = encryptKey
+                ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, chunkIndex)
+                : chunk;
             const response = await fetch(`${API_BASE}/public/transfer/shares/${encodeURIComponent(created.shareToken)}/chunks/${chunkIndex}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/octet-stream',
                     ...(isSignedInTransferUser() && typeof getAuthHeaders === 'function' ? getAuthHeaders() : {})
                 },
-                body: chunk
+                body
             });
             const textBody = await response.text();
             const result = textBody ? JSON.parse(textBody) : null;
@@ -2101,7 +2120,8 @@ const TransferDirectTransfer = (() => {
                 fileName: currentFile.name,
                 fileSize: currentFile.size,
                 contentType: currentFile.type || 'application/octet-stream',
-                senderLabel: resolveLocalLabel()
+                senderLabel: resolveLocalLabel(),
+                e2ee
             });
         }
         state.activeSend = {
@@ -2649,6 +2669,24 @@ const TransferDirectTransfer = (() => {
         window.open(previewUrl, '_blank', 'noopener');
     }
 
+    async function openEncryptedPublicSharePreviewWindow(shareToken, fileName, contentType, e2ee) {
+        const previewKind = getGuestRelayPreviewKind(fileName, contentType);
+        if (!previewKind || previewKind === 'office') {
+            throw new Error(text('cannotPreview', 'This file type cannot be previewed'));
+        }
+        const encryptedUrl = buildPublicShareDownloadUrl(shareToken);
+        const blob = await window.QuickShareE2EE.fetchAndDecrypt(encryptedUrl, e2ee);
+        const blobUrl = URL.createObjectURL(blob);
+        if (previewKind === 'pdf') {
+            const viewerUrl = `pdf-viewer.html?file=${encodeURIComponent(blobUrl)}&download=${encodeURIComponent(blobUrl)}&name=${encodeURIComponent(fileName || 'preview')}&kind=pdf`;
+            window.open(viewerUrl, '_blank', 'noopener');
+            window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5 * 60 * 1000);
+            return;
+        }
+        window.open(blobUrl, '_blank', 'noopener');
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 5 * 60 * 1000);
+    }
+
     async function presentRelayShareArrivalDialog(payload) {
         const shareToken = String(payload?.shareToken || '').trim();
         if (!shareToken || state.announcedRelayShares.has(shareToken)) {
@@ -2659,8 +2697,10 @@ const TransferDirectTransfer = (() => {
         const fileName = payload?.fileName || 'transfer-file';
         const fileSize = Number(payload?.fileSize || 0);
         const contentType = payload?.contentType || 'application/octet-stream';
+        const e2ee = payload?.e2ee || null;
         const senderLabel = payload?.senderLabel || text('transferDirectPeerFallback', 'Paired peer');
-        const canPreview = Boolean(getGuestRelayPreviewKind(fileName, contentType));
+        const previewKind = getGuestRelayPreviewKind(fileName, contentType);
+        const canPreview = Boolean(previewKind && !(e2ee?.encrypted && previewKind === 'office'));
         const message = [
             `${text('transferSender', 'Sender')}: ${senderLabel}`,
             `${text('transferTaskFileLabel', 'File')}: ${fileName}`,
@@ -2683,7 +2723,17 @@ const TransferDirectTransfer = (() => {
             return;
         }
         if (canPreview) {
+            if (e2ee?.encrypted && window.QuickShareE2EE) {
+                openEncryptedPublicSharePreviewWindow(shareToken, fileName, contentType, e2ee)
+                    .catch(error => showToast(error.message, 'error'));
+                return;
+            }
             openPublicSharePreviewWindow(shareToken, fileName, contentType);
+            return;
+        }
+        if (e2ee?.encrypted && window.QuickShareE2EE) {
+            window.QuickShareE2EE.downloadDecrypted(buildPublicShareDownloadUrl(shareToken), e2ee, fileName)
+                .catch(error => showToast(error.message || 'Decrypt failed', 'error'));
             return;
         }
         window.location.href = buildPublicShareDownloadUrl(shareToken);

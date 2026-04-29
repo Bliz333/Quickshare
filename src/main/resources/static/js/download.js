@@ -4,6 +4,7 @@
 
 let _shareFileType = null;
 let _pickupShareToken = null;
+let _pickupE2ee = null;
 
 function localizeDownloadErrorMessage(message) {
     const normalized = (message || '').trim();
@@ -78,6 +79,7 @@ function parseShareParams() {
     let shareCode = null;
     let extractCode = null;
     let pickupToken = null;
+    _pickupE2ee = window.QuickShareE2EE?.parseFragment?.() || null;
 
     if (window.location.hash.includes('pickup=')) {
         const params = new URLSearchParams(window.location.hash.substring(1));
@@ -153,8 +155,8 @@ async function getPickupInfo() {
         if (updatedEl) updatedEl.textContent = formatPickupTime(info.updateTime);
         if (pickupDownloadBtn) pickupDownloadBtn.disabled = !info.ready;
         if (pickupSaveBtn) {
-            pickupSaveBtn.style.display = isLoggedIn() ? '' : 'none';
-            pickupSaveBtn.disabled = !info.ready || !isLoggedIn();
+            pickupSaveBtn.style.display = isLoggedIn() && !_pickupE2ee?.encrypted ? '' : 'none';
+            pickupSaveBtn.disabled = !info.ready || !isLoggedIn() || Boolean(_pickupE2ee?.encrypted);
         }
         if (pickupInfo) {
             pickupInfo.style.display = 'block';
@@ -169,12 +171,22 @@ async function getPickupInfo() {
 
 function downloadPickupFile() {
     if (!_pickupShareToken) return;
-    window.open(`${API_BASE}/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}/download`, '_blank');
+    const url = `${API_BASE}/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}/download`;
+    if (_pickupE2ee?.encrypted && window.QuickShareE2EE) {
+        window.QuickShareE2EE.downloadDecrypted(url, _pickupE2ee, _pickupE2ee.fileName || 'download')
+            .catch(error => showToast(error.message || 'Decrypt failed', 'error'));
+        return;
+    }
+    window.open(url, '_blank');
 }
 
 async function savePickupToNetdisk() {
     const lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'zh';
     if (!_pickupShareToken) return;
+    if (_pickupE2ee?.encrypted) {
+        showToast(lang === 'zh' ? '端到端加密文件暂不支持直接保存到网盘，请先下载解密文件' : 'End-to-end encrypted files cannot be saved to netdisk yet. Download and decrypt first.', 'warning');
+        return;
+    }
     if (!isLoggedIn()) {
         showToast(lang === 'zh' ? '请先登录' : 'Please log in first', 'warning');
         return;

@@ -40,6 +40,10 @@ spring:
 
 server:
   port: ${SERVER_PORT:8888}
+  compression:
+    enabled: ${SERVER_COMPRESSION_ENABLED:true}
+    mime-types: ${SERVER_COMPRESSION_MIME_TYPES:application/json,text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,image/svg+xml}
+    min-response-size: ${SERVER_COMPRESSION_MIN_RESPONSE_SIZE:1024}
   tomcat:
     connection-timeout: 600000
     max-swallow-size: -1

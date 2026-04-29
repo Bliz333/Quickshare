@@ -38,6 +38,10 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  compression:
+    enabled: ${SERVER_COMPRESSION_ENABLED:true}
+    mime-types: ${SERVER_COMPRESSION_MIME_TYPES:application/json,text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,image/svg+xml}
+    min-response-size: ${SERVER_COMPRESSION_MIN_RESPONSE_SIZE:1024}
 
 recaptcha:
   enabled: ${RECAPTCHA_ENABLED:true}

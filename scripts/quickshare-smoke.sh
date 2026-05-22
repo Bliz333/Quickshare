@@ -263,13 +263,13 @@ log "GET /api/public/registration-settings"
 registration_body="$(get_body "${BASE_URL}/api/public/registration-settings")"
 assert_contains "$registration_body" '"captchaProvider"' "registration settings endpoint did not expose captchaProvider"
 
-log "GET /pricing.html"
-pricing_code="$(get_code "${BASE_URL}/pricing.html")"
-[[ "$pricing_code" == "200" ]] || fail "pricing.html returned HTTP ${pricing_code}"
+log "GET /pricing"
+pricing_code="$(get_code "${BASE_URL}/pricing")"
+[[ "$pricing_code" == "200" ]] || fail "pricing returned HTTP ${pricing_code}"
 
-log "GET /payment-result.html"
-payment_result_code="$(get_code "${BASE_URL}/payment-result.html")"
-[[ "$payment_result_code" == "200" ]] || fail "payment-result.html returned HTTP ${payment_result_code}"
+log "GET /payment-result"
+payment_result_code="$(get_code "${BASE_URL}/payment-result")"
+[[ "$payment_result_code" == "200" ]] || fail "payment-result returned HTTP ${payment_result_code}"
 
 if [[ -n "$ADMIN_USERNAME" && -n "$ADMIN_PASSWORD" ]]; then
   log "POST /api/auth/login"
@@ -342,13 +342,13 @@ if [[ -n "$ADMIN_USERNAME" && -n "$ADMIN_PASSWORD" ]]; then
     payment_create_body="$(run_curl -sS --max-time "$CURL_MAX_TIME" -X POST \
       -H 'Content-Type: application/json' \
       -H "Authorization: Bearer ${token}" \
-      -d "{\"planId\":${cleanup_payment_plan_id},\"providerId\":${cleanup_payment_provider_id},\"payType\":\"alipay\",\"returnUrl\":\"${BASE_URL}/payment-result.html\"}" \
+      -d "{\"planId\":${cleanup_payment_plan_id},\"providerId\":${cleanup_payment_provider_id},\"payType\":\"alipay\",\"returnUrl\":\"${BASE_URL}/payment-result\"}" \
       "${BASE_URL}/api/payment/create")"
     payment_redirect_url="$(extract_json_string "$payment_create_body" "redirectUrl")"
     [[ -n "$payment_redirect_url" ]] || fail "payment create did not return redirectUrl"
     assert_contains "$payment_redirect_url" "${payment_provider_api}/submit.php?" "payment create did not use the configured provider api url"
     assert_contains "$payment_redirect_url" "notify_url=http%3A%2F%2F127.0.0.1%3A${APP_PORT}%2Fapi%2Fpayment%2Fnotify" "payment create did not embed localhost notify url"
-    assert_contains "$payment_redirect_url" "return_url=http%3A%2F%2F127.0.0.1%3A${APP_PORT}%2Fpayment-result.html" "payment create did not embed localhost return url"
+    assert_contains "$payment_redirect_url" "return_url=http%3A%2F%2F127.0.0.1%3A${APP_PORT}%2Fpayment-result" "payment create did not embed localhost return url"
 
     payment_order_no="$(extract_url_param "$payment_redirect_url" "out_trade_no")"
     [[ -n "$payment_order_no" ]] || fail "payment redirectUrl did not include out_trade_no"

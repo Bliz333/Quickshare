@@ -34,6 +34,12 @@ function esc(val) {
     return div.innerHTML;
 }
 
+function routeUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
 function getOrderNoFromUrl() {
     const params = new URLSearchParams(window.location.search);
     return params.get('order_no') || params.get('orderNo') || params.get('out_trade_no') || '';
@@ -133,7 +139,7 @@ function renderResult(order) {
         container.innerHTML = `
             <div class="result-icon expired"><i class="fa-solid fa-circle-question"></i></div>
             <h2 style="font-size:1.4rem; font-weight:600; margin-bottom:20px;">${t('paymentResultNoOrder')}</h2>
-            <a href="netdisk.html" class="toolbar-btn primary">${t('paymentResultBackToNetdisk')}</a>
+            <a href="${routeUrl('netdisk.html')}" class="toolbar-btn primary">${t('paymentResultBackToNetdisk')}</a>
         `;
         return;
     }
@@ -166,11 +172,11 @@ function renderResult(order) {
             </div>
         </div>
         <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-            <a href="netdisk.html" class="toolbar-btn primary">
+            <a href="${routeUrl('netdisk.html')}" class="toolbar-btn primary">
                 <i class="fa-solid fa-hard-drive"></i> ${t('paymentResultBackToNetdisk')}
             </a>
             ${order.status === 'pending' ? `<button class="toolbar-btn" id="paymentRefreshBtn" onclick="checkOrder({ manual: true })"><i class="fa-solid fa-rotate-right"></i> ${t('paymentResultRefresh')}</button>` : ''}
-            <a href="pricing.html" class="toolbar-btn">
+            <a href="${routeUrl('pricing.html')}" class="toolbar-btn">
                 <i class="fa-solid fa-cart-shopping"></i> ${t('paymentResultBuyMore')}
             </a>
         </div>

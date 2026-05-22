@@ -31,6 +31,12 @@ const TRANSFER_OFFICE_PREVIEW_MIME_TYPES = new Set([
     'application/vnd.oasis.opendocument.presentation'
 ]);
 
+function transferHubPageUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
 const transferState = {
     profile: null,
     currentDevice: null,
@@ -1953,7 +1959,7 @@ function renderTransferTransferList(transfers, container, empty, direction) {
                         <i class="fa-solid fa-circle-check"></i>
                         <span>${transferText('transferSavedBadge', 'Saved to Netdisk')}</span>
                    </span>
-                   <a class="btn btn-secondary" href="netdisk.html">
+                   <a class="btn btn-secondary" href="${transferHubPageUrl('netdisk.html')}">
                         <i class="fa-solid fa-folder-open"></i>
                         <span>${transferText('transferViewInNetdisk', 'View in Netdisk')}</span>
                    </a>`

@@ -9,13 +9,21 @@
 
 (function () {
     const NAV_ITEMS = [
-        { key: 'navHome',      label: '首页',    labelEn: 'Home',     href: 'index.html',  icon: 'fa-house',       alwaysShow: true },
-        { key: 'navNetdisk',   label: '网盘',    labelEn: 'Drive',    href: 'netdisk.html', icon: 'fa-hard-drive',  loginRequired: true },
-        { key: 'navPricing',   label: '定价',    labelEn: 'Pricing',  href: 'pricing.html', icon: 'fa-tags',        alwaysShow: true },
+        { key: 'navHome',      label: '首页',    labelEn: 'Home',     page: 'index.html',  icon: 'fa-house',       alwaysShow: true },
+        { key: 'navNetdisk',   label: '网盘',    labelEn: 'Drive',    page: 'netdisk.html', icon: 'fa-hard-drive',  loginRequired: true },
+        { key: 'navPricing',   label: '定价',    labelEn: 'Pricing',  page: 'pricing.html', icon: 'fa-tags',        alwaysShow: true },
     ];
 
+    function pageUrl(page) {
+        return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+            ? window.QuickShareRoutes.cleanPageUrl(page)
+            : page;
+    }
+
     function currentPage() {
-        return location.pathname.split('/').pop() || 'index.html';
+        return window.QuickShareRoutes && typeof window.QuickShareRoutes.canonicalPageFile === 'function'
+            ? window.QuickShareRoutes.canonicalPageFile(location.pathname)
+            : (location.pathname.split('/').pop() || 'index.html');
     }
 
     function isLoggedIn() {
@@ -40,8 +48,9 @@
 
         const links = items.map(item => {
             const label = lang === 'zh' ? item.label : item.labelEn;
-            const isActive = page === item.href;
-            return `<a href="${item.href}" class="qs-nav-link${isActive ? ' qs-nav-active' : ''}" title="${label}">
+            const href = pageUrl(item.page);
+            const isActive = page === item.page;
+            return `<a href="${href}" class="qs-nav-link${isActive ? ' qs-nav-active' : ''}" title="${label}">
                 <i class="fa-solid ${item.icon}"></i>
                 <span>${label}</span>
             </a>`;
@@ -50,14 +59,14 @@
         // Login / user indicator
         let authEl = '';
         if (!loggedIn) {
-            authEl = `<a href="login.html" class="qs-nav-login">
+            authEl = `<a href="${pageUrl('login.html')}" class="qs-nav-login">
                 <i class="fa-regular fa-circle-user"></i>
                 <span>${lang === 'zh' ? '登录' : 'Login'}</span>
             </a>`;
         }
 
         return `<nav class="qs-nav">
-            <a href="index.html" class="qs-nav-brand">QuickShare</a>
+            <a href="${pageUrl('index.html')}" class="qs-nav-brand">QuickShare</a>
             <div class="qs-nav-links">${links}</div>
             ${authEl}
         </nav>`;
@@ -154,7 +163,7 @@
     function inject() {
         // Skip pages that have their own navigation (sidebar-based layouts)
         const page = currentPage();
-        if (page === 'netdisk.html' || page === 'admin.html') {
+        if (page === 'netdisk.html' || location.pathname.startsWith('/console/')) {
             return;
         }
 

@@ -15,7 +15,7 @@ let captchaWidgetId = null;
 let registerThemeHookBound = false;
 
 function getSafeAuthRedirectTarget(defaultTarget) {
-    const fallback = defaultTarget || 'netdisk.html';
+    const fallback = defaultTarget === '' ? '' : routeUrl(defaultTarget || 'netdisk.html');
     const raw = new URLSearchParams(window.location.search).get('redirect');
     if (!raw) return fallback;
 
@@ -24,15 +24,22 @@ function getSafeAuthRedirectTarget(defaultTarget) {
         if (!decoded || decoded.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(decoded)) {
             return fallback;
         }
-        return decoded.startsWith('/') ? decoded.slice(1) : decoded;
+        return decoded.startsWith('/') ? decoded : routeUrl(decoded);
     } catch (error) {
         return fallback;
     }
 }
 
+function routeUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
 function getLoginUrlWithRedirect() {
     const target = getSafeAuthRedirectTarget('');
-    return target ? 'login.html?redirect=' + encodeURIComponent(target) : 'login.html';
+    const loginUrl = routeUrl('login.html');
+    return target ? loginUrl + '?redirect=' + encodeURIComponent(target) : loginUrl;
 }
 
 function syncLoginLinkRedirect() {

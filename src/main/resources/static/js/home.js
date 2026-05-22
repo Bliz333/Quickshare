@@ -1178,7 +1178,10 @@ async function copyReceivedShareLink() {
         showHomeToast(homeText('homeReceiveCopyLinkMissing', '当前没有可复制的链接'), 'warning');
         return;
     }
-    let url = `${window.location.origin}/share.html?pickup=${encodeURIComponent(share.shareToken)}`;
+    const sharePage = window.QuickShareRoutes && typeof window.QuickShareRoutes.absolutePageUrl === 'function'
+        ? window.QuickShareRoutes.absolutePageUrl('share.html')
+        : `${window.location.origin}/share`;
+    let url = `${sharePage}?pickup=${encodeURIComponent(share.shareToken)}`;
     if (share.e2ee?.encrypted && window.QuickShareE2EE) {
         url += `#${window.QuickShareE2EE.buildFragment(share.e2ee)}`;
     }
@@ -1673,21 +1676,27 @@ function reinitHomePage() {
 }
 
 window.__spaBeforeNavigate = function (targetFile) {
-    const file = (targetFile || '').split('/').pop().toLowerCase();
+    const file = window.QuickShareRoutes && typeof window.QuickShareRoutes.canonicalPageFile === 'function'
+        ? window.QuickShareRoutes.canonicalPageFile(targetFile || '')
+        : (targetFile || '').split('/').pop().toLowerCase();
     if (file !== 'index.html' && file !== '') {
         disconnectHomeWs();
     }
 };
 
 window.__spaAfterNavigate = function (targetFile) {
-    const file = (targetFile || '').split('/').pop().toLowerCase();
+    const file = window.QuickShareRoutes && typeof window.QuickShareRoutes.canonicalPageFile === 'function'
+        ? window.QuickShareRoutes.canonicalPageFile(targetFile || '')
+        : (targetFile || '').split('/').pop().toLowerCase();
     if (file === 'index.html' || file === '') {
         reinitHomePage();
     }
 };
 
 window.addEventListener('pageshow', () => {
-    const file = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    const file = window.QuickShareRoutes && typeof window.QuickShareRoutes.canonicalPageFile === 'function'
+        ? window.QuickShareRoutes.canonicalPageFile(location.pathname)
+        : (location.pathname.split('/').pop() || 'index.html').toLowerCase();
     if (file === 'index.html' || file === '') {
         reinitHomePage();
     }

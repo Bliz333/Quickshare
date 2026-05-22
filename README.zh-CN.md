@@ -80,10 +80,10 @@ docker compose up --build -d
 访问入口：
 
 - 首页：`http://localhost:8080`
-- 网盘：`http://localhost:8080/netdisk.html`
-- QuickDrop：`http://localhost:8080/quickdrop.html`
-- QuickDrop Share：`http://localhost:8080/quickdrop-share.html`
-- 套餐页：`http://localhost:8080/pricing.html`
+- 网盘：`http://localhost:8080/drive`
+- 分享 / 取件：`http://localhost:8080/share`
+- 套餐页：`http://localhost:8080/pricing`
+- 支付结果页：`http://localhost:8080/payment-result`
 - 管理台：`http://localhost:8080/console/{ADMIN_CONSOLE_SLUG}`
 
 ### 本地开发

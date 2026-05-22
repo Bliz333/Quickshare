@@ -78,7 +78,9 @@ function getQRCodeColors() {
 }
 
 function buildShareLinkUrl(link) {
-    const baseUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+    const baseUrl = window.QuickShareRoutes && typeof window.QuickShareRoutes.absolutePageUrl === 'function'
+        ? window.QuickShareRoutes.absolutePageUrl('share.html')
+        : `${window.location.protocol}//${window.location.host}/share`;
     let fullUrl = `${baseUrl}#share=${link.shareCode}`;
     if (link.extractCode) {
         fullUrl += `&code=${link.extractCode}`;

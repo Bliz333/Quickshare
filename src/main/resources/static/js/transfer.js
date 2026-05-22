@@ -2,6 +2,12 @@
  * transfer.js - 文件传输管理
  */
 
+function transferPageUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
 // ================== 初始化传输面板 HTML ==================
 function initTransferPanel() {
     const panelHTML = `
@@ -318,7 +324,7 @@ async function downloadFile(index) {
         await showAppAlert(t('loginRequired'), {
             icon: 'fa-right-to-bracket'
         });
-        window.location.href = 'login.html';
+        window.location.href = transferPageUrl('login.html');
         return;
     }
 
@@ -359,7 +365,7 @@ async function downloadFile(index) {
                 icon: 'fa-user-clock'
             });
             localStorage.clear();
-            window.location.href = 'login.html';
+            window.location.href = transferPageUrl('login.html');
             return;
         }
 
@@ -429,7 +435,7 @@ async function handleFileUpload(event) {
         await showAppAlert(t('loginRequired'), {
             icon: 'fa-right-to-bracket'
         });
-        window.location.href = 'login.html';
+        window.location.href = transferPageUrl('login.html');
         return;
     }
 
@@ -523,7 +529,7 @@ async function uploadSingleFile(file, token) {
                 icon: 'fa-user-clock'
             });
             localStorage.clear();
-            window.location.href = 'login.html';
+            window.location.href = transferPageUrl('login.html');
         } else {
             throw new Error(result.message || t('uploadFailed'));
         }

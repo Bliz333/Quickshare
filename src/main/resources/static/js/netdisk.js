@@ -56,6 +56,18 @@ const OFFICE_PREVIEW_MIME_TYPES = new Set([
     'application/vnd.oasis.opendocument.presentation'
 ]);
 
+function routeUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
+function absoluteRouteUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.absolutePageUrl === 'function'
+        ? window.QuickShareRoutes.absolutePageUrl(page)
+        : `${window.location.protocol}//${window.location.host}/${page}`;
+}
+
 function createDefaultFilePreviewPolicy() {
     return {
         enabled: true,
@@ -596,7 +608,7 @@ async function loadPreviewPolicy() {
                 icon: 'fa-user-clock'
             });
             localStorage.clear();
-            window.location.href = 'login.html';
+            window.location.href = routeUrl('login.html');
             return;
         }
 
@@ -769,7 +781,7 @@ function ensureAuthenticatedForAction() {
     if (!token || token === 'test-token-12345') {
         showToast(t('loginRequired'), 'error');
         setTimeout(() => {
-            window.location.href = 'login.html';
+            window.location.href = routeUrl('login.html');
         }, 600);
         return null;
     }
@@ -821,7 +833,7 @@ function openCreateFolderDialog() {
                     close();
                     showToast(t('loginExpired'), 'error');
                     localStorage.clear();
-                    window.location.href = 'login.html';
+                    window.location.href = routeUrl('login.html');
                 } else {
                     setError(result.message || t('folderCreateFailed'));
                 }
@@ -967,7 +979,7 @@ function openShareDialog(index) {
                     return;
                 }
 
-                let shareUrl = `${window.location.protocol}//${window.location.host}/index.html?share=${result.data.shareCode}`;
+                let shareUrl = `${absoluteRouteUrl('share.html')}?share=${result.data.shareCode}`;
                 if (result.data.extractCode) {
                     shareUrl += `&code=${result.data.extractCode}`;
                 }
@@ -1675,11 +1687,11 @@ function updateCurrentUserDisplay(user) {
 }
 
 function getNetdiskLoginUrl() {
-    const redirectTarget = 'netdisk.html' + window.location.search + window.location.hash;
+    const redirectTarget = routeUrl('netdisk.html') + window.location.search + window.location.hash;
     if (typeof buildAuthRedirectUrl === 'function') {
         return buildAuthRedirectUrl('login.html', redirectTarget);
     }
-    return 'login.html?redirect=' + encodeURIComponent(redirectTarget);
+    return routeUrl('login.html') + '?redirect=' + encodeURIComponent(redirectTarget);
 }
 
 function redirectToNetdiskLogin() {
@@ -1742,7 +1754,7 @@ async function handleLogout() {
                 localStorage.removeItem('user');
             }
             close();
-            window.location.href = 'index.html';
+            window.location.href = routeUrl('index.html');
         }
     });
 }
@@ -1902,7 +1914,7 @@ async function _fetchFilesPage(pageNum, append) {
                 icon: 'fa-user-clock'
             });
             localStorage.clear();
-            window.location.href = 'login.html';
+            window.location.href = routeUrl('login.html');
             return;
         }
 

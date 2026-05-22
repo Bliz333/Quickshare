@@ -79,17 +79,17 @@ docker compose up --build -d
 # Open http://localhost:8080
 # Admin (hidden path, not linked from public UI): set BOOTSTRAP_ADMIN_* in .env first, then open /console/{ADMIN_CONSOLE_SLUG}
 # Homepage quick transfer: http://localhost:8080/
-# Public pickup / share page: http://localhost:8080/share.html
-# Legacy aliases still work: /quickdrop.html and /quickdrop-share.html
+# Public pickup / share page: http://localhost:8080/share
+# Legacy .html aliases redirect to the clean routes.
 ```
 
 Open:
 
 - App: `http://localhost:8080`
-- Netdisk: `http://localhost:8080/netdisk.html`
-- QuickDrop: `http://localhost:8080/quickdrop.html`
-- QuickDrop Share: `http://localhost:8080/quickdrop-share.html`
-- Pricing: `http://localhost:8080/pricing.html`
+- Drive: `http://localhost:8080/drive`
+- Share / pickup: `http://localhost:8080/share`
+- Pricing: `http://localhost:8080/pricing`
+- Payment result: `http://localhost:8080/payment-result`
 - Admin console: `http://localhost:8080/console/{ADMIN_CONSOLE_SLUG}`
 
 ### Local Development

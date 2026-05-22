@@ -62,8 +62,8 @@
             var user = null;
             try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch (error) { user = {}; }
             if (!token || !user.username) {
-                var redirect = 'netdisk.html' + window.location.search + window.location.hash;
-                window.location.replace('login.html?redirect=' + encodeURIComponent(redirect));
+                var redirect = '/drive' + window.location.search + window.location.hash;
+                window.location.replace('/login?redirect=' + encodeURIComponent(redirect));
             }
         })();
     </script>
@@ -779,7 +779,7 @@
 
 <!-- Sidebar -->
 <aside class="w-64 bg-card border-r border-border flex flex-col shrink-0 z-20 sidebar transition-colors duration-300">
-    <a href="index.html" class="h-16 flex items-center px-6 border-b border-border group">
+    <a href="/" class="h-16 flex items-center px-6 border-b border-border group">
         <div class="w-8 h-8 bg-gradient-to-br from-brand-500 to-ai-500 rounded-lg flex items-center justify-center text-white mr-3 shadow-md shadow-brand-500/20 transition-transform group-hover:-translate-y-0.5">
             <i class="fa-solid fa-cloud"></i>
         </div>
@@ -853,7 +853,7 @@
                 <span><span data-i18n="quotaDownloads">下载次数</span> (<span data-i18n="quotaMonthly">本月</span>)</span>
                 <span id="quotaDownloadsText">-</span>
             </div>
-            <a href="pricing.html" class="block text-center text-xs text-brand-500 hover:text-brand-600 font-medium pt-1" data-i18n="quotaUpgrade">升级套餐</a>
+            <a href="/pricing" class="block text-center text-xs text-brand-500 hover:text-brand-600 font-medium pt-1" data-i18n="quotaUpgrade">升级套餐</a>
         </div>
     </div>
 </aside>
@@ -880,7 +880,7 @@
         </div>
 
         <div class="flex items-center gap-2 md:gap-4 text-text-sub shrink-0 ml-2">
-            <button type="button" class="topbar-circle-btn inline-flex" onclick="location.href='index.html'" title="首页" aria-label="返回首页">
+            <button type="button" class="topbar-circle-btn inline-flex" onclick="location.href='/'" title="首页" aria-label="返回首页">
                 <i class="fa-solid fa-house"></i>
             </button>
             <div class="relative">

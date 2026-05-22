@@ -187,7 +187,7 @@ function renderOrders() {
             <div class="empty-panel">
                 <div>${esc(t('pricingOrdersLoginHint'))}</div>
                 <div style="margin-top:16px;">
-                    <button class="toolbar-btn" onclick="window.location.href='login.html'">
+                    <button class="toolbar-btn" onclick="window.location.href='${routeUrl('login.html')}'">
                         <i class="fa-solid fa-right-to-bracket"></i>
                         <span>${esc(t('loginBtn'))}</span>
                     </button>
@@ -264,7 +264,7 @@ function openPayModal(planId) {
 
     if (!isLoggedIn()) {
         showToast(t('pricingLoginRequired'), 'error');
-        setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+        setTimeout(() => { window.location.href = routeUrl('login.html'); }, 1500);
         return;
     }
 
@@ -317,7 +317,7 @@ async function confirmPay(button) {
     button.textContent = t('pricingCreatingOrder');
 
     try {
-        const returnUrl = window.location.origin + '/payment-result.html';
+        const returnUrl = absoluteRouteUrl('payment-result.html');
         const data = await apiRequest('/payment/create', {
             method: 'POST',
             body: JSON.stringify({
@@ -341,7 +341,19 @@ async function confirmPay(button) {
 }
 
 function openOrderStatus(orderNo) {
-    window.location.href = `payment-result.html?order_no=${encodeURIComponent(orderNo)}`;
+    window.location.href = `${routeUrl('payment-result.html')}?order_no=${encodeURIComponent(orderNo)}`;
+}
+
+function routeUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
+function absoluteRouteUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.absolutePageUrl === 'function'
+        ? window.QuickShareRoutes.absolutePageUrl(page)
+        : new URL(routeUrl(page), window.location.origin).href;
 }
 
 async function loadPlans() {

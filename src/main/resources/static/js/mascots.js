@@ -345,7 +345,9 @@
             return explicit;
         }
 
-        const file = (window.location.pathname.split('/').pop() || '').toLowerCase();
+        const file = window.QuickShareRoutes && typeof window.QuickShareRoutes.canonicalPageFile === 'function'
+            ? window.QuickShareRoutes.canonicalPageFile(window.location.pathname)
+            : (window.location.pathname.split('/').pop() || '').toLowerCase();
         if (file === 'login.html') return 'login';
         if (file === 'register.html') return 'register';
         if (file === 'share.html' || file === 'transfer-share.html') return 'share';

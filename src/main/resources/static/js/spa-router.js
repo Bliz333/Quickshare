@@ -24,7 +24,7 @@
     var busy = false;
     var queuedTransition = null;
     var curtain = null;
-    var currentTarget = normalizeTarget(location.href) || { file: 'index.html', url: 'index.html' };
+    var currentTarget = normalizeTarget(location.href) || { file: 'index.html', url: '/' };
     var currentFile = currentTarget.file;
     var currentUrl = currentTarget.url;
 
@@ -39,10 +39,15 @@
         try {
             var parsed = new URL(url, location.href);
             if (parsed.origin !== location.origin) return null;
-            var file = (parsed.pathname.split('/').pop() || 'index.html').toLowerCase();
+            var file = window.QuickShareRoutes && typeof window.QuickShareRoutes.canonicalPageFile === 'function'
+                ? window.QuickShareRoutes.canonicalPageFile(parsed.pathname)
+                : (parsed.pathname.split('/').pop() || 'index.html').toLowerCase();
+            var cleanUrl = window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+                ? window.QuickShareRoutes.cleanPageUrl(file, parsed.search, parsed.hash)
+                : file + parsed.search + parsed.hash;
             return {
                 file: file,
-                url: file + parsed.search + parsed.hash
+                url: cleanUrl
             };
         } catch (e) { return null; }
     }
@@ -280,6 +285,9 @@
                     if (typeof window.__spaAfterNavigate === 'function') {
                         try { window.__spaAfterNavigate(targetFile); } catch (e) {}
                     }
+                    if (window.QuickShareRoutes && typeof window.QuickShareRoutes.rewriteInternalLinks === 'function') {
+                        try { window.QuickShareRoutes.rewriteInternalLinks(document); } catch (e) {}
+                    }
 
                     // 9. Fade out curtain
                     requestAnimationFrame(function () {
@@ -313,7 +321,7 @@
             c.style.pointerEvents = 'none';
             if (mcRoot) mcRoot.style.zIndex = '';
             busy = false;
-            location.href = targetFile;
+            location.href = targetUrl || targetFile;
         });
     }
 
@@ -346,7 +354,7 @@
 
     // Expose for programmatic navigation
     window.spaNavigate = function (url) {
-        var target = normalizeTarget(url || 'index.html');
+        var target = normalizeTarget(url || '/');
         if (target && isSpa(target.file)) { transition(target); return true; }
         return false;
     };

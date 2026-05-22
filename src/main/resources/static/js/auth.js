@@ -35,12 +35,14 @@ function renderLoggedInState(user) {
         return;
     }
 
+    const driveUrl = pageUrl('netdisk.html');
+    const pricingUrl = pageUrl('pricing.html');
     authButtons.innerHTML = `
         <div style="display:flex; align-items:center; gap:15px; flex-wrap: wrap; justify-content: center;">
-            <button onclick="location.href='netdisk.html'" class="btn-auth btn-register" style="padding: 8px 20px;">
+            <button onclick="location.href='${driveUrl}'" class="btn-auth btn-register" style="padding: 8px 20px;">
                 <i class="fa-solid fa-hard-drive"></i> ${netdiskText}
             </button>
-            <button onclick="location.href='pricing.html'" class="btn-auth btn-login" style="padding: 8px 20px;">
+            <button onclick="location.href='${pricingUrl}'" class="btn-auth btn-login" style="padding: 8px 20px;">
                 <i class="fa-solid fa-tags"></i> ${upgradeText}
             </button>
             <div style="display:flex; align-items:center; gap:8px; background: rgba(255, 255, 255, 0.05); padding: 6px 12px; border-radius: 50px; border: 1px solid var(--glass-border);">
@@ -56,16 +58,22 @@ function renderLoggedInState(user) {
     `;
 }
 
+function pageUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
 function buildAuthRedirectUrl(targetPage, redirectTarget) {
-    const page = targetPage || 'login.html';
-    const redirect = redirectTarget || 'netdisk.html';
+    const page = pageUrl(targetPage || 'login.html');
+    const redirect = pageUrl(redirectTarget || 'netdisk.html');
     return page + '?redirect=' + encodeURIComponent(redirect);
 }
 
 function goToAuthForNetdisk() {
     const user = getStoredAuthUser();
     if (localStorage.getItem('token') && user && user.username) {
-        window.location.href = 'netdisk.html';
+        window.location.href = pageUrl('netdisk.html');
         return;
     }
     window.location.href = buildAuthRedirectUrl('login.html', 'netdisk.html');
@@ -130,7 +138,7 @@ async function openAdminConsole() {
         console.warn('Failed to open admin console:', error);
     }
 
-    window.location.href = 'index.html';
+    window.location.href = pageUrl('index.html');
 }
 
 /**

@@ -33,6 +33,12 @@ const TRANSFER_DIRECT_OFFICE_PREVIEW_MIME_TYPES = new Set([
     'application/vnd.oasis.opendocument.presentation'
 ]);
 
+function transferDirectPageUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
 const TransferDirectTransfer = (() => {
     const memoryStore = {
         transfers: new Map(),
@@ -1333,7 +1339,7 @@ const TransferDirectTransfer = (() => {
                                 <i class="fa-solid fa-circle-check"></i>
                                 <span>${text('transferSavedBadge', 'Saved to Netdisk')}</span>
                                </span>
-                               <a class="btn btn-secondary" href="netdisk.html">
+                               <a class="btn btn-secondary" href="${transferDirectPageUrl('netdisk.html')}">
                                 <i class="fa-solid fa-folder-open"></i>
                                 <span>${text('transferViewInNetdisk', 'View in Netdisk')}</span>
                                </a>`
@@ -2541,7 +2547,7 @@ const TransferDirectTransfer = (() => {
                     icon: 'fa-right-to-bracket'
                 });
             }
-            window.location.href = 'login.html';
+            window.location.href = transferDirectPageUrl('login.html');
             throw new Error(text('transferLoginRequired', 'Please sign in before using Transfer'));
         }
 

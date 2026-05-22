@@ -73,6 +73,12 @@ function getCurrentLocale() {
     return getCurrentLanguage() === 'en' ? 'en-US' : 'zh-CN';
 }
 
+function routeUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
 function formatDateTime(value) {
     if (!value) return '-';
 
@@ -284,7 +290,7 @@ async function ensureAdminAccess() {
     const user = getStoredAdminUser();
 
     if (!token || !user.username) {
-        window.location.href = 'login.html';
+        window.location.href = routeUrl('login.html');
         return false;
     }
 
@@ -298,7 +304,7 @@ async function ensureAdminAccess() {
         try {
             const freshUser = await window.QuickShareSession.fetchProfile();
             if (!freshUser || !freshUser.username) {
-                window.location.href = 'login.html';
+                window.location.href = routeUrl('login.html');
                 return false;
             }
 
@@ -316,7 +322,7 @@ async function ensureAdminAccess() {
     }
 
     if (!isAdminUser(adminState.currentUser)) {
-        redirectWithToast(t('adminAccessDenied'), 'netdisk.html');
+        redirectWithToast(t('adminAccessDenied'), routeUrl('netdisk.html'));
         return false;
     }
 
@@ -349,12 +355,12 @@ async function adminRequest(path, options = {}) {
 
     if (response.status === 401 || result?.code === 401) {
         clearSession();
-        redirectWithToast(t('adminSessionExpired'), 'login.html');
+        redirectWithToast(t('adminSessionExpired'), routeUrl('login.html'));
         throw new Error(t('adminSessionExpired'));
     }
 
     if (response.status === 403 || result?.code === 403) {
-        redirectWithToast(t('adminAccessDenied'), 'netdisk.html');
+        redirectWithToast(t('adminAccessDenied'), routeUrl('netdisk.html'));
         throw new Error(t('adminAccessDenied'));
     }
 
@@ -1625,7 +1631,7 @@ async function toggleUserRole(userId, targetRole, button) {
 
             if (targetRole === 'USER') {
                 clearSession();
-                redirectWithToast(t('adminSelfDemotedRelogin'), 'login.html');
+                redirectWithToast(t('adminSelfDemotedRelogin'), routeUrl('login.html'));
                 return;
             }
         }
@@ -2194,7 +2200,7 @@ function bindAdminLayoutEvents() {
 }
 
 function goToNetdisk() {
-    window.location.href = 'netdisk.html';
+    window.location.href = routeUrl('netdisk.html');
 }
 
 async function handleAdminLogout() {
@@ -2206,7 +2212,7 @@ async function handleAdminLogout() {
     });
     if (!confirmed) return;
     clearSession();
-    window.location.href = 'index.html';
+    window.location.href = routeUrl('index.html');
 }
 
 function rerenderForLanguageChange() {

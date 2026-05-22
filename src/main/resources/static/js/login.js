@@ -3,7 +3,7 @@
  */
 
 function getSafeAuthRedirectTarget(defaultTarget) {
-    const fallback = defaultTarget || 'index.html';
+    const fallback = defaultTarget === '' ? '' : routeUrl(defaultTarget || 'index.html');
     const raw = new URLSearchParams(window.location.search).get('redirect');
     if (!raw) return fallback;
 
@@ -12,15 +12,22 @@ function getSafeAuthRedirectTarget(defaultTarget) {
         if (!decoded || decoded.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(decoded)) {
             return fallback;
         }
-        return decoded.startsWith('/') ? decoded.slice(1) : decoded;
+        return decoded.startsWith('/') ? decoded : routeUrl(decoded);
     } catch (error) {
         return fallback;
     }
 }
 
+function routeUrl(page) {
+    return window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+        ? window.QuickShareRoutes.cleanPageUrl(page)
+        : page;
+}
+
 function getRegisterUrlWithRedirect() {
     const target = getSafeAuthRedirectTarget('');
-    return target ? 'register.html?redirect=' + encodeURIComponent(target) : 'register.html';
+    const registerUrl = routeUrl('register.html');
+    return target ? registerUrl + '?redirect=' + encodeURIComponent(target) : registerUrl;
 }
 
 function syncRegisterLinkRedirect() {

@@ -8,7 +8,7 @@
         (function () {
             var params = new URLSearchParams(window.location.search);
             var share = params.get('share');
-            var target = 'share.html';
+            var target = '/share';
             if (share) {
                 target += '?pickup=' + encodeURIComponent(share);
             }
@@ -20,12 +20,12 @@
     </script>
 </head>
 <body>
-<p>Pickup moved to <a id="target-link" href="share.html">share.html</a>.</p>
+<p>Pickup moved to <a id="target-link" href="/share">QuickShare pickup</a>.</p>
 <script>
     (function () {
         var params = new URLSearchParams(window.location.search);
         var share = params.get('share');
-        var target = 'share.html' + (share ? ('?pickup=' + encodeURIComponent(share)) : '');
+        var target = '/share' + (share ? ('?pickup=' + encodeURIComponent(share)) : '');
         var link = document.getElementById('target-link');
         if (link) link.href = target;
     })();

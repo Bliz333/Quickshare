@@ -169,7 +169,11 @@
                 localStorage.setItem('user', JSON.stringify(result.data));
                 var lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'en';
                 showToast(lang === 'zh' ? '登录成功' : 'Signed in', 'success');
-                setTimeout(function () { window.location.href = 'index.html'; }, 800);
+                setTimeout(function () {
+                    window.location.href = window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
+                        ? window.QuickShareRoutes.cleanPageUrl('index.html')
+                        : 'index.html';
+                }, 800);
             } else {
                 throw new Error(result.message || 'Login failed');
             }

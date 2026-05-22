@@ -21,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -34,12 +33,11 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest({
-        LegacyQuickDropAliasController.class,
+        FrontendPageController.class,
         TransferController.class,
         TransferDirectSessionController.class,
         TransferPairingController.class,
@@ -80,22 +78,17 @@ class QuickDropLegacyRouteTest {
     private SystemSettingOverrideService systemSettingOverrideService;
 
     @Test
-    void quickDropHtmlShouldServeCompatibilityRedirectPage() throws Exception {
+    void quickDropHtmlShouldRedirectToCleanHomeRoute() throws Exception {
         mockMvc.perform(get("/quickdrop.html"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("index.html")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("window.location.replace")));
+                .andExpect(status().isMovedPermanently())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/"));
     }
 
     @Test
-    void quickDropShareHtmlShouldServeCompatibilityRedirectPage() throws Exception {
-        mockMvc.perform(get("/quickdrop-share.html"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("share.html")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("pickup=")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("window.location.replace")));
+    void quickDropShareHtmlShouldRedirectToCleanShareRoute() throws Exception {
+        mockMvc.perform(get("/quickdrop-share.html?share=legacy-token"))
+                .andExpect(status().isMovedPermanently())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/share?share=legacy-token"));
     }
 
     @Test

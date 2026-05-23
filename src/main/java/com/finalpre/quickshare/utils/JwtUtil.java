@@ -32,6 +32,41 @@ public class JwtUtil {
         return Math.max(expirationTime / 1000L, 0L);
     }
 
+    public boolean shouldRenewAccessToken(String token) {
+        if (token == null || token.isBlank() || expirationTime <= 0) {
+            return false;
+        }
+        try {
+            Claims claims = parseToken(token);
+            if (claims.get(CLAIM_PURPOSE) != null) {
+                return false;
+            }
+            Date expiration = claims.getExpiration();
+            if (expiration == null) {
+                return false;
+            }
+            long remaining = expiration.getTime() - System.currentTimeMillis();
+            return remaining > 0 && remaining < expirationTime / 2;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String renewAccessToken(String token) {
+        Claims claims = parseToken(token);
+        if (claims.get(CLAIM_PURPOSE) != null) {
+            throw new IllegalStateException("非访问令牌不可续签");
+        }
+        String userId = claims.getSubject();
+        Object username = claims.get(CLAIM_USERNAME);
+        Object role = claims.get(CLAIM_ROLE);
+        if (userId == null || username == null) {
+            throw new IllegalStateException("访问令牌缺少必要声明");
+        }
+        return generateToken(Long.parseLong(userId), username.toString(),
+                role == null ? DEFAULT_ROLE : role.toString());
+    }
+
     // 延迟初始化密钥
     private SecretKey getSecretKey() {
         return Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));

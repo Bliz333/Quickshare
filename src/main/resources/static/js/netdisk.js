@@ -607,7 +607,8 @@ async function loadPreviewPolicy() {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.clear();
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
             window.location.href = routeUrl('login.html');
             return;
         }
@@ -832,7 +833,8 @@ function openCreateFolderDialog() {
                 } else if (result.code === 401) {
                     close();
                     showToast(t('loginExpired'), 'error');
-                    localStorage.clear();
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
                     window.location.href = routeUrl('login.html');
                 } else {
                     setError(result.message || t('folderCreateFailed'));
@@ -1913,7 +1915,8 @@ async function _fetchFilesPage(pageNum, append) {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.clear();
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
             window.location.href = routeUrl('login.html');
             return;
         }

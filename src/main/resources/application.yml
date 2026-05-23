@@ -76,7 +76,7 @@ file:
 
 jwt:
   secret: ${JWT_SECRET:change-this-secret-at-least-256-bits}
-  expiration: ${JWT_EXPIRATION_MS:86400000}  # 24h
+  expiration: ${JWT_EXPIRATION_MS:1209600000}  # 14d, sliding renewal extends active sessions
 
 app:
   admin-console:

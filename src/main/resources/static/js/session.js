@@ -3,8 +3,35 @@
  */
 
 const QuickShareSession = (() => {
+    const REFRESH_HEADER = 'X-Auth-Refresh';
+
     function getToken() {
         return localStorage.getItem('token') || '';
+    }
+
+    function captureRefreshedToken(response) {
+        if (!response || typeof response.headers === 'undefined' || !response.headers.get) {
+            return;
+        }
+        const renewed = response.headers.get(REFRESH_HEADER);
+        if (renewed && renewed !== localStorage.getItem('token')) {
+            localStorage.setItem('token', renewed);
+        }
+    }
+
+    if (typeof window !== 'undefined' && typeof window.fetch === 'function' && !window.__quickshareFetchPatched) {
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = function patchedFetch(...args) {
+            return originalFetch(...args).then((response) => {
+                try {
+                    captureRefreshedToken(response);
+                } catch (error) {
+                    // ignore — refresh capture is best-effort
+                }
+                return response;
+            });
+        };
+        window.__quickshareFetchPatched = true;
     }
 
     function getStoredUser() {

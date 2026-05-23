@@ -77,8 +77,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         );
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        if (tokenFromHeader) {
-            AuthCookieSupport.writeAccessTokenCookie(request, response, token, jwtUtil.getAccessTokenExpirationSeconds());
+
+        String tokenForClient = token;
+        if (jwtUtil.shouldRenewAccessToken(token)) {
+            try {
+                String renewed = jwtUtil.renewAccessToken(token);
+                if (renewed != null && !renewed.isBlank()) {
+                    tokenForClient = renewed;
+                    response.setHeader("X-Auth-Refresh", renewed);
+                    response.setHeader("Access-Control-Expose-Headers", "X-Auth-Refresh");
+                    AuthCookieSupport.writeAccessTokenCookie(request, response, renewed,
+                            jwtUtil.getAccessTokenExpirationSeconds());
+                }
+            } catch (Exception ignored) {
+                // 续签失败时保持原 token 继续使用，由其自然过期触发重新登录
+            }
+        } else if (tokenFromHeader) {
+            AuthCookieSupport.writeAccessTokenCookie(request, response, tokenForClient,
+                    jwtUtil.getAccessTokenExpirationSeconds());
         }
         filterChain.doFilter(request, response);
     }

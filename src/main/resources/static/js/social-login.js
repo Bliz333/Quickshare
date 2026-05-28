@@ -129,10 +129,46 @@
         document.head.appendChild(script);
     }
 
+    function patchWindowOpenForGoogleCentering() {
+        if (typeof window === 'undefined' || window.__quickshareGoogleOpenPatched) {
+            return;
+        }
+        var originalOpen = window.open;
+        if (typeof originalOpen !== 'function') {
+            return;
+        }
+        window.open = function patchedOpen(url, target, features) {
+            try {
+                if (typeof url === 'string' && url.indexOf('accounts.google.com') !== -1) {
+                    var w = 500;
+                    var h = 600;
+                    var screenW = (window.screen && (window.screen.availWidth || window.screen.width)) || 1280;
+                    var screenH = (window.screen && (window.screen.availHeight || window.screen.height)) || 800;
+                    var baseLeft = (window.screen && window.screen.availLeft) || 0;
+                    var baseTop = (window.screen && window.screen.availTop) || 0;
+                    var left = Math.max(0, Math.round(baseLeft + (screenW - w) / 2));
+                    var top = Math.max(0, Math.round(baseTop + (screenH - h) / 3));
+                    var pos = 'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top;
+                    features = features ? features + ',' + pos : pos;
+                }
+            } catch (e) {
+                // best-effort positioning only
+            }
+            return originalOpen.call(window, url, target, features);
+        };
+        window.__quickshareGoogleOpenPatched = true;
+    }
+
     function initGoogleSignIn(clientId) {
         socialState.tokenClient = null;
+        patchWindowOpenForGoogleCentering();
 
-        if (window.google.accounts.oauth2 && typeof window.google.accounts.oauth2.initTokenClient === 'function') {
+        var hasOauth2 = window.google.accounts.oauth2
+            && typeof window.google.accounts.oauth2.initTokenClient === 'function';
+        var hasIdApi = window.google.accounts.id
+            && typeof window.google.accounts.id.initialize === 'function';
+
+        if (hasOauth2) {
             socialState.tokenClient = window.google.accounts.oauth2.initTokenClient({
                 client_id: clientId,
                 scope: GOOGLE_SCOPES,
@@ -151,22 +187,30 @@
                     resetBtn();
                 }
             });
-            return;
         }
 
-        if (window.google.accounts.id && typeof window.google.accounts.id.initialize === 'function') {
+        if (hasIdApi) {
             window.google.accounts.id.initialize({
                 client_id: clientId,
                 callback: function (response) {
                     if (response && response.credential) {
                         sendGoogleIdToken(response.credential);
-                    } else {
-                        resetBtn();
                     }
                 },
                 auto_select: false,
-                cancel_on_tap_outside: true
+                cancel_on_tap_outside: true,
+                use_fedcm_for_prompt: true
             });
+
+            if (!socialState.oneTapShown) {
+                socialState.oneTapShown = true;
+                try {
+                    window.google.accounts.id.prompt();
+                } catch (e) {
+                    // One Tap is opportunistic — if it can't show, the
+                    // button-click OAuth2 popup remains available.
+                }
+            }
         }
     }
 

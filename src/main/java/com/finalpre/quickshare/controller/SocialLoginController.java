@@ -35,6 +35,8 @@ public class SocialLoginController {
 
     private static final Logger log = LoggerFactory.getLogger(SocialLoginController.class);
     private static final String GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo?id_token=";
+    private static final String GOOGLE_ACCESS_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo?access_token=";
+    private static final String GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
@@ -52,8 +54,12 @@ public class SocialLoginController {
                                       HttpServletResponse response) {
         String googleClientId = registrationSettingsService.getPolicy().googleClientId();
         String idToken = body.get("idToken");
-        if (idToken == null || idToken.isBlank()) {
-            return Result.error("Missing idToken");
+        String accessToken = body.get("accessToken");
+        boolean hasIdToken = idToken != null && !idToken.isBlank();
+        boolean hasAccessToken = accessToken != null && !accessToken.isBlank();
+
+        if (!hasIdToken && !hasAccessToken) {
+            return Result.error("Missing Google token");
         }
 
         if (googleClientId == null || googleClientId.isBlank()) {
@@ -61,7 +67,9 @@ public class SocialLoginController {
         }
 
         try {
-            JsonNode payload = verifyGoogleToken(idToken, googleClientId);
+            JsonNode payload = hasAccessToken
+                    ? verifyGoogleAccessToken(accessToken, googleClientId)
+                    : verifyGoogleToken(idToken, googleClientId);
             if (payload == null) {
                 return Result.error("Invalid Google token");
             }
@@ -117,6 +125,47 @@ public class SocialLoginController {
         }
 
         return json;
+    }
+
+    private JsonNode verifyGoogleAccessToken(String accessToken, String googleClientId) throws Exception {
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+
+        HttpRequest infoRequest = HttpRequest.newBuilder()
+                .uri(URI.create(GOOGLE_ACCESS_TOKENINFO_URL + accessToken))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+
+        HttpResponse<String> infoResponse = client.send(infoRequest, HttpResponse.BodyHandlers.ofString());
+        if (infoResponse.statusCode() != 200) {
+            log.warn("Google access tokeninfo returned status {}: {}", infoResponse.statusCode(), infoResponse.body());
+            return null;
+        }
+
+        JsonNode info = objectMapper.readTree(infoResponse.body());
+        String audience = info.has("aud") ? info.get("aud").asText() : "";
+        String azp = info.has("azp") ? info.get("azp").asText() : "";
+        if (!googleClientId.equals(audience) && !googleClientId.equals(azp)) {
+            log.warn("Google access token client mismatch: expected={}, aud={}, azp={}", googleClientId, audience, azp);
+            return null;
+        }
+
+        HttpRequest userInfoRequest = HttpRequest.newBuilder()
+                .uri(URI.create(GOOGLE_USERINFO_URL))
+                .timeout(Duration.ofSeconds(10))
+                .header("Authorization", "Bearer " + accessToken)
+                .GET()
+                .build();
+
+        HttpResponse<String> userResponse = client.send(userInfoRequest, HttpResponse.BodyHandlers.ofString());
+        if (userResponse.statusCode() != 200) {
+            log.warn("Google userinfo returned status {}: {}", userResponse.statusCode(), userResponse.body());
+            return null;
+        }
+
+        return objectMapper.readTree(userResponse.body());
     }
 
     private User findOrCreateUser(String email, String name, String googleSub) {

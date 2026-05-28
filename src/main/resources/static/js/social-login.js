@@ -1,9 +1,11 @@
 /**
  * social-login.js - Dynamic social login buttons based on server config
  *
- * Uses Google Identity Services (GIS) "Sign In With Google" flow:
- *   google.accounts.id.initialize() + prompt()
- * which returns a JWT id_token (credential) instead of an OAuth2 access_token.
+ * Uses Google Identity Services (GIS) OAuth 2.0 popup flow:
+ *   google.accounts.oauth2.initTokenClient({ ux_mode: 'popup' })
+ * The popup is the standard Google account-chooser dialog (not the One Tap
+ * top-right notification produced by google.accounts.id.prompt()).
+ * Falls back to the legacy id_token path if the OAuth2 client is unavailable.
  */
 (function () {
     'use strict';
@@ -14,11 +16,18 @@
         configRetryCount: 0,
         gisScriptRequested: false,
         gisRetryCount: 0,
-        configRetryTimer: null
+        configRetryTimer: null,
+        tokenClient: null
     };
 
     var MAX_CONFIG_RETRIES = 4;
     var MAX_GIS_RETRIES = 3;
+    var GOOGLE_SCOPES = 'openid email profile';
+
+    function t(zhText, enText) {
+        var lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'en';
+        return lang === 'zh' ? zhText : enText;
+    }
 
     function scheduleConfigRetry() {
         if (socialState.configRetryTimer || socialState.configRetryCount >= MAX_CONFIG_RETRIES) {
@@ -87,12 +96,12 @@
 
     function loadGoogleGIS(clientId) {
         function onReady() {
-            if (window.google && window.google.accounts && window.google.accounts.id) {
+            if (window.google && window.google.accounts) {
                 initGoogleSignIn(clientId);
             }
         }
 
-        if (window.google && window.google.accounts && window.google.accounts.id) {
+        if (window.google && window.google.accounts) {
             socialState.gisScriptRequested = false;
             onReady();
             return;
@@ -121,18 +130,44 @@
     }
 
     function initGoogleSignIn(clientId) {
-        google.accounts.id.initialize({
-            client_id: clientId,
-            callback: function (response) {
-                if (response.credential) {
-                    sendGoogleToken(response.credential);
-                } else {
+        socialState.tokenClient = null;
+
+        if (window.google.accounts.oauth2 && typeof window.google.accounts.oauth2.initTokenClient === 'function') {
+            socialState.tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: clientId,
+                scope: GOOGLE_SCOPES,
+                ux_mode: 'popup',
+                callback: function (tokenResponse) {
+                    if (tokenResponse && tokenResponse.access_token) {
+                        sendGoogleAccessToken(tokenResponse.access_token);
+                    } else {
+                        resetBtn();
+                    }
+                },
+                error_callback: function (err) {
+                    if (err && err.type !== 'popup_closed') {
+                        showToast(t('Google 登录失败', 'Google login failed'), 'error');
+                    }
                     resetBtn();
                 }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: true
-        });
+            });
+            return;
+        }
+
+        if (window.google.accounts.id && typeof window.google.accounts.id.initialize === 'function') {
+            window.google.accounts.id.initialize({
+                client_id: clientId,
+                callback: function (response) {
+                    if (response && response.credential) {
+                        sendGoogleIdToken(response.credential);
+                    } else {
+                        resetBtn();
+                    }
+                },
+                auto_select: false,
+                cancel_on_tap_outside: true
+            });
+        }
     }
 
     function resetBtn() {
@@ -145,30 +180,47 @@
         if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
 
         try {
-            google.accounts.id.prompt(function (notification) {
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    resetBtn();
-                }
-            });
+            if (socialState.tokenClient) {
+                socialState.tokenClient.requestAccessToken({ prompt: 'select_account' });
+                return;
+            }
+
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                window.google.accounts.id.prompt(function (notification) {
+                    if (notification.isNotDisplayed && notification.isNotDisplayed()) {
+                        var reason = notification.getNotDisplayedReason && notification.getNotDisplayedReason();
+                        showToast(t('Google 登录不可用 (' + (reason || '未知') + ')',
+                                    'Google sign-in unavailable (' + (reason || 'unknown') + ')'), 'error');
+                        resetBtn();
+                        return;
+                    }
+                    if (notification.isSkippedMoment && notification.isSkippedMoment()) {
+                        resetBtn();
+                    }
+                });
+                return;
+            }
+
+            showToast(t('Google 登录不可用', 'Google sign-in unavailable'), 'error');
+            resetBtn();
         } catch (e) {
-            showToast('Google login failed', 'error');
+            showToast(t('Google 登录失败', 'Google login failed'), 'error');
             resetBtn();
         }
     }
 
-    function sendGoogleToken(idToken) {
-        fetch(API_BASE + '/auth/google', {
+    function postGoogleAuth(body) {
+        return fetch(API_BASE + '/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken: idToken })
+            body: JSON.stringify(body)
         })
         .then(function (r) { return r.json(); })
         .then(function (result) {
             if (result.code === 200 && result.data) {
                 localStorage.setItem('token', result.data.token);
                 localStorage.setItem('user', JSON.stringify(result.data));
-                var lang = typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'en';
-                showToast(lang === 'zh' ? '登录成功' : 'Signed in', 'success');
+                showToast(t('登录成功', 'Signed in'), 'success');
                 setTimeout(function () {
                     window.location.href = window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'
                         ? window.QuickShareRoutes.cleanPageUrl('index.html')
@@ -182,6 +234,14 @@
             showToast(e.message, 'error');
             resetBtn();
         });
+    }
+
+    function sendGoogleAccessToken(accessToken) {
+        return postGoogleAuth({ accessToken: accessToken });
+    }
+
+    function sendGoogleIdToken(idToken) {
+        return postGoogleAuth({ idToken: idToken });
     }
 
     function initSocialLoginButtons() {

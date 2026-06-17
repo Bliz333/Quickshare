@@ -2,6 +2,8 @@
 
 English | [简体中文](README.zh-CN.md)
 
+**Live demo:** [https://smi.im](https://smi.im) (self-hosted on an independent server, not GitHub Pages)
+
 QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 
 - public sharing links with extraction codes, expiry, and download limits

@@ -2,6 +2,8 @@
 
 [English](README.md) | 简体中文
 
+**在线 Demo：** [https://smi.im](https://smi.im)（部署在自有服务器上，不使用 GitHub Pages）
+
 QuickShare 是一个基于 Spring Boot 的文件分享与个人网盘平台，包含：
 
 - 带提取码、过期时间、下载次数限制的公开分享链路

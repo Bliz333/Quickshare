@@ -42,7 +42,7 @@ test.describe('Web logic regressions', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/javascript',
-        body: 'window.google = { accounts: { id: { initialize: function(){}, prompt: function(){} } } };'
+        body: 'window.google = { accounts: { id: { initialize: function(){}, prompt: function(){} }, oauth2: { initTokenClient: function(){ return { requestAccessToken: function(){} }; } } } };'
       });
     });
 

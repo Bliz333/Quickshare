@@ -34,6 +34,30 @@ const QuickShareSession = (() => {
         window.__quickshareFetchPatched = true;
     }
 
+    if (typeof window !== 'undefined' && typeof window.XMLHttpRequest === 'function' && !window.__quickshareXhrPatched) {
+        const originalSend = window.XMLHttpRequest.prototype.send;
+        window.XMLHttpRequest.prototype.send = function patchedXhrSend(body) {
+            if (!this.__quickshareRefreshHooked) {
+                this.__quickshareRefreshHooked = true;
+                this.addEventListener('loadend', () => {
+                    try {
+                        if (typeof this.getResponseHeader !== 'function') {
+                            return;
+                        }
+                        const renewed = this.getResponseHeader(REFRESH_HEADER);
+                        if (renewed && renewed !== localStorage.getItem('token')) {
+                            localStorage.setItem('token', renewed);
+                        }
+                    } catch (error) {
+                        // ignore — refresh capture is best-effort
+                    }
+                });
+            }
+            return originalSend.call(this, body);
+        };
+        window.__quickshareXhrPatched = true;
+    }
+
     function getStoredUser() {
         try {
             return JSON.parse(localStorage.getItem('user') || '{}');

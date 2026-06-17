@@ -364,7 +364,8 @@ async function downloadFile(index) {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.clear();
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
             window.location.href = transferPageUrl('login.html');
             return;
         }
@@ -528,7 +529,8 @@ async function uploadSingleFile(file, token) {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.clear();
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
             window.location.href = transferPageUrl('login.html');
         } else {
             throw new Error(result.message || t('uploadFailed'));

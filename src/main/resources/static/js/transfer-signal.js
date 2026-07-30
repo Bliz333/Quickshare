@@ -302,7 +302,7 @@ const TransferSignalManager = (() => {
         if (explicit) {
             return explicit;
         }
-        const user = typeof getStoredAuthUser === 'function' ? getStoredAuthUser() : {};
+        const user = BrowserSession.current().user;
         const owner = user?.nickname || user?.username || 'Transfer';
         return `${owner} · ${detectDeviceType()}`;
     }
@@ -327,8 +327,9 @@ const TransferSignalManager = (() => {
         params.set('deviceId', getDeviceId());
         params.set('deviceName', getDeviceName());
         params.set('deviceType', detectDeviceType());
-        if (typeof getAuthToken === 'function' && getAuthToken()) {
-            params.set('token', getAuthToken());
+        const session = BrowserSession.current();
+        if (session.authenticated) {
+            params.set('token', session.token);
         } else {
             params.set('guestId', getGuestId());
         }
@@ -914,15 +915,15 @@ const TransferSignalManager = (() => {
     }
 
     async function createPairCode() {
-        const response = await fetch(`${API_BASE}/public/transfer/pair-codes`, {
+        const session = BrowserSession.current();
+        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-codes`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                ...(typeof getAuthHeaders === 'function' ? getAuthHeaders() : {})
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 deviceId: getDeviceId(),
-                guestId: typeof getAuthToken === 'function' && getAuthToken() ? null : getGuestId(),
+                guestId: session.authenticated ? null : getGuestId(),
                 deviceName: getDeviceName(),
                 deviceType: detectDeviceType()
             })
@@ -941,15 +942,15 @@ const TransferSignalManager = (() => {
         if (!normalizedCode) {
             throw new Error(text('transferPairCodeRequired', 'Match code is required'));
         }
-        const response = await fetch(`${API_BASE}/public/transfer/pair-codes/${encodeURIComponent(normalizedCode)}/claim`, {
+        const session = BrowserSession.current();
+        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-codes/${encodeURIComponent(normalizedCode)}/claim`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                ...(typeof getAuthHeaders === 'function' ? getAuthHeaders() : {})
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 deviceId: getDeviceId(),
-                guestId: typeof getAuthToken === 'function' && getAuthToken() ? null : getGuestId(),
+                guestId: session.authenticated ? null : getGuestId(),
                 deviceName: getDeviceName(),
                 deviceType: detectDeviceType()
             })
@@ -970,11 +971,10 @@ const TransferSignalManager = (() => {
     }
 
     async function createSameAccountDirectSession(targetDeviceId) {
-        const response = await fetch(`${API_BASE}/transfer/direct-sessions`, {
+        const response = await BrowserSession.request(`${API_BASE}/transfer/direct-sessions`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                ...(typeof getAuthHeaders === 'function' ? getAuthHeaders() : {})
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 deviceId: getDeviceId(),
@@ -1043,7 +1043,7 @@ const TransferSignalManager = (() => {
         if (!normalizedTargetDeviceId) {
             throw new Error(text('transferChooseDeviceFirst', 'Choose a target device first'));
         }
-        if (!(typeof getAuthToken === 'function' && getAuthToken())) {
+        if (!BrowserSession.current().authenticated) {
             throw new Error(text('transferLoginRequired', 'Please sign in before using Transfer'));
         }
         await ensureSocketConnection();

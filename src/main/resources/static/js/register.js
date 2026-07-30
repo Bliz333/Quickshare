@@ -336,9 +336,7 @@ async function handleRegister(event) {
         const result = await res.json();
 
         if (result.code === 200) {
-            // 保存登录信息
-            localStorage.setItem('token', result.data.token);
-            localStorage.setItem('user', JSON.stringify(result.data));
+            BrowserSession.establish(result.data);
 
             showToast(t('registerSuccess'), 'success');
 
@@ -357,10 +355,7 @@ async function handleRegister(event) {
 }
 
 function checkAlreadyLoggedIn() {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-
-    if (token && user) {
+    if (BrowserSession.current().authenticated) {
         window.location.href = getSafeAuthRedirectTarget('netdisk.html');
     }
 }

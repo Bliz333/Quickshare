@@ -65,12 +65,8 @@ function formatHomeNotificationDate(value) {
     });
 }
 
-async function fetchHomeNotifications(path, requireAuth = false) {
-    const headers = requireAuth && typeof getAuthHeaders === 'function'
-        ? getAuthHeaders()
-        : {};
-
-    const response = await fetch(`${API_BASE}${path}`, { headers });
+async function fetchHomeNotifications(path) {
+    const response = await BrowserSession.request(`${API_BASE}${path}`);
     const text = await response.text();
     const result = text ? JSON.parse(text) : null;
 
@@ -94,9 +90,7 @@ function getHomeNotificationCloseButton() {
 }
 
 function getHomeNotificationStorageKey() {
-    const user = window.QuickShareSession && typeof window.QuickShareSession.getStoredUser === 'function'
-        ? window.QuickShareSession.getStoredUser()
-        : {};
+    const user = BrowserSession.current().user;
 
     if (user && user.id != null) {
         return `${HOME_NOTIFICATION_STORAGE_PREFIX}:user:${user.id}`;
@@ -655,7 +649,7 @@ async function initHomeNotifications() {
     }
 
     bindHomeNotificationEvents();
-    homeNotificationState.loggedIn = typeof isLoggedIn === 'function' && isLoggedIn();
+    homeNotificationState.loggedIn = BrowserSession.current().authenticated;
     homeNotificationState.activeTab = 'all';
     closeHomeNotificationsPanel();
 
@@ -668,7 +662,7 @@ async function initHomeNotifications() {
 
     if (homeNotificationState.loggedIn) {
         try {
-            homeNotificationState.personal = await fetchHomeNotifications('/notifications/personal?limit=12', true);
+            homeNotificationState.personal = await fetchHomeNotifications('/notifications/personal?limit=12');
         } catch (error) {
             console.warn('Failed to load personal notifications:', error);
             homeNotificationState.personal = [];

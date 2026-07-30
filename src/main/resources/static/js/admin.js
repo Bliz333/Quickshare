@@ -45,21 +45,10 @@ const CAPTCHA_VERIFY_DEFAULTS = {
 };
 
 function getStoredAdminUser() {
-    if (window.QuickShareSession && typeof window.QuickShareSession.getStoredUser === 'function') {
-        return window.QuickShareSession.getStoredUser();
-    }
-
-    try {
-        return JSON.parse(localStorage.getItem('user') || '{}');
-    } catch (error) {
-        return {};
-    }
+    return BrowserSession.current().user;
 }
 
 function isAdminUser(user) {
-    if (window.QuickShareSession && typeof window.QuickShareSession.hasAdminRole === 'function') {
-        return window.QuickShareSession.hasAdminRole(user);
-    }
     return !!user && typeof user.role === 'string' && user.role.toUpperCase() === 'ADMIN';
 }
 
@@ -263,13 +252,7 @@ function setLoading(loading) {
 }
 
 function clearSession() {
-    if (window.QuickShareSession && typeof window.QuickShareSession.clear === 'function') {
-        window.QuickShareSession.clear();
-        return;
-    }
-
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    BrowserSession.clear();
 }
 
 function redirectWithToast(message, target) {
@@ -286,10 +269,10 @@ function redirectWithToast(message, target) {
 }
 
 async function ensureAdminAccess() {
-    const token = localStorage.getItem('token');
-    const user = getStoredAdminUser();
+    const session = BrowserSession.current();
+    const user = session.user;
 
-    if (!token || !user.username) {
+    if (!session.authenticated) {
         window.location.href = routeUrl('login.html');
         return false;
     }
@@ -300,25 +283,23 @@ async function ensureAdminAccess() {
     };
     updateAdminProfile();
 
-    if (window.QuickShareSession && typeof window.QuickShareSession.fetchProfile === 'function') {
-        try {
-            const freshUser = await window.QuickShareSession.fetchProfile();
-            if (!freshUser || !freshUser.username) {
-                window.location.href = routeUrl('login.html');
-                return false;
-            }
-
-            adminState.currentUser = {
-                ...freshUser,
-                role: (freshUser.role || 'USER').toUpperCase()
-            };
-            updateAdminProfile();
-        } catch (error) {
-            if (typeof showToast === 'function') {
-                showToast(error.message || t('adminLoadFailed'), 'error');
-            }
+    try {
+        const freshUser = await BrowserSession.refresh();
+        if (!freshUser?.username) {
+            window.location.href = routeUrl('login.html');
             return false;
         }
+
+        adminState.currentUser = {
+            ...freshUser,
+            role: (freshUser.role || 'USER').toUpperCase()
+        };
+        updateAdminProfile();
+    } catch (error) {
+        if (typeof showToast === 'function') {
+            showToast(error.message || t('adminLoadFailed'), 'error');
+        }
+        return false;
     }
 
     if (!isAdminUser(adminState.currentUser)) {
@@ -330,14 +311,12 @@ async function ensureAdminAccess() {
 }
 
 async function adminRequest(path, options = {}) {
-    const token = localStorage.getItem('token');
     const headers = {
         ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-        ...(options.headers || {}),
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        ...(options.headers || {})
     };
 
-    const response = await fetch(`${API_BASE}${path}`, {
+    const response = await BrowserSession.request(`${API_BASE}${path}`, {
         ...options,
         headers
     });
@@ -1621,11 +1600,7 @@ async function toggleUserRole(userId, targetRole, button) {
                 ...adminState.currentUser,
                 role: targetRole
             };
-            if (window.QuickShareSession && typeof window.QuickShareSession.setUser === 'function') {
-                window.QuickShareSession.setUser(updatedUser);
-            } else {
-                localStorage.setItem('user', JSON.stringify(updatedUser));
-            }
+            BrowserSession.establish({ ...updatedUser, token: BrowserSession.current().token });
             adminState.currentUser = updatedUser;
             updateAdminProfile();
 

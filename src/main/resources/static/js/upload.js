@@ -158,16 +158,13 @@ async function uploadAndShare() {
     const shareLinks = [];
 
     try {
-        const token = getAuthToken();
-
         for (const file of selectedFiles) {
             // 上传文件
             const formData = new FormData();
             formData.append('file', file, normalizeUploadFileName(file));
 
-            const upRes = await fetch(`${API_BASE}/upload`, {
+            const upRes = await BrowserSession.request(`${API_BASE}/upload`, {
                 method: 'POST',
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
                 body: formData
             });
             const upData = await upRes.json();
@@ -185,11 +182,10 @@ async function uploadAndShare() {
                 maxDownload: parseInt(document.getElementById('maxDownload').value) || null
             };
 
-            const shareRes = await fetch(`${API_BASE}/share`, {
+            const shareRes = await BrowserSession.request(`${API_BASE}/share`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(sharePayload)
             });

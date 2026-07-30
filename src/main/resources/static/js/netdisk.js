@@ -589,16 +589,15 @@ function getFilePreviewDecision(file) {
 }
 
 async function loadPreviewPolicy() {
-    const token = localStorage.getItem('token');
-    if (!token || token === 'test-token-12345') {
+    const session = BrowserSession.current();
+    if (!session.authenticated || session.token === 'test-token-12345') {
         filePreviewPolicy = createDefaultFilePreviewPolicy();
         return;
     }
 
     try {
-        const response = await fetch(`${API_BASE}/settings/file-preview`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
+        const response = await BrowserSession.request(`${API_BASE}/settings/file-preview`, {
+            method: 'GET'
         });
         const result = await response.json();
 
@@ -607,8 +606,6 @@ async function loadPreviewPolicy() {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
             window.location.href = routeUrl('login.html');
             return;
         }
@@ -778,15 +775,15 @@ function openActionDialog(config) {
 }
 
 function ensureAuthenticatedForAction() {
-    const token = localStorage.getItem('token');
-    if (!token || token === 'test-token-12345') {
+    const session = BrowserSession.current();
+    if (!session.authenticated || session.token === 'test-token-12345') {
         showToast(t('loginRequired'), 'error');
         setTimeout(() => {
             window.location.href = routeUrl('login.html');
         }, 600);
         return null;
     }
-    return token;
+    return true;
 }
 
 function openCreateFolderDialog() {
@@ -809,18 +806,16 @@ function openCreateFolderDialog() {
                 setError(t('folderDialogValidation'));
                 return;
             }
-            const token = ensureAuthenticatedForAction();
-            if (!token) {
+            if (!ensureAuthenticatedForAction()) {
                 close();
                 return;
             }
 
             try {
-                const response = await fetch(`${API_BASE}/folders`, {
+                const response = await BrowserSession.request(`${API_BASE}/folders`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ name, parentId: currentFolder })
                 });
@@ -833,8 +828,6 @@ function openCreateFolderDialog() {
                 } else if (result.code === 401) {
                     close();
                     showToast(t('loginExpired'), 'error');
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
                     window.location.href = routeUrl('login.html');
                 } else {
                     setError(result.message || t('folderCreateFailed'));
@@ -946,8 +939,7 @@ function openShareDialog(index) {
             </div>
         `,
         onConfirm: async ({ setError, close, getValue }) => {
-            const token = ensureAuthenticatedForAction();
-            if (!token) {
+            if (!ensureAuthenticatedForAction()) {
                 close();
                 return;
             }
@@ -962,11 +954,10 @@ function openShareDialog(index) {
             const expireHours = Number.isNaN(expireDays) || expireDays <= 0 ? null : expireDays * 24;
 
             try {
-                const response = await fetch(`${API_BASE}/share`, {
+                const response = await BrowserSession.request(`${API_BASE}/share`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         fileId: file.id,
@@ -1113,8 +1104,7 @@ function openMoveDialog(options) {
             </div>
         `,
         onConfirm: async ({ setError, close, getValue }) => {
-            const token = ensureAuthenticatedForAction();
-            if (!token) {
+            if (!ensureAuthenticatedForAction()) {
                 close();
                 return;
             }
@@ -1132,7 +1122,7 @@ function openMoveDialog(options) {
             }
 
             try {
-                await requestNetdiskMove(options.kind, options.itemId, targetFolderId, token);
+                await requestNetdiskMove(options.kind, options.itemId, targetFolderId);
                 if (options.kind === 'folder' && (currentFolder === options.itemId || folderPath.some(folder => folder.id === options.itemId))) {
                     currentFolder = null;
                     folderPath = [];
@@ -1219,11 +1209,10 @@ function refreshNetdiskAfterMutation() {
     });
 }
 
-async function requestNetdiskMove(kind, itemId, targetFolderId, token) {
-    const response = await fetch(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${itemId}/move`, {
+async function requestNetdiskMove(kind, itemId, targetFolderId) {
+    const response = await BrowserSession.request(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${itemId}/move`, {
         method: 'PUT',
         headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({ targetFolderId })
@@ -1235,7 +1224,7 @@ async function requestNetdiskMove(kind, itemId, targetFolderId, token) {
     }
 }
 
-async function moveNetdiskItems(moveItems, targetFolderId, token) {
+async function moveNetdiskItems(moveItems, targetFolderId) {
     let successCount = 0;
     let failedCount = 0;
     let firstError = '';
@@ -1247,7 +1236,7 @@ async function moveNetdiskItems(moveItems, targetFolderId, token) {
         }
 
         try {
-            await requestNetdiskMove(item.kind, item.id, targetFolderId, token);
+            await requestNetdiskMove(item.kind, item.id, targetFolderId);
             if (applyLocalMove(item.kind, item.id, targetFolderId)) {
                 if (item.kind === 'folder') {
                     movedFolderIds.push(item.id);
@@ -1344,13 +1333,12 @@ async function handleNetdiskDrop(event, targetFolderId) {
         return;
     }
 
-    const token = ensureAuthenticatedForAction();
-    if (!token) {
+    if (!ensureAuthenticatedForAction()) {
         clearNetdiskDragState();
         return;
     }
 
-    const result = await moveNetdiskItems(draggedNetdiskItems.items, targetFolderId, token);
+    const result = await moveNetdiskItems(draggedNetdiskItems.items, targetFolderId);
     clearNetdiskDragState();
 
     if (result.successCount === 0 && result.failedCount === 0) {
@@ -1466,8 +1454,7 @@ async function batchMoveSelected() {
             </div>
         `,
         onConfirm: async ({ setError, close, getValue }) => {
-            const token = ensureAuthenticatedForAction();
-            if (!token) {
+            if (!ensureAuthenticatedForAction()) {
                 close();
                 return;
             }
@@ -1482,7 +1469,7 @@ async function batchMoveSelected() {
                 ...selection.files.map(file => ({ kind: 'file', id: file.id })),
                 ...selectedFolders.map(folder => ({ kind: 'folder', id: folder.id }))
             ];
-            const { successCount, failedCount, firstError } = await moveNetdiskItems(moveItems, targetFolderId, token);
+            const { successCount, failedCount, firstError } = await moveNetdiskItems(moveItems, targetFolderId);
 
             if (successCount === 0 && failedCount === 0) {
                 close();
@@ -1536,8 +1523,7 @@ async function batchDeleteSelected() {
             </div>
         `,
         onConfirm: async ({ setError, close }) => {
-            const token = ensureAuthenticatedForAction();
-            if (!token) {
+            if (!ensureAuthenticatedForAction()) {
                 close();
                 return;
             }
@@ -1547,9 +1533,8 @@ async function batchDeleteSelected() {
             let firstError = '';
 
             const requestDelete = async (kind, id) => {
-                const response = await fetch(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const response = await BrowserSession.request(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${id}`, {
+                    method: 'DELETE'
                 });
 
                 if (response.status === 404) {
@@ -1615,15 +1600,7 @@ function updateAdminConsoleEntry(user) {
 
 // ================== 登录验证 ==================
 function getStoredNetdiskUser() {
-    if (window.QuickShareSession && typeof window.QuickShareSession.getStoredUser === 'function') {
-        return window.QuickShareSession.getStoredUser();
-    }
-
-    try {
-        return JSON.parse(localStorage.getItem('user') || '{}');
-    } catch (error) {
-        return {};
-    }
+    return BrowserSession.current().user;
 }
 
 function renderQuotaDisplay(user) {
@@ -1704,10 +1681,10 @@ async function checkLogin() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('share')) return true;
 
-    const token = localStorage.getItem('token');
-    const user = getStoredNetdiskUser();
+    const session = BrowserSession.current();
+    const user = session.user;
 
-    if (!token || !user.username) {
+    if (!session.authenticated) {
         updateAdminConsoleEntry(null);
         return false;
     }
@@ -1715,19 +1692,17 @@ async function checkLogin() {
     updateCurrentUserDisplay(user);
     updateAdminConsoleEntry(null);
 
-    if (window.QuickShareSession && typeof window.QuickShareSession.fetchProfile === 'function') {
-        try {
-            const freshUser = await window.QuickShareSession.fetchProfile();
-            if (!freshUser || !freshUser.username) {
-                updateAdminConsoleEntry(null);
-                return false;
-            }
-
-            updateCurrentUserDisplay(freshUser);
-            return true;
-        } catch (error) {
-            console.warn('Failed to sync current profile on netdisk page:', error);
+    try {
+        const freshUser = await BrowserSession.refresh();
+        if (!freshUser?.username) {
+            updateAdminConsoleEntry(null);
+            return false;
         }
+
+        updateCurrentUserDisplay(freshUser);
+        return true;
+    } catch (error) {
+        console.warn('Failed to sync current profile on netdisk page:', error);
     }
 
     return true;
@@ -1749,12 +1724,7 @@ async function handleLogout() {
             </div>
         `,
         onConfirm: async ({ close }) => {
-            if (window.QuickShareSession && typeof window.QuickShareSession.clear === 'function') {
-                window.QuickShareSession.clear();
-            } else {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-            }
+            BrowserSession.clear();
             close();
             window.location.href = routeUrl('index.html');
         }
@@ -1866,8 +1836,8 @@ async function loadMoreFiles() {
 
 async function _fetchFilesPage(pageNum, append) {
     const seq = ++_loadFilesSeq;
-    const token = localStorage.getItem('token');
-    if (!token || token === 'test-token-12345') {
+    const session = BrowserSession.current();
+    if (!session.authenticated || session.token === 'test-token-12345') {
         files = [];
         folders = [];
         rerenderNetdiskCurrentView();
@@ -1881,18 +1851,16 @@ async function _fetchFilesPage(pageNum, append) {
         if (currentFolder !== null) filesUrl += `&folderId=${currentFolder}`;
 
         const fetches = [
-            fetch(filesUrl, {
+            BrowserSession.request(filesUrl, {
                 method: 'GET',
-                cache: 'no-store',
-                headers: { 'Authorization': `Bearer ${token}` }
+                cache: 'no-store'
             })
         ];
         if (!append) {
             fetches.unshift(
-                fetch(`${API_BASE}/folders/all?${cacheBuster}`, {
+                BrowserSession.request(`${API_BASE}/folders/all?${cacheBuster}`, {
                     method: 'GET',
-                    cache: 'no-store',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    cache: 'no-store'
                 })
             );
         }
@@ -1915,8 +1883,6 @@ async function _fetchFilesPage(pageNum, append) {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
             window.location.href = routeUrl('login.html');
             return;
         }
@@ -2066,17 +2032,15 @@ async function renameFolder(folderId, oldName) {
     openRenameDialog({
         currentName: oldName,
         onSubmit: async (newName, { setError, close }) => {
-            const token = ensureAuthenticatedForAction();
-            if (!token) {
+            if (!ensureAuthenticatedForAction()) {
                 close();
                 return;
             }
 
             try {
-                const res = await fetch(`${API_BASE}/folders/${folderId}/rename`, {
+                const res = await BrowserSession.request(`${API_BASE}/folders/${folderId}/rename`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ newName })
@@ -2125,16 +2089,14 @@ async function deleteFolder(folderId, folderName) {
         name: folderName,
         meta: t('deleteDialogFolderMeta'),
         onConfirm: async ({ setError, close }) => {
-            const token = ensureAuthenticatedForAction();
-            if (!token) {
+            if (!ensureAuthenticatedForAction()) {
                 close();
                 return;
             }
 
             try {
-                const res = await fetch(`${API_BASE}/folders/${folderId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await BrowserSession.request(`${API_BASE}/folders/${folderId}`, {
+                    method: 'DELETE'
                 });
 
                 if (res.status === 404) {
@@ -2202,16 +2164,14 @@ async function deleteFile(index) {
         name: file.originalName || file.fileName || '-',
         meta: t('deleteDialogFileMeta'),
         onConfirm: async ({ setError, close }) => {
-            const token = ensureAuthenticatedForAction();
-            if (!token) {
+            if (!ensureAuthenticatedForAction()) {
                 close();
                 return;
             }
 
             try {
-                const res = await fetch(`${API_BASE}/files/${file.id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await BrowserSession.request(`${API_BASE}/files/${file.id}`, {
+                    method: 'DELETE'
                 });
 
                 if (res.status === 404) {
@@ -2257,17 +2217,15 @@ async function renameFile(index) {
     openRenameDialog({
         currentName: oldName,
         onSubmit: async (newName, { setError, close }) => {
-            const token = ensureAuthenticatedForAction();
-            if (!token) {
+            if (!ensureAuthenticatedForAction()) {
                 close();
                 return;
             }
 
             try {
-                const res = await fetch(`${API_BASE}/files/${file.id}/rename`, {
+                const res = await BrowserSession.request(`${API_BASE}/files/${file.id}/rename`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ newName })

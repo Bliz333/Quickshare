@@ -6,22 +6,7 @@
  * 检查并更新登录状态显示
  */
 function hasAdminRole(user) {
-    if (window.QuickShareSession && typeof window.QuickShareSession.hasAdminRole === 'function') {
-        return window.QuickShareSession.hasAdminRole(user);
-    }
     return !!user && typeof user.role === 'string' && user.role.toUpperCase() === 'ADMIN';
-}
-
-function getStoredAuthUser() {
-    if (window.QuickShareSession && typeof window.QuickShareSession.getStoredUser === 'function') {
-        return window.QuickShareSession.getStoredUser();
-    }
-
-    try {
-        return JSON.parse(localStorage.getItem('user') || '{}');
-    } catch (error) {
-        return {};
-    }
 }
 
 function renderLoggedInState(user) {
@@ -71,8 +56,7 @@ function buildAuthRedirectUrl(targetPage, redirectTarget) {
 }
 
 function goToAuthForNetdisk() {
-    const user = getStoredAuthUser();
-    if (localStorage.getItem('token') && user && user.username) {
+    if (BrowserSession.current().authenticated) {
         window.location.href = pageUrl('netdisk.html');
         return;
     }
@@ -80,25 +64,20 @@ function goToAuthForNetdisk() {
 }
 
 async function checkLoginState() {
-    const token = localStorage.getItem('token');
-    const user = getStoredAuthUser();
+    const session = BrowserSession.current();
 
-    if (token && user.username) {
-        renderLoggedInState(user);
+    if (session.authenticated) {
+        renderLoggedInState(session.user);
 
-        if (window.QuickShareSession && typeof window.QuickShareSession.fetchProfile === 'function') {
-            try {
-                const freshUser = await window.QuickShareSession.fetchProfile();
-                if (!freshUser || !freshUser.username) {
-                    window.location.reload();
-                    return;
-                }
-                renderLoggedInState(freshUser);
-            } catch (error) {
-                console.warn('Failed to sync current profile on home page:', error);
+        try {
+            const freshUser = await BrowserSession.refresh();
+            if (!freshUser?.username) {
+                window.location.reload();
+                return;
             }
-        } else {
-            renderLoggedInState(user);
+            renderLoggedInState(freshUser);
+        } catch (error) {
+            console.warn('Failed to sync current profile on home page:', error);
         }
     }
 }
@@ -119,54 +98,22 @@ async function handleLogout() {
         return;
     }
 
-    if (window.QuickShareSession && typeof window.QuickShareSession.clear === 'function') {
-        window.QuickShareSession.clear();
-    } else {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-    }
+    BrowserSession.clear();
     location.reload();
 }
 
 async function openAdminConsole() {
     try {
-        if (window.QuickShareSession && typeof window.QuickShareSession.openAdminConsole === 'function') {
-            await window.QuickShareSession.openAdminConsole();
-            return;
+        const response = await BrowserSession.request(`${API_BASE}/admin/settings/admin-console`);
+        const result = await response.json();
+        if (!response.ok || Number(result?.code) !== 200 || !result.data?.entryPath) {
+            throw new Error(result?.message || 'Failed to resolve admin console path');
         }
+        window.location.href = result.data.entryPath;
+        return;
     } catch (error) {
         console.warn('Failed to open admin console:', error);
     }
 
     window.location.href = pageUrl('index.html');
-}
-
-/**
- * 获取当前用户的 Token
- * @returns {string} Token 或空字符串
- */
-function getAuthToken() {
-    if (window.QuickShareSession && typeof window.QuickShareSession.getToken === 'function') {
-        return window.QuickShareSession.getToken();
-    }
-    return localStorage.getItem('token') || '';
-}
-
-/**
- * 获取认证请求头
- * @returns {Object} 包含 Authorization 的请求头对象
- */
-function getAuthHeaders() {
-    const token = getAuthToken();
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
-}
-
-/**
- * 检查用户是否已登录
- * @returns {boolean}
- */
-function isLoggedIn() {
-    const token = localStorage.getItem('token');
-    const user = getStoredAuthUser();
-    return !!(token && user.username);
 }

@@ -318,9 +318,9 @@ function clearCompletedTransfers() {
 // ================== 带进度的下载 ==================
 async function downloadFile(index) {
     const file = files[index];
-    const token = localStorage.getItem('token');
+    const session = BrowserSession.current();
 
-    if (!token) {
+    if (!session.authenticated) {
         await showAppAlert(t('loginRequired'), {
             icon: 'fa-right-to-bracket'
         });
@@ -351,11 +351,8 @@ async function downloadFile(index) {
     animateToTransferButton();
 
     try {
-        const response = await fetch(url, {
-            signal: controller.signal,
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+        const response = await BrowserSession.request(url, {
+            signal: controller.signal
         });
 
         if (response.status === 401) {
@@ -364,8 +361,6 @@ async function downloadFile(index) {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
             window.location.href = transferPageUrl('login.html');
             return;
         }
@@ -431,8 +426,8 @@ async function handleFileUpload(event) {
     const uploadedFiles = event.target.files;
     if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-    const token = localStorage.getItem('token');
-    if (!token || token === 'test-token-12345') {
+    const session = BrowserSession.current();
+    if (!session.authenticated || session.token === 'test-token-12345') {
         await showAppAlert(t('loginRequired'), {
             icon: 'fa-right-to-bracket'
         });
@@ -441,7 +436,7 @@ async function handleFileUpload(event) {
     }
 
     for (const file of uploadedFiles) {
-        const uploaded = await uploadSingleFile(file, token);
+        const uploaded = await uploadSingleFile(file);
         if (uploaded && typeof loadFiles === 'function') {
             await loadFiles();
         }
@@ -449,7 +444,7 @@ async function handleFileUpload(event) {
 
     event.target.value = '';
 }
-async function uploadSingleFile(file, token) {
+async function uploadSingleFile(file) {
     const taskId = 'ul_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
     TransferManager.addTask({
@@ -468,6 +463,9 @@ async function uploadSingleFile(file, token) {
     try {
         const result = await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
+            const uploadUrl = `${API_BASE}/upload`;
+            xhr.open('POST', uploadUrl);
+            BrowserSession.prepareXhr(xhr, uploadUrl);
 
             // 存储 xhr 用于取消
             TransferManager.controllers.set(taskId, {
@@ -515,8 +513,6 @@ async function uploadSingleFile(file, token) {
                 formData.append('folderId', currentFolder);
             }
 
-            xhr.open('POST', `${API_BASE}/upload`);
-            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
             xhr.send(formData);
         });
 
@@ -529,8 +525,6 @@ async function uploadSingleFile(file, token) {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
             window.location.href = transferPageUrl('login.html');
         } else {
             throw new Error(result.message || t('uploadFailed'));

@@ -1,70 +1,9 @@
 /**
- * session.js - 当前登录会话辅助方法
+ * Browser session and authenticated transport.
  */
-
-const QuickShareSession = (() => {
+const BrowserSession = (() => {
     const REFRESH_HEADER = 'X-Auth-Refresh';
-
-    function getToken() {
-        return localStorage.getItem('token') || '';
-    }
-
-    function captureRefreshedToken(response) {
-        if (!response || typeof response.headers === 'undefined' || !response.headers.get) {
-            return;
-        }
-        const renewed = response.headers.get(REFRESH_HEADER);
-        if (renewed && renewed !== localStorage.getItem('token')) {
-            localStorage.setItem('token', renewed);
-        }
-    }
-
-    if (typeof window !== 'undefined' && typeof window.fetch === 'function' && !window.__quickshareFetchPatched) {
-        const originalFetch = window.fetch.bind(window);
-        window.fetch = function patchedFetch(...args) {
-            return originalFetch(...args).then((response) => {
-                try {
-                    captureRefreshedToken(response);
-                } catch (error) {
-                    // ignore — refresh capture is best-effort
-                }
-                return response;
-            });
-        };
-        window.__quickshareFetchPatched = true;
-    }
-
-    if (typeof window !== 'undefined' && typeof window.XMLHttpRequest === 'function' && !window.__quickshareXhrPatched) {
-        const originalSend = window.XMLHttpRequest.prototype.send;
-        window.XMLHttpRequest.prototype.send = function patchedXhrSend(body) {
-            if (!this.__quickshareRefreshHooked) {
-                this.__quickshareRefreshHooked = true;
-                this.addEventListener('loadend', () => {
-                    try {
-                        if (typeof this.getResponseHeader !== 'function') {
-                            return;
-                        }
-                        const renewed = this.getResponseHeader(REFRESH_HEADER);
-                        if (renewed && renewed !== localStorage.getItem('token')) {
-                            localStorage.setItem('token', renewed);
-                        }
-                    } catch (error) {
-                        // ignore — refresh capture is best-effort
-                    }
-                });
-            }
-            return originalSend.call(this, body);
-        };
-        window.__quickshareXhrPatched = true;
-    }
-
-    function getStoredUser() {
-        try {
-            return JSON.parse(localStorage.getItem('user') || '{}');
-        } catch (error) {
-            return {};
-        }
-    }
+    const nativeFetch = window.fetch.bind(window);
 
     function normalizeRole(role) {
         return typeof role === 'string' && role.trim()
@@ -76,123 +15,266 @@ const QuickShareSession = (() => {
         if (!user || typeof user !== 'object') {
             return {};
         }
-
+        const { token: _token, ...profile } = user;
+        if (Object.keys(profile).length === 0) {
+            return {};
+        }
         return {
-            ...user,
-            role: normalizeRole(user.role)
+            ...profile,
+            role: normalizeRole(profile.role)
         };
     }
 
-    function setUser(user) {
-        const normalizedUser = normalizeUser(user);
-        localStorage.setItem('user', JSON.stringify(normalizedUser));
-        return normalizedUser;
+    function readUser() {
+        try {
+            return normalizeUser(JSON.parse(localStorage.getItem('user') || '{}'));
+        } catch (error) {
+            return {};
+        }
+    }
+
+    function isExpiredJwt(token) {
+        const parts = String(token || '').split('.');
+        if (parts.length !== 3) {
+            return false;
+        }
+        try {
+            const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+            const payload = JSON.parse(atob(padded));
+            return Number.isFinite(Number(payload.exp)) && Number(payload.exp) * 1000 <= Date.now();
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function emitChange(reason) {
+        window.dispatchEvent(new CustomEvent('quickshare:sessionchange', {
+            detail: { reason, session: current() }
+        }));
+    }
+
+    function removeLocalSession(reason) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        emitChange(reason);
+    }
+
+    function current() {
+        const token = localStorage.getItem('token') || '';
+        if (token && isExpiredJwt(token)) {
+            removeLocalSession('expired');
+            notifyServerLogout(token);
+            return { token: '', user: {}, authenticated: false, isAdmin: false };
+        }
+
+        const user = readUser();
+        const authenticated = Boolean(token && user.username);
+        return {
+            token,
+            user,
+            authenticated,
+            isAdmin: authenticated && normalizeRole(user.role) === 'ADMIN'
+        };
+    }
+
+    function establish(data) {
+        const next = data && typeof data === 'object' ? data : {};
+        const token = String(next.token || current().token || '').trim();
+        if (!token) {
+            throw new Error('Authenticated session requires a token');
+        }
+
+        const user = normalizeUser(next);
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        emitChange('established');
+        return current();
+    }
+
+    function captureRefreshedToken(response) {
+        if (!response?.headers?.get) {
+            return;
+        }
+        const renewed = response.headers.get(REFRESH_HEADER);
+        if (renewed && renewed !== localStorage.getItem('token')) {
+            localStorage.setItem('token', renewed);
+            emitChange('renewed');
+        }
+    }
+
+    function captureRefreshedXhrToken(xhr) {
+        if (typeof xhr?.getResponseHeader !== 'function') {
+            return;
+        }
+        const renewed = xhr.getResponseHeader(REFRESH_HEADER);
+        if (renewed && renewed !== localStorage.getItem('token')) {
+            localStorage.setItem('token', renewed);
+            emitChange('renewed');
+        }
     }
 
     function notifyServerLogout(token) {
         try {
-            const url = `${API_BASE}/auth/logout`;
-            const headers = token
-                ? { 'Authorization': `Bearer ${token}` }
-                : {};
-            fetch(url, {
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            nativeFetch(`${API_BASE}/auth/logout`, {
                 method: 'POST',
-                credentials: 'same-origin',
+                credentials: 'include',
                 keepalive: true,
                 headers
             }).catch(() => {});
         } catch (error) {
-            // ignore logout transport failures during local session cleanup
+            // Local cleanup must succeed even when logout transport fails.
         }
+    }
+
+    function expire(reason) {
+        const token = localStorage.getItem('token') || '';
+        if (token || localStorage.getItem('user')) {
+            removeLocalSession(reason || 'expired');
+        }
+        notifyServerLogout(token);
     }
 
     function clear() {
-        const token = getToken();
+        const token = localStorage.getItem('token') || '';
+        removeLocalSession('cleared');
         notifyServerLogout(token);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
     }
 
-    function hasAdminRole(user) {
-        return !!user && normalizeRole(user.role) === 'ADMIN';
-    }
-
-    async function fetchProfile() {
-        const token = getToken();
-        if (!token) {
+    function requestOrigin(input) {
+        try {
+            const value = typeof input === 'string' || input instanceof URL ? input : input.url;
+            return new URL(value, window.location.href).origin;
+        } catch (error) {
             return null;
         }
+    }
 
-        const response = await fetch(`${API_BASE}/profile`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+    function isOwnedRequest(input) {
+        const origin = requestOrigin(input);
+        const apiOrigin = requestOrigin(API_BASE);
+        return Boolean(origin && (origin === window.location.origin || origin === apiOrigin));
+    }
+
+    function reconcilePayload(result, onUnauthorized) {
+        if (Number(result?.code) === 401) {
+            onUnauthorized();
+        }
+    }
+
+    function monitorResponse(response, onUnauthorized) {
+        return new Proxy(response, {
+            get(target, property) {
+                if (property === 'json') {
+                    return async function parseMonitoredJson() {
+                        const result = await target.json();
+                        reconcilePayload(result, onUnauthorized);
+                        return result;
+                    };
+                }
+                if (property === 'text') {
+                    return async function parseMonitoredText() {
+                        const text = await target.text();
+                        try {
+                            reconcilePayload(text ? JSON.parse(text) : null, onUnauthorized);
+                        } catch (error) {
+                            // Non-JSON response bodies have no session envelope.
+                        }
+                        return text;
+                    };
+                }
+                const value = Reflect.get(target, property, target);
+                return typeof value === 'function' ? value.bind(target) : value;
             }
         });
+    }
 
-        const rawText = await response.text();
-        let result = null;
+    async function request(input, init = {}) {
+        const headers = new Headers(
+            init.headers || (typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined)
+        );
+        const session = current();
+        if (session.token && isOwnedRequest(input) && !headers.has('Authorization')) {
+            headers.set('Authorization', `Bearer ${session.token}`);
+        }
 
-        if (rawText) {
+        const options = { ...init, headers };
+        if (!Object.prototype.hasOwnProperty.call(init, 'credentials')) {
+            const origin = requestOrigin(input);
+            options.credentials = origin && origin !== window.location.origin && isOwnedRequest(input)
+                ? 'include'
+                : 'same-origin';
+        }
+
+        const response = await nativeFetch(input, options);
+        captureRefreshedToken(response);
+        let unauthorizedHandled = false;
+        const handleUnauthorized = () => {
+            if (unauthorizedHandled) {
+                return;
+            }
+            unauthorizedHandled = true;
+            expire('expired');
+        };
+        if (response.status === 401) {
+            handleUnauthorized();
+        }
+        return monitorResponse(response, handleUnauthorized);
+    }
+
+    function prepareXhr(xhr, url) {
+        if (!xhr || typeof xhr.setRequestHeader !== 'function') {
+            throw new TypeError('prepareXhr requires an opened XMLHttpRequest');
+        }
+
+        const session = current();
+        const owned = isOwnedRequest(url);
+        if (session.token && owned) {
+            xhr.setRequestHeader('Authorization', `Bearer ${session.token}`);
+        }
+        xhr.withCredentials = owned;
+        xhr.addEventListener('load', () => {
+            captureRefreshedXhrToken(xhr);
+            let result = null;
             try {
-                result = JSON.parse(rawText);
+                result = xhr.responseType === '' || xhr.responseType === 'text'
+                    ? JSON.parse(xhr.responseText || 'null')
+                    : xhr.response;
             } catch (error) {
                 result = null;
             }
-        }
+            if (xhr.status === 401 || Number(result?.code) === 401) {
+                expire('expired');
+            }
+        }, { once: true });
+        return xhr;
+    }
 
-        if (response.status === 401 || result?.code === 401) {
-            clear();
+    async function refresh() {
+        if (!current().token) {
             return null;
         }
 
-        if (!response.ok || !result || result.code !== 200 || !result.data) {
+        const response = await request(`${API_BASE}/profile`);
+        const result = await response.json();
+        if (response.status === 401 || Number(result?.code) === 401) {
+            return null;
+        }
+        if (!response.ok || Number(result?.code) !== 200 || !result.data) {
             throw new Error(result?.message || 'Failed to load current profile');
         }
-
-        return setUser(result.data);
-    }
-
-    async function fetchAdminConsoleAccess() {
-        const token = getToken();
-        const user = getStoredUser();
-        if (!token || !hasAdminRole(user)) {
-            throw new Error('Admin access required');
-        }
-
-        const response = await fetch(`${API_BASE}/admin/settings/admin-console`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        const result = await response.json();
-        if (!response.ok || result?.code !== 200 || !result.data?.entryPath) {
-            throw new Error(result?.message || 'Failed to resolve admin console path');
-        }
-
-        return result.data;
-    }
-
-    async function openAdminConsole() {
-        const access = await fetchAdminConsoleAccess();
-        window.location.href = access.entryPath;
+        return establish({ ...result.data, token: current().token }).user;
     }
 
     return {
         clear,
-        fetchAdminConsoleAccess,
-        fetchProfile,
-        getStoredUser,
-        getToken,
-        hasAdminRole,
-        normalizeRole,
-        normalizeUser,
-        openAdminConsole,
-        setUser
+        current,
+        establish,
+        prepareXhr,
+        refresh,
+        request
     };
 })();
 
-window.QuickShareSession = QuickShareSession;
-window.openAdminConsole = async function() {
-    await QuickShareSession.openAdminConsole();
-};
+window.BrowserSession = BrowserSession;

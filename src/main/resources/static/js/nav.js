@@ -26,21 +26,12 @@
             : (location.pathname.split('/').pop() || 'index.html');
     }
 
-    function isLoggedIn() {
-        const token = localStorage.getItem('token');
-        if (!token) return false;
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-            return payload.exp * 1000 > Date.now();
-        } catch { return false; }
-    }
-
     function getLang() {
         return localStorage.getItem('quickshare-lang') || 'zh';
     }
 
     function buildNav() {
-        const loggedIn = isLoggedIn();
+        const loggedIn = BrowserSession.current().authenticated;
         const lang = getLang();
         const page = currentPage();
 

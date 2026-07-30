@@ -37,7 +37,6 @@ const homeState = {
     transferFile: null,
     transferState: 'idle',   // idle | pairing | paired | sending | done | error
     userId: null,
-    token: null,
     pairCode: null,
     peerLabel: null,
     lastReceivedShare: null,
@@ -167,10 +166,6 @@ function apiBase() {
     return window.API_BASE || '';
 }
 
-function authHeader() {
-    return homeState.token ? { 'Authorization': 'Bearer ' + homeState.token } : {};
-}
-
 function homeText(key, fallback) {
     return typeof t === 'function' ? t(key) : fallback;
 }
@@ -191,7 +186,7 @@ function buildWsUrl() {
     const params = new URLSearchParams();
     params.set('deviceName', getHomeDeviceName());
     params.set('deviceType', detectDeviceType());
-    if (homeState.token) {
+    if (BrowserSession.current().authenticated) {
         params.set('deviceId', getHomeDeviceId());
     } else {
         params.set('guestId', getOrCreateGuestId());
@@ -645,7 +640,7 @@ function initiateTransfer(targetChannelId, label, file) {
 
     // Account device (cross-network, same user) → use direct session API
     // Room device (same network) → use WS request-transfer
-    if (homeState.token && targetChannelId.startsWith('user:')) {
+    if (BrowserSession.current().authenticated && targetChannelId.startsWith('user:')) {
         initiateDirectSession(targetChannelId, file);
     } else {
         sendWs({ type: 'request-transfer', targetChannelId });
@@ -664,9 +659,9 @@ async function initiateDirectSession(targetChannelId) {
     }
     const targetDeviceId = deviceMatch[1];
     try {
-        const res = await fetch(`${apiBase()}/api/transfer/direct-sessions`, {
+        const res = await BrowserSession.request(`${apiBase()}/api/transfer/direct-sessions`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 deviceId: getHomeDeviceId(),
                 targetDeviceId: targetDeviceId,
@@ -752,9 +747,9 @@ async function uploadToPublicShare(file, onProgress, recipientOffer = null) {
         throw new Error('Recipient encryption key is unavailable');
     }
 
-    const createRes = await fetch(`${apiBase()}/api/public/transfer/shares`, {
+    const createRes = await BrowserSession.request(`${apiBase()}/api/public/transfer/shares`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             senderLabel: getHomeDeviceName(),
             fileName: file.name,
@@ -775,9 +770,9 @@ async function uploadToPublicShare(file, onProgress, recipientOffer = null) {
         const body = encryptKey
             ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, i)
             : chunk;
-        const res = await fetch(`${apiBase()}/api/public/transfer/shares/${shareToken}/chunks/${i}`, {
+        const res = await BrowserSession.request(`${apiBase()}/api/public/transfer/shares/${shareToken}/chunks/${i}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/octet-stream', ...authHeader() },
+            headers: { 'Content-Type': 'application/octet-stream' },
             body,
         });
         if (!res.ok) throw new Error(`分片 ${i + 1}/${totalChunks} 上传失败`);
@@ -842,9 +837,9 @@ async function initiateDirectSessionBatch(targetChannelId) {
     }
     const targetDeviceId = deviceMatch[1];
     try {
-        const res = await fetch(`${apiBase()}/api/transfer/direct-sessions`, {
+        const res = await BrowserSession.request(`${apiBase()}/api/transfer/direct-sessions`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 deviceId: getHomeDeviceId(),
                 targetDeviceId,
@@ -931,7 +926,7 @@ function processNextBatchTarget() {
         onBatchTargetFailure(next.channelId, homeText('homeBatchPairTimeout', '连接超时'));
     }, 15000);
 
-    if (homeState.token && next.channelId.startsWith('user:')) {
+    if (BrowserSession.current().authenticated && next.channelId.startsWith('user:')) {
         initiateDirectSessionBatch(next.channelId);
     } else {
         sendWs({ type: 'request-transfer', targetChannelId: next.channelId });
@@ -1055,7 +1050,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType, e2ee }) 
         textContent.textContent = '…';
         const textPromise = e2ee?.encrypted && window.QuickShareE2EE
             ? window.QuickShareE2EE.fetchAndDecrypt(url, e2ee).then(blob => blob.text())
-            : fetch(url).then(r => r.ok ? r.text() : Promise.reject('fetch failed'));
+            : BrowserSession.request(url).then(r => r.ok ? r.text() : Promise.reject('fetch failed'));
         textPromise
             .then(txt => { if (_receiveCardVersion === currentVersion) textContent.textContent = txt; })
             .catch(() => { if (_receiveCardVersion === currentVersion) textContent.textContent = '(' + homeText('homeTextLoadFailed', '加载失败') + ')'; });
@@ -1128,8 +1123,9 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType, e2ee }) 
         copyBtn.disabled = !shareToken;
     }
     if (saveBtn) {
-        saveBtn.classList.toggle('hidden', !isLoggedIn() || Boolean(e2ee?.encrypted));
-        saveBtn.disabled = !shareToken || !isLoggedIn() || Boolean(e2ee?.encrypted);
+        const signedIn = BrowserSession.current().authenticated;
+        saveBtn.classList.toggle('hidden', !signedIn || Boolean(e2ee?.encrypted));
+        saveBtn.disabled = !shareToken || !signedIn || Boolean(e2ee?.encrypted);
     }
     modal.classList.add('visible');
     showHomeToast(isTextPlain ? homeText('homeTextReceived', '收到文本!') : homeText('homeFileReceived', '收到文件!'), 'success');
@@ -1199,16 +1195,15 @@ async function saveReceivedShareToNetdisk() {
         showHomeToast(homeText('homeReceiveSaveMissing', '当前没有可保存的文件'), 'warning');
         return;
     }
-    if (!isLoggedIn()) {
+    if (!BrowserSession.current().authenticated) {
         showHomeToast(homeText('transferLoginRequired', '请先登录后再使用设备快传'), 'warning');
         return;
     }
     try {
-        const response = await fetch(`${apiBase()}/api/transfer/public-shares/${encodeURIComponent(share.shareToken)}/save`, {
+        const response = await BrowserSession.request(`${apiBase()}/api/transfer/public-shares/${encodeURIComponent(share.shareToken)}/save`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                ...authHeader()
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ folderId: 0 })
         });
@@ -1342,12 +1337,13 @@ function localizeHomeErrorMessage(message) {
 
 async function createPairCode() {
     try {
-        const res = await fetch(`${apiBase()}/api/public/transfer/pair-codes`, {
+        const session = BrowserSession.current();
+        const res = await BrowserSession.request(`${apiBase()}/api/public/transfer/pair-codes`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 deviceId: getHomeDeviceId(),
-                guestId: homeState.token ? null : getOrCreateGuestId(),
+                guestId: session.authenticated ? null : getOrCreateGuestId(),
                 deviceName: getHomeDeviceName(),
                 deviceType: detectDeviceType()
             }),
@@ -1386,12 +1382,13 @@ async function joinByPairCode() {
         return;
     }
     try {
-        const res = await fetch(`${apiBase()}/api/public/transfer/pair-codes/${encodeURIComponent(code)}/claim`, {
+        const session = BrowserSession.current();
+        const res = await BrowserSession.request(`${apiBase()}/api/public/transfer/pair-codes/${encodeURIComponent(code)}/claim`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 deviceId: getHomeDeviceId(),
-                guestId: homeState.token ? null : getOrCreateGuestId(),
+                guestId: session.authenticated ? null : getOrCreateGuestId(),
                 deviceName: getHomeDeviceName(),
                 deviceType: detectDeviceType()
             }),
@@ -1502,11 +1499,11 @@ async function sendTextFromChooser() {
 // ─── 账号设备同步（登录用户） ──────────────────────────────────────────────────
 
 async function syncAccountDevices() {
-    if (!homeState.token) return;
+    if (!BrowserSession.current().authenticated) return;
     try {
-        const res = await fetch(`${apiBase()}/api/transfer/sync`, {
+        const res = await BrowserSession.request(`${apiBase()}/api/transfer/sync`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 deviceId:   getHomeDeviceId(),
                 deviceName: getHomeDeviceName(),
@@ -1523,11 +1520,9 @@ async function syncAccountDevices() {
 // ─── 初始化 ────────────────────────────────────────────────────────────────────
 
 async function initHomePage() {
-    // 读取 auth 状态
-    const token = localStorage.getItem('token');
-    if (token) {
-        homeState.token = token;
-        const payload = parseJwtPayload(token);
+    const session = BrowserSession.current();
+    if (session.authenticated) {
+        const payload = parseJwtPayload(session.token);
         homeState.userId = payload?.userId || payload?.sub;
     }
 
@@ -1538,7 +1533,7 @@ async function initHomePage() {
     connectHomeWs();
 
     // 登录用户：同步账号设备
-    if (homeState.token) {
+    if (session.authenticated) {
         await syncAccountDevices();
         stopAccountDeviceSync();
         homeState.accountSyncTimer = setInterval(syncAccountDevices, 30000);

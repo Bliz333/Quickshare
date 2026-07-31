@@ -5,7 +5,7 @@
 ## 1. 机密与隐私
 
 - `.env`、本地 profile、SSH key、支付/SMTP/S3/TURN/Google 凭据不得被追踪。
-- `.env.example` 只保留不可用的占位值和公开示例域名。
+- `.env.example` 只保留公开占位值和示例域名；`JWT_SECRET`、`SETTING_ENCRYPT_KEY` 保持为空以触发生产启动校验，数据库 starter 口令必须在对外部署前替换。
 - 真实主机、用户名、IP、密钥路径放 `.agents/local/` 或本机 SSH config。
 - 发布前扫描新增内容，不在命令里回显 secret 值：
 

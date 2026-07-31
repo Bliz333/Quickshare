@@ -10,7 +10,9 @@ Browser
   |-- JSON / file streams ----> Controller -> Service -> Mapper -> MySQL
   |-- WebSocket signaling ----> TransferWebSocketHandler -> in-memory sessions
                                             |
-Redis <--------- rate limiting/runtime ---- Application -----> Local volume or S3
+Redis <--------- rate limiting/runtime ---- Application -----> User files: local volume or S3
+                                            |
+                                            +---------------> Transfer temp: local volume
 ```
 
 WebSocket 在线会话和房间是进程内状态；MySQL 中的 transfer task / relay / pair task 才是可恢复的服务端任务事实。多应用副本之前必须先处理信令会话、房间和其它进程内状态的外置或粘性路由。
@@ -53,7 +55,9 @@ Flyway 是结构真相源。V6-V10 曾使用 `quickdrop_*` 表名，V11 已迁�
 
 ## 存储、配额与预览
 
-`StorageService` 是文件内容 I/O 的唯一抽象，`DelegatingStorageService` 根据运行时 `StoragePolicy` 选择本地或 S3。业务层保存的是 storage key，不应假定它总是宿主机路径。
+网盘和普通分享的文件内容通过 `StorageService` I/O，`DelegatingStorageService` 根据运行时 `StoragePolicy` 选择本地或 S3。对应业务层保存的是 storage key，不应假定它总是宿主机路径。
+
+Transfer relay 与公开取件是当前明确例外：`TransferServiceImpl` 直接在 `file.upload-dir/transfer-temp` 下写入分片和组装文件，controller 也从这些本地路径交付内容。切换网盘到 S3 不会把这些 payload 迁到共享存储；多副本部署前必须单独改造这条链路及其清理所有权。
 
 `PreviewDelivery` 集中处理：
 

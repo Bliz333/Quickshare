@@ -40,8 +40,8 @@ server {
         proxy_connect_timeout 10s;
     }
 
-    # WebSocket for Quick Transfer signaling
-    location /ws/transfer {
+    # WebSocket for Quick Transfer signaling and its legacy alias
+    location ~ ^/ws/(transfer|quickdrop)$ {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -71,5 +71,5 @@ The certbot systemd timer handles renewal; verify the timer and nginx reload beh
 
 - Replace `your.domain.example` throughout with your actual domain.
 - `client_max_body_size 2G` must not exceed the production profile's `spring.servlet.multipart.max-file-size` / `max-request-size` without an intentional application configuration change.
-- `/ws/quickdrop` remains a legacy application alias. New proxies and clients should use `/ws/transfer`.
+- `/ws/quickdrop` remains a legacy application alias and must keep the same WebSocket upgrade handling. New clients should use `/ws/transfer`.
 - If a TURN server is also exposed, open its configured UDP/TCP/TLS ports separately; nginx's HTTP proxy does not proxy TURN/UDP.

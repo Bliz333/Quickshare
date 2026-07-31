@@ -64,6 +64,8 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 ```bash
 cp .env.example .env
 # Edit .env and set at least:
+# - DB_PASSWORD
+# - MYSQL_ROOT_PASSWORD
 # - JWT_SECRET
 # - SETTING_ENCRYPT_KEY
 # Optional:

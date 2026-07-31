@@ -12,7 +12,7 @@
 
 ## 项目边界
 
-QuickShare 是 Java 17 / Spring Boot 3.2 单体应用：后端同时提供 REST、WebSocket 和原生 HTML / CSS / JavaScript 前端。MySQL 是业务真相源，Redis 用于频控等运行态能力，文件内容经 `StorageService` 落本地卷或 S3 兼容存储。
+QuickShare 是 Java 17 / Spring Boot 3.2 单体应用：后端同时提供 REST、WebSocket 和原生 HTML / CSS / JavaScript 前端。MySQL 是业务真相源，Redis 用于频控等运行态能力。网盘/分享文件经 `StorageService` 落本地卷或 S3 兼容存储；Transfer relay 与公开取件当前例外，仍使用 `file.upload-dir/transfer-temp` 本地路径。
 
 - 当前产品与代码统一使用 **Quick Transfer / Transfer**；`QuickDrop` 只保留在旧路由、旧环境变量和迁移历史中作为兼容名称。
 - 首页 `/` 承载快速传输，`/share` 承载分享/取件；`/transfer.html`、`/quickdrop.html` 等旧页面只做重定向。
@@ -23,7 +23,7 @@ QuickShare 是 Java 17 / Spring Boot 3.2 单体应用：后端同时提供 REST�
 
 - 普通 JSON API 继续返回 `Result<T>`；文件下载、预览、页面资源等流式/二进制响应是明确例外。
 - Controller 只做 HTTP、鉴权主体解析和响应适配；业务规则放 service，SQL 访问放 mapper。
-- 文件内容必须走 `StorageService`；文件、分享和传输预览必须走 `PreviewDelivery`，不得在 controller 重复实现类型判断、Office 转换或缩略图逻辑。
+- 网盘/分享文件内容必须走 `StorageService`；Transfer relay/公开取件仍是明确的本地临时存储例外。文件、分享和传输预览必须走 `PreviewDelivery`，不得在 controller 重复实现类型判断、Office 转换或缩略图逻辑。
 - `transfer_task` / `transfer_pair_task` 的 attempt JSON 必须通过 `TransferAttemptLedger` 读写和投影，保留损坏/空账本的现有保护语义。
 - 管理员接口保持 `@PreAuthorize("hasRole('ADMIN')")` 边界；JWT 可来自 Bearer、HttpOnly cookie 或兼容 query token，续签响应由 `AuthCookieSupport` / `X-Auth-Refresh` 统一处理。
 - 运行时策略继续通过对应 `*PolicyService` 与 `SystemSettingOverrideService` 读取；敏感设置使用 `SettingEncryptor`，不得明文写日志或返回前端。

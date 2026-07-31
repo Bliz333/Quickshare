@@ -43,6 +43,7 @@ Thumbs.db
 
 ### Local env ###
 .env
+/.agents/local/
 DEPLOYED_COMMIT
 
 ### Node / E2E ###

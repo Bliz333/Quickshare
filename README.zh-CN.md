@@ -63,6 +63,8 @@ QuickShare 是一个基于 Spring Boot 的文件分享与个人网盘平台，�
 ```bash
 cp .env.example .env
 # 至少配置：
+# - DB_PASSWORD
+# - MYSQL_ROOT_PASSWORD
 # - JWT_SECRET
 # - SETTING_ENCRYPT_KEY
 # 可选：

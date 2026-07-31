@@ -17,7 +17,7 @@
 - API 业务失败交给 `GlobalExceptionHandler` 和既有异常类型；不要在各 controller 发明不同错误包络。
 - 新增或修改表结构只能追加 Flyway 迁移。迁移需兼容已有数据库，禁止编辑已经发布的版本来“修历史”。
 - `User` 与 `FileInfo` 使用逻辑删除；涉及文件/文件夹删除时同时核对分享、物理对象引用与配额回收语义。
-- 文件存储只依赖 `StorageService`，不得把本地路径假设泄漏到通用业务逻辑。需要临时本地文件时使用现有接口并明确清理所有权。
+- 网盘/分享文件存储只依赖 `StorageService`，不得把本地路径假设泄漏到通用业务逻辑。Transfer relay/公开取件当前仍直接使用 `file.upload-dir/transfer-temp`，修改该例外时必须同时检查清理、S3 和多副本语义。
 - 所有预览入口复用 `PreviewDelivery`；Office 转换失败保持可理解的 unavailable 语义，不把转换异常伪装成空成功响应。
 - Transfer 任务的 attempt 合并、删除、摘要和投影统一通过 `TransferAttemptLedger`。损坏账本不得被一次普通读/删静默清空。
 - 运行时设置优先走对应 PolicyService；敏感值持久化前经 `SettingEncryptor`，日志中只记录非敏感标识。

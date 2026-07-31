@@ -168,27 +168,70 @@
             }
         }
 
-        function expire(reason, expectedToken) {
-            const token = storage.getItem('token') || '';
-            if (expectedToken !== undefined && token !== expectedToken) {
-                return false;
-            }
-            if (token || storage.getItem('user')) {
-                removeLocalSession(reason || 'expired');
-            }
-            notifyServerLogout(token);
-            return true;
-        }
-
         function signOut() {
             const token = storage.getItem('token') || '';
             removeLocalSession('cleared');
             notifyServerLogout(token);
         }
 
-        function reconcilePayload(result, onUnauthorized) {
+        async function revalidateCookieSession(expectedToken, expectedVersion) {
+            if (sessionVersion !== expectedVersion
+                || (storage.getItem('token') || '') !== expectedToken) {
+                return true;
+            }
+
+            try {
+                const response = await adapter.request({
+                    input: `${apiBase}/profile`,
+                    init: { credentials: 'same-origin' },
+                    owned: true,
+                    token: ''
+                });
+                const result = await response.json();
+
+                if (sessionVersion !== expectedVersion
+                    || (storage.getItem('token') || '') !== expectedToken) {
+                    return true;
+                }
+
+                if (response.ok && Number(result?.code) === 200 && result.data?.username) {
+                    const renewed = response.headers?.get?.(REFRESH_HEADER) || expectedToken;
+                    signIn({ ...result.data, token: renewed });
+                    return true;
+                }
+            } catch (error) {
+                // A failed cookie probe is equivalent to an unauthorized session.
+            }
+
+            if (sessionVersion !== expectedVersion
+                || (storage.getItem('token') || '') !== expectedToken) {
+                return true;
+            }
+            if (expectedToken || storage.getItem('user')) {
+                removeLocalSession('expired');
+            }
+            return false;
+        }
+
+        function createUnauthorizedHandler(owned, expectedToken, expectedVersion) {
+            let pending = null;
+            return async function handleUnauthorized() {
+                if (!owned || expectedToken === null || sessionVersion !== expectedVersion) {
+                    return false;
+                }
+                if (!expectedToken && !storage.getItem('user')) {
+                    return false;
+                }
+                if (!pending) {
+                    pending = revalidateCookieSession(expectedToken, expectedVersion);
+                }
+                return pending;
+            };
+        }
+
+        async function reconcilePayload(result, onUnauthorized) {
             if (Number(result?.code) === 401) {
-                onUnauthorized();
+                await onUnauthorized();
             }
         }
 
@@ -199,7 +242,7 @@
                         return async function parseMonitoredJson() {
                             const result = await target.json();
                             if (sessionEnvelope) {
-                                reconcilePayload(result, onUnauthorized);
+                                await reconcilePayload(result, onUnauthorized);
                             }
                             return result;
                         };
@@ -209,7 +252,7 @@
                             const text = await target.text();
                             if (sessionEnvelope) {
                                 try {
-                                    reconcilePayload(text ? JSON.parse(text) : null, onUnauthorized);
+                                    await reconcilePayload(text ? JSON.parse(text) : null, onUnauthorized);
                                 } catch (error) {
                                     // Non-JSON response bodies have no session envelope.
                                 }
@@ -239,17 +282,13 @@
             if (owned) {
                 responseSessionToken = captureRefreshedToken(response, session.token, requestVersion);
             }
-            let unauthorizedHandled = false;
-            const handleUnauthorized = () => {
-                if (!owned || unauthorizedHandled || responseSessionToken === null
-                    || sessionVersion !== requestVersion) {
-                    return;
-                }
-                unauthorizedHandled = true;
-                expire('expired', responseSessionToken);
-            };
+            const handleUnauthorized = createUnauthorizedHandler(
+                owned,
+                responseSessionToken,
+                requestVersion
+            );
             if (response.status === 401) {
-                handleUnauthorized();
+                await handleUnauthorized();
             }
             return monitorResponse(response, handleUnauthorized, sessionEnvelope);
         }
@@ -269,10 +308,14 @@
             if (owned) {
                 responseSessionToken = captureRefreshedToken(response, session.token, requestVersion);
             }
+            const handleUnauthorized = createUnauthorizedHandler(
+                owned,
+                responseSessionToken,
+                requestVersion
+            );
 
-            if (owned && responseSessionToken !== null && sessionVersion === requestVersion
-                && response.status === 401) {
-                expire('expired', responseSessionToken);
+            if (response.status === 401) {
+                await handleUnauthorized();
             }
 
             const text = await response.text();
@@ -286,9 +329,8 @@
                 throw new Error('Invalid upload response');
             }
 
-            if (owned && responseSessionToken !== null && sessionVersion === requestVersion
-                && Number(result?.code) === 401) {
-                expire('expired', responseSessionToken);
+            if (Number(result?.code) === 401) {
+                await handleUnauthorized();
             }
             if (!response.ok) {
                 throw new Error(result?.message || response.statusText || 'Upload failed');

@@ -123,8 +123,8 @@ test.describe('BrowserSession with in-memory adapter', () => {
       if (call.input === 'https://third-party.test/data') {
         return jsonResponse({ code: 401 }, { refreshedToken: 'untrusted-token' });
       }
-      if (call.input.endsWith('/auth/logout')) {
-        return jsonResponse({ code: 200 });
+      if (call.input.endsWith('/profile')) {
+        return jsonResponse({ code: 401 }, { status: 401 });
       }
       return jsonResponse({ code: 401 });
     });
@@ -140,8 +140,44 @@ test.describe('BrowserSession with in-memory adapter', () => {
     await owned.json();
     expect(session.current().authenticated).toBe(false);
     expect(adapter.calls[2]).toMatchObject({
-      input: 'https://quickshare.test/api/auth/logout',
-      token: 'private-token'
+      input: 'https://quickshare.test/api/profile',
+      init: { credentials: 'same-origin' },
+      token: ''
+    });
+  });
+
+  test('revalidates the current cookie before applying a stale unauthorized response', async () => {
+    let resolveStaleRequest;
+    const adapter = createMemoryAdapter((kind, call) => {
+      expect(kind).toBe('request');
+      if (call.input.endsWith('/profile')) {
+        return jsonResponse({ code: 200, data: { username: 'alice', role: 'USER' } });
+      }
+      if (call.input.endsWith('/auth/logout')) {
+        throw new Error('stale unauthorized responses must not log out the current cookie');
+      }
+      return new Promise((resolve) => {
+        resolveStaleRequest = resolve;
+      });
+    });
+    const session = createMemorySession(adapter);
+    session.signIn({ token: 'nearly-expired-token', username: 'alice' });
+
+    const pending = session.request('https://quickshare.test/api/private');
+    resolveStaleRequest(jsonResponse({ code: 401 }, { status: 401 }));
+    const response = await pending;
+    await response.json();
+
+    expect(session.current()).toMatchObject({
+      authenticated: true,
+      token: 'nearly-expired-token',
+      user: { username: 'alice', role: 'USER' }
+    });
+    expect(adapter.calls).toHaveLength(2);
+    expect(adapter.calls[1]).toMatchObject({
+      input: 'https://quickshare.test/api/profile',
+      init: { credentials: 'same-origin' },
+      token: ''
     });
   });
 
@@ -246,8 +282,8 @@ test.describe('BrowserSession with in-memory adapter', () => {
 
   test('expires owned uploads before parsing unauthorized response bodies', async () => {
     const adapter = createMemoryAdapter((kind, call) => {
-      if (call.input.endsWith('/auth/logout')) {
-        return jsonResponse({ code: 200 });
+      if (call.input.endsWith('/profile')) {
+        return jsonResponse({ code: 401 }, { status: 401 });
       }
       expect(kind).toBe('upload');
       return {
@@ -267,8 +303,9 @@ test.describe('BrowserSession with in-memory adapter', () => {
 
     expect(session.current().authenticated).toBe(false);
     expect(adapter.calls[1]).toMatchObject({
-      input: 'https://quickshare.test/api/auth/logout',
-      token: 'upload-token'
+      input: 'https://quickshare.test/api/profile',
+      init: { credentials: 'same-origin' },
+      token: ''
     });
   });
 });
@@ -505,14 +542,23 @@ test.describe('BrowserSession interface', () => {
     expect(await page.evaluate(() => window.fetch === window.__quickshareNativeFetch)).toBe(true);
   });
 
-  test('converges local and cookie sessions for HTTP and JSON unauthorized responses', async ({ page }) => {
+  test('clears invalid local sessions without logging out a newer cookie session', async ({ page }) => {
     let logoutRequests = 0;
+    let profileRequests = 0;
     await page.route('**/api/auth/logout', async (route) => {
       logoutRequests += 1;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ code: 200 })
+      });
+    });
+    await page.route('**/api/profile', async (route) => {
+      profileRequests += 1;
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 401, message: 'expired' })
       });
     });
     await page.route('**/api/http-unauthorized', async (route) => {
@@ -553,7 +599,8 @@ test.describe('BrowserSession interface', () => {
       };
     });
 
-    await expect.poll(() => logoutRequests).toBe(3);
+    expect(profileRequests).toBe(2);
+    expect(logoutRequests).toBe(0);
     expect(result.httpStatus).toBe(401);
     expect(result.afterHttp.authenticated).toBe(false);
     expect(result.afterBody.authenticated).toBe(false);

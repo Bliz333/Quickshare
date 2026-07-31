@@ -252,7 +252,7 @@ function setLoading(loading) {
 }
 
 function clearSession() {
-    BrowserSession.clear();
+    BrowserSession.signOut();
 }
 
 function redirectWithToast(message, target) {
@@ -1600,7 +1600,7 @@ async function toggleUserRole(userId, targetRole, button) {
                 ...adminState.currentUser,
                 role: targetRole
             };
-            BrowserSession.establish({ ...updatedUser, token: BrowserSession.current().token });
+            BrowserSession.signIn({ ...updatedUser, token: BrowserSession.current().token });
             adminState.currentUser = updatedUser;
             updateAdminProfile();
 

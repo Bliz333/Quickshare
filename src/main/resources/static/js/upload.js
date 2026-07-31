@@ -163,11 +163,10 @@ async function uploadAndShare() {
             const formData = new FormData();
             formData.append('file', file, normalizeUploadFileName(file));
 
-            const upRes = await BrowserSession.request(`${API_BASE}/upload`, {
+            const upData = await BrowserSession.upload(`${API_BASE}/upload`, {
                 method: 'POST',
                 body: formData
             });
-            const upData = await upRes.json();
 
             if (upData.code !== 200) {
                 throw new Error(upData.message || 'Upload failed');

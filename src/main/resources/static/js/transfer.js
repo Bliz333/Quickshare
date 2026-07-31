@@ -461,59 +461,36 @@ async function uploadSingleFile(file) {
     animateToTransferButton();
 
     try {
-        const result = await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            const uploadUrl = `${API_BASE}/upload`;
-            xhr.open('POST', uploadUrl);
-            BrowserSession.prepareXhr(xhr, uploadUrl);
+        const controller = new AbortController();
+        TransferManager.controllers.set(taskId, controller);
 
-            // 存储 xhr 用于取消
-            TransferManager.controllers.set(taskId, {
-                abort: () => {
-                    xhr.abort();
+        const formData = new FormData();
+        formData.append('file', file);
+        if (currentFolder) {
+            formData.append('folderId', currentFolder);
+        }
+
+        const result = await BrowserSession.upload(`${API_BASE}/upload`, {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal,
+            onProgress(event) {
+                if (!event.lengthComputable) {
+                    return;
                 }
-            });
 
-            xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                    // 检查是否已取消
-                    const task = TransferManager.tasks.find(t => t.id === taskId);
-                    if (task && task.status === 'cancelled') {
-                        xhr.abort();
-                        return;
-                    }
-
-                    const progress = Math.round((e.loaded / e.total) * 100);
-                    TransferManager.updateTask(taskId, {
-                        progress: progress,
-                        loaded: e.loaded,
-                        total: e.total
-                    });
+                const task = TransferManager.tasks.find(item => item.id === taskId);
+                if (task && task.status === 'cancelled') {
+                    controller.abort();
+                    return;
                 }
-            };
 
-            xhr.onload = () => {
-                if (xhr.status === 200) {
-                    try {
-                        resolve(JSON.parse(xhr.responseText));
-                    } catch (e) {
-                        reject(new Error(t('parseResponseFailed')));
-                    }
-                } else {
-                    reject(new Error(xhr.statusText || '上传失败'));
-                }
-            };
-
-            xhr.onerror = () => reject(new Error(t('networkError')));
-            xhr.onabort = () => reject(new Error('AbortError'));
-
-            const formData = new FormData();
-            formData.append('file', file);
-            if (currentFolder) {
-                formData.append('folderId', currentFolder);
+                TransferManager.updateTask(taskId, {
+                    progress: Math.round((event.loaded / event.total) * 100),
+                    loaded: event.loaded,
+                    total: event.total
+                });
             }
-
-            xhr.send(formData);
         });
 
         if (result.code === 200) {
@@ -531,7 +508,7 @@ async function uploadSingleFile(file) {
         }
 
     } catch (error) {
-        if (error.message === 'AbortError') {
+        if (error.name === 'AbortError' || error.message === 'AbortError') {
             // 已在 cancelTask 中处理状态
             console.log('上传已取消:', file.name);
         } else {

@@ -98,7 +98,7 @@ async function handleLogout() {
         return;
     }
 
-    BrowserSession.clear();
+    BrowserSession.signOut();
     location.reload();
 }
 

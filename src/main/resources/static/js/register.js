@@ -336,7 +336,7 @@ async function handleRegister(event) {
         const result = await res.json();
 
         if (result.code === 200) {
-            BrowserSession.establish(result.data);
+            BrowserSession.signIn(result.data);
 
             showToast(t('registerSuccess'), 'success');
 

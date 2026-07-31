@@ -262,7 +262,7 @@
         .then(function (r) { return r.json(); })
         .then(function (result) {
             if (result.code === 200 && result.data) {
-                BrowserSession.establish(result.data);
+                BrowserSession.signIn(result.data);
                 showToast(t('登录成功', 'Signed in'), 'success');
                 setTimeout(function () {
                     window.location.href = window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'

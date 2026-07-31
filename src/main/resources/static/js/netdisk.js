@@ -1724,7 +1724,7 @@ async function handleLogout() {
             </div>
         `,
         onConfirm: async ({ close }) => {
-            BrowserSession.clear();
+            BrowserSession.signOut();
             close();
             window.location.href = routeUrl('index.html');
         }

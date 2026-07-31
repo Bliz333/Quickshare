@@ -90,7 +90,7 @@ async function handleLogin(event) {
         const result = await response.json();
 
         if (result.code === 200) {
-            BrowserSession.establish(result.data);
+            BrowserSession.signIn(result.data);
 
             showToast(t('loginSuccess'), 'success');
 

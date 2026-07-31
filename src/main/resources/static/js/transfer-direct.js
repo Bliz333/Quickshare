@@ -2555,13 +2555,11 @@ const TransferDirectTransfer = (() => {
         formData.append('file', blob, transfer.fileName || `transfer-${transferId}`);
         formData.append('folderId', String(Number(folderId) || 0));
 
-        const response = await BrowserSession.request(`${API_BASE}/upload`, {
+        const result = await BrowserSession.upload(`${API_BASE}/upload`, {
             method: 'POST',
             body: formData
         });
-        const textBody = await response.text();
-        const result = textBody ? JSON.parse(textBody) : null;
-        if (!response.ok || !result || result.code !== 200) {
+        if (!result || result.code !== 200) {
             throw new Error(result?.message || 'Save direct transfer failed');
         }
 

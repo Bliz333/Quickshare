@@ -42,6 +42,10 @@ final class TransferAttemptLedger {
                     new TypeReference<List<TransferTaskAttemptVO>>() {
                     }
             );
+            if (parsed == null) {
+                log.warn("Failed to parse transfer attempt ledger: JSON root is null");
+                return new TransferAttemptLedger(List.of(), true);
+            }
             return new TransferAttemptLedger(parsed, false);
         } catch (IOException | RuntimeException ex) {
             log.warn("Failed to parse transfer attempt ledger: {}", ex.getMessage());

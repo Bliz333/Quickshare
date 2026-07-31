@@ -275,9 +275,12 @@ test.describe('BrowserSession interface', () => {
     expect(authorizationHeaders).toEqual(['Bearer token-initial', 'Bearer token-renewed']);
   });
 
-  test('isolates session credentials and state from third-party requests', async ({ page }) => {
+  test('isolates session credentials and state from third-party requests', async ({ page, baseURL }) => {
     const authorizationHeaders = [];
     let logoutRequests = 0;
+    const thirdPartyUrl = new URL(baseURL);
+    thirdPartyUrl.hostname = thirdPartyUrl.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
+    const thirdPartyOrigin = thirdPartyUrl.origin;
     await page.route('**/api/auth/logout', async (route) => {
       logoutRequests += 1;
       await route.fulfill({
@@ -286,7 +289,7 @@ test.describe('BrowserSession interface', () => {
         body: JSON.stringify({ code: 200 })
       });
     });
-    await page.route('https://third-party.test/session-probe', async (route) => {
+    await page.route(`${thirdPartyOrigin}/session-probe`, async (route) => {
       authorizationHeaders.push(route.request().headers().authorization || '');
       await route.fulfill({
         status: 200,
@@ -299,7 +302,7 @@ test.describe('BrowserSession interface', () => {
         body: JSON.stringify({ code: 200 })
       });
     });
-    await page.route('https://third-party.test/unauthorized', async (route) => {
+    await page.route(`${thirdPartyOrigin}/unauthorized`, async (route) => {
       authorizationHeaders.push(route.request().headers().authorization || '');
       await route.fulfill({
         status: 401,
@@ -308,7 +311,7 @@ test.describe('BrowserSession interface', () => {
         body: JSON.stringify({ code: 401 })
       });
     });
-    await page.route('https://third-party.test/upload-http-unauthorized', async (route) => {
+    await page.route(`${thirdPartyOrigin}/upload-http-unauthorized`, async (route) => {
       authorizationHeaders.push(route.request().headers().authorization || '');
       await route.fulfill({
         status: 401,
@@ -317,7 +320,7 @@ test.describe('BrowserSession interface', () => {
         body: JSON.stringify({ code: 401 })
       });
     });
-    await page.route('https://third-party.test/upload-json-unauthorized', async (route) => {
+    await page.route(`${thirdPartyOrigin}/upload-json-unauthorized`, async (route) => {
       authorizationHeaders.push(route.request().headers().authorization || '');
       await route.fulfill({
         status: 200,
@@ -327,18 +330,18 @@ test.describe('BrowserSession interface', () => {
       });
     });
 
-    const result = await page.evaluate(async () => {
+    const result = await page.evaluate(async (thirdPartyOrigin) => {
       BrowserSession.signIn({ token: 'private-token', username: 'alice' });
-      const response = await BrowserSession.request('https://third-party.test/session-probe');
-      const unauthorized = await BrowserSession.request('https://third-party.test/unauthorized');
+      const response = await BrowserSession.request(`${thirdPartyOrigin}/session-probe`);
+      const unauthorized = await BrowserSession.request(`${thirdPartyOrigin}/unauthorized`);
       await unauthorized.json();
       let uploadHttpError = '';
       try {
-        await BrowserSession.upload('https://third-party.test/upload-http-unauthorized');
+        await BrowserSession.upload(`${thirdPartyOrigin}/upload-http-unauthorized`);
       } catch (error) {
         uploadHttpError = error.message;
       }
-      const uploadJson = await BrowserSession.upload('https://third-party.test/upload-json-unauthorized');
+      const uploadJson = await BrowserSession.upload(`${thirdPartyOrigin}/upload-json-unauthorized`);
       return {
         status: response.status,
         unauthorizedStatus: unauthorized.status,
@@ -346,7 +349,7 @@ test.describe('BrowserSession interface', () => {
         uploadJsonCode: uploadJson.code,
         token: BrowserSession.current().token
       };
-    });
+    }, thirdPartyOrigin);
 
     expect(result).toEqual({
       status: 200,

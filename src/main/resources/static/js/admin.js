@@ -333,7 +333,6 @@ async function adminRequest(path, options = {}) {
     }
 
     if (response.status === 401 || result?.code === 401) {
-        clearSession();
         redirectWithToast(t('adminSessionExpired'), routeUrl('login.html'));
         throw new Error(t('adminSessionExpired'));
     }

@@ -610,7 +610,7 @@ const TransferSignalManager = (() => {
             state.rtcConfig = { directTransferEnabled: false, iceServers: [] };
             return state.rtcConfig;
         }
-        const response = await fetch(`${API_BASE}/public/transfer/rtc-config`);
+        const response = await BrowserSession.request(`${API_BASE}/public/transfer/rtc-config`);
         const result = await response.json();
         if (!response.ok || result.code !== 200) {
             throw new Error(result.message || 'RTC config failed');

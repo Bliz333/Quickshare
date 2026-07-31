@@ -167,6 +167,33 @@ test.describe('BrowserSession with in-memory adapter', () => {
     expect(adapter.calls).toHaveLength(1);
   });
 
+  test('keeps a newer profile when an older refresh completes late', async () => {
+    let resolveProfile;
+    const adapter = createMemoryAdapter((kind, call) => {
+      expect(kind).toBe('request');
+      expect(call.input).toBe('https://quickshare.test/api/profile');
+      return new Promise((resolve) => {
+        resolveProfile = resolve;
+      });
+    });
+    const session = createMemorySession(adapter);
+    session.signIn({ token: 'shared-token', username: 'alice', role: 'USER' });
+
+    const pending = session.refresh();
+    session.signIn({ token: 'shared-token', username: 'bob', role: 'ADMIN' });
+    resolveProfile(jsonResponse({
+      code: 200,
+      data: { username: 'alice', role: 'USER' }
+    }));
+
+    await expect(pending).resolves.toMatchObject({ username: 'bob', role: 'ADMIN' });
+    expect(session.current()).toMatchObject({
+      token: 'shared-token',
+      user: { username: 'bob', role: 'ADMIN' },
+      isAdmin: true
+    });
+  });
+
   test('parses uploads and keeps transport details behind the interface', async () => {
     const progress = [];
     const adapter = createMemoryAdapter((kind, call) => {
@@ -273,6 +300,35 @@ test.describe('BrowserSession interface', () => {
     expect(result.afterRenewal.token).toBe('token-renewed');
     expect(result.final.token).toBe('token-renewed');
     expect(authorizationHeaders).toEqual(['Bearer token-initial', 'Bearer token-renewed']);
+  });
+
+  test('captures renewal from owned static content without parsing it as a session envelope', async ({ page }) => {
+    await page.route('**/session-static.html', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        headers: { 'X-Auth-Refresh': 'token-from-static' },
+        body: '<main>static content</main>'
+      });
+    });
+
+    const result = await page.evaluate(async () => {
+      BrowserSession.signIn({ token: 'token-before-static', username: 'alice' });
+      const response = await BrowserSession.request('/session-static.html', {
+        sessionEnvelope: false
+      });
+      return {
+        body: await response.text(),
+        session: BrowserSession.current()
+      };
+    });
+
+    expect(result.body).toBe('<main>static content</main>');
+    expect(result.session).toMatchObject({
+      authenticated: true,
+      token: 'token-from-static',
+      user: { username: 'alice' }
+    });
   });
 
   test('isolates session credentials and state from third-party requests', async ({ page, baseURL }) => {

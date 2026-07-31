@@ -78,7 +78,7 @@ function localizeRegisterErrorMessage(message) {
 
 async function loadRegistrationSettings() {
     try {
-        const response = await fetch(`${API_BASE}/public/registration-settings`);
+        const response = await BrowserSession.request(`${API_BASE}/public/registration-settings`);
         const result = await response.json();
         if (response.ok && result?.code === 200 && result.data) {
             registrationSettings = {
@@ -257,7 +257,7 @@ async function sendVerificationCode() {
             locale: typeof getCurrentLanguage === 'function' ? getCurrentLanguage() : 'en'
         };
 
-        const res = await fetch(`${API_BASE}/auth/send-code`, {
+        const res = await BrowserSession.request(`${API_BASE}/auth/send-code`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -327,7 +327,7 @@ async function handleRegister(event) {
     };
 
     try {
-        const res = await fetch(`${API_BASE}/auth/register`, {
+        const res = await BrowserSession.request(`${API_BASE}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

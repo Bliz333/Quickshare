@@ -328,7 +328,7 @@
     }
 
     async function fetchAndDecrypt(url, e2ee) {
-        const response = await fetch(url);
+        const response = await BrowserSession.request(url, { sessionEnvelope: false });
         if (!response.ok) throw new Error('Encrypted file download failed');
         return decryptBlob(await response.blob(), e2ee);
     }

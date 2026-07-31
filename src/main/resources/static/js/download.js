@@ -251,7 +251,7 @@ async function getShareInfo() {
 
     try {
         const url = `${API_BASE}/share/${sCode}?extractCode=${encodeURIComponent(eCode)}`;
-        const res = await fetch(url);
+        const res = await BrowserSession.request(url);
         const data = await res.json();
 
         if (data.code !== 200) {

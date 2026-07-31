@@ -62,6 +62,7 @@
             authenticated: false,
             isAdmin: false
         });
+        let sessionVersion = 0;
 
         function normalizeRole(role) {
             return typeof role === 'string' && role.trim()
@@ -111,6 +112,7 @@
         }
 
         function removeLocalSession(reason) {
+            sessionVersion += 1;
             storage.removeItem('token');
             storage.removeItem('user');
             publishChange(reason);
@@ -141,14 +143,15 @@
             }
 
             const user = normalizeUser(next);
+            sessionVersion += 1;
             storage.setItem('token', token);
             storage.setItem('user', JSON.stringify(user));
             publishChange('established');
             return current();
         }
 
-        function captureRefreshedToken(response, expectedToken) {
-            if ((storage.getItem('token') || '') !== expectedToken) {
+        function captureRefreshedToken(response, expectedToken, expectedVersion) {
+            if (sessionVersion !== expectedVersion || (storage.getItem('token') || '') !== expectedToken) {
                 return null;
             }
             if (!response?.headers?.get) {
@@ -253,6 +256,7 @@
         async function request(input, init = {}) {
             const { sessionEnvelope = true, ...transportInit } = init;
             const session = current();
+            const requestVersion = sessionVersion;
             const owned = isOwnedRequest(input);
             const response = await adapter.request({
                 input,
@@ -263,11 +267,12 @@
 
             let responseSessionToken = session.token;
             if (owned) {
-                responseSessionToken = captureRefreshedToken(response, session.token);
+                responseSessionToken = captureRefreshedToken(response, session.token, requestVersion);
             }
             let unauthorizedHandled = false;
             const handleUnauthorized = () => {
-                if (!owned || unauthorizedHandled || responseSessionToken === null) {
+                if (!owned || unauthorizedHandled || responseSessionToken === null
+                    || sessionVersion !== requestVersion) {
                     return;
                 }
                 unauthorizedHandled = true;
@@ -281,6 +286,7 @@
 
         async function upload(input, init = {}) {
             const session = current();
+            const requestVersion = sessionVersion;
             const owned = isOwnedRequest(input);
             const response = await adapter.upload({
                 input,
@@ -291,10 +297,11 @@
 
             let responseSessionToken = session.token;
             if (owned) {
-                responseSessionToken = captureRefreshedToken(response, session.token);
+                responseSessionToken = captureRefreshedToken(response, session.token, requestVersion);
             }
 
-            if (owned && responseSessionToken !== null && response.status === 401) {
+            if (owned && responseSessionToken !== null && sessionVersion === requestVersion
+                && response.status === 401) {
                 expire('expired', responseSessionToken);
             }
 
@@ -309,7 +316,7 @@
                 throw new Error('Invalid upload response');
             }
 
-            if (owned && responseSessionToken !== null
+            if (owned && responseSessionToken !== null && sessionVersion === requestVersion
                 && Number(result?.code) === 401) {
                 expire('expired', responseSessionToken);
             }
@@ -320,9 +327,11 @@
         }
 
         async function refresh() {
-            if (!current().token) {
+            const session = current();
+            if (!session.token) {
                 return null;
             }
+            const requestVersion = sessionVersion;
 
             const response = await request(`${apiBase}/profile`);
             const result = await response.json();
@@ -331,6 +340,10 @@
             }
             if (!response.ok || Number(result?.code) !== 200 || !result.data) {
                 throw new Error(result?.message || 'Failed to load current profile');
+            }
+            if (sessionVersion !== requestVersion) {
+                const latest = current();
+                return latest.authenticated ? latest.user : null;
             }
             return signIn({ ...result.data, token: current().token }).user;
         }

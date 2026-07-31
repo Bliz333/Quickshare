@@ -81,7 +81,7 @@ async function handleLogin(event) {
     loginBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>' + t('loggingIn') + '</span>';
 
     try {
-        const response = await fetch(`${API_BASE}/auth/login`, {
+        const response = await BrowserSession.request(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })

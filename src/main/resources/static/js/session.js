@@ -255,7 +255,7 @@ const BrowserSession = (() => {
             } catch (error) {
                 result = null;
             }
-            if (xhr.status === 401 || Number(result?.code) === 401) {
+            if (owned && (xhr.status === 401 || Number(result?.code) === 401)) {
                 expire('expired');
             }
         }, { once: true });

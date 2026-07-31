@@ -53,6 +53,15 @@ test.describe('BrowserSession interface', () => {
 
   test('isolates session credentials and state from third-party requests', async ({ page }) => {
     const authorizationHeaders = [];
+    let logoutRequests = 0;
+    await page.route('**/api/auth/logout', async (route) => {
+      logoutRequests += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 200 })
+      });
+    });
     await page.route('https://third-party.test/session-probe', async (route) => {
       authorizationHeaders.push(route.request().headers().authorization || '');
       await route.fulfill({
@@ -75,21 +84,58 @@ test.describe('BrowserSession interface', () => {
         body: JSON.stringify({ code: 401 })
       });
     });
+    await page.route('https://third-party.test/xhr-http-unauthorized', async (route) => {
+      authorizationHeaders.push(route.request().headers().authorization || '');
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ code: 401 })
+      });
+    });
+    await page.route('https://third-party.test/xhr-json-unauthorized', async (route) => {
+      authorizationHeaders.push(route.request().headers().authorization || '');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ code: 401 })
+      });
+    });
 
     const result = await page.evaluate(async () => {
+      const requestXhr = (url) => new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        BrowserSession.prepareXhr(xhr, url);
+        xhr.onload = () => resolve(xhr.status);
+        xhr.onerror = () => reject(new Error('XHR failed'));
+        xhr.send();
+      });
       BrowserSession.establish({ token: 'private-token', username: 'alice' });
       const response = await BrowserSession.request('https://third-party.test/session-probe');
       const unauthorized = await BrowserSession.request('https://third-party.test/unauthorized');
       await unauthorized.json();
+      const xhrHttpStatus = await requestXhr('https://third-party.test/xhr-http-unauthorized');
+      const xhrJsonStatus = await requestXhr('https://third-party.test/xhr-json-unauthorized');
       return {
         status: response.status,
         unauthorizedStatus: unauthorized.status,
+        xhrHttpStatus,
+        xhrJsonStatus,
         token: BrowserSession.current().token
       };
     });
 
-    expect(result).toEqual({ status: 200, unauthorizedStatus: 401, token: 'private-token' });
-    expect(authorizationHeaders).toEqual(['', '']);
+    expect(result).toEqual({
+      status: 200,
+      unauthorizedStatus: 401,
+      xhrHttpStatus: 401,
+      xhrJsonStatus: 200,
+      token: 'private-token'
+    });
+    expect(authorizationHeaders).toEqual(['', '', '', '']);
+    expect(logoutRequests).toBe(0);
   });
 
   test('keeps cross-origin bearer requests non-credentialed by default', async ({ page, context }) => {

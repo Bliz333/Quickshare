@@ -23,13 +23,11 @@
         adapter,
         apiBase: typeof API_BASE === 'string' ? API_BASE : '/api',
         applicationOrigin: root.location.origin,
-        decodeBase64: root.atob.bind(root),
         emitChange(reason, session) {
             root.dispatchEvent(new CustomEvent('quickshare:sessionchange', {
                 detail: { reason, session }
             }));
         },
-        now: () => Date.now(),
         pageUrl: () => root.location.href,
         storage: root.localStorage
     });
@@ -41,9 +39,7 @@
             adapter,
             apiBase,
             applicationOrigin,
-            decodeBase64,
             emitChange = () => {},
-            now = () => Date.now(),
             pageUrl,
             storage
         } = options || {};
@@ -56,12 +52,6 @@
             throw new TypeError('BrowserSession requires a storage adapter');
         }
 
-        const emptySession = () => ({
-            token: '',
-            user: {},
-            authenticated: false,
-            isAdmin: false
-        });
         let sessionVersion = 0;
 
         function normalizeRole(role) {
@@ -92,21 +82,6 @@
             }
         }
 
-        function isExpiredJwt(token) {
-            const parts = String(token || '').split('.');
-            if (parts.length !== 3 || typeof decodeBase64 !== 'function') {
-                return false;
-            }
-            try {
-                const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-                const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
-                const payload = JSON.parse(decodeBase64(padded));
-                return Number.isFinite(Number(payload.exp)) && Number(payload.exp) * 1000 <= now();
-            } catch (error) {
-                return false;
-            }
-        }
-
         function publishChange(reason) {
             emitChange(reason, current());
         }
@@ -120,11 +95,6 @@
 
         function current() {
             const token = storage.getItem('token') || '';
-            if (token && isExpiredJwt(token)) {
-                expire('expired');
-                return emptySession();
-            }
-
             const user = readUser();
             const authenticated = Boolean(token && user.username);
             return {

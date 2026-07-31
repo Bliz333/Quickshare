@@ -56,7 +56,6 @@ function createMemorySession(adapter, storage = createMemoryStorage()) {
     adapter,
     apiBase: 'https://quickshare.test/api',
     applicationOrigin: 'https://quickshare.test',
-    decodeBase64: (value) => Buffer.from(value, 'base64').toString('utf8'),
     pageUrl: () => 'https://quickshare.test/login',
     storage
   });
@@ -91,6 +90,32 @@ test.describe('BrowserSession with in-memory adapter', () => {
       input: 'https://quickshare.test/api/auth/logout',
       token: 'token-renewed'
     });
+  });
+
+  test('defers stale local JWT expiry to the server-backed session outcome', async () => {
+    const expiredPayload = Buffer.from(JSON.stringify({ exp: 1 })).toString('base64url');
+    const expiredToken = `header.${expiredPayload}.signature`;
+    const adapter = createMemoryAdapter((kind, call) => {
+      expect(kind).toBe('request');
+      expect(call.input).toBe('https://quickshare.test/api/profile');
+      return jsonResponse({ code: 200, data: { username: 'alice' } });
+    });
+    const session = createMemorySession(adapter);
+
+    session.signIn({ token: expiredToken, username: 'alice' });
+
+    // Media requests can renew the HttpOnly cookie without updating local storage.
+    expect(session.current()).toMatchObject({
+      authenticated: true,
+      token: expiredToken,
+      user: { username: 'alice' }
+    });
+    expect(adapter.calls).toHaveLength(0);
+
+    const response = await session.request('https://quickshare.test/api/profile');
+    expect(await response.json()).toEqual({ code: 200, data: { username: 'alice' } });
+    expect(session.current()).toMatchObject({ authenticated: true, token: expiredToken });
+    expect(adapter.calls).toHaveLength(1);
   });
 
   test('keeps third-party outcomes isolated and expires owned unauthorized sessions', async () => {

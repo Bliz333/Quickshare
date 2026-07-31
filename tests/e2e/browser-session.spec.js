@@ -51,10 +51,10 @@ test.describe('BrowserSession interface', () => {
     expect(authorizationHeaders).toEqual(['Bearer token-initial', 'Bearer token-renewed']);
   });
 
-  test('does not attach session tokens to third-party requests', async ({ page }) => {
-    let authorization = null;
+  test('isolates session credentials and state from third-party requests', async ({ page }) => {
+    const authorizationHeaders = [];
     await page.route('https://third-party.test/session-probe', async (route) => {
-      authorization = route.request().headers().authorization || '';
+      authorizationHeaders.push(route.request().headers().authorization || '');
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -66,15 +66,30 @@ test.describe('BrowserSession interface', () => {
         body: JSON.stringify({ code: 200 })
       });
     });
+    await page.route('https://third-party.test/unauthorized', async (route) => {
+      authorizationHeaders.push(route.request().headers().authorization || '');
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ code: 401 })
+      });
+    });
 
     const result = await page.evaluate(async () => {
       BrowserSession.establish({ token: 'private-token', username: 'alice' });
       const response = await BrowserSession.request('https://third-party.test/session-probe');
-      return { status: response.status, token: BrowserSession.current().token };
+      const unauthorized = await BrowserSession.request('https://third-party.test/unauthorized');
+      await unauthorized.json();
+      return {
+        status: response.status,
+        unauthorizedStatus: unauthorized.status,
+        token: BrowserSession.current().token
+      };
     });
 
-    expect(result).toEqual({ status: 200, token: 'private-token' });
-    expect(authorization).toBe('');
+    expect(result).toEqual({ status: 200, unauthorizedStatus: 401, token: 'private-token' });
+    expect(authorizationHeaders).toEqual(['', '']);
   });
 
   test('keeps cross-origin bearer requests non-credentialed by default', async ({ page, context }) => {

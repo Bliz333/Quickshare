@@ -210,17 +210,18 @@ const BrowserSession = (() => {
             init.headers || (typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined)
         );
         const session = current();
-        if (session.token && isOwnedRequest(input) && !headers.has('Authorization')) {
+        const owned = isOwnedRequest(input);
+        if (session.token && owned && !headers.has('Authorization')) {
             headers.set('Authorization', `Bearer ${session.token}`);
         }
 
         const response = await nativeFetch(input, { ...init, headers });
-        if (isOwnedRequest(input)) {
+        if (owned) {
             captureRefreshedToken(response);
         }
         let unauthorizedHandled = false;
         const handleUnauthorized = () => {
-            if (unauthorizedHandled) {
+            if (!owned || unauthorizedHandled) {
                 return;
             }
             unauthorizedHandled = true;

@@ -43,6 +43,7 @@ Thumbs.db
 
 ### Local env ###
 .env
+src/main/resources/application-local.yml
 /.agents/local/
 DEPLOYED_COMMIT
 

@@ -80,4 +80,4 @@ Quick Transfer 是当前产品/代码名称。旧 QuickDrop 名称只存在于�
 - attempt 状态：检查 `TransferAttemptLedger`、两个 service 和前端格式化文案。
 - chunk 格式/E2EE：前后端尺寸、续传索引、下载解密和失败恢复一起验证。
 - 路由/命名：canonical 与 legacy 两组入口一起验证；兼容删除需要明确产品决定。
-- 页面行为：mock Playwright 后再按需要运行真实双页 `quickdrop-real.spec.js`。
+- 页面行为：先跑 mock Playwright；`quickdrop-real.spec.js` 只能补 live 登录、设备发现和发送选择器证据。文件发送、DataChannel、relay fallback 与 TURN 需要真实双端验收或新的自动化用例。

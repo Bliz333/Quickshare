@@ -22,5 +22,5 @@
 
 - 任意 JS 改动先运行 `./scripts/check-js.sh`。
 - 共享逻辑或路由改动运行 `tests/e2e/web-logic-regressions.spec.js` 和最近的 mock Playwright 用例。
-- Transfer 改动运行 `tests/e2e/quickdrop.spec.js`；需要真实后端 / WebRTC 时再运行 `tests/e2e/quickdrop-real.spec.js`。
+- Transfer 改动运行 `tests/e2e/quickdrop.spec.js`。`tests/e2e/quickdrop-real.spec.js` 只覆盖真实登录、设备注册/发现和发送选择器；文件发送、DataChannel、relay fallback 与 TURN 需要单独的真实双端验收或新增自动化用例。
 - 任何可见改动遵循全局 live review 规则：先做桌面与移动视口浏览器自检，再给精确 URL、位置与预期表现。

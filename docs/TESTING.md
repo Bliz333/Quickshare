@@ -29,8 +29,10 @@ git diff --check
 
 ```bash
 ./scripts/check-js.sh
-npx playwright test tests/e2e/<nearest>.spec.js
+npx playwright test tests/e2e/web-logic-regressions.spec.js
 ```
+
+页面专属行为应把示例文件替换为 `tests/e2e/` 中实际存在的最近用例，不在命令中使用尖括号占位符。
 
 共享前端 helper / clean route / session 改动追加：
 
@@ -46,15 +48,15 @@ npx playwright test tests/e2e/web-logic-regressions.spec.js
 npx playwright test tests/e2e/quickdrop.spec.js
 ```
 
-只有需要证明真实后端、双页 WebSocket/WebRTC 或 TURN 条件时才运行：
+需要证明真实后端登录、设备同步和双页设备发现时运行：
 
 ```bash
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 \
-PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:8080 \
+PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:8080/api \
 npx playwright test tests/e2e/quickdrop-real.spec.js
 ```
 
-`quickdrop-real` 的文件名是兼容历史；它验证的是当前 Quick Transfer。最终走 `relay` 可能是网络条件的合理 fallback，只有验收明确要求 direct 时才把未命中 direct 判失败。
+`quickdrop-real` 的文件名是兼容历史；当前用例只验证真实登录、两台设备注册/发现和发送选择器，不发送文件，也不证明 WebRTC DataChannel、relay fallback 或 TURN。涉及这些链路时，必须补真实双端传输验收或新增相应自动化用例；不能用该用例通过代替。
 
 ## Release-ready
 

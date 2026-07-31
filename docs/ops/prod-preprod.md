@@ -30,24 +30,28 @@ Never reuse production JWT, encryption, database, payment, mail or TURN secrets 
 
 ## Pre-production Deployment
 
-The existing script can fetch a branch directly or use git-bundle/snapshot fallbacks. It performs capacity checks and can run smoke gates:
+The existing script can fetch the current branch or use git-bundle/snapshot fallbacks. Run it from a clean, checked-out task branch at the exact candidate commit:
 
 ```bash
-DEPLOY_GIT_BRANCH=<task-branch> \
+git status --short
+git rev-parse HEAD
 DEPLOY_RUN_SMOKE=1 \
 DEPLOY_RUN_BROWSER_SMOKE=1 \
 ./scripts/deploy-preprod.sh
 ```
 
-The configured remote should remain a real Git worktree backed by a local mirror. `compose.yaml` is the repository Compose file; do not document or depend on an untracked `docker-compose.yml` copy.
+Do not set `DEPLOY_GIT_BRANCH` to a branch other than the current checkout: the snapshot fallback packages current `HEAD`. The configured remote should remain a real Git worktree backed by a local mirror. `compose.yaml` is the repository Compose file; do not document or depend on an untracked `docker-compose.yml` copy.
 
 After deployment, verify the exact deployed SHA, not only HTTP 200:
 
 ```bash
+quickshare-test-ssh 'cat /root/quickshare/DEPLOYED_COMMIT'
 curl -fsS http://127.0.0.1:8080/api/health
 curl -fsS http://127.0.0.1:8080/api/public/transfer/rtc-config
 ./scripts/quickshare-smoke.sh
 ```
+
+The reported `DEPLOYED_COMMIT` must equal the local `git rev-parse HEAD` captured before deployment.
 
 Use `./scripts/quickshare-resource-check.sh --report-only` before and after expensive rebuilds on constrained hosts.
 

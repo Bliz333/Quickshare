@@ -7,15 +7,24 @@
 - `.env`、本地 profile、SSH key、支付/SMTP/S3/TURN/Google 凭据不得被追踪。
 - `.env.example` 只保留公开占位值和示例域名；`JWT_SECRET`、`SETTING_ENCRYPT_KEY` 保持为空以触发生产启动校验，数据库 starter 口令必须在对外部署前替换。
 - 真实主机、用户名、IP、密钥路径放 `.agents/local/` 或本机 SSH config。
-- 发布前扫描新增内容，不在命令里回显 secret 值：
+- 发布前扫描已提交候选 diff 和暂存版本中的非空凭据赋值。下面的命令只输出文件名，不回显 secret 值：
 
 ```bash
-git diff --cached --name-only
-rg -n 'BEGIN .*PRIVATE KEY|Authorization: Bearer|gh[opusr]_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}' \
-  README*.md docs src scripts .env.example compose.yaml
+TARGET_BASE=origin/main
+{
+  git diff --name-only --diff-filter=ACMR \
+    "$(git merge-base "$TARGET_BASE" HEAD)"...HEAD
+  git diff --cached --name-only --diff-filter=ACMR
+} | sort -u |
+while IFS= read -r candidate_file; do
+  if git show ":$candidate_file" 2>/dev/null |
+    rg -q -I '(?i)(BEGIN[[:space:]].*PRIVATE[[:space:]]KEY|Authorization:[[:space:]]+Bearer[[:space:]]+[A-Za-z0-9._~+/=-]{12,}|gh[opusr]_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|(jwt[_-]?secret|setting[_-]?encrypt[_-]?key|(?:db|mysql|redis|mail|smtp|s3|turn|payment|epay|recaptcha|google|bootstrap)[a-z0-9_.-]*(?:password|secret|token|key|credential))[[:space:]]*[:=][[:space:]]*[^$<{[:space:]#][^[:space:]#]*)'; then
+    printf '%s\n' "$candidate_file"
+  fi
+done
 ```
 
-命中只是线索，需要区分变量名/占位符与真实值。
+该扫描覆盖 JWT、运行时设置加密、数据库、Redis、邮件、S3、TURN、支付、Google/reCAPTCHA 与管理员 bootstrap 凭据。命中只是线索，需要在不复制值到日志或 PR 的前提下区分示例值与真实值；公开的 starter 口令也应在发布前替换。
 
 ## 2. 文档与运行一致性
 
@@ -30,8 +39,16 @@ rg -n 'BEGIN .*PRIVATE KEY|Authorization: Bearer|gh[opusr]_[A-Za-z0-9_]{20,}|AKI
 
 ```bash
 ./scripts/release-ready.sh
+git diff --cached --check
 git diff --check
 git status --short
+```
+
+候选已经提交后，用冻结的目标基线检查整个候选 diff：
+
+```bash
+TARGET_BASE=origin/main
+git diff --check "$(git merge-base "$TARGET_BASE" HEAD)"...HEAD
 ```
 
 运行态候选在隔离环境追加：
@@ -44,7 +61,8 @@ RELEASE_READY_FULL=1 ./scripts/release-ready.sh
 
 ```bash
 git status --short --branch
-git diff --stat <target>...HEAD
+TARGET_BASE=origin/main
+git diff --stat "$TARGET_BASE"...HEAD
 git remote -v
 git log -1 --format='%h %an <%ae> | %cn <%ce> | %s'
 ```

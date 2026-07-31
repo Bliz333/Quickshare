@@ -13,7 +13,7 @@
 | 共享 service / security / storage / migration | compile + 所有相关 JUnit | 全 Maven suite、Compose smoke |
 | 单个 JS / 页面逻辑 | `./scripts/check-js.sh` + 最近 mock Playwright | `web-logic-regressions.spec.js` |
 | 可见前端 | JS + Playwright + 浏览器桌面/移动自检 | Compose live backend、真实上传/登录 |
-| Transfer / WebRTC / E2EE | JS、Transfer JUnit、`quickdrop.spec.js` | `quickdrop-real.spec.js`、TURN 网络实测 |
+| Transfer / WebRTC / E2EE | JS、Transfer JUnit、`quickdrop.spec.js` | `quickdrop-real.spec.js` 做 live 设备发现；真实双端文件传输、DataChannel/relay/TURN 实测 |
 | 发布候选 | `./scripts/release-ready.sh` | `RELEASE_READY_FULL=1 ./scripts/release-ready.sh` |
 
 ## 常用命令
@@ -39,9 +39,11 @@ npx playwright install chromium
 npx playwright test tests/e2e/web-logic-regressions.spec.js
 npx playwright test tests/e2e/quickdrop.spec.js
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 \
-PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:8080 \
+PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:8080/api \
 npx playwright test tests/e2e/quickdrop-real.spec.js
 ```
+
+当前 `quickdrop-real.spec.js` 到打开发送选择器为止，不发送文件，也不观测 DataChannel、direct/relay 最终模式或 TURN。它只能作为 live 登录、设备注册/发现和页面接线证据。
 
 ## Java 测试选择
 

@@ -147,15 +147,20 @@
             return current();
         }
 
-        function captureRefreshedToken(response) {
+        function captureRefreshedToken(response, expectedToken) {
+            if ((storage.getItem('token') || '') !== expectedToken) {
+                return null;
+            }
             if (!response?.headers?.get) {
-                return;
+                return expectedToken;
             }
             const renewed = response.headers.get(REFRESH_HEADER);
-            if (renewed && renewed !== storage.getItem('token')) {
+            if (renewed && renewed !== expectedToken) {
                 storage.setItem('token', renewed);
                 publishChange('renewed');
+                return renewed;
             }
+            return expectedToken;
         }
 
         function requestOrigin(input) {
@@ -190,12 +195,16 @@
             }
         }
 
-        function expire(reason) {
+        function expire(reason, expectedToken) {
             const token = storage.getItem('token') || '';
+            if (expectedToken !== undefined && token !== expectedToken) {
+                return false;
+            }
             if (token || storage.getItem('user')) {
                 removeLocalSession(reason || 'expired');
             }
             notifyServerLogout(token);
+            return true;
         }
 
         function signOut() {
@@ -210,23 +219,27 @@
             }
         }
 
-        function monitorResponse(response, onUnauthorized) {
+        function monitorResponse(response, onUnauthorized, sessionEnvelope) {
             return new Proxy(response, {
                 get(target, property) {
                     if (property === 'json') {
                         return async function parseMonitoredJson() {
                             const result = await target.json();
-                            reconcilePayload(result, onUnauthorized);
+                            if (sessionEnvelope) {
+                                reconcilePayload(result, onUnauthorized);
+                            }
                             return result;
                         };
                     }
                     if (property === 'text') {
                         return async function parseMonitoredText() {
                             const text = await target.text();
-                            try {
-                                reconcilePayload(text ? JSON.parse(text) : null, onUnauthorized);
-                            } catch (error) {
-                                // Non-JSON response bodies have no session envelope.
+                            if (sessionEnvelope) {
+                                try {
+                                    reconcilePayload(text ? JSON.parse(text) : null, onUnauthorized);
+                                } catch (error) {
+                                    // Non-JSON response bodies have no session envelope.
+                                }
                             }
                             return text;
                         };
@@ -238,30 +251,32 @@
         }
 
         async function request(input, init = {}) {
+            const { sessionEnvelope = true, ...transportInit } = init;
             const session = current();
             const owned = isOwnedRequest(input);
             const response = await adapter.request({
                 input,
-                init,
+                init: transportInit,
                 owned,
                 token: owned ? session.token : ''
             });
 
+            let responseSessionToken = session.token;
             if (owned) {
-                captureRefreshedToken(response);
+                responseSessionToken = captureRefreshedToken(response, session.token);
             }
             let unauthorizedHandled = false;
             const handleUnauthorized = () => {
-                if (!owned || unauthorizedHandled) {
+                if (!owned || unauthorizedHandled || responseSessionToken === null) {
                     return;
                 }
                 unauthorizedHandled = true;
-                expire('expired');
+                expire('expired', responseSessionToken);
             };
             if (response.status === 401) {
                 handleUnauthorized();
             }
-            return monitorResponse(response, handleUnauthorized);
+            return monitorResponse(response, handleUnauthorized, sessionEnvelope);
         }
 
         async function upload(input, init = {}) {
@@ -274,8 +289,9 @@
                 token: owned ? session.token : ''
             });
 
+            let responseSessionToken = session.token;
             if (owned) {
-                captureRefreshedToken(response);
+                responseSessionToken = captureRefreshedToken(response, session.token);
             }
 
             const text = await response.text();
@@ -286,8 +302,9 @@
                 throw new Error('Invalid upload response');
             }
 
-            if (owned && (response.status === 401 || Number(result?.code) === 401)) {
-                expire('expired');
+            if (owned && responseSessionToken !== null
+                && (response.status === 401 || Number(result?.code) === 401)) {
+                expire('expired', responseSessionToken);
             }
             if (!response.ok) {
                 throw new Error(result?.message || response.statusText || 'Upload failed');

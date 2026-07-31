@@ -120,6 +120,53 @@ test.describe('BrowserSession with in-memory adapter', () => {
     });
   });
 
+  test('does not treat raw same-origin file contents as a session envelope', async () => {
+    const adapter = createMemoryAdapter(() => jsonResponse({ code: 401 }));
+    const session = createMemorySession(adapter);
+    session.signIn({ token: 'private-token', username: 'alice' });
+
+    const response = await session.request('https://quickshare.test/api/files/7/content', {
+      sessionEnvelope: false
+    });
+    expect(await response.text()).toBe('{"code":401}');
+    expect(session.current()).toMatchObject({
+      authenticated: true,
+      token: 'private-token'
+    });
+    expect(adapter.calls).toHaveLength(1);
+    expect(adapter.calls[0].init).toEqual({});
+  });
+
+  test('ignores stale renewal and unauthorized outcomes after the session changes', async () => {
+    let resolveRequest;
+    const adapter = createMemoryAdapter((kind, call) => {
+      if (call.input.endsWith('/auth/logout')) {
+        return jsonResponse({ code: 200 });
+      }
+      return new Promise((resolve) => {
+        resolveRequest = resolve;
+      });
+    });
+    const session = createMemorySession(adapter);
+    session.signIn({ token: 'token-a', username: 'alice' });
+
+    const pending = session.request('https://quickshare.test/api/private');
+    session.signIn({ token: 'token-b', username: 'bob' });
+    resolveRequest(jsonResponse(
+      { code: 401 },
+      { status: 401, refreshedToken: 'token-a-renewed' }
+    ));
+    const response = await pending;
+    await response.json();
+
+    expect(session.current()).toMatchObject({
+      authenticated: true,
+      token: 'token-b',
+      user: { username: 'bob' }
+    });
+    expect(adapter.calls).toHaveLength(1);
+  });
+
   test('parses uploads and keeps transport details behind the interface', async () => {
     const progress = [];
     const adapter = createMemoryAdapter((kind, call) => {

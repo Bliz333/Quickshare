@@ -103,6 +103,21 @@ const BrowserSession = (() => {
         }
     }
 
+    function installFetchRenewalCapture() {
+        if (window.__quickshareFetchRenewalCaptureInstalled) {
+            return;
+        }
+        window.fetch = function monitoredFetch(input, init) {
+            return nativeFetch(input, init).then((response) => {
+                if (isOwnedRequest(input)) {
+                    captureRefreshedToken(response);
+                }
+                return response;
+            });
+        };
+        window.__quickshareFetchRenewalCaptureInstalled = true;
+    }
+
     function captureRefreshedXhrToken(xhr) {
         if (typeof xhr?.getResponseHeader !== 'function') {
             return;
@@ -119,7 +134,7 @@ const BrowserSession = (() => {
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
             nativeFetch(`${API_BASE}/auth/logout`, {
                 method: 'POST',
-                credentials: 'include',
+                credentials: 'same-origin',
                 keepalive: true,
                 headers
             }).catch(() => {});
@@ -199,16 +214,10 @@ const BrowserSession = (() => {
             headers.set('Authorization', `Bearer ${session.token}`);
         }
 
-        const options = { ...init, headers };
-        if (!Object.prototype.hasOwnProperty.call(init, 'credentials')) {
-            const origin = requestOrigin(input);
-            options.credentials = origin && origin !== window.location.origin && isOwnedRequest(input)
-                ? 'include'
-                : 'same-origin';
+        const response = await nativeFetch(input, { ...init, headers });
+        if (isOwnedRequest(input)) {
+            captureRefreshedToken(response);
         }
-
-        const response = await nativeFetch(input, options);
-        captureRefreshedToken(response);
         let unauthorizedHandled = false;
         const handleUnauthorized = () => {
             if (unauthorizedHandled) {
@@ -233,9 +242,10 @@ const BrowserSession = (() => {
         if (session.token && owned) {
             xhr.setRequestHeader('Authorization', `Bearer ${session.token}`);
         }
-        xhr.withCredentials = owned;
         xhr.addEventListener('load', () => {
-            captureRefreshedXhrToken(xhr);
+            if (owned) {
+                captureRefreshedXhrToken(xhr);
+            }
             let result = null;
             try {
                 result = xhr.responseType === '' || xhr.responseType === 'text'
@@ -266,6 +276,8 @@ const BrowserSession = (() => {
         }
         return establish({ ...result.data, token: current().token }).user;
     }
+
+    installFetchRenewalCapture();
 
     return {
         clear,

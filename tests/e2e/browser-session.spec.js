@@ -58,19 +58,110 @@ test.describe('BrowserSession interface', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        headers: { 'Access-Control-Allow-Origin': '*' },
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Expose-Headers': 'X-Auth-Refresh',
+          'X-Auth-Refresh': 'untrusted-token'
+        },
         body: JSON.stringify({ code: 200 })
       });
     });
 
-    const status = await page.evaluate(async () => {
+    const result = await page.evaluate(async () => {
       BrowserSession.establish({ token: 'private-token', username: 'alice' });
       const response = await BrowserSession.request('https://third-party.test/session-probe');
-      return response.status;
+      return { status: response.status, token: BrowserSession.current().token };
     });
 
-    expect(status).toBe(200);
+    expect(result).toEqual({ status: 200, token: 'private-token' });
     expect(authorization).toBe('');
+  });
+
+  test('keeps cross-origin bearer requests non-credentialed by default', async ({ page, context }) => {
+    await context.addCookies([{
+      name: 'quickshare_session',
+      value: 'cookie-secret',
+      url: 'http://localhost:8080'
+    }]);
+
+    const received = [];
+    await page.route('http://localhost:3000/login.html', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<!doctype html><title>Cross-origin BrowserSession test</title>'
+      });
+    });
+    await page.route('http://localhost:8080/api/cross-origin-*', async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': 'http://localhost:3000',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Authorization'
+          }
+        });
+        return;
+      }
+      received.push({
+        path: new URL(request.url()).pathname,
+        authorization: request.headers().authorization || '',
+        cookie: request.headers().cookie || ''
+      });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': 'http://localhost:3000' },
+        body: JSON.stringify({ code: 200 })
+      });
+    });
+
+    await page.goto('http://localhost:3000/login.html', { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: 'src/main/resources/static/js/config.js' });
+    await page.addScriptTag({ path: 'src/main/resources/static/js/session.js' });
+    const result = await page.evaluate(async () => {
+      BrowserSession.establish({ token: 'cross-origin-token', username: 'alice' });
+      const response = await BrowserSession.request(`${API_BASE}/cross-origin-fetch`);
+      const xhrStatus = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const url = `${API_BASE}/cross-origin-xhr`;
+        xhr.open('POST', url);
+        BrowserSession.prepareXhr(xhr, url);
+        xhr.onload = () => resolve(xhr.status);
+        xhr.onerror = () => reject(new Error('XHR failed'));
+        xhr.send();
+      });
+      return { fetchStatus: response.status, xhrStatus };
+    });
+
+    expect(result).toEqual({ fetchStatus: 200, xhrStatus: 200 });
+    expect(received).toEqual([
+      { path: '/api/cross-origin-fetch', authorization: 'Bearer cross-origin-token', cookie: '' },
+      { path: '/api/cross-origin-xhr', authorization: 'Bearer cross-origin-token', cookie: '' }
+    ]);
+  });
+
+  test('captures renewal from remaining native fetch callers', async ({ page }) => {
+    await page.route('**/api/native-renewal', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'X-Auth-Refresh': 'native-token-renewed' },
+        body: JSON.stringify({ code: 200 })
+      });
+    });
+
+    const session = await page.evaluate(async () => {
+      BrowserSession.establish({ token: 'native-token-initial', username: 'alice' });
+      const response = await fetch(`${API_BASE}/native-renewal`);
+      await response.json();
+      return BrowserSession.current();
+    });
+
+    expect(session.token).toBe('native-token-renewed');
+    expect(session.authenticated).toBe(true);
   });
 
   test('converges local and cookie sessions for HTTP and JSON unauthorized responses', async ({ page }) => {

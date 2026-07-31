@@ -191,6 +191,34 @@ test.describe('BrowserSession with in-memory adapter', () => {
       token: 'upload-token'
     });
   });
+
+  test('expires owned uploads before parsing unauthorized response bodies', async () => {
+    const adapter = createMemoryAdapter((kind, call) => {
+      if (call.input.endsWith('/auth/logout')) {
+        return jsonResponse({ code: 200 });
+      }
+      expect(kind).toBe('upload');
+      return {
+        headers: { get: () => null },
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: async () => '<html>Unauthorized</html>'
+      };
+    });
+    const session = createMemorySession(adapter);
+    session.signIn({ token: 'upload-token', username: 'alice' });
+
+    await expect(session.upload('https://quickshare.test/api/upload', {
+      body: 'payload'
+    })).rejects.toThrow('Unauthorized');
+
+    expect(session.current().authenticated).toBe(false);
+    expect(adapter.calls[1]).toMatchObject({
+      input: 'https://quickshare.test/api/auth/logout',
+      token: 'upload-token'
+    });
+  });
 });
 
 test.describe('BrowserSession interface', () => {

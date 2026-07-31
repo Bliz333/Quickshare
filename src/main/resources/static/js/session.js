@@ -294,16 +294,23 @@
                 responseSessionToken = captureRefreshedToken(response, session.token);
             }
 
+            if (owned && responseSessionToken !== null && response.status === 401) {
+                expire('expired', responseSessionToken);
+            }
+
             const text = await response.text();
             let result = null;
             try {
                 result = text ? JSON.parse(text) : null;
             } catch (error) {
+                if (!response.ok) {
+                    throw new Error(response.statusText || 'Upload failed');
+                }
                 throw new Error('Invalid upload response');
             }
 
             if (owned && responseSessionToken !== null
-                && (response.status === 401 || Number(result?.code) === 401)) {
+                && Number(result?.code) === 401) {
                 expire('expired', responseSessionToken);
             }
             if (!response.ok) {

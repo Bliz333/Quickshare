@@ -1,11 +1,6 @@
 package com.finalpre.quickshare.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.finalpre.quickshare.common.ResourceNotFoundException;
 import com.finalpre.quickshare.config.FileConfig;
 import com.finalpre.quickshare.config.TransferProperties;
@@ -48,9 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -65,16 +58,9 @@ public class TransferServiceImpl implements TransferService {
 
     private static final String MODE_RELAY = "relay";
     private static final String MODE_DIRECT = "direct";
-    private static final String MODE_HYBRID = "hybrid";
-
     private static final int MIN_CHUNK_SIZE = 256 * 1024;
     private static final int MAX_CHUNK_SIZE = 8 * 1024 * 1024;
     private static final int AES_GCM_RELAY_OVERHEAD_BYTES_PER_CHUNK = 28;
-
-    private static final ObjectMapper QUICKDROP_OBJECT_MAPPER = JsonMapper.builder()
-            .addModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            .build();
 
     @Autowired
     private TransferDeviceMapper transferDeviceMapper;
@@ -285,15 +271,14 @@ public class TransferServiceImpl implements TransferService {
                 completedChunks
         );
 
-        List<TransferTaskAttemptVO> attempts = parseTaskAttempts(task.getAttemptsJson());
         TransferTaskAttemptVO attempt = buildDirectAttempt(request, status, totalChunks, completedChunks, now);
-        upsertAttempt(attempts, attempt);
+        TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson()).upsert(attempt);
 
         task.setContentType(normalizeContentType(request.getContentType()));
         task.setFileName(fileName);
         task.setFileSize(fileSize);
         task.setTotalChunks(totalChunks);
-        task = saveTaskWithAttempts(task, attempts);
+        task = saveTaskWithAttempts(task, ledger);
         return toTaskVO(task, reporterDeviceId, buildDeviceNameLookup(loadDevices(userId, reporterDeviceId, LocalDateTime.now())));
     }
 
@@ -374,14 +359,12 @@ public class TransferServiceImpl implements TransferService {
     public void deleteDirectAttempt(Long userId, Long taskId, String deviceId, String clientTransferId) {
         requireOwnedDevice(userId, deviceId);
         TransferTask task = requireOwnedTask(userId, taskId);
-        List<TransferTaskAttemptVO> attempts = tryParseTaskAttempts(task.getAttemptsJson());
-        if (attempts == null) {
+        TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson());
+        if (ledger.isCorrupted()) {
             log.warn("Skip deleting Transfer direct attempt because attempts JSON is corrupted. taskId={}", taskId);
             return;
         }
-        attempts.removeIf(attempt -> MODE_DIRECT.equals(attempt.getTransferMode())
-                && Objects.equals(attempt.getTransferId(), normalizeClientTransferId(clientTransferId)));
-        saveTaskWithAttempts(task, attempts);
+        saveTaskWithAttempts(task, ledger.remove(MODE_DIRECT, normalizeClientTransferId(clientTransferId)));
     }
 
     @Override
@@ -390,7 +373,7 @@ public class TransferServiceImpl implements TransferService {
         TransferRelay transfer = requireOwnedTransfer(userId, transferId);
         if (transfer.getTaskId() != null) {
             TransferTask existingTask = transferTaskMapper.selectById(transfer.getTaskId());
-            if (existingTask != null && tryParseTaskAttempts(existingTask.getAttemptsJson()) == null) {
+            if (existingTask != null && TransferAttemptLedger.load(existingTask.getAttemptsJson()).isCorrupted()) {
                 log.warn("Skip deleting Transfer relay because task attempts JSON is corrupted. transferId={}, taskId={}", transferId, existingTask.getId());
                 return;
             }
@@ -399,14 +382,12 @@ public class TransferServiceImpl implements TransferService {
         deleteTransferFiles(transfer);
         transferTransferMapper.deleteById(transferId);
         if (task != null) {
-            List<TransferTaskAttemptVO> attempts = tryParseTaskAttempts(task.getAttemptsJson());
-            if (attempts == null) {
+            TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson());
+            if (ledger.isCorrupted()) {
                 log.warn("Skip updating Transfer task after relay deletion because attempts JSON is corrupted. taskId={}", task.getId());
                 return;
             }
-            attempts.removeIf(attempt -> MODE_RELAY.equals(attempt.getTransferMode())
-                    && Objects.equals(attempt.getTransferId(), String.valueOf(transferId)));
-            saveTaskWithAttempts(task, attempts);
+            saveTaskWithAttempts(task, ledger.remove(MODE_RELAY, String.valueOf(transferId)));
         }
     }
 
@@ -548,10 +529,9 @@ public class TransferServiceImpl implements TransferService {
             deleteTransferFiles(transfer);
             deleted += transferTransferMapper.deleteById(transfer.getId());
             if (task != null) {
-                List<TransferTaskAttemptVO> attempts = parseTaskAttempts(task.getAttemptsJson());
-                attempts.removeIf(attempt -> MODE_RELAY.equals(attempt.getTransferMode())
-                        && Objects.equals(attempt.getTransferId(), String.valueOf(transfer.getId())));
-                saveTaskWithAttempts(task, attempts);
+                TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson())
+                        .remove(MODE_RELAY, String.valueOf(transfer.getId()));
+                saveTaskWithAttempts(task, ledger);
             }
         }
 
@@ -681,8 +661,8 @@ public class TransferServiceImpl implements TransferService {
         vo.setTransferMode(task.getTransferMode());
         vo.setCurrentTransferMode(task.getCurrentTransferMode());
         vo.setStage(task.getStatus());
-        List<TransferTaskAttemptVO> attempts = sortTaskAttempts(parseTaskAttempts(task.getAttemptsJson()));
-        TransferAttemptLifecycleHelper.AttemptSummary summary = TransferAttemptLifecycleHelper.summarize(attempts);
+        TransferAttemptLedger.View ledger = TransferAttemptLedger.load(task.getAttemptsJson()).view();
+        TransferAttemptLedger.AttemptSummary summary = ledger.summary();
         vo.setAttemptStatus(summary.attemptStatus());
         vo.setStartReason(summary.startReason());
         vo.setEndReason(summary.endReason());
@@ -704,7 +684,7 @@ public class TransferServiceImpl implements TransferService {
         vo.setFailedAt(summary.failedAt());
         vo.setFallbackAt(summary.fallbackAt());
         vo.setSavedToNetdiskAt(task.getSavedToNetdiskAt() != null ? task.getSavedToNetdiskAt() : summary.savedToNetdiskAt());
-        vo.setAttempts(attempts);
+        vo.setAttempts(ledger.attempts());
         return vo;
     }
 
@@ -764,15 +744,14 @@ public class TransferServiceImpl implements TransferService {
             }
         }
 
-        List<TransferTaskAttemptVO> attempts = parseTaskAttempts(task.getAttemptsJson());
         TransferTaskAttemptVO attempt = buildRelayAttempt(transfer, savedToNetdisk);
-        upsertAttempt(attempts, attempt);
+        TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson()).upsert(attempt);
 
         task.setFileName(transfer.getFileName());
         task.setFileSize(transfer.getFileSize());
         task.setContentType(transfer.getContentType());
         task.setTotalChunks(transfer.getTotalChunks());
-        return saveTaskWithAttempts(task, attempts);
+        return saveTaskWithAttempts(task, ledger);
     }
 
     private TransferTask resolveOrCreateTask(Long userId,
@@ -844,83 +823,30 @@ public class TransferServiceImpl implements TransferService {
         return task;
     }
 
-    private TransferTask saveTaskWithAttempts(TransferTask task, List<TransferTaskAttemptVO> attempts) {
-        List<TransferTaskAttemptVO> normalizedAttempts = sortTaskAttempts(attempts);
-        if (normalizedAttempts.isEmpty()) {
+    private TransferTask saveTaskWithAttempts(TransferTask task, TransferAttemptLedger ledger) {
+        TransferAttemptLedger.View view = ledger.view();
+        if (view.isEmpty()) {
             if (task.getId() != null) {
                 transferTaskMapper.deleteById(task.getId());
             }
             return null;
         }
 
-        TransferTaskAttemptVO currentAttempt = normalizedAttempts.get(0);
-        TransferAttemptLifecycleHelper.AttemptSummary summary = TransferAttemptLifecycleHelper.summarize(normalizedAttempts);
-        Set<String> modes = normalizedAttempts.stream()
-                .map(TransferTaskAttemptVO::getTransferMode)
-                .filter(value -> value != null && !value.isBlank())
-                .collect(Collectors.toSet());
-
-        task.setTransferMode(modes.size() > 1 ? MODE_HYBRID : currentAttempt.getTransferMode());
-        task.setCurrentTransferMode(currentAttempt.getTransferMode());
-        task.setStatus(currentAttempt.getStage());
-        task.setCompletedChunks(currentAttempt.getCompletedChunks());
-        task.setTotalChunks(currentAttempt.getTotalChunks() != null && currentAttempt.getTotalChunks() > 0
-                ? currentAttempt.getTotalChunks()
-                : task.getTotalChunks());
-        task.setUpdateTime(currentAttempt.getUpdateTime() == null ? LocalDateTime.now() : currentAttempt.getUpdateTime());
+        TransferAttemptLedger.TaskProjection projection = view.task();
+        task.setTransferMode(projection.transferMode());
+        task.setCurrentTransferMode(projection.currentTransferMode());
+        task.setStatus(projection.stage());
+        task.setCompletedChunks(projection.completedChunks());
+        task.setTotalChunks(projection.totalChunks() != null ? projection.totalChunks() : task.getTotalChunks());
+        task.setUpdateTime(projection.updateTime() == null ? LocalDateTime.now() : projection.updateTime());
         task.setExpireTime(LocalDateTime.now().plusHours(transferProperties.getTransferTtlHours()));
-        task.setCompletedAt(summary.completedAt() != null ? summary.completedAt() : task.getCompletedAt());
-        task.setSavedToNetdiskAt(summary.savedToNetdiskAt() != null ? summary.savedToNetdiskAt() : task.getSavedToNetdiskAt());
-        task.setAttemptsJson(writeTaskAttempts(normalizedAttempts));
+        task.setCompletedAt(projection.completedAt() != null ? projection.completedAt() : task.getCompletedAt());
+        task.setSavedToNetdiskAt(projection.savedToNetdiskAt() != null
+                ? projection.savedToNetdiskAt()
+                : task.getSavedToNetdiskAt());
+        task.setAttemptsJson(view.serializedJson());
         transferTaskMapper.updateById(task);
         return transferTaskMapper.selectById(task.getId());
-    }
-
-    private void upsertAttempt(List<TransferTaskAttemptVO> attempts, TransferTaskAttemptVO nextAttempt) {
-        for (int index = 0; index < attempts.size(); index++) {
-            TransferTaskAttemptVO existing = attempts.get(index);
-            if (Objects.equals(existing.getTransferMode(), nextAttempt.getTransferMode())
-                    && Objects.equals(existing.getTransferId(), nextAttempt.getTransferId())) {
-                attempts.set(index, TransferAttemptLifecycleHelper.mergeAttempt(existing, nextAttempt));
-                return;
-            }
-        }
-        attempts.add(TransferAttemptLifecycleHelper.mergeAttempt(null, nextAttempt));
-    }
-
-    private List<TransferTaskAttemptVO> parseTaskAttempts(String attemptsJson) {
-        List<TransferTaskAttemptVO> attempts = tryParseTaskAttempts(attemptsJson);
-        return attempts == null ? new ArrayList<>() : attempts;
-    }
-
-    private List<TransferTaskAttemptVO> tryParseTaskAttempts(String attemptsJson) {
-        if (attemptsJson == null || attemptsJson.isBlank()) {
-            return new ArrayList<>();
-        }
-        try {
-            return new ArrayList<>(QUICKDROP_OBJECT_MAPPER.readValue(attemptsJson, new TypeReference<List<TransferTaskAttemptVO>>() {
-            }));
-        } catch (IOException ex) {
-            log.warn("Failed to parse Transfer task attempts: {}", ex.getMessage());
-            log.debug("Transfer task attempts parse stack", ex);
-            return null;
-        }
-    }
-
-    private String writeTaskAttempts(List<TransferTaskAttemptVO> attempts) {
-        try {
-            return QUICKDROP_OBJECT_MAPPER.writeValueAsString(sortTaskAttempts(attempts));
-        } catch (IOException ex) {
-            throw new IllegalStateException("无法写入 Transfer 任务尝试记录");
-        }
-    }
-
-    private List<TransferTaskAttemptVO> sortTaskAttempts(List<TransferTaskAttemptVO> attempts) {
-        return attempts.stream()
-                .filter(attempt -> attempt.getTransferMode() != null && !attempt.getTransferMode().isBlank())
-                .filter(attempt -> attempt.getTransferId() != null && !attempt.getTransferId().isBlank())
-                .sorted(Comparator.comparing(TransferTaskAttemptVO::getUpdateTime, Comparator.nullsLast(Comparator.reverseOrder())))
-                .toList();
     }
 
     private Map<String, String> buildDeviceNameLookup(List<TransferDeviceVO> devices) {
@@ -1114,9 +1040,8 @@ public class TransferServiceImpl implements TransferService {
         attempt.setTransferMode(MODE_DIRECT);
         attempt.setTransferId(normalizeClientTransferId(request.getClientTransferId()));
         attempt.setStage(status);
-        attempt.setAttemptStatus(TransferAttemptLifecycleHelper.normalizeAttemptStatus(null, status));
         attempt.setStartReason(firstNonBlank(
-                TransferAttemptLifecycleHelper.normalizeReason(request.getStartReason()),
+                request.getStartReason(),
                 "same_account_direct"
         ));
         attempt.setEndReason(resolveDirectEndReason(status, request));
@@ -1138,7 +1063,6 @@ public class TransferServiceImpl implements TransferService {
         attempt.setTransferMode(MODE_RELAY);
         attempt.setTransferId(String.valueOf(transfer.getId()));
         attempt.setStage(transfer.getStatus());
-        attempt.setAttemptStatus(TransferAttemptLifecycleHelper.normalizeAttemptStatus(null, transfer.getStatus()));
         attempt.setStartReason("relay_transfer_created");
         attempt.setEndReason(resolveRelayEndReason(transfer.getStatus(), savedToNetdisk, transfer));
         attempt.setCompletedChunks(transfer.getUploadedChunks());
@@ -1154,9 +1078,8 @@ public class TransferServiceImpl implements TransferService {
     }
 
     private String resolveDirectEndReason(String status, TransferDirectAttemptSyncRequest request) {
-        String explicit = TransferAttemptLifecycleHelper.normalizeReason(request.getEndReason());
-        if (explicit != null) {
-            return explicit;
+        if (request.getEndReason() != null && !request.getEndReason().isBlank()) {
+            return request.getEndReason();
         }
         if (Boolean.TRUE.equals(request.getSavedToNetdisk())) {
             return "saved_to_netdisk";
@@ -1174,9 +1097,8 @@ public class TransferServiceImpl implements TransferService {
     }
 
     private String resolveDirectFailureReason(String status, TransferDirectAttemptSyncRequest request) {
-        String explicit = TransferAttemptLifecycleHelper.normalizeReason(request.getFailureReason());
-        if (explicit != null) {
-            return explicit;
+        if (request.getFailureReason() != null && !request.getFailureReason().isBlank()) {
+            return request.getFailureReason();
         }
         return switch (status) {
             case "relay_fallback" -> "direct_transfer_interrupted";

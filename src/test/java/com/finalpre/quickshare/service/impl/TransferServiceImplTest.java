@@ -322,7 +322,7 @@ class TransferServiceImplTest {
     }
 
     @Test
-    void deleteDirectAttemptShouldNotDeleteTaskWhenAttemptsJsonIsCorrupted() {
+    void deleteDirectAttemptShouldNotDeleteTaskWhenAttemptsJsonIsNull() {
         TransferDevice device = new TransferDevice();
         device.setDeviceId("sender-device");
         device.setUserId(8L);
@@ -342,14 +342,14 @@ class TransferServiceImplTest {
         task.setStatus("sending");
         task.setTransferMode("direct");
         task.setCurrentTransferMode("direct");
-        task.setAttemptsJson("{not valid json");
+        task.setAttemptsJson("null");
         task.setExpireTime(LocalDateTime.now().plusHours(1));
         taskStore.put(task.getId(), task);
 
         transferService.deleteDirectAttempt(8L, 901L, "sender-device", "direct-1");
 
         assertThat(taskStore).containsKey(901L);
-        assertThat(taskStore.get(901L).getAttemptsJson()).isEqualTo("{not valid json");
+        assertThat(taskStore.get(901L).getAttemptsJson()).isEqualTo("null");
     }
 
     @Test

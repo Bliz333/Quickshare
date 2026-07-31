@@ -8,23 +8,18 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 
 - public sharing links with extraction codes, expiry, and download limits
 - a personal netdisk with folders, batch operations, drag-and-drop moves, and quota visibility
-- QuickDrop for same-account device transfer, browser direct transfer, and public pickup flows
+- Quick Transfer for same-account device transfer, browser direct transfer, and public pickup flows
 - an admin console for runtime policy, storage, mail, payment, and user management
 - local filesystem and S3-compatible object storage backends
 - Office document preview through LibreOffice and PDF.js
-- browser-side AES-GCM encryption for QuickDrop relay / pickup payloads, so relay storage keeps ciphertext instead of plaintext
+- browser-side AES-GCM encryption for Quick Transfer relay / pickup payloads, so relay storage keeps ciphertext instead of plaintext
 
 ## Current State
 
-- `main` now tracks the validated hardening baseline.
-- The project has moved past the initial build-out phase and is now in maintenance, UX polish, and regression hardening.
-- The current remote validation baseline is:
-  - Debian 12
-  - OpenJDK 17
-  - Maven 3.8.7
-  - Node 18 / npm 9
-  - Docker plus `docker-compose`
-- The latest remote browser smoke confirmed a real QuickDrop same-account transfer finishing as `direct`, not just `relay`.
+- The web product covers sharing, personal drive, transfer, administration, payments, and runtime policy management.
+- The project is in maintenance, UX polish, compatibility, and regression-hardening mode.
+- New code and routes use **Quick Transfer / Transfer**. QuickDrop API, WebSocket, environment-variable, and test names remain only where backward compatibility requires them.
+- Current capabilities and known limits are tracked in [docs/STATUS.md](docs/STATUS.md); historical remote test results are evidence for their original commits, not the current branch.
 
 ## Highlights
 
@@ -37,7 +32,7 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 - Pricing page, payment result page, user order history, and quota / VIP visibility
 - Runtime-switchable captcha provider: Google reCAPTCHA or Cloudflare Turnstile
 
-### QuickDrop
+### Quick Transfer
 
 - Same-account device discovery without pairing codes
 - Browser direct transfer before relay fallback
@@ -49,7 +44,7 @@ QuickShare is a Spring Boot file sharing and personal netdisk platform with:
 ### Security model for relay transfers
 
 - Direct browser transfers still prefer peer-to-peer delivery when the network allows it.
-- When QuickDrop falls back to server relay or public pickup, files are encrypted in the browser with Web Crypto AES-GCM before upload. Chunk IVs and metadata are stored with the encrypted payload, so relay storage keeps ciphertext instead of plaintext.
+- When Quick Transfer falls back to server relay or public pickup, files are encrypted in the browser with Web Crypto AES-GCM before upload. Chunk IVs and metadata are stored with the encrypted payload, so relay storage keeps ciphertext instead of plaintext.
 - Public pickup links carry the decryption key in the URL fragment (`#key=...`), which browsers do not send in HTTP requests. Anyone with the full URL can decrypt, so share it like a secret.
 - Same-account and paired relay delivery exchange recipient ECDH public key material over WebSocket, verify it with a browser-held P-256 identity signature, and derive the AES-GCM file key locally with HKDF. The signaling server forwards public key material and signatures, not the raw file key.
 - Because relay storage contains ciphertext rather than plaintext, server-side Office conversion and save-to-netdisk are disabled in the browser UI for encrypted relay files until a client-side or user-key-backed preview/save flow is added. The current enforcement is client-side; API callers that bypass the UI can still store ciphertext.
@@ -111,7 +106,7 @@ cp src/main/resources/application-local.example.yml src/main/resources/applicati
 
 ## Configuration
 
-The full environment-variable list lives in [`.env.example`](.env.example).
+Compose-facing environment variables and safe placeholders live in [`.env.example`](.env.example). Additional Spring overrides are mapped in [`application.yml`](src/main/resources/application.yml).
 
 Important settings:
 
@@ -125,35 +120,21 @@ Important settings:
 | `ADMIN_CONSOLE_SLUG` | Hidden admin path segment |
 | `SERVER_COMPRESSION_ENABLED` | Enables gzip-compatible HTTP compression for API/static responses |
 | `REGISTRATION_EMAIL_VERIFICATION_ENABLED` | Enables email verification during registration |
-| `QUICKDROP_STUN_URLS` | STUN servers for QuickDrop direct transfer |
-| `QUICKDROP_TURN_URLS` | Preferred TURN URLs for public-network direct transfer |
-| `QUICKDROP_TURN_USERNAME`, `QUICKDROP_TURN_PASSWORD` | TURN credentials |
+| `QUICKDROP_STUN_URLS` | Legacy-named STUN setting used by Quick Transfer |
+| `QUICKDROP_TURN_URLS` | Legacy-named TURN URLs used by Quick Transfer |
+| `QUICKDROP_TURN_USERNAME`, `QUICKDROP_TURN_PASSWORD` | Legacy-named TURN credentials used by Quick Transfer |
 
 ## Validation and Testing
 
-The project now uses a remote-first validation workflow:
-
-- edit and push locally
-- compile, test, deploy, and verify on the remote Debian test server
-
-Recommended acceptance flow:
+Use the risk-based matrix in [docs/ai/validation.md](docs/ai/validation.md). The default release-candidate baseline is:
 
 ```bash
 ./scripts/release-ready.sh
 # For a full runtime release candidate on a provisioned host:
 RELEASE_READY_FULL=1 ./scripts/release-ready.sh
-# To test uncommitted local changes on the preprod host without creating a git commit:
-DEPLOY_INCLUDE_WORKTREE=1 DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK=0 DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
-
-# Equivalent expanded flow:
-./scripts/quickshare-resource-check.sh --ensure
-./scripts/check-js.sh
-./mvnw -q -DskipTests compile
-# add the nearest targeted JUnit set for the change
-docker-compose up --build -d --remove-orphans
-./scripts/quickshare-smoke.sh
-./scripts/quickshare-playwright-smoke.sh
 ```
+
+The full gate changes local Docker state and is intended for an isolated, configured development or pre-production host. Mock Playwright does not prove a real backend, WebRTC direct path, TURN reachability, S3, or LibreOffice runtime.
 
 ### API Endpoint Reference
 
@@ -202,9 +183,7 @@ docker-compose up --build -d --remove-orphans
 
 Notes:
 
-- The remote test machine has limited disk and memory, so resource checks matter.
-- `scripts/quickshare-resource-check.sh` is the repo-level resource snapshot / low-disk guard for the test server.
-- After heavy rebuilds, prune temporary artifacts and unused Docker images.
+- `scripts/quickshare-resource-check.sh` is the repo-level resource snapshot / low-disk guard for constrained hosts.
 - Full details live in [docs/README.md](docs/README.md) and [docs/TESTING.md](docs/TESTING.md).
 
 ## Deployment Notes
@@ -219,11 +198,13 @@ Notes:
 ## Project Docs
 
 - [README.zh-CN.md](README.zh-CN.md): Chinese version of the top-level overview
+- [AGENTS.md](AGENTS.md): project knowledge map for coding agents
+- [docs/ai](docs/ai): current architecture, frontend, Transfer, validation, and platform knowledge
 - [docs/README.md](docs/README.md): English docs hub
 - [docs/README.zh-CN.md](docs/README.zh-CN.md): Chinese docs hub
 - [docs/STATUS.md](docs/STATUS.md): Current Chinese status snapshot
 - [docs/TESTING.md](docs/TESTING.md): Detailed Chinese testing and acceptance workflow
-- [docs/PLAN.md](docs/PLAN.md): Current Chinese roadmap / next-stage priorities
+- [docs/PLAN.md](docs/PLAN.md): Uncommitted candidate work, not a promised roadmap
 - [docs/CHANGELOG.md](docs/CHANGELOG.md): Change log
 - [docs/archive](docs/archive): Detailed milestone and session records
 

@@ -24,8 +24,8 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
 
-    # Max upload size — match application.yml spring.servlet.multipart.max-file-size
-    client_max_body_size 10G;
+    # Max upload size — match application-prod.yml spring.servlet.multipart.max-file-size
+    client_max_body_size 2G;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
@@ -40,8 +40,8 @@ server {
         proxy_connect_timeout 10s;
     }
 
-    # WebSocket for QuickDrop signalling
-    location /ws/quickdrop {
+    # WebSocket for Quick Transfer signaling
+    location /ws/transfer {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -65,10 +65,11 @@ certbot --nginx -d your.domain.example
 systemctl status certbot.timer
 ```
 
-Certificates auto-renew every 60 days. The nginx plugin reloads nginx automatically after renewal.
+The certbot systemd timer handles renewal; verify the timer and nginx reload behavior on the target host.
 
 ## Notes
 
 - Replace `your.domain.example` throughout with your actual domain.
-- `client_max_body_size 10G` must match the application's `spring.servlet.multipart.max-file-size` / `max-request-size`.
-- If QuickDrop TURN server is also exposed, open UDP 3478 (STUN/TURN) and TCP 5349 (TURN-TLS) in the firewall separately — nginx does not proxy UDP.
+- `client_max_body_size 2G` must not exceed the production profile's `spring.servlet.multipart.max-file-size` / `max-request-size` without an intentional application configuration change.
+- `/ws/quickdrop` remains a legacy application alias. New proxies and clients should use `/ws/transfer`.
+- If a TURN server is also exposed, open its configured UDP/TCP/TLS ports separately; nginx's HTTP proxy does not proxy TURN/UDP.

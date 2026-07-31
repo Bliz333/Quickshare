@@ -74,7 +74,7 @@ Examples: Flutter, React Native, or native Android/iOS apps.
 - you care about smoother upload/download/share/device flows
 - you plan to invest in mobile as a real product surface
 
-### Option C — full parity with browser QuickDrop on day one
+### Option C — full parity with browser Quick Transfer on day one
 
 This is not a separate client technology choice; it is a scope choice.
 
@@ -97,7 +97,7 @@ This is not a separate client technology choice; it is a scope choice.
 1. **Decide the mobile client technology** (Flutter / React Native / native)
 2. **Ship core account and file flows first**
 3. **Add same-account device convenience second**
-4. **Treat full QuickDrop/direct-transfer parity as phase two**
+4. **Treat full Quick Transfer/direct-transfer parity as phase two**
 
 ## Recommended v1 mobile scope
 
@@ -112,7 +112,7 @@ Ship first:
 
 Delay to a later phase:
 
-- complete browser-parity QuickDrop UX
+- complete browser-parity Quick Transfer UX
 - complex WebRTC-style direct device transfer flows
 - advanced LAN discovery assumptions copied from the web UI
 

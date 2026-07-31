@@ -1,102 +1,77 @@
-# Production vs Pre-production Environments
+# Production and Pre-production
 
-## Environment Definitions
+## Environment Roles
 
 | | Pre-production | Production |
-|---|---|---|
-| Purpose | Integration smoke, Playwright regression, deployment validation | Live user traffic |
-| Infrastructure | Debian 12 test machine (resource-constrained) | Dedicated server or cloud VM |
-| Deployment method | `scripts/deploy-preprod.sh` (git fetch + docker compose) | Same script or manual |
-| Rollback | Auto-rollback on health/build failure | Same |
+| --- | --- | --- |
+| Purpose | Integration, deployment, smoke, live browser validation | Real user traffic and data |
+| Allowed changes | Task/review branches in an isolated target | Only an explicitly authorized release |
+| Data | Disposable or sanitized | Backed up, retained, audited |
+| Deployment | `scripts/deploy-preprod.sh` on the configured test target | Project-specific production runbook |
+| Failure handling | Rebuild/retry within the isolated target | Controlled rollback with data compatibility check |
+
+Do not use a historical test host description as current infrastructure truth. Real targets, SSH identities and credentials live outside Git.
 
 ## Configuration Differences
 
-| Variable | Pre-production | Production |
-|---|---|---|
-| `JWT_SECRET` | Test secret (≥32 chars) | Unique, high-entropy secret — rotate if leaked |
-| `STORAGE_TYPE` | `local` | `s3` preferred; `local` only for single-host |
-| `S3_ENDPOINT` / `S3_BUCKET` | Not set | Required if `STORAGE_TYPE=s3` |
-| `TURN_SERVER_URL` | Pre-production TURN (coturn on test machine) | Production TURN or managed TURN service |
-| `TURN_USERNAME` / `TURN_CREDENTIAL` | Test credentials | Production credentials |
-| `RECAPTCHA_SECRET` | Test key (if enabled) | Production key |
-| `MAIL_*` | May use test SMTP or disabled | Production SMTP |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `ChangeMeAdmin123!` default acceptable for testing | Must be changed |
+Use the exact names from `.env.example`:
 
-All variables are set via environment or Docker Compose `.env` file — never committed to the repo.
+| Area | Pre-production | Production |
+| --- | --- | --- |
+| `JWT_SECRET`, `SETTING_ENCRYPT_KEY` | Unique test-only values | Unique high-entropy production values; preserve encryption key continuity |
+| `STORAGE_TYPE` | `local` or isolated MinIO/S3 | S3-compatible recommended for multi-host; local requires file backups |
+| `QUICKDROP_STUN_URLS`, `QUICKDROP_TURN_*` | Test ICE service | Production ICE service and separately protected credentials |
+| `RECAPTCHA_*` / runtime captcha | Test keys or disabled | Domain-bound production keys |
+| `MAIL_*` | Test inbox/provider | Production SMTP and monitored delivery |
+| `BOOTSTRAP_ADMIN_*` | Temporary bootstrap only | Disabled after controlled bootstrap |
+| `APP_BIND_HOST` | As required by isolated host | Loopback/private address behind nginx where possible |
 
-## Pre-production Baseline
+Never reuse production JWT, encryption, database, payment, mail or TURN secrets in pre-production.
 
-The test machine maintains:
-- `/root/quickshare` — git working copy (never revert to a bare snapshot directory)
-- A local bare repo as push target for offline deployments
-- `docker-compose.yml` driving the app container
+## Pre-production Deployment
 
-To verify the baseline is intact:
-```bash
-cd /root/quickshare && git status
-curl -s http://localhost:8080/api/health | python3 -m json.tool
-```
-
-## Release Checklist
-
-Run these steps in order before promoting a build to production:
-
-1. **Health check**
-   ```bash
-   curl -s http://localhost:8080/api/health
-   # Expect: "status": "UP", database/redis both "UP"
-   ```
-
-2. **Smoke tests**
-   ```bash
-   ./scripts/quickshare-smoke.sh
-   ```
-
-3. **Playwright regression**
-   ```bash
-   ./scripts/quickshare-playwright-smoke.sh
-   # or: npx playwright test
-   ```
-
-4. **Manual key paths** (when smoke alone is insufficient)
-   - Login → upload file → share link → download via share link
-   - QuickDrop: same-account direct transfer (confirm `direct` or `relay` mode logged)
-   - Admin console: storage policy toggle, user list
-
-5. **Disk capacity check**
-   ```bash
-   curl -s http://localhost:8080/api/health | python3 -m json.tool | grep -i disk
-   # storageDiskRiskLevel must be "OK"
-   ```
-
-6. **Deploy to production**
-   ```bash
-   ./scripts/deploy-preprod.sh   # or equivalent production deploy command
-   ```
-
-7. **Post-deploy smoke** — repeat steps 1–2 against the production URL.
-
-## Ongoing monitoring & backup
-
-After deployment, set up crontab for automated health checks and backups:
-
-```
-# Health & disk alert every 10 minutes
-*/10 * * * * /root/quickshare/scripts/quickshare-alert.sh >> /var/log/quickshare-alert.log 2>&1
-
-# Daily MySQL + uploads backup at 03:00
-0 3 * * * /root/quickshare/scripts/quickshare-backup.sh >> /var/log/quickshare-backup.log 2>&1
-```
-
-See `docs/ops/capacity.md` for threshold details and cleanup procedures.
-
-## Rollback
-
-The deploy script auto-rolls back if health check fails after startup. To manually roll back:
+The existing script can fetch a branch directly or use git-bundle/snapshot fallbacks. It performs capacity checks and can run smoke gates:
 
 ```bash
-cd /root/quickshare
-git log --oneline -5        # identify last known-good commit
-git checkout <commit>       # or reset and redeploy
-docker compose up --build -d
+DEPLOY_GIT_BRANCH=<task-branch> \
+DEPLOY_RUN_SMOKE=1 \
+DEPLOY_RUN_BROWSER_SMOKE=1 \
+./scripts/deploy-preprod.sh
 ```
+
+The configured remote should remain a real Git worktree backed by a local mirror. `compose.yaml` is the repository Compose file; do not document or depend on an untracked `docker-compose.yml` copy.
+
+After deployment, verify the exact deployed SHA, not only HTTP 200:
+
+```bash
+curl -fsS http://127.0.0.1:8080/api/health
+curl -fsS http://127.0.0.1:8080/api/public/transfer/rtc-config
+./scripts/quickshare-smoke.sh
+```
+
+Use `./scripts/quickshare-resource-check.sh --report-only` before and after expensive rebuilds on constrained hosts.
+
+## Production Promotion
+
+Production is not “run the preprod script against another hostname.” Before an authorized release:
+
+1. Freeze and record the reviewed commit SHA.
+2. Back up MySQL and the active file backend; verify backup availability.
+3. Confirm Flyway migrations are compatible with rollback expectations.
+4. Deploy through the environment's approved runbook.
+5. Verify `/api/health`, core API smoke, login/upload/share/download, `/ws/transfer`, storage and error logs.
+6. Keep the previous application artifact/commit available until the observation window closes.
+
+First-time single-host setup is documented in `production-deployment.md`; nginx/TLS in `https-proxy.md`.
+
+## Rollback Boundary
+
+A rollback must restore a known application version while preserving database and file compatibility. Do not `git reset --hard` or rewrite a shared branch as a rollback mechanism. If a migration is not backward compatible, use a prepared corrective migration or restore plan under explicit production authorization.
+
+## Ongoing Operations
+
+- Health and disk alerting plus backup examples: `capacity.md`
+- Proxy/WebSocket/TLS: `https-proxy.md`
+- Platform and secret boundaries: `../ai/platform.md`
+
+Any production publish/rollback, DNS/firewall/systemd change, key rotation or data deletion follows the global irreversible-action authorization rule.

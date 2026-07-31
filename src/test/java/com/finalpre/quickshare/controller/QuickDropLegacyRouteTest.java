@@ -6,11 +6,10 @@ import com.finalpre.quickshare.mapper.UserMapper;
 import com.finalpre.quickshare.dto.TransferDirectSessionCreateRequest;
 import com.finalpre.quickshare.dto.TransferPairCodeCreateRequest;
 import com.finalpre.quickshare.dto.TransferSyncRequest;
-import com.finalpre.quickshare.service.FilePreviewPolicyService;
-import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import com.finalpre.quickshare.service.TransferPairingService;
 import com.finalpre.quickshare.service.TransferService;
+import com.finalpre.quickshare.service.preview.PreviewDelivery;
 import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.TransferDirectSessionVO;
 import com.finalpre.quickshare.vo.TransferPairCodeVO;
@@ -61,10 +60,7 @@ class QuickDropLegacyRouteTest {
     private TransferPairingService transferPairingService;
 
     @MockBean
-    private FilePreviewPolicyService filePreviewPolicyService;
-
-    @MockBean
-    private OfficePreviewService officePreviewService;
+    private PreviewDelivery previewDelivery;
 
     @MockBean
     private TransferProperties transferProperties;

@@ -2,11 +2,6 @@ package com.finalpre.quickshare.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.finalpre.quickshare.config.TransferProperties;
 import com.finalpre.quickshare.dto.TransferDirectSessionCreateRequest;
 import com.finalpre.quickshare.dto.TransferPairCodeClaimRequest;
@@ -29,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -40,11 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 @Slf4j
 public class TransferPairingServiceImpl implements TransferPairingService {
-
-    private static final ObjectMapper QUICKDROP_OBJECT_MAPPER = JsonMapper.builder()
-            .addModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            .build();
 
     @Autowired
     private TransferProperties transferProperties;
@@ -234,11 +223,10 @@ public class TransferPairingServiceImpl implements TransferPairingService {
         task.setTotalChunks(totalChunks);
         task.setExpireTime(now.plusHours(transferProperties.getTransferTtlHours()));
 
-        List<TransferTaskAttemptVO> attempts = parseAttempts(task.getAttemptsJson());
         TransferTaskAttemptVO attempt = buildPairAttempt(request, status, totalChunks, completedChunks, now);
-        upsertAttempt(attempts, attempt);
+        TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson()).upsert(attempt);
 
-        TransferPairTask savedTask = savePairTaskWithAttempts(task, attempts);
+        TransferPairTask savedTask = savePairTaskWithAttempts(task, ledger);
         return toPairTaskVO(savedTask, selfChannelId);
     }
 
@@ -275,18 +263,12 @@ public class TransferPairingServiceImpl implements TransferPairingService {
         }
 
         String normalizedClientTransferId = normalizeClientTransferId(clientTransferId);
-        List<TransferTaskAttemptVO> attempts = tryParseAttempts(task.getAttemptsJson());
-        if (attempts == null) {
+        TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson());
+        if (ledger.isCorrupted()) {
             log.warn("Skip deleting Transfer pair task attempt because attempts JSON is corrupted. taskId={}", taskId);
             return;
         }
-        attempts.removeIf(attempt -> Objects.equals(attempt.getTransferId(), normalizedClientTransferId));
-        if (attempts.isEmpty()) {
-            transferPairTaskMapper.deleteById(taskId);
-            return;
-        }
-
-        savePairTaskWithAttempts(task, attempts);
+        savePairTaskWithAttempts(task, ledger.remove(normalizedClientTransferId));
     }
 
     private void purgeExpiredCodes() {
@@ -389,10 +371,8 @@ public class TransferPairingServiceImpl implements TransferPairingService {
         vo.setTransferMode(task.getTransferMode());
         vo.setCurrentTransferMode(task.getCurrentTransferMode());
         vo.setStage(task.getStatus());
-        List<TransferTaskAttemptVO> attempts = parseAttempts(task.getAttemptsJson()).stream()
-                .sorted(Comparator.comparing(TransferTaskAttemptVO::getUpdateTime, Comparator.nullsLast(Comparator.reverseOrder())))
-                .toList();
-        TransferAttemptLifecycleHelper.AttemptSummary summary = TransferAttemptLifecycleHelper.summarize(attempts);
+        TransferAttemptLedger.View ledger = TransferAttemptLedger.load(task.getAttemptsJson()).view();
+        TransferAttemptLedger.AttemptSummary summary = ledger.summary();
         vo.setAttemptStatus(summary.attemptStatus());
         vo.setStartReason(summary.startReason());
         vo.setEndReason(summary.endReason());
@@ -414,49 +394,8 @@ public class TransferPairingServiceImpl implements TransferPairingService {
         vo.setFailedAt(summary.failedAt());
         vo.setFallbackAt(summary.fallbackAt());
         vo.setSavedToNetdiskAt(task.getSavedToNetdiskAt() != null ? task.getSavedToNetdiskAt() : summary.savedToNetdiskAt());
-        vo.setAttempts(attempts);
+        vo.setAttempts(ledger.attempts());
         return vo;
-    }
-
-    private List<TransferTaskAttemptVO> parseAttempts(String attemptsJson) {
-        List<TransferTaskAttemptVO> attempts = tryParseAttempts(attemptsJson);
-        return attempts == null ? new ArrayList<>() : attempts;
-    }
-
-    private List<TransferTaskAttemptVO> tryParseAttempts(String attemptsJson) {
-        if (attemptsJson == null || attemptsJson.isBlank()) {
-            return new ArrayList<>();
-        }
-        try {
-            return new ArrayList<>(QUICKDROP_OBJECT_MAPPER.readValue(attemptsJson, new TypeReference<List<TransferTaskAttemptVO>>() {
-            }));
-        } catch (IOException ex) {
-            log.warn("Failed to parse Transfer pair task attempts: {}", ex.getMessage());
-            log.debug("Transfer pair task attempts parse stack", ex);
-            return null;
-        }
-    }
-
-    private String writeAttempts(List<TransferTaskAttemptVO> attempts) {
-        try {
-            return QUICKDROP_OBJECT_MAPPER.writeValueAsString(attempts.stream()
-                    .sorted(Comparator.comparing(TransferTaskAttemptVO::getUpdateTime, Comparator.nullsLast(Comparator.reverseOrder())))
-                    .toList());
-        } catch (IOException ex) {
-            throw new IllegalStateException("无法写入配对任务记录");
-        }
-    }
-
-    private void upsertAttempt(List<TransferTaskAttemptVO> attempts, TransferTaskAttemptVO nextAttempt) {
-        for (int index = 0; index < attempts.size(); index++) {
-            TransferTaskAttemptVO existing = attempts.get(index);
-            if (Objects.equals(existing.getTransferMode(), nextAttempt.getTransferMode())
-                    && Objects.equals(existing.getTransferId(), nextAttempt.getTransferId())) {
-                attempts.set(index, TransferAttemptLifecycleHelper.mergeAttempt(existing, nextAttempt));
-                return;
-            }
-        }
-        attempts.add(TransferAttemptLifecycleHelper.mergeAttempt(null, nextAttempt));
     }
 
     private TransferTaskAttemptVO buildPairAttempt(TransferPairTaskSyncRequest request,
@@ -468,9 +407,8 @@ public class TransferPairingServiceImpl implements TransferPairingService {
         attempt.setTransferMode("direct");
         attempt.setTransferId(normalizeClientTransferId(request.getClientTransferId()));
         attempt.setStage(status);
-        attempt.setAttemptStatus(TransferAttemptLifecycleHelper.normalizeAttemptStatus(null, status));
         attempt.setStartReason(firstNonBlank(
-                TransferAttemptLifecycleHelper.normalizeReason(request.getStartReason()),
+                request.getStartReason(),
                 "pair_session_direct"
         ));
         attempt.setEndReason(resolvePairEndReason(status, request));
@@ -487,35 +425,26 @@ public class TransferPairingServiceImpl implements TransferPairingService {
         return attempt;
     }
 
-    private TransferPairTask savePairTaskWithAttempts(TransferPairTask task, List<TransferTaskAttemptVO> attempts) {
-        List<TransferTaskAttemptVO> normalizedAttempts = attempts.stream()
-                .filter(attempt -> attempt.getTransferMode() != null && !attempt.getTransferMode().isBlank())
-                .filter(attempt -> attempt.getTransferId() != null && !attempt.getTransferId().isBlank())
-                .sorted(Comparator.comparing(TransferTaskAttemptVO::getUpdateTime, Comparator.nullsLast(Comparator.reverseOrder())))
-                .toList();
-        if (normalizedAttempts.isEmpty()) {
+    private TransferPairTask savePairTaskWithAttempts(TransferPairTask task, TransferAttemptLedger ledger) {
+        TransferAttemptLedger.View view = ledger.view();
+        if (view.isEmpty()) {
             transferPairTaskMapper.deleteById(task.getId());
             return null;
         }
 
-        TransferTaskAttemptVO currentAttempt = normalizedAttempts.get(0);
-        TransferAttemptLifecycleHelper.AttemptSummary summary = TransferAttemptLifecycleHelper.summarize(normalizedAttempts);
-        task.setTransferMode(normalizedAttempts.stream()
-                .map(TransferTaskAttemptVO::getTransferMode)
-                .filter(value -> value != null && !value.isBlank())
-                .distinct()
-                .count() > 1 ? "hybrid" : currentAttempt.getTransferMode());
-        task.setCurrentTransferMode(currentAttempt.getTransferMode());
-        task.setStatus(currentAttempt.getStage());
-        task.setCompletedChunks(currentAttempt.getCompletedChunks());
-        task.setTotalChunks(currentAttempt.getTotalChunks() != null && currentAttempt.getTotalChunks() > 0
-                ? currentAttempt.getTotalChunks()
-                : task.getTotalChunks());
-        task.setUpdateTime(currentAttempt.getUpdateTime() == null ? LocalDateTime.now() : currentAttempt.getUpdateTime());
+        TransferAttemptLedger.TaskProjection projection = view.task();
+        task.setTransferMode(projection.transferMode());
+        task.setCurrentTransferMode(projection.currentTransferMode());
+        task.setStatus(projection.stage());
+        task.setCompletedChunks(projection.completedChunks());
+        task.setTotalChunks(projection.totalChunks() != null ? projection.totalChunks() : task.getTotalChunks());
+        task.setUpdateTime(projection.updateTime() == null ? LocalDateTime.now() : projection.updateTime());
         task.setExpireTime(LocalDateTime.now().plusHours(transferProperties.getTransferTtlHours()));
-        task.setCompletedAt(summary.completedAt() != null ? summary.completedAt() : task.getCompletedAt());
-        task.setSavedToNetdiskAt(summary.savedToNetdiskAt() != null ? summary.savedToNetdiskAt() : task.getSavedToNetdiskAt());
-        task.setAttemptsJson(writeAttempts(normalizedAttempts));
+        task.setCompletedAt(projection.completedAt() != null ? projection.completedAt() : task.getCompletedAt());
+        task.setSavedToNetdiskAt(projection.savedToNetdiskAt() != null
+                ? projection.savedToNetdiskAt()
+                : task.getSavedToNetdiskAt());
+        task.setAttemptsJson(view.serializedJson());
         transferPairTaskMapper.updateById(task);
         return transferPairTaskMapper.selectById(task.getId());
     }
@@ -584,9 +513,8 @@ public class TransferPairingServiceImpl implements TransferPairingService {
     }
 
     private String resolvePairEndReason(String status, TransferPairTaskSyncRequest request) {
-        String explicit = TransferAttemptLifecycleHelper.normalizeReason(request.getEndReason());
-        if (explicit != null) {
-            return explicit;
+        if (request.getEndReason() != null && !request.getEndReason().isBlank()) {
+            return request.getEndReason();
         }
         if (Boolean.TRUE.equals(request.getSavedToNetdisk())) {
             return "saved_to_netdisk";
@@ -604,9 +532,8 @@ public class TransferPairingServiceImpl implements TransferPairingService {
     }
 
     private String resolvePairFailureReason(String status, TransferPairTaskSyncRequest request) {
-        String explicit = TransferAttemptLifecycleHelper.normalizeReason(request.getFailureReason());
-        if (explicit != null) {
-            return explicit;
+        if (request.getFailureReason() != null && !request.getFailureReason().isBlank()) {
+            return request.getFailureReason();
         }
         return switch (status) {
             case "relay_fallback" -> "direct_transfer_interrupted";

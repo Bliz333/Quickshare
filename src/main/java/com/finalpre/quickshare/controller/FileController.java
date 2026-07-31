@@ -10,11 +10,12 @@ import com.finalpre.quickshare.service.FilePreviewPolicy;
 import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileService;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
-import com.finalpre.quickshare.service.OfficePreviewService;
-import com.finalpre.quickshare.service.PreviewResource;
 import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.RequestRateLimitService;
 import com.finalpre.quickshare.service.StorageService;
+import com.finalpre.quickshare.service.preview.PreviewDelivery;
+import com.finalpre.quickshare.service.preview.PreviewOptions;
+import com.finalpre.quickshare.service.preview.PreviewSource;
 import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.FileInfoVO;
 import com.finalpre.quickshare.vo.FilePreviewPolicyVO;
@@ -22,7 +23,6 @@ import com.finalpre.quickshare.vo.PageVO;
 import com.finalpre.quickshare.vo.ShareLinkVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
@@ -38,12 +38,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 
 @RestController
@@ -74,7 +73,7 @@ public class FileController {
     private FilePreviewPolicyService filePreviewPolicyService;
 
     @Autowired
-    private OfficePreviewService officePreviewService;
+    private PreviewDelivery previewDelivery;
 
     @Autowired
     private StorageService storageService;
@@ -224,7 +223,16 @@ public class FileController {
                             Authentication authentication,
                             HttpServletResponse response) throws IOException {
         Long userId = requireUserId(authentication);
-        streamOwnedFile(fileId, userId, response, true, maxSize);
+        FileInfoVO file = fileService.getFileById(fileId, userId);
+        PreviewResponseWriter.write(previewDelivery.open(
+                PreviewSource.stored(
+                        storageService,
+                        file.getFilePath(),
+                        file.getOriginalName(),
+                        file.getFileType(),
+                        file.getFileSize()),
+                new PreviewOptions(maxSize, Duration.ofHours(1))
+        ), response);
     }
 
     /**
@@ -235,7 +243,7 @@ public class FileController {
                                   Authentication authentication,
                                   HttpServletResponse response) throws IOException {
         Long userId = requireUserId(authentication);
-        streamOwnedFile(fileId, userId, response, false, null);
+        streamOwnedDownload(fileId, userId, response);
     }
 
     @GetMapping("/settings/file-preview")
@@ -334,9 +342,18 @@ public class FileController {
             @PathVariable String shareCode,
             @RequestParam String extractCode,
             HttpServletRequest request,
-            HttpServletResponse response) {
+            HttpServletResponse response) throws IOException {
         requestRateLimitService.checkPublicDownloadAllowed(resolveClientIp(request));
-        fileService.previewShareFile(shareCode, extractCode, response);
+        FileInfoVO file = fileService.getSharedFileForPreview(shareCode, extractCode);
+        PreviewResponseWriter.write(previewDelivery.open(
+                PreviewSource.stored(
+                        storageService,
+                        file.getFilePath(),
+                        file.getOriginalName(),
+                        file.getFileType(),
+                        file.getFileSize()),
+                new PreviewOptions(null, Duration.ofHours(1))
+        ), response);
     }
 
     // Health check moved to HealthController
@@ -427,64 +444,32 @@ public class FileController {
         return userId;
     }
 
-    private void streamOwnedFile(Long fileId,
-                                 Long userId,
-                                 HttpServletResponse response,
-                                 boolean preview,
-                                 Integer maxSize) throws IOException {
+    private void streamOwnedDownload(Long fileId,
+                                     Long userId,
+                                     HttpServletResponse response) throws IOException {
         FileInfoVO fileVO = fileService.getFileById(fileId, userId);
         String storageKey = fileVO.getFilePath();
         if (!storageService.exists(storageKey)) {
             throw new ResourceNotFoundException("文件不存在");
         }
-        if (!preview) {
-            quotaService.checkDownloadQuota(userId);
-        }
+        quotaService.checkDownloadQuota(userId);
 
         String contentType = fileVO.getFileType();
         if (contentType == null || contentType.isEmpty()) {
             contentType = "application/octet-stream";
         }
-        if (preview && !filePreviewPolicyService.isPreviewAllowed(fileVO.getOriginalName(), contentType)) {
-            throw new FeatureDisabledException("当前文件类型不允许预览");
-        }
 
         String responseFileName = fileVO.getOriginalName();
         long contentLength = fileVO.getFileSize() == null ? storageService.getSize(storageKey) : fileVO.getFileSize();
-        InputStream previewStream = null;
-
-        if (preview && officePreviewService.supports(fileVO.getOriginalName(), contentType)) {
-            // Office conversion needs local file
-            fileVO.setFilePath(storageService.getLocalPath(storageKey).toString());
-            PreviewResource previewResource = officePreviewService.preparePreview(fileVO);
-            previewStream = new FileInputStream(previewResource.file().toFile());
-            contentType = previewResource.contentType();
-            responseFileName = previewResource.fileName();
-            contentLength = previewResource.contentLength();
-        }
 
         response.setContentType(contentType);
         response.setHeader("Cache-Control", "private, max-age=3600");
-        response.setHeader("Content-Disposition", (preview ? "inline" : "attachment") + "; filename=\"" +
+        response.setHeader("Content-Disposition", "attachment; filename=\"" +
                 new String(responseFileName.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1) + "\"");
-
-        boolean isImage = contentType.startsWith("image/");
-        if (preview && isImage && maxSize != null && maxSize > 0) {
-            try {
-                File localFile = storageService.getLocalPath(storageKey).toFile();
-                Thumbnails.of(localFile)
-                        .size(maxSize, maxSize)
-                        .outputQuality(0.8f)
-                        .toOutputStream(response.getOutputStream());
-                return;
-            } catch (Exception ignored) {
-                // 压缩失败时回退到原文件流。
-            }
-        }
 
         response.setContentLengthLong(contentLength);
 
-        try (InputStream is = previewStream != null ? previewStream : storageService.retrieve(storageKey);
+        try (InputStream is = storageService.retrieve(storageKey);
              OutputStream os = response.getOutputStream()) {
             byte[] buffer = new byte[8192];
             int length;
@@ -493,9 +478,7 @@ public class FileController {
             }
             os.flush();
         }
-        if (!preview) {
-            quotaService.recordDownload(userId);
-        }
+        quotaService.recordDownload(userId);
     }
 
     private String resolveClientIp(HttpServletRequest request) {

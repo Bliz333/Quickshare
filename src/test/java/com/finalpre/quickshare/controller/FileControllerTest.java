@@ -15,18 +15,21 @@ import com.finalpre.quickshare.service.FilePreviewPolicy;
 import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileService;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
-import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.RequestRateLimitService;
 import com.finalpre.quickshare.service.FileUploadPolicy;
-import com.finalpre.quickshare.service.PreviewResource;
 import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.service.SystemSettingOverrideService;
 import com.finalpre.quickshare.service.impl.CorsPolicyServiceImpl;
+import com.finalpre.quickshare.service.preview.PreparedPreview;
+import com.finalpre.quickshare.service.preview.PreviewDelivery;
+import com.finalpre.quickshare.service.preview.PreviewOptions;
+import com.finalpre.quickshare.service.preview.PreviewSource;
 import com.finalpre.quickshare.utils.JwtUtil;
 import com.finalpre.quickshare.vo.FileInfoVO;
 import com.finalpre.quickshare.vo.ShareLinkVO;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -35,10 +38,10 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.ByteArrayInputStream;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -97,7 +100,7 @@ class FileControllerTest {
     private FilePreviewPolicyService filePreviewPolicyService;
 
     @MockBean
-    private OfficePreviewService officePreviewService;
+    private PreviewDelivery previewDelivery;
 
     @MockBean
     private StorageService storageService;
@@ -203,21 +206,26 @@ class FileControllerTest {
         file.setFileSize(13L);
 
         mockValidToken("token", 7L);
-        when(filePreviewPolicyService.isPreviewAllowed("demo.txt", "text/plain")).thenReturn(true);
         when(fileService.getFileById(3L, 7L)).thenReturn(file);
-        when(storageService.exists("demo-key.txt")).thenReturn(true);
-        when(storageService.getSize("demo-key.txt")).thenReturn(13L);
-        when(storageService.retrieve("demo-key.txt")).thenReturn(
-                new java.io.ByteArrayInputStream("hello preview".getBytes()));
+        when(previewDelivery.open(any(), any())).thenReturn(preparedPreview(
+                "demo.txt", "text/plain", "private, max-age=3600", "hello preview"));
 
         mockMvc.perform(get("/api/files/3/preview")
-                        .param("token", "token"))
+                        .param("token", "token")
+                        .param("max_size", "320"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "text/plain"))
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("demo.txt")))
                 .andExpect(content().string("hello preview"));
 
         verify(fileService).getFileById(3L, 7L);
+        ArgumentCaptor<PreviewSource> sourceCaptor = ArgumentCaptor.forClass(PreviewSource.class);
+        ArgumentCaptor<PreviewOptions> optionsCaptor = ArgumentCaptor.forClass(PreviewOptions.class);
+        verify(previewDelivery).open(sourceCaptor.capture(), optionsCaptor.capture());
+        assertThat(sourceCaptor.getValue().fileName()).isEqualTo("demo.txt");
+        assertThat(sourceCaptor.getValue().contentType()).isEqualTo("text/plain");
+        assertThat(optionsCaptor.getValue().maxSize()).isEqualTo(320);
+        assertThat(optionsCaptor.getValue().cacheControl()).isEqualTo("private, max-age=3600");
     }
 
     @Test
@@ -231,48 +239,14 @@ class FileControllerTest {
 
         mockValidToken("token", 7L);
         when(fileService.getFileById(3L, 7L)).thenReturn(file);
-        when(storageService.exists("demo-key.docx")).thenReturn(true);
-        when(filePreviewPolicyService.isPreviewAllowed("demo.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-                .thenReturn(false);
+        when(previewDelivery.open(any(), any()))
+                .thenThrow(new com.finalpre.quickshare.common.FeatureDisabledException("当前文件类型不允许预览"));
 
         mockMvc.perform(get("/api/files/3/preview")
                         .header("Authorization", "Bearer token"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403))
                 .andExpect(jsonPath("$.message").value("当前文件类型不允许预览"));
-    }
-
-    @Test
-    void previewShouldConvertOfficeDocumentToPdf(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
-        Path pdfFile = tempDir.resolve("demo.pdf");
-        Files.writeString(pdfFile, "%PDF-1.4 demo");
-        Path localDocx = tempDir.resolve("demo.docx");
-        Files.writeString(localDocx, "office source");
-
-        FileInfoVO file = new FileInfoVO();
-        file.setId(3L);
-        file.setOriginalName("demo.docx");
-        file.setFilePath("demo-key.docx");
-        file.setFileType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-        file.setFileSize(13L);
-
-        mockValidToken("token", 7L);
-        when(fileService.getFileById(3L, 7L)).thenReturn(file);
-        when(storageService.exists("demo-key.docx")).thenReturn(true);
-        when(storageService.getLocalPath("demo-key.docx")).thenReturn(localDocx);
-        when(filePreviewPolicyService.isPreviewAllowed("demo.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-                .thenReturn(true);
-        when(officePreviewService.supports("demo.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-                .thenReturn(true);
-        when(officePreviewService.preparePreview(any()))
-                .thenReturn(new PreviewResource(pdfFile, "application/pdf", "demo.pdf", Files.size(pdfFile)));
-
-        mockMvc.perform(get("/api/files/3/preview")
-                        .header("Authorization", "Bearer token"))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Content-Type", "application/pdf"))
-                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("demo.pdf")))
-                .andExpect(content().string("%PDF-1.4 demo"));
     }
 
     @Test
@@ -446,13 +420,33 @@ class FileControllerTest {
 
         mockValidToken("token", 7L);
         when(fileService.getFileById(3L, 7L)).thenReturn(file);
-        when(storageService.exists("missing-key.txt")).thenReturn(false);
+        when(previewDelivery.open(any(), any())).thenThrow(new ResourceNotFoundException("文件不存在"));
 
         mockMvc.perform(get("/api/files/3/preview")
                         .header("Authorization", "Bearer token"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(404))
                 .andExpect(jsonPath("$.message").value("文件不存在"));
+    }
+
+    @Test
+    void sharedPreviewUsesValidatedStorageSource() throws Exception {
+        FileInfoVO file = new FileInfoVO();
+        file.setOriginalName("shared.txt");
+        file.setFilePath("shared-key.txt");
+        file.setFileType("text/plain");
+        file.setFileSize(6L);
+        when(fileService.getSharedFileForPreview("share-code", "1234")).thenReturn(file);
+        when(previewDelivery.open(any(), any())).thenReturn(preparedPreview(
+                "shared.txt", "text/plain", "private, max-age=3600", "shared"));
+
+        mockMvc.perform(get("/api/preview/share-code")
+                        .param("extractCode", "1234"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "private, max-age=3600"))
+                .andExpect(content().string("shared"));
+
+        verify(fileService).getSharedFileForPreview("share-code", "1234");
     }
 
     @Test
@@ -684,5 +678,19 @@ class FileControllerTest {
         when(jwtUtil.validateAccessToken(token)).thenReturn(true);
         when(jwtUtil.getUserIdFromToken(token)).thenReturn(userId);
         when(userMapper.selectById(userId)).thenReturn(user);
+    }
+
+    private PreparedPreview preparedPreview(String fileName,
+                                            String contentType,
+                                            String cacheControl,
+                                            String body) {
+        byte[] bytes = body.getBytes();
+        return new PreparedPreview(
+                fileName,
+                contentType,
+                bytes.length,
+                cacheControl,
+                new ByteArrayInputStream(bytes)
+        );
     }
 }

@@ -7,10 +7,8 @@ import com.finalpre.quickshare.entity.FileInfo;
 import com.finalpre.quickshare.entity.ShareLink;
 import com.finalpre.quickshare.mapper.FileInfoMapper;
 import com.finalpre.quickshare.mapper.ShareLinkMapper;
-import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
-import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.vo.FileInfoVO;
@@ -50,12 +48,6 @@ class FileServiceImplTest {
 
     @Mock
     private FileUploadPolicyService fileUploadPolicyService;
-
-    @Mock
-    private FilePreviewPolicyService filePreviewPolicyService;
-
-    @Mock
-    private OfficePreviewService officePreviewService;
 
     @Mock
     private StorageService storageService;
@@ -311,6 +303,28 @@ class FileServiceImplTest {
         assertThatThrownBy(() -> fileService.getShareInfo("ABCD1234", "1234"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("文件不存在或已删除");
+    }
+
+    @Test
+    void getSharedFileForPreviewShouldReturnValidatedFileMetadata() {
+        ShareLink shareLink = buildShareLink("ABCD1234", "1234");
+        FileInfo fileInfo = new FileInfo();
+        fileInfo.setId(9L);
+        fileInfo.setDeleted(0);
+        fileInfo.setOriginalName("shared.txt");
+        fileInfo.setFilePath("shared-key.txt");
+        fileInfo.setFileType("text/plain");
+        fileInfo.setFileSize(12L);
+
+        when(shareLinkMapper.selectOne(any())).thenReturn(shareLink);
+        when(fileInfoMapper.selectById(9L)).thenReturn(fileInfo);
+
+        FileInfoVO previewFile = fileService.getSharedFileForPreview("ABCD1234", "1234");
+
+        assertThat(previewFile.getOriginalName()).isEqualTo("shared.txt");
+        assertThat(previewFile.getFilePath()).isEqualTo("shared-key.txt");
+        assertThat(previewFile.getFileType()).isEqualTo("text/plain");
+        assertThat(previewFile.getFileSize()).isEqualTo(12L);
     }
 
     @Test

@@ -38,9 +38,9 @@ public interface FileService {
     void downloadFile(String shareCode, String extractCode, HttpServletResponse response);
 
     /**
-     * Preview shared file (inline disposition, supports Office conversion)
+     * Validate a share link and return the file metadata needed for preview delivery.
      */
-    void previewShareFile(String shareCode, String extractCode, HttpServletResponse response);
+    FileInfoVO getSharedFileForPreview(String shareCode, String extractCode);
 
     /**
      * 获取用户的所有文件

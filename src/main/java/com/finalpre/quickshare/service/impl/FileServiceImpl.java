@@ -11,12 +11,9 @@ import com.finalpre.quickshare.entity.FileInfo;
 import com.finalpre.quickshare.entity.ShareLink;
 import com.finalpre.quickshare.mapper.FileInfoMapper;
 import com.finalpre.quickshare.mapper.ShareLinkMapper;
-import com.finalpre.quickshare.service.FilePreviewPolicyService;
 import com.finalpre.quickshare.service.FileService;
 import com.finalpre.quickshare.service.FileUploadPolicy;
 import com.finalpre.quickshare.service.FileUploadPolicyService;
-import com.finalpre.quickshare.service.OfficePreviewService;
-import com.finalpre.quickshare.service.PreviewResource;
 import com.finalpre.quickshare.service.QuotaService;
 import com.finalpre.quickshare.service.StorageService;
 import com.finalpre.quickshare.vo.FileInfoVO;
@@ -52,12 +49,6 @@ public class FileServiceImpl implements FileService {
 
     @Autowired
     private FileUploadPolicyService fileUploadPolicyService;
-
-    @Autowired
-    private FilePreviewPolicyService filePreviewPolicyService;
-
-    @Autowired
-    private OfficePreviewService officePreviewService;
 
     @Autowired
     private StorageService storageService;
@@ -377,74 +368,19 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public void previewShareFile(String shareCode, String extractCode, HttpServletResponse response) {
-        // Validate share info (same checks as download)
-        ShareLinkVO shareInfo = getShareInfo(shareCode, extractCode);
-
+    public FileInfoVO getSharedFileForPreview(String shareCode, String extractCode) {
+        getShareInfo(shareCode, extractCode);
         QueryWrapper<ShareLink> wrapper = new QueryWrapper<>();
         wrapper.eq("share_code", shareCode);
         ShareLink shareLink = shareLinkMapper.selectOne(wrapper);
-
+        if (shareLink == null) {
+            throw new ResourceNotFoundException("分享链接不存在");
+        }
         FileInfo fileInfo = fileInfoMapper.selectById(shareLink.getFileId());
-        String storageKey = fileInfo.getFilePath();
-        if (!storageService.exists(storageKey)) {
-            throw new ResourceNotFoundException("文件不存在");
+        if (fileInfo == null || (fileInfo.getDeleted() != null && fileInfo.getDeleted() == 1)) {
+            throw new ResourceNotFoundException("文件不存在或已删除");
         }
-
-        String contentType = fileInfo.getFileType();
-        if (contentType == null || contentType.isEmpty()) {
-            contentType = "application/octet-stream";
-        }
-
-        if (!filePreviewPolicyService.isPreviewAllowed(fileInfo.getOriginalName(), contentType)) {
-            throw new com.finalpre.quickshare.common.FeatureDisabledException("当前文件类型不允许预览");
-        }
-
-        String responseFileName = fileInfo.getOriginalName();
-        long contentLength;
-        try {
-            contentLength = fileInfo.getFileSize() == null ? storageService.getSize(storageKey) : fileInfo.getFileSize();
-        } catch (IOException e) {
-            contentLength = 0;
-        }
-        InputStream previewStream = null;
-
-        // Office conversion (needs local file)
-        if (officePreviewService.supports(fileInfo.getOriginalName(), contentType)) {
-            try {
-                FileInfoVO tempVO = new FileInfoVO();
-                BeanUtils.copyProperties(fileInfo, tempVO);
-                tempVO.setName(fileInfo.getOriginalName());
-                tempVO.setFilePath(storageService.getLocalPath(storageKey).toString());
-                PreviewResource previewResource = officePreviewService.preparePreview(tempVO);
-                previewStream = new FileInputStream(previewResource.file().toFile());
-                contentType = previewResource.contentType();
-                responseFileName = previewResource.fileName();
-                contentLength = previewResource.contentLength();
-            } catch (IOException e) {
-                throw new com.finalpre.quickshare.common.PreviewUnavailableException("Office 文档转换失败，请直接下载");
-            }
-        }
-
-        try {
-            response.setContentType(contentType);
-            response.setHeader("Cache-Control", "private, max-age=3600");
-            response.setHeader("Content-Disposition",
-                    "inline; filename=\"" + new String(responseFileName.getBytes("UTF-8"), "ISO-8859-1") + "\"");
-            response.setContentLengthLong(contentLength);
-
-            try (InputStream is = previewStream != null ? previewStream : storageService.retrieve(storageKey);
-                 OutputStream os = response.getOutputStream()) {
-                byte[] buffer = new byte[8192];
-                int length;
-                while ((length = is.read(buffer)) > 0) {
-                    os.write(buffer, 0, length);
-                }
-                os.flush();
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("文件预览失败: " + e.getMessage(), e);
-        }
+        return convertToVO(fileInfo);
     }
 
     /**

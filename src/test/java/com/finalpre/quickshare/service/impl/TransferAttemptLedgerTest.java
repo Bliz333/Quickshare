@@ -88,6 +88,26 @@ class TransferAttemptLedgerTest {
     }
 
     @Test
+    void nullJsonLedgerShouldRejectRemovalButHealOnUpsert() {
+        TransferAttemptLedger corrupted = TransferAttemptLedger.load("null");
+
+        assertThat(corrupted.isCorrupted()).isTrue();
+        assertThat(corrupted.remove("direct", "direct-1").isCorrupted()).isTrue();
+        assertThat(corrupted.remove("direct-1").isCorrupted()).isTrue();
+
+        TransferAttemptLedger healed = corrupted.upsert(attempt(
+                "direct",
+                "direct-2",
+                "sending",
+                LocalDateTime.of(2026, 7, 31, 10, 0)
+        ));
+
+        assertThat(healed.isCorrupted()).isFalse();
+        assertThat(healed.view().attempts()).extracting(TransferTaskAttemptVO::getTransferId)
+                .containsExactly("direct-2");
+    }
+
+    @Test
     void removeShouldMatchBothModeAndTransferId() {
         LocalDateTime now = LocalDateTime.of(2026, 7, 31, 10, 0);
         TransferAttemptLedger ledger = TransferAttemptLedger.load("[]")

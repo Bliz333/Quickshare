@@ -62,9 +62,9 @@ npx playwright test tests/e2e/quickdrop-real.spec.js
 `.github/workflows/ci.yml` 对 `main` PR 运行：
 
 1. `scripts/release-ready.sh`、完整 Maven tests、JS syntax、package；
-2. mock-only Playwright：notifications、netdisk quota、pricing/payment、Quick Transfer、registration captcha。
+2. 静态 mock-only Playwright：notifications、Quick Transfer、registration captcha。
 
-真实后端 admin 用例、文件拖拽/导航与 `quickdrop-real` 不在 GitHub mock job 内。CI 绿灯不能替代这些场景的运行态验证。
+`netdisk-quota.spec.js`、`pricing-payment.spec.js`、真实后端 admin 用例、文件拖拽/导航与 `quickdrop-real` 需要运行中的应用，不在 GitHub 静态 mock job 内。CI 绿灯不能替代这些场景的运行态验证。
 
 分支 push 只匹配 `main` 和 `feature/*`；`codex/*` 分支要通过 PR 事件获得完整 CI。
 

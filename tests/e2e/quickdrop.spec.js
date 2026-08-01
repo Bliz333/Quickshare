@@ -2463,6 +2463,9 @@ test.describe('Transfer pages', () => {
     await page.locator('#transferDirectSendBtn').click();
 
     await expect(page.locator('#transferDirectActiveMeta')).toContainText('Direct transfer complete');
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__transferDirectSend.control.some(item => item.type === 'transfer-finish'));
+    }).toBe(true);
     const sendState = await page.evaluate(() => window.__transferDirectSend);
     expect(sendState.binaryCount).toBe(1);
     expect(sendState.control.some(item => item.type === 'transfer-offer')).toBeTruthy();

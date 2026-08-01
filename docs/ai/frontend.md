@@ -23,7 +23,7 @@
 ## 共享层
 
 - `js/config.js`：`window.AppConfig` API 基址与 `window.QuickShareRoutes` 路由清理。
-- `js/session.js`：token/user 状态、fetch/XHR 续签、profile 与管理台访问。
+- `js/session.js`：token/user 状态、fetch/XHR 续签、JSON API 请求、原始内容请求、profile 与管理台访问。
 - `js/auth.js`：登录态渲染和共享鉴权 helper。
 - `js/lang-switch.js`：中英文本与当前语言刷新。
 - `js/theme.js`、`js/nav.js`、`js/modal.js`、`js/ui.js`：主题、导航、Modal 和通用反馈。
@@ -37,7 +37,8 @@
 登录成功后，JWT 同时可存在 localStorage 与 HttpOnly cookie。前端请求沿用现有 helper：
 
 - fetch/XHR 响应中的 `X-Auth-Refresh` 由 `session.js` 捕获并更新 localStorage；
-- `QuickShareSession.clear()` 统一清理 token/user；
+- `BrowserSession.request()` 用于 `Result<T>` JSON API，文件、预览和静态页面等原始内容使用 `BrowserSession.requestContent()`；
+- `BrowserSession.signOut()` 统一清理 token/user 并通知服务端；
 - 遇到 401 时先保留语言、主题、设备标识等用户偏好，再清理身份状态；
 - 资源 URL 需要 query token 时只用于现有兼容场景，普通 API 使用 Authorization/cookie。
 

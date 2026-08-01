@@ -6,7 +6,7 @@
 
 - 前端是原生 HTML / CSS / JavaScript，无 bundler、模块解析或编译步骤；HTML 中的脚本顺序就是依赖顺序。
 - 对外使用 clean routes：`/`、`/login`、`/register`、`/share`、`/drive`、`/pricing`、`/payment-result`。旧 `.html` 与 QuickDrop 页面由后端重定向，不应成为新链接目标。
-- API 基址与页面 URL 统一经 `window.AppConfig` / `window.QuickShareRoutes`；会话读取、续签和清理由 `window.QuickShareSession` 负责。
+- API 基址与页面 URL 统一经 `window.AppConfig` / `window.QuickShareRoutes`；会话读取、续签和清理由 `window.BrowserSession` 负责。
 
 ## 必守边界
 

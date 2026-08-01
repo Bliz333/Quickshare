@@ -34,7 +34,7 @@ The existing script can fetch the current branch or use git-bundle/snapshot fall
 
 ```bash
 git status --short
-git rev-parse HEAD
+candidate_sha="$(git rev-parse HEAD)"
 DEPLOY_RUN_SMOKE=1 \
 DEPLOY_RUN_BROWSER_SMOKE=1 \
 ./scripts/deploy-preprod.sh
@@ -42,16 +42,7 @@ DEPLOY_RUN_BROWSER_SMOKE=1 \
 
 Do not set `DEPLOY_GIT_BRANCH` to a branch other than the current checkout: the snapshot fallback packages current `HEAD`. The configured remote should remain a real Git worktree backed by a local mirror. `compose.yaml` is the repository Compose file; do not document or depend on an untracked `docker-compose.yml` copy.
 
-After deployment, verify the exact deployed SHA, not only HTTP 200:
-
-```bash
-quickshare-test-ssh 'cat /root/quickshare/DEPLOYED_COMMIT'
-curl -fsS http://127.0.0.1:8080/api/health
-curl -fsS http://127.0.0.1:8080/api/public/transfer/rtc-config
-./scripts/quickshare-smoke.sh
-```
-
-The reported `DEPLOYED_COMMIT` must equal the local `git rev-parse HEAD` captured before deployment.
+The script runs health, RTC, smoke and browser smoke inside the configured remote checkout. On success, read its final `[deploy] summary:` and require `deployed_commit` to equal the captured `candidate_sha`, with `health=passed`, `rtc=passed`, `smoke=passed` and `browser_smoke=passed`. Do not follow this with local loopback curls or a local smoke run: those would validate the caller's machine, not the deployed target. Independent remote inspection must reuse the configured transport and `DEPLOY_REMOTE_DIR`, never a hardcoded helper or path.
 
 Use `./scripts/quickshare-resource-check.sh --report-only` before and after expensive rebuilds on constrained hosts.
 

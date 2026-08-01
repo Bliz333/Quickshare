@@ -17,9 +17,21 @@ cp src/main/resources/application-local.example.yml src/main/resources/applicati
 
 ```bash
 cp .env.example .env
+generated_jwt_value="$(openssl rand -hex 32)" || exit 1
+generated_setting_value="$(openssl rand -hex 32)" || exit 1
+generated_env="$(mktemp)" || exit 1
+awk -v jwt="$generated_jwt_value" -v setting="$generated_setting_value" '
+  index($0, "JWT" "_SECRET=") == 1 { print "JWT" "_SECRET=" jwt; next }
+  index($0, "SETTING" "_ENCRYPT_KEY=") == 1 { print "SETTING" "_ENCRYPT_KEY=" setting; next }
+  { print }
+' .env > "$generated_env" || { rm -f "$generated_env"; exit 1; }
+mv "$generated_env" .env || exit 1
+unset generated_jwt_value generated_setting_value generated_env
 docker compose up --build -d
 curl -fsS http://127.0.0.1:8080/api/health
 ```
+
+上面的生成步骤把两项生产 profile 必需密钥持久化到 gitignored `.env`，不会把值打印到终端。对外暴露前还必须替换 `.env` 中的数据库 starter 口令。
 
 `compose.yaml` 服务：
 
@@ -82,7 +94,7 @@ DEPLOY_RUN_BROWSER_SMOKE=1 \
 ./scripts/deploy-preprod.sh
 ```
 
-目标、路径、SSH helper 和分支均可由脚本声明的 `DEPLOY_*` 变量覆盖。真实 host/key 只放 `.agents/local/` 或本机 SSH config，不写进仓库。
+目标、路径和 SSH helper 可由脚本声明的 `DEPLOY_*` 变量覆盖。当前 snapshot fallback 固定打包本地 `HEAD`，因此 `DEPLOY_GIT_BRANCH` 不得指向与当前 checkout 不同的分支。真实 host/key 只放 `.agents/local/` 或本机 SSH config，不写进仓库。
 
 该脚本会改变远端预发布工作树和容器状态，只能对已授权测试目标使用。它不是生产发布抽象，也不应用于未确认的生产主机。
 

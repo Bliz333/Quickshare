@@ -157,11 +157,10 @@ function getTransferPreviewKind(fileName, contentType) {
 
 function transferRequest(path, options = {}) {
     const headers = {
-        ...getAuthHeaders(),
         ...(options.headers || {})
     };
 
-    return fetch(`${API_BASE}${path}`, {
+    return BrowserSession.request(`${API_BASE}${path}`, {
         ...options,
         headers
     }).then(async response => {
@@ -2177,7 +2176,7 @@ function renderTransferPage() {
 }
 
 async function syncTransfer(silent = false) {
-    if (!(typeof isLoggedIn === 'function' && isLoggedIn())) {
+    if (!BrowserSession.current().authenticated) {
         transferState.currentDevice = null;
         transferState.devices = [];
         transferState.folders = [];
@@ -2549,10 +2548,9 @@ async function sendSingleTransferFile(selectedItem, batchIndex, batchTotal) {
                 ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, chunkIndex)
                 : chunk;
 
-            const response = await fetch(`${API_BASE}/transfer/transfers/${session.id}/chunks/${chunkIndex}?deviceId=${encodeURIComponent(getTransferDeviceId())}`, {
+            const response = await BrowserSession.request(`${API_BASE}/transfer/transfers/${session.id}/chunks/${chunkIndex}?deviceId=${encodeURIComponent(getTransferDeviceId())}`, {
                 method: 'PUT',
                 headers: {
-                    ...getAuthHeaders(),
                     'Content-Type': 'application/octet-stream'
                 },
                 body
@@ -2911,17 +2909,15 @@ function bindTransferEvents() {
 
 async function initTransferPage() {
     bindTransferEvents();
-    setTransferAccountMode(typeof isLoggedIn === 'function' && isLoggedIn());
+    setTransferAccountMode(BrowserSession.current().authenticated);
     transferState.currentMode = transferState.accountMode ? 'account' : 'temporary';
     transferState.currentSubpage = getTransferSubpageFromLocation();
 
     if (transferState.accountMode) {
         try {
-            transferState.profile = window.QuickShareSession && typeof window.QuickShareSession.fetchProfile === 'function'
-                ? await window.QuickShareSession.fetchProfile()
-                : getStoredAuthUser();
+            transferState.profile = await BrowserSession.refresh();
         } catch (error) {
-            transferState.profile = getStoredAuthUser();
+            transferState.profile = BrowserSession.current().user;
         }
 
         const nameInput = document.getElementById('transferDeviceName');

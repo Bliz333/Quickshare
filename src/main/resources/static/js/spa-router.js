@@ -64,7 +64,7 @@
 
     function fetchPage(file) {
         if (cache[file]) return Promise.resolve(cache[file]);
-        return fetch(file).then(function (r) {
+        return BrowserSession.request(file, { sessionEnvelope: false }).then(function (r) {
             if (!r.ok) throw new Error(r.status);
             return r.text();
         }).then(function (html) {

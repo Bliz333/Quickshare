@@ -81,7 +81,7 @@ async function handleLogin(event) {
     loginBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>' + t('loggingIn') + '</span>';
 
     try {
-        const response = await fetch(`${API_BASE}/auth/login`, {
+        const response = await BrowserSession.request(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
@@ -90,9 +90,7 @@ async function handleLogin(event) {
         const result = await response.json();
 
         if (result.code === 200) {
-            // 保存登录信息
-            localStorage.setItem('token', result.data.token);
-            localStorage.setItem('user', JSON.stringify(result.data));
+            BrowserSession.signIn(result.data);
 
             showToast(t('loginSuccess'), 'success');
 
@@ -114,10 +112,7 @@ async function handleLogin(event) {
  * 检查是否已登录
  */
 function checkAlreadyLoggedIn() {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-
-    if (token && user) {
+    if (BrowserSession.current().authenticated) {
         // 已登录，跳转回受保护入口，默认回首页。
         window.location.href = getSafeAuthRedirectTarget('index.html');
     }

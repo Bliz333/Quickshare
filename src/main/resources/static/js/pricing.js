@@ -17,19 +17,13 @@ let selectedProviderId = null;
 let currentPaymentOptions = null;
 let availablePayTypes = [];
 
-function getToken() {
-    return window.QuickShareSession?.getToken() || localStorage.getItem('token');
-}
-
 function isLoggedIn() {
-    return !!getToken();
+    return BrowserSession.current().authenticated;
 }
 
 async function apiRequest(path, options = {}) {
-    const token = getToken();
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-    if (token) headers.Authorization = 'Bearer ' + token;
-    const resp = await fetch(API + path, { ...options, headers });
+    const resp = await BrowserSession.request(API + path, { ...options, headers });
     const json = await resp.json();
     if (json.code !== 200 && json.code !== 0) throw new Error(json.message || 'Request failed');
     return json.data;

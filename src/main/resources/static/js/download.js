@@ -130,8 +130,7 @@ async function getPickupInfo() {
     }
 
     try {
-        const headers = getAuthToken() ? getAuthHeaders() : {};
-        const res = await fetch(`${API_BASE}/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}`, { headers });
+        const res = await BrowserSession.request(`${API_BASE}/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}`);
         const text = await res.text();
         const data = text ? JSON.parse(text) : null;
         if (!res.ok || !data || data.code !== 200) {
@@ -155,8 +154,9 @@ async function getPickupInfo() {
         if (updatedEl) updatedEl.textContent = formatPickupTime(info.updateTime);
         if (pickupDownloadBtn) pickupDownloadBtn.disabled = !info.ready;
         if (pickupSaveBtn) {
-            pickupSaveBtn.style.display = isLoggedIn() && !_pickupE2ee?.encrypted ? '' : 'none';
-            pickupSaveBtn.disabled = !info.ready || !isLoggedIn() || Boolean(_pickupE2ee?.encrypted);
+            const signedIn = BrowserSession.current().authenticated;
+            pickupSaveBtn.style.display = signedIn && !_pickupE2ee?.encrypted ? '' : 'none';
+            pickupSaveBtn.disabled = !info.ready || !signedIn || Boolean(_pickupE2ee?.encrypted);
         }
         if (pickupInfo) {
             pickupInfo.style.display = 'block';
@@ -187,17 +187,16 @@ async function savePickupToNetdisk() {
         showToast(lang === 'zh' ? '端到端加密文件暂不支持直接保存到网盘，请先下载解密文件' : 'End-to-end encrypted files cannot be saved to netdisk yet. Download and decrypt first.', 'warning');
         return;
     }
-    if (!isLoggedIn()) {
+    if (!BrowserSession.current().authenticated) {
         showToast(lang === 'zh' ? '请先登录' : 'Please log in first', 'warning');
         return;
     }
 
     try {
-        const response = await fetch(`${API_BASE}/transfer/public-shares/${encodeURIComponent(_pickupShareToken)}/save`, {
+        const response = await BrowserSession.request(`${API_BASE}/transfer/public-shares/${encodeURIComponent(_pickupShareToken)}/save`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                ...getAuthHeaders()
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ folderId: 0 })
         });
@@ -252,7 +251,7 @@ async function getShareInfo() {
 
     try {
         const url = `${API_BASE}/share/${sCode}?extractCode=${encodeURIComponent(eCode)}`;
-        const res = await fetch(url);
+        const res = await BrowserSession.request(url);
         const data = await res.json();
 
         if (data.code !== 200) {

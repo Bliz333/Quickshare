@@ -4,6 +4,7 @@ import com.finalpre.quickshare.common.FeatureDisabledException;
 import com.finalpre.quickshare.common.PreviewUnavailableException;
 import com.finalpre.quickshare.common.ResourceNotFoundException;
 import com.finalpre.quickshare.service.FilePreviewPolicyService;
+import com.finalpre.quickshare.service.LocalPathLease;
 import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.PreviewResource;
 import com.finalpre.quickshare.vo.FileInfoVO;
@@ -69,11 +70,11 @@ public class DefaultPreviewDelivery implements PreviewDelivery {
                                               PreviewOptions options,
                                               String fileName,
                                               String contentType) throws IOException {
-        try {
+        try (LocalPathLease localPath = source.acquireLocalPath()) {
             FileInfoVO fileInfo = new FileInfoVO();
             fileInfo.setOriginalName(fileName);
             fileInfo.setFileType(contentType);
-            fileInfo.setFilePath(source.localPath().toString());
+            fileInfo.setFilePath(localPath.path().toString());
             fileInfo.setFileSize(source.contentLength());
 
             PreviewResource preview = officePreviewService.preparePreview(fileInfo);
@@ -98,8 +99,9 @@ public class DefaultPreviewDelivery implements PreviewDelivery {
         Path thumbnailFile = null;
         try {
             thumbnailFile = Files.createTempFile("quickshare-thumbnail-", ".tmp");
-            try (OutputStream output = Files.newOutputStream(thumbnailFile)) {
-                Thumbnails.of(source.localPath().toFile())
+            try (LocalPathLease localPath = source.acquireLocalPath();
+                 OutputStream output = Files.newOutputStream(thumbnailFile)) {
+                Thumbnails.of(localPath.path().toFile())
                         .size(options.maxSize(), options.maxSize())
                         .outputQuality(0.8f)
                         .toOutputStream(output);

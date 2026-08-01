@@ -8,5 +8,8 @@ public interface OfficePreviewService {
 
     boolean supports(String fileName, String contentType);
 
+    /**
+     * The returned resource must remain readable after the source file is released.
+     */
     PreviewResource preparePreview(FileInfoVO fileInfo) throws IOException;
 }

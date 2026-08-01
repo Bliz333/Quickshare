@@ -38,7 +38,7 @@ Quick Transfer 是当前产品/代码名称。旧 QuickDrop 名称只存在于�
 
 - `load()` 容忍空值并标记损坏 JSON；
 - `upsert()` 按 `(transferMode, transferId)` 合并生命周期；
-- `remove()` 在损坏账本上保持不破坏原值；
+- `removeIfIntact()` 在账本损坏时拒绝删除，由调用方保留原任务和关联资源；
 - `view()` 同时生成 attempts、summary 与 task projection；
 - service 保存时必须用同一个 view 回写 JSON 和投影字段，避免任务摘要与账本分叉。
 

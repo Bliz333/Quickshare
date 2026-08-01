@@ -51,6 +51,28 @@ class LibreOfficeOfficePreviewServiceTest {
     }
 
     @Test
+    void preparePreviewShouldRemainReadableAfterSourceIsDeleted() throws Exception {
+        Path cacheDir = tempDir.resolve("cache-independent");
+        Path markerFile = tempDir.resolve("soffice-independent.log");
+        Path commandScript = createFakeSofficeScript(tempDir.resolve("fake-soffice-independent.sh"), markerFile, false);
+        LibreOfficeOfficePreviewService service = createService(commandScript, cacheDir, true);
+
+        Path sourceFile = tempDir.resolve("independent.docx");
+        Files.writeString(sourceFile, "office source");
+
+        FileInfoVO fileInfo = new FileInfoVO();
+        fileInfo.setOriginalName("independent.docx");
+        fileInfo.setFilePath(sourceFile.toString());
+        fileInfo.setFileType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+
+        PreviewResource preview = service.preparePreview(fileInfo);
+        Files.delete(sourceFile);
+
+        assertThat(Files.readString(preview.file())).isEqualTo("fake pdf preview");
+        assertThat(preview.file()).startsWith(cacheDir);
+    }
+
+    @Test
     void preparePreviewShouldFailWhenServiceDisabled() throws Exception {
         LibreOfficeOfficePreviewService service = createService(tempDir.resolve("missing-soffice"), tempDir.resolve("cache"), false);
 

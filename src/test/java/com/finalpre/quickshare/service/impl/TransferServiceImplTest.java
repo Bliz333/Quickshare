@@ -404,4 +404,87 @@ class TransferServiceImplTest {
         verify(transferTransferMapper, never()).deleteById(77L);
         assertThat(taskStore.get(902L).getAttemptsJson()).isEqualTo("{not valid json");
     }
+
+    @Test
+    void cleanupExpiredTransfersShouldPreserveRelayFilesAndTaskWhenLedgerIsCorrupted() throws Exception {
+        TransferRelay transfer = expiredRelay(78L, 903L, "cleanup-corrupted-key");
+        TransferTask task = expiredTask(903L, transfer, "null");
+        taskStore.put(task.getId(), task);
+
+        Path transferDir = tempDir.resolve("transfer-temp").resolve(transfer.getTransferKey());
+        Files.createDirectories(transferDir);
+        Files.writeString(transferDir.resolve("payload.bin"), "relay body");
+        when(transferTransferMapper.selectList(any())).thenReturn(List.of(transfer));
+
+        int deleted = transferService.cleanupExpiredTransfers();
+
+        assertThat(deleted).isZero();
+        assertThat(transferDir).exists();
+        assertThat(taskStore).containsKey(903L);
+        assertThat(taskStore.get(903L).getAttemptsJson()).isEqualTo("null");
+        verify(transferTransferMapper, never()).deleteById(78L);
+    }
+
+    @Test
+    void cleanupExpiredTransfersShouldDeleteRelayAndTaskAfterLastValidAttempt() throws Exception {
+        TransferRelay transfer = expiredRelay(79L, 904L, "cleanup-valid-key");
+        TransferTask task = expiredTask(
+                904L,
+                transfer,
+                "[{\"transferMode\":\"relay\",\"transferId\":\"79\",\"stage\":\"ready\",\"updateTime\":\"2026-07-31T10:00:00\"}]"
+        );
+        taskStore.put(task.getId(), task);
+
+        Path transferDir = tempDir.resolve("transfer-temp").resolve(transfer.getTransferKey());
+        Files.createDirectories(transferDir);
+        Files.writeString(transferDir.resolve("payload.bin"), "relay body");
+        when(transferTransferMapper.selectList(any())).thenReturn(List.of(transfer));
+        when(transferTransferMapper.deleteById(79L)).thenReturn(1);
+
+        int deleted = transferService.cleanupExpiredTransfers();
+
+        assertThat(deleted).isEqualTo(1);
+        assertThat(transferDir).doesNotExist();
+        assertThat(taskStore).doesNotContainKey(904L);
+        verify(transferTransferMapper).deleteById(79L);
+    }
+
+    private TransferRelay expiredRelay(Long transferId, Long taskId, String transferKey) {
+        TransferRelay transfer = new TransferRelay();
+        transfer.setId(transferId);
+        transfer.setUserId(8L);
+        transfer.setTaskId(taskId);
+        transfer.setTransferKey(transferKey);
+        transfer.setTaskKey("outgoing|receiver-device|relay.txt|10|1710000000000");
+        transfer.setSenderDeviceId("sender-device");
+        transfer.setReceiverDeviceId("receiver-device");
+        transfer.setFileName("relay.txt");
+        transfer.setFileSize(10L);
+        transfer.setContentType("text/plain");
+        transfer.setTotalChunks(1);
+        transfer.setUploadedChunks(1);
+        transfer.setStatus("ready");
+        transfer.setExpireTime(LocalDateTime.now().minusMinutes(1));
+        return transfer;
+    }
+
+    private TransferTask expiredTask(Long taskId, TransferRelay transfer, String attemptsJson) {
+        TransferTask task = new TransferTask();
+        task.setId(taskId);
+        task.setUserId(transfer.getUserId());
+        task.setTaskKey(transfer.getTaskKey());
+        task.setSenderDeviceId(transfer.getSenderDeviceId());
+        task.setReceiverDeviceId(transfer.getReceiverDeviceId());
+        task.setFileName(transfer.getFileName());
+        task.setFileSize(transfer.getFileSize());
+        task.setContentType(transfer.getContentType());
+        task.setTotalChunks(transfer.getTotalChunks());
+        task.setCompletedChunks(transfer.getUploadedChunks());
+        task.setStatus(transfer.getStatus());
+        task.setTransferMode("relay");
+        task.setCurrentTransferMode("relay");
+        task.setAttemptsJson(attemptsJson);
+        task.setExpireTime(LocalDateTime.now().minusMinutes(1));
+        return task;
+    }
 }

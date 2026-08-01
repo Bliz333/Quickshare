@@ -71,9 +71,8 @@ class TransferAttemptLedgerTest {
     void corruptedLedgerShouldRejectRemovalButHealOnUpsert() {
         TransferAttemptLedger corrupted = TransferAttemptLedger.load("{not valid json");
 
-        assertThat(corrupted.isCorrupted()).isTrue();
         assertThat(corrupted.view().attempts()).isEmpty();
-        assertThat(corrupted.remove("direct", "direct-1").isCorrupted()).isTrue();
+        assertThat(corrupted.removeIfIntact("direct", "direct-1")).isEmpty();
 
         TransferAttemptLedger healed = corrupted.upsert(attempt(
                 "direct",
@@ -82,7 +81,7 @@ class TransferAttemptLedgerTest {
                 LocalDateTime.of(2026, 7, 31, 10, 0)
         ));
 
-        assertThat(healed.isCorrupted()).isFalse();
+        assertThat(healed.removeIfIntact("missing")).isPresent();
         assertThat(healed.view().attempts()).extracting(TransferTaskAttemptVO::getTransferId)
                 .containsExactly("direct-2");
     }
@@ -91,9 +90,8 @@ class TransferAttemptLedgerTest {
     void nullJsonLedgerShouldRejectRemovalButHealOnUpsert() {
         TransferAttemptLedger corrupted = TransferAttemptLedger.load("null");
 
-        assertThat(corrupted.isCorrupted()).isTrue();
-        assertThat(corrupted.remove("direct", "direct-1").isCorrupted()).isTrue();
-        assertThat(corrupted.remove("direct-1").isCorrupted()).isTrue();
+        assertThat(corrupted.removeIfIntact("direct", "direct-1")).isEmpty();
+        assertThat(corrupted.removeIfIntact("direct-1")).isEmpty();
 
         TransferAttemptLedger healed = corrupted.upsert(attempt(
                 "direct",
@@ -102,7 +100,7 @@ class TransferAttemptLedgerTest {
                 LocalDateTime.of(2026, 7, 31, 10, 0)
         ));
 
-        assertThat(healed.isCorrupted()).isFalse();
+        assertThat(healed.removeIfIntact("missing")).isPresent();
         assertThat(healed.view().attempts()).extracting(TransferTaskAttemptVO::getTransferId)
                 .containsExactly("direct-2");
     }
@@ -114,7 +112,9 @@ class TransferAttemptLedgerTest {
                 .upsert(attempt("direct", "shared-id", "sending", now))
                 .upsert(attempt("relay", "shared-id", "ready", now.plusSeconds(1)));
 
-        TransferAttemptLedger.View view = ledger.remove("direct", "shared-id").view();
+        TransferAttemptLedger.View view = ledger.removeIfIntact("direct", "shared-id")
+                .orElseThrow()
+                .view();
 
         assertThat(view.attempts()).extracting(TransferTaskAttemptVO::getTransferMode)
                 .containsExactly("relay");
@@ -128,10 +128,22 @@ class TransferAttemptLedgerTest {
                 .upsert(attempt("relay", "shared-id", "ready", now.plusSeconds(1)))
                 .upsert(attempt("direct", "kept-id", "sending", now.plusSeconds(2)));
 
-        TransferAttemptLedger.View view = ledger.remove("shared-id").view();
+        TransferAttemptLedger.View view = ledger.removeIfIntact("shared-id")
+                .orElseThrow()
+                .view();
 
         assertThat(view.attempts()).extracting(TransferTaskAttemptVO::getTransferId)
                 .containsExactly("kept-id");
+    }
+
+    @Test
+    void finalValidRemovalShouldReturnAnIntactEmptyLedger() {
+        TransferAttemptLedger ledger = TransferAttemptLedger.load("[]")
+                .upsert(attempt("relay", "42", "ready", LocalDateTime.of(2026, 7, 31, 10, 0)));
+
+        TransferAttemptLedger removed = ledger.removeIfIntact("relay", "42").orElseThrow();
+
+        assertThat(removed.view().isEmpty()).isTrue();
     }
 
     private TransferTaskAttemptVO attempt(String mode, String id, String stage, LocalDateTime updateTime) {

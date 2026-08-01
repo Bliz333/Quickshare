@@ -4,6 +4,7 @@ import com.finalpre.quickshare.common.FeatureDisabledException;
 import com.finalpre.quickshare.common.PreviewUnavailableException;
 import com.finalpre.quickshare.common.ResourceNotFoundException;
 import com.finalpre.quickshare.service.FilePreviewPolicyService;
+import com.finalpre.quickshare.service.LocalPathLease;
 import com.finalpre.quickshare.service.OfficePreviewService;
 import com.finalpre.quickshare.service.PreviewResource;
 import com.finalpre.quickshare.service.StorageService;
@@ -141,6 +142,35 @@ class DefaultPreviewDeliveryTest {
         assertThat(fileCaptor.getValue().getOriginalName()).isEqualTo("report.docx");
         assertThat(fileCaptor.getValue().getFilePath()).isEqualTo(sourceFile.toString());
         assertThat(fileCaptor.getValue().getFileSize()).isEqualTo(Files.size(sourceFile));
+        assertThat(sourceFile).exists();
+    }
+
+    @Test
+    void releasesOwnedStoredOfficeSourceAfterConversion() throws Exception {
+        Path downloadedSource = tempDir.resolve("qs-s3-report.docx");
+        Path pdfFile = tempDir.resolve("report.pdf");
+        Files.writeString(downloadedSource, "office source");
+        Files.writeString(pdfFile, "%PDF preview");
+        String officeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+        when(storageService.exists("report.docx")).thenReturn(true);
+        when(storageService.acquireLocalPath("report.docx")).thenReturn(LocalPathLease.owned(downloadedSource));
+        when(filePreviewPolicyService.isPreviewAllowed("report.docx", officeType)).thenReturn(true);
+        when(officePreviewService.supports("report.docx", officeType)).thenReturn(true);
+        when(officePreviewService.preparePreview(any())).thenReturn(
+                new PreviewResource(pdfFile, "application/pdf", "report.pdf", Files.size(pdfFile)));
+
+        try (PreparedPreview preview = previewDelivery.open(
+                PreviewSource.stored(
+                        storageService,
+                        "report.docx",
+                        "report.docx",
+                        officeType,
+                        Files.size(downloadedSource)),
+                new PreviewOptions(null, Duration.ZERO))) {
+            assertThat(downloadedSource).doesNotExist();
+            assertThat(new String(preview.content().readAllBytes())).isEqualTo("%PDF preview");
+        }
     }
 
     @Test
@@ -185,7 +215,7 @@ class DefaultPreviewDeliveryTest {
     void fallsBackToOriginalStreamWhenThumbnailPreparationFails() throws Exception {
         byte[] body = "original image".getBytes();
         when(storageService.exists("photo.png")).thenReturn(true);
-        when(storageService.getLocalPath("photo.png")).thenThrow(new IOException("local copy failed"));
+        when(storageService.acquireLocalPath("photo.png")).thenThrow(new IOException("local copy failed"));
         when(storageService.retrieve("photo.png")).thenReturn(new ByteArrayInputStream(body));
         when(filePreviewPolicyService.isPreviewAllowed("photo.png", "image/png")).thenReturn(true);
 
@@ -193,6 +223,23 @@ class DefaultPreviewDeliveryTest {
                 PreviewSource.stored(storageService, "photo.png", "photo.png", "image/png", (long) body.length),
                 new PreviewOptions(64, Duration.ZERO))) {
             assertThat(preview.contentLength()).isEqualTo(body.length);
+            assertThat(preview.content().readAllBytes()).isEqualTo(body);
+        }
+    }
+
+    @Test
+    void releasesOwnedThumbnailSourceBeforeFallingBackToOriginalStream() throws Exception {
+        byte[] body = "original image".getBytes();
+        Path downloadedSource = Files.writeString(tempDir.resolve("qs-s3-photo.png"), "not an image");
+        when(storageService.exists("photo.png")).thenReturn(true);
+        when(storageService.acquireLocalPath("photo.png")).thenReturn(LocalPathLease.owned(downloadedSource));
+        when(storageService.retrieve("photo.png")).thenReturn(new ByteArrayInputStream(body));
+        when(filePreviewPolicyService.isPreviewAllowed("photo.png", "image/png")).thenReturn(true);
+
+        try (PreparedPreview preview = previewDelivery.open(
+                PreviewSource.stored(storageService, "photo.png", "photo.png", "image/png", (long) body.length),
+                new PreviewOptions(64, Duration.ZERO))) {
+            assertThat(downloadedSource).doesNotExist();
             assertThat(preview.content().readAllBytes()).isEqualTo(body);
         }
     }

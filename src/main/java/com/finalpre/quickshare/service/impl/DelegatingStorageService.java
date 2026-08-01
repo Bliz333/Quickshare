@@ -1,6 +1,7 @@
 package com.finalpre.quickshare.service.impl;
 
 import com.finalpre.quickshare.config.FileConfig;
+import com.finalpre.quickshare.service.LocalPathLease;
 import com.finalpre.quickshare.service.StoragePolicy;
 import com.finalpre.quickshare.service.StoragePolicyService;
 import com.finalpre.quickshare.service.StorageService;
@@ -107,16 +108,23 @@ public class DelegatingStorageService implements StorageService {
     }
 
     @Override
-    public Path getLocalPath(String storageKey) throws IOException {
+    public LocalPathLease acquireLocalPath(String storageKey) throws IOException {
         StoragePolicy policy = storagePolicyService.getPolicy();
         if (policy.isS3() && policy.hasS3Config()) {
             Path tempFile = Files.createTempFile("qs-s3-", "-" + extractFileName(storageKey));
             try (InputStream is = retrieve(storageKey)) {
                 Files.copy(is, tempFile, StandardCopyOption.REPLACE_EXISTING);
+                return LocalPathLease.owned(tempFile);
+            } catch (IOException | RuntimeException ex) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException cleanupFailure) {
+                    ex.addSuppressed(cleanupFailure);
+                }
+                throw ex;
             }
-            return tempFile;
         }
-        return resolveLocal(storageKey);
+        return LocalPathLease.borrowed(resolveLocal(storageKey));
     }
 
     /**

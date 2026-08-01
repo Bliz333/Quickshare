@@ -40,9 +40,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -359,12 +362,13 @@ public class TransferServiceImpl implements TransferService {
     public void deleteDirectAttempt(Long userId, Long taskId, String deviceId, String clientTransferId) {
         requireOwnedDevice(userId, deviceId);
         TransferTask task = requireOwnedTask(userId, taskId);
-        TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson());
-        if (ledger.isCorrupted()) {
+        Optional<TransferAttemptLedger> updatedLedger = TransferAttemptLedger.load(task.getAttemptsJson())
+                .removeIfIntact(MODE_DIRECT, normalizeClientTransferId(clientTransferId));
+        if (updatedLedger.isEmpty()) {
             log.warn("Skip deleting Transfer direct attempt because attempts JSON is corrupted. taskId={}", taskId);
             return;
         }
-        saveTaskWithAttempts(task, ledger.remove(MODE_DIRECT, normalizeClientTransferId(clientTransferId)));
+        saveTaskWithAttempts(task, updatedLedger.orElseThrow());
     }
 
     @Override
@@ -373,7 +377,9 @@ public class TransferServiceImpl implements TransferService {
         TransferRelay transfer = requireOwnedTransfer(userId, transferId);
         if (transfer.getTaskId() != null) {
             TransferTask existingTask = transferTaskMapper.selectById(transfer.getTaskId());
-            if (existingTask != null && TransferAttemptLedger.load(existingTask.getAttemptsJson()).isCorrupted()) {
+            if (existingTask != null && TransferAttemptLedger.load(existingTask.getAttemptsJson())
+                    .removeIfIntact(MODE_RELAY, String.valueOf(transferId))
+                    .isEmpty()) {
                 log.warn("Skip deleting Transfer relay because task attempts JSON is corrupted. transferId={}, taskId={}", transferId, existingTask.getId());
                 return;
             }
@@ -382,12 +388,13 @@ public class TransferServiceImpl implements TransferService {
         deleteTransferFiles(transfer);
         transferTransferMapper.deleteById(transferId);
         if (task != null) {
-            TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson());
-            if (ledger.isCorrupted()) {
+            Optional<TransferAttemptLedger> updatedLedger = TransferAttemptLedger.load(task.getAttemptsJson())
+                    .removeIfIntact(MODE_RELAY, String.valueOf(transferId));
+            if (updatedLedger.isEmpty()) {
                 log.warn("Skip updating Transfer task after relay deletion because attempts JSON is corrupted. taskId={}", task.getId());
                 return;
             }
-            saveTaskWithAttempts(task, ledger.remove(MODE_RELAY, String.valueOf(transferId)));
+            saveTaskWithAttempts(task, updatedLedger.orElseThrow());
         }
     }
 
@@ -521,23 +528,35 @@ public class TransferServiceImpl implements TransferService {
                 .lt("expire_time", now));
 
         int deleted = 0;
+        Set<Long> blockedTaskIds = new HashSet<>();
         for (TransferRelay transfer : expiredTransfers) {
             TransferTask task = null;
+            Optional<TransferAttemptLedger> updatedLedger = Optional.empty();
             if (transfer.getTaskId() != null) {
                 task = transferTaskMapper.selectById(transfer.getTaskId());
+                if (task != null) {
+                    updatedLedger = TransferAttemptLedger.load(task.getAttemptsJson())
+                            .removeIfIntact(MODE_RELAY, String.valueOf(transfer.getId()));
+                    if (updatedLedger.isEmpty()) {
+                        blockedTaskIds.add(task.getId());
+                        log.warn("Skip cleaning expired Transfer relay because task attempts JSON is corrupted. transferId={}, taskId={}", transfer.getId(), task.getId());
+                        continue;
+                    }
+                }
             }
             deleteTransferFiles(transfer);
             deleted += transferTransferMapper.deleteById(transfer.getId());
             if (task != null) {
-                TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson())
-                        .remove(MODE_RELAY, String.valueOf(transfer.getId()));
-                saveTaskWithAttempts(task, ledger);
+                saveTaskWithAttempts(task, updatedLedger.orElseThrow());
             }
         }
 
         List<TransferTask> expiredTasks = transferTaskMapper.selectList(new QueryWrapper<TransferTask>()
                 .lt("expire_time", now));
         for (TransferTask task : expiredTasks) {
+            if (blockedTaskIds.contains(task.getId())) {
+                continue;
+            }
             deleted += transferTaskMapper.deleteById(task.getId());
         }
 

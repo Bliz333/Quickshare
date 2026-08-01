@@ -74,7 +74,7 @@ A mobile build should not be released unless all of the following pass:
 
 ## QuickShare-specific Testing Advice
 
-For the first mobile release, do not over-scope tests around full QuickDrop parity unless that feature is truly in scope.
+For the first mobile release, do not over-scope tests around full Quick Transfer parity unless that feature is truly in scope.
 
 The most important early tests are:
 

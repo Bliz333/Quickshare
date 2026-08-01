@@ -139,6 +139,13 @@ async function gotoTransferPage(page, baseURL) {
   await expect(page.locator('#transferModeSwitch')).toBeVisible();
 }
 
+async function seedTransferRelayE2eeOffer(page, sessionId) {
+  await page.waitForFunction(() => window.QuickShareE2EE?.prepareRelayRecipient && window.transferState);
+  await page.evaluate(async currentSessionId => {
+    window.transferState.relayPeerKeyOffer = await window.QuickShareE2EE.prepareRelayRecipient(currentSessionId);
+  }, sessionId);
+}
+
 async function openTransferAccountHistory(page) {
   const panel = page.locator('#transferAccountHistoryPanel');
   if (await panel.isVisible()) {
@@ -543,7 +550,7 @@ test.describe('Transfer pages', () => {
     await expect(page.locator('#transferIncomingList')).toContainText('draft.pdf');
     await expect(page.locator('#transferIncomingList [data-transfer-save]')).toHaveCount(0);
     await expect(page.locator('#transferIncomingList')).toContainText('Saved to Netdisk');
-    await expect(page.locator('#transferIncomingList a[href="netdisk.html"]')).toBeVisible();
+    await expect(page.locator('#transferIncomingList a[href="/drive"]')).toBeVisible();
   });
 
   test('same-account history page uses route navigation and browser back returns to the main stage', async ({ page, baseURL }) => {
@@ -1239,6 +1246,7 @@ test.describe('Transfer pages', () => {
     });
 
     await gotoTransferPage(page, baseURL);
+    await seedTransferRelayE2eeOffer(page, 'pair-same-account-fallback');
 
     await page.evaluate(() => {
       window.__transferDirectShouldNotRun = false;
@@ -1443,6 +1451,7 @@ test.describe('Transfer pages', () => {
     });
 
     await gotoTransferPage(page, baseURL);
+    await seedTransferRelayE2eeOffer(page, 'pair-same-account-interrupt');
 
     await page.evaluate(() => {
       window.__transferInterruptedDirect = 0;
@@ -1606,6 +1615,9 @@ test.describe('Transfer pages', () => {
         }
       }));
     });
+
+    await expect(page.locator('#transferIncomingList')).toContainText('direct-inbox.txt');
+    await expect(page.locator('#transferIncomingList')).toContainText('Receiving');
 
     await page.evaluate(() => {
       const packet = TransferDirectTransfer.buildChunkPacket(
@@ -2451,6 +2463,9 @@ test.describe('Transfer pages', () => {
     await page.locator('#transferDirectSendBtn').click();
 
     await expect(page.locator('#transferDirectActiveMeta')).toContainText('Direct transfer complete');
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__transferDirectSend.control.some(item => item.type === 'transfer-finish'));
+    }).toBe(true);
     const sendState = await page.evaluate(() => window.__transferDirectSend);
     expect(sendState.binaryCount).toBe(1);
     expect(sendState.control.some(item => item.type === 'transfer-offer')).toBeTruthy();

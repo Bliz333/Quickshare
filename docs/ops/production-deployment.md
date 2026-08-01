@@ -49,7 +49,7 @@ Install at least:
 Use a real git working copy on the server:
 
 ```bash
-git clone <repo-url> /opt/quickshare
+git clone https://github.com/Bliz333/Quickshare.git /opt/quickshare
 cd /opt/quickshare
 ```
 

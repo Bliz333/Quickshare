@@ -9,7 +9,7 @@ QuickShare is currently a **web product**:
 - Spring Boot backend
 - static HTML / JS frontend
 - Docker Compose deployment
-- web-side preview/readability prerequisites are now complete (inline preview, embedded viewer mode, fallback cleanup)
+- the web-side preview/readability foundation is in place (inline preview, embedded viewer mode, fallback handling)
 - no native Android project
 - no native iOS project
 - no store publishing pipeline yet
@@ -67,4 +67,4 @@ These docs do **not** claim that a mobile client already exists.
 
 For QuickShare, the backend is already a strong foundation for mobile. The main product choice is not whether mobile is possible, but **which client approach** is worth maintaining long-term.
 
-The April 2026 web preview/readability work verified that image, PDF, Office, and text previews now behave correctly in the browser, including fallback handling and mobile-sized receive surfaces. That removes the main web-side blocker before starting real mobile client implementation.
+The current web preview/readability implementation supports image, PDF, Office, and text preview paths with fallback handling. It is a useful web baseline, but it does not imply that a native mobile client or its release workflow already exists.

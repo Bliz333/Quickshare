@@ -1,66 +1,49 @@
-# QuickShare Docs
+# QuickShare Documentation
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-This directory is the operational documentation hub for QuickShare.
+This directory separates current product facts, engineering knowledge, operator runbooks, and historical evidence. A dated archive entry is not a statement about the current release.
 
-## What to Read First
+## Start Here
 
-- [../README.md](../README.md): primary English product overview
-- [../README.zh-CN.md](../README.zh-CN.md): Chinese overview
-- [STATUS.md](STATUS.md): latest Chinese status snapshot
-- [TESTING.md](TESTING.md): detailed Chinese testing and acceptance workflow
-- [PLAN.md](PLAN.md): current Chinese roadmap and next-stage priorities
-- [CHANGELOG.md](CHANGELOG.md): change history
-- [PUBLISHING.md](PUBLISHING.md): publishing hygiene and release notes
-- [mobile/README.md](mobile/README.md): mobile app planning and release process
+| Goal | Read |
+| --- | --- |
+| Install or understand the product | [`../README.md`](../README.md) |
+| Work on the codebase with an AI tool | [`../AGENTS.md`](../AGENTS.md) |
+| Understand the current maintenance state | [`STATUS.md`](STATUS.md) |
+| Select the right validation | [`ai/validation.md`](ai/validation.md) |
+| Run or deploy the service | [`ai/platform.md`](ai/platform.md) and [`ops/`](ops/) |
+| Evaluate possible future work | [`PLAN.md`](PLAN.md) |
+| Plan a mobile client | [`mobile/README.md`](mobile/README.md) |
 
-## Current Documentation Model
+## Documentation Layers
 
-- English is now the primary top-level entrypoint.
-- Chinese remains the main language for deep operational notes and historical session logs.
-- The archive under [`archive/`](archive) is intentionally detailed and mostly Chinese, because it records implementation and validation history chronologically.
+### Current engineering knowledge
 
-## Current Verified Baseline
+The root [`AGENTS.md`](../AGENTS.md) is the project knowledge map. It routes readers to stable, code-backed details in [`ai/`](ai/):
 
-- `main` matches the validated hardening baseline.
-- Remote validation has been completed on a Debian 12 test server with:
-  - OpenJDK 17
-  - Maven 3.8.7
-  - Node 18 / npm 9
-  - Docker plus `docker-compose`
-- The latest remote smoke run passed:
-  - JS syntax checks
-  - Java compile
-  - targeted JUnit
-  - repo smoke script
-  - Dockerized Playwright smoke
-- The latest remote `quickdrop-real` run finished as `direct`.
+- [`ai/architecture.md`](ai/architecture.md): system layers, data ownership, security, storage, and compatibility
+- [`ai/frontend.md`](ai/frontend.md): static frontend, routes, session handling, styling, and localization
+- [`ai/transfer.md`](ai/transfer.md): Quick Transfer direct/relay flows, task ledger, signaling, and relay E2EE
+- [`ai/validation.md`](ai/validation.md): risk-based test matrix and CI boundaries
+- [`ai/platform.md`](ai/platform.md): local, Compose, pre-production, production, and secret boundaries
 
-## Recommended Reading Order
+### Operator runbooks
 
-### For new contributors
+[`ops/`](ops/) covers first-time production deployment, HTTPS proxying, capacity, backup, and environment differences. Real hosts and credentials remain outside Git in `.env`, SSH config, or `.agents/local/`.
 
-1. [../README.md](../README.md)
-2. [STATUS.md](STATUS.md)
-3. [TESTING.md](TESTING.md)
-4. [PLAN.md](PLAN.md)
+### Product state and planning
 
-### For release / deployment work
+- [`STATUS.md`](STATUS.md) is a concise snapshot of supported capabilities and known boundaries.
+- [`PLAN.md`](PLAN.md) lists uncommitted candidates, not a promised roadmap.
+- [`CHANGELOG.md`](CHANGELOG.md) and [`archive/`](archive/) preserve chronological evidence.
 
-1. [PUBLISHING.md](PUBLISHING.md)
-2. [TESTING.md](TESTING.md)
-3. [CHANGELOG.md](CHANGELOG.md)
-4. [archive/2026-03-26-remote-baseline-rebuild-and-direct-validation.md](archive/2026-03-26-remote-baseline-rebuild-and-direct-validation.md)
+### Historical and planning material
 
-### For mobile planning and release work
+- [`archive/`](archive/) contains dated implementation records. Names, commands, and validation claims in those files may be obsolete.
+- [`mobile/`](mobile/) describes a possible mobile product; no native Android or iOS client currently exists in this repository.
+- [`web-design-phase.md`](web-design-phase.md) and older design notes are historical context unless the current frontend rules link to them explicitly.
 
-1. [mobile/README.md](mobile/README.md)
-2. [mobile/architecture.md](mobile/architecture.md)
-3. [mobile/testing.md](mobile/testing.md)
-4. [ops/production-deployment.md](ops/production-deployment.md)
+## Maintenance Rule
 
-## Notes
-
-- The remote test server is resource-constrained. Disk and memory checks are part of the expected workflow.
-- If you need a precise, dated implementation record, start from [CHANGELOG.md](CHANGELOG.md) and then open the matching archive entry.
+Update documentation only when a code, configuration, operational, or product fact changes. Fix or delete stale text in place; do not append a new session log to current-state files. Commands and variable names must be checked against scripts, `.env.example`, `compose.yaml`, and source before publishing.

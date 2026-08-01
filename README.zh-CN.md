@@ -8,23 +8,18 @@ QuickShare 是一个基于 Spring Boot 的文件分享与个人网盘平台，�
 
 - 带提取码、过期时间、下载次数限制的公开分享链路
 - 支持文件夹、批量操作、拖拽移动和配额展示的个人网盘
-- 支持同账号设备互传、浏览器直传和公开取件的 QuickDrop
+- 支持同账号设备互传、浏览器直传和公开取件的 Quick Transfer
 - 用于运行时策略、存储、邮件、支付和用户管理的后台管理台
 - 本地文件系统与 S3 兼容对象存储
 - 基于 LibreOffice 和 PDF.js 的 Office 文档预览
-- QuickDrop 中转 / 取件载荷使用浏览器端 AES-GCM 加密，服务器侧只保存密文
+- Quick Transfer 中转 / 取件载荷使用浏览器端 AES-GCM 加密，服务器侧只保存密文
 
 ## 当前状态
 
-- `main` 已经切到最新的硬化基线。
-- 项目已经过了从 0 到 1 的阶段，当前重点是维护、体验打磨和回归补强。
-- 当前已验证的远端环境基线：
-  - Debian 12
-  - OpenJDK 17
-  - Maven 3.8.7
-  - Node 18 / npm 9
-  - Docker + `docker-compose`
-- 最新一轮远端浏览器烟测里，QuickDrop 同账号真实双页传输已经命中过 `direct`，不再只是回退到 `relay`。
+- Web 产品已经覆盖分享、个人网盘、设备互传、管理台、支付和运行时策略。
+- 项目当前处于维护、体验打磨、兼容和回归补强阶段。
+- 新代码与路由使用 **Quick Transfer / Transfer**；QuickDrop 只保留在需要向后兼容的 API、WebSocket、环境变量和测试名中。
+- 当前能力与已知边界见 [docs/STATUS.md](docs/STATUS.md)；历史远端测试结果只证明当时的提交，不代表当前分支。
 
 ## 核心能力
 
@@ -36,7 +31,7 @@ QuickShare 是一个基于 Spring Boot 的文件分享与个人网盘平台，�
 - 套餐页、支付结果页、用户订单历史、配额与 VIP 展示
 - 注册验证码 provider 可在 Google reCAPTCHA 与 Cloudflare Turnstile 之间切换
 
-### QuickDrop
+### Quick Transfer
 
 - 同账号设备发现，无需配对码
 - 浏览器直传优先，失败后回退服务器中转
@@ -47,7 +42,7 @@ QuickShare 是一个基于 Spring Boot 的文件分享与个人网盘平台，�
 
 ### 中转传输安全模型
 
-- 网络条件允许时，QuickDrop 仍优先使用浏览器点对点直传。
+- 网络条件允许时，Quick Transfer 仍优先使用浏览器点对点直传。
 - 当链路回退到服务器中转或公开取件时，文件会先在浏览器内通过 Web Crypto AES-GCM 加密，再按分片上传。服务器保存加密分片、IV 和必要元数据，因此中转存储保存的是密文而不是明文。
 - 公开取件链接通过 URL fragment（`#key=...`）携带解密密钥；fragment 不会随 HTTP 请求发给服务器。拿到完整链接的人可以解密文件，因此完整链接仍应当按敏感信息处理。
 - 同账号和匿名配对中转通过 WebSocket 交换接收端 ECDH 公钥材料，并用浏览器本地保存的 P-256 长期身份签名验证临时公钥，再由两端通过 HKDF 本地派生 AES-GCM 文件密钥。信令服务器只转发公钥材料和签名，不再转发原始文件密钥。
@@ -68,6 +63,8 @@ QuickShare 是一个基于 Spring Boot 的文件分享与个人网盘平台，�
 ```bash
 cp .env.example .env
 # 至少配置：
+# - DB_PASSWORD
+# - MYSQL_ROOT_PASSWORD
 # - JWT_SECRET
 # - SETTING_ENCRYPT_KEY
 # 可选：
@@ -105,7 +102,7 @@ cp src/main/resources/application-local.example.yml src/main/resources/applicati
 
 ## 配置
 
-完整环境变量列表见 [`.env.example`](.env.example)。
+Compose 常用环境变量与安全占位值见 [`.env.example`](.env.example)；其它 Spring override 映射见 [`application.yml`](src/main/resources/application.yml)。
 
 关键项：
 
@@ -119,42 +116,21 @@ cp src/main/resources/application-local.example.yml src/main/resources/applicati
 | `ADMIN_CONSOLE_SLUG` | 隐藏管理台路径 |
 | `SERVER_COMPRESSION_ENABLED` | 启用 API / 静态资源 HTTP 压缩 |
 | `REGISTRATION_EMAIL_VERIFICATION_ENABLED` | 注册时是否启用邮箱验证 |
-| `QUICKDROP_STUN_URLS` | QuickDrop 直传 STUN 配置 |
-| `QUICKDROP_TURN_URLS` | QuickDrop 公网直传 TURN 配置 |
-| `QUICKDROP_TURN_USERNAME`、`QUICKDROP_TURN_PASSWORD` | TURN 凭据 |
+| `QUICKDROP_STUN_URLS` | 沿用旧变量名的 Quick Transfer STUN 配置 |
+| `QUICKDROP_TURN_URLS` | 沿用旧变量名的 Quick Transfer TURN 配置 |
+| `QUICKDROP_TURN_USERNAME`、`QUICKDROP_TURN_PASSWORD` | 沿用旧变量名的 Quick Transfer TURN 凭据 |
 
 ## 测试与验收
 
-项目当前采用“远端优先”的验收方式：
-
-- 本地负责编辑和推送
-- 远端 Debian 测试机负责编译、测试、部署和验收
-
-推荐收口顺序：
+按 [docs/ai/validation.md](docs/ai/validation.md) 的风险矩阵选择门禁。默认发布候选基线：
 
 ```bash
 ./scripts/release-ready.sh
 # 在具备 Docker / 运行态配置的预发布主机上跑完整 RC 门禁：
 RELEASE_READY_FULL=1 ./scripts/release-ready.sh
-# 不创建 git commit、直接把当前未提交工作树部署到预发布机验证：
-DEPLOY_INCLUDE_WORKTREE=1 DEPLOY_ENABLE_GIT_BUNDLE_FALLBACK=0 DEPLOY_RUN_SMOKE=1 DEPLOY_RUN_BROWSER_SMOKE=1 ./scripts/deploy-preprod.sh
-
-# 等价拆分流程：
-./scripts/quickshare-resource-check.sh --ensure
-./scripts/check-js.sh
-./mvnw -q -DskipTests compile
-# 按改动点补最近的一组定向 JUnit
-docker-compose up --build -d --remove-orphans
-./scripts/quickshare-smoke.sh
-./scripts/quickshare-playwright-smoke.sh
 ```
 
-注意：
-
-- 远端测试机磁盘和内存有限，重建和浏览器回归前后都要关注资源余量。
-- `scripts/quickshare-resource-check.sh` 现在是仓库内统一的资源快照与低磁盘保护脚本。
-- 大量重建后应及时清理临时产物和未使用的 Docker 镜像。
-- 更细的流程说明见 [docs/README.zh-CN.md](docs/README.zh-CN.md) 和 [docs/TESTING.md](docs/TESTING.md)。
+完整门禁会改变本机 Docker 状态，只适用于已配置的隔离开发/预发布环境。mock Playwright 不证明真实后端、WebRTC direct、TURN、S3 或 LibreOffice 运行态。更细说明见 [docs/README.zh-CN.md](docs/README.zh-CN.md) 和 [docs/TESTING.md](docs/TESTING.md)。
 
 ## 部署说明
 
@@ -168,11 +144,13 @@ docker-compose up --build -d --remove-orphans
 ## 文档入口
 
 - [README.md](README.md)：英文主 README
+- [AGENTS.md](AGENTS.md)：AI 工具使用的项目知识地图
+- [docs/ai](docs/ai)：当前架构、前端、Transfer、验证与平台知识
 - [docs/README.md](docs/README.md)：英文文档入口
 - [docs/README.zh-CN.md](docs/README.zh-CN.md)：中文文档入口
 - [docs/STATUS.md](docs/STATUS.md)：当前状态快照
 - [docs/TESTING.md](docs/TESTING.md)：详细测试与验收流程
-- [docs/PLAN.md](docs/PLAN.md)：下一阶段计划
+- [docs/PLAN.md](docs/PLAN.md)：未承诺的候选工作，不是既定路线图
 - [docs/CHANGELOG.md](docs/CHANGELOG.md)：变更记录
 - [docs/archive](docs/archive)：详细里程碑与会话归档
 

@@ -15,7 +15,7 @@ QuickShare 是一套**私有化部署的文件分享与个人网盘平台**。�
 |------|----------|
 | 文件分享 | 上传文件后生成一个链接，别人打开链接输入提取码就能下载，可以设过期时间和下载次数上限 |
 | 个人网盘 | 登录后有一个自己的文件管理页面，能建文件夹、批量上传、拖拽移动文件、在线预览文档 |
-| 跨设备快传（QuickDrop） | 同一个账号在手机和电脑浏览器上同时打开，文件可以直接从一台设备"飞"到另一台设备，不需要数据线，也不需要第三方 App |
+| 跨设备快传（Quick Transfer） | 同一个账号在手机和电脑浏览器上同时打开，文件可以直接从一台设备"飞"到另一台设备，不需要数据线，也不需要第三方 App |
 
 除此之外，平台还内置了**套餐与支付功能**、**管理员后台**（可以控制注册开关、上传限制、邮件配置等），并且支持**中英文双语界面和深色模式**。
 
@@ -75,7 +75,7 @@ QuickShare 的思路很简单：**你自己搭一套文件服务，把数据放�
 
 网盘页面还能看到当前的存储用量和套餐信息，用量一目了然。
 
-#### 功能三：跨设备快传 QuickDrop
+#### 功能三：跨设备快传 Quick Transfer
 
 **场景：** 你手机浏览器上有一张照片或者一个文档，想快速传到电脑上。
 
@@ -127,7 +127,7 @@ QuickShare 的思路很简单：**你自己搭一套文件服务，把数据放�
 
 **与 WeTransfer 等临时分享服务比：** WeTransfer 只做临时文件分享，没有个人网盘功能，没有跨设备传输，也没有管理后台。QuickShare 把分享、网盘、快传、管理四件事整合在一起。
 
-**QuickDrop 的独特之处：** 跨设备传输走的是浏览器对浏览器的直连通道（技术术语叫 WebRTC）。这意味着文件在传输过程中可以不经过服务器，速度更快，隐私更有保障。如果直连条件不满足，会自动降级到服务器中转，让传输更稳。
+**Quick Transfer 的独特之处：** 跨设备传输优先尝试浏览器对浏览器的直连通道（技术术语叫 WebRTC）。直连条件不满足时，会自动降级到服务器中转，让传输更稳；中转载荷由浏览器端加密。
 
 ### 2.7 收尾
 
@@ -150,7 +150,7 @@ QuickShare 的思路很简单：**你自己搭一套文件服务，把数据放�
 | 1 | "自己搭的百度网盘" | 一句话解释 QuickShare 是什么 |
 | 2 | "三合一" | 文件分享 + 个人网盘 + 跨设备快传 |
 | 3 | "提取码 + 过期时间 + 次数上限" | 分享链接的三重控制 |
-| 4 | "浏览器对浏览器直连" | QuickDrop 的核心特点 |
+| 4 | "浏览器对浏览器直连" | Quick Transfer 的核心特点 |
 | 5 | "数据在你自己的服务器上" | 私有化部署的核心价值 |
 | 6 | "Docker 一键启动" | 部署门槛低 |
 | 7 | "不需要 App，打开浏览器就行" | 用户端零门槛 |
@@ -233,24 +233,24 @@ QuickShare 的思路很简单：**你自己搭一套文件服务，把数据放�
 
 | 描述内容 | 依据文件 |
 |----------|----------|
-| 文件分享带提取码、过期时间、下载次数限制 | `README.md` 第 7 行 |
-| 个人网盘支持文件夹、批量操作、拖拽移动、配额展示 | `README.md` 第 8 行 |
-| QuickDrop 同账号设备互传、浏览器直传、公开取件 | `README.md` 第 9 行 |
-| 管理后台用于策略、存储、邮件、支付、用户管理 | `README.md` 第 10 行 |
-| Office 文档预览（LibreOffice + PDF.js） | `README.md` 第 12 行 |
-| 上传去重和引用感知删除 | `README.md` 第 33 行 |
-| 套餐页、支付结果页、订单历史、配额/VIP 展示 | `README.md` 第 34 行 |
-| 本地存储与 S3 兼容存储 | `README.md` 第 11 行 |
-| Docker Compose 一键部署 | `README.md` 第 56-73 行 |
-| 隐藏路径管理台 | `README.md` 第 46 行 |
-| 运行时策略管理（注册、上传、预览、频控） | `README.md` 第 47 行 |
-| 验证码可切换（reCAPTCHA / Turnstile） | `README.md` 第 35 行 |
+| 文件分享带提取码、过期时间、下载次数限制 | `README.md` 的产品能力列表与 User-facing 小节 |
+| 个人网盘支持文件夹、批量操作、拖拽移动、配额展示 | `README.md` 的产品能力列表与 User-facing 小节 |
+| Quick Transfer 同账号设备互传、浏览器直传、公开取件 | `README.md` 的 Quick Transfer 小节；`docs/ai/transfer.md` |
+| 管理后台用于策略、存储、邮件、支付、用户管理 | `README.md` 的 Admin-facing 小节 |
+| Office 文档预览（LibreOffice + PDF.js） | `README.md` 的产品能力列表与 Architecture 表 |
+| 上传去重和引用感知删除 | `README.md` 的 User-facing 小节 |
+| 套餐页、支付结果页、订单历史、配额/VIP 展示 | `README.md` 的 User-facing 小节 |
+| 本地存储与 S3 兼容存储 | `README.md` 的产品能力列表与 Configuration 小节 |
+| Docker Compose 一键部署 | `README.md` 的 Quick Start 小节 |
+| 隐藏路径管理台 | `README.md` 的 Admin-facing 小节 |
+| 运行时策略管理（注册、上传、预览、频控） | `README.md` 的 Admin-facing 小节 |
+| 验证码可切换（reCAPTCHA / Turnstile） | `README.md` 的 User-facing 小节 |
 | MIT 开源协议 | `README.md` 末尾 |
-| 直连优先、中转兜底的传输策略 | `README.zh-CN.md` 第 39 行 |
-| 网盘页面中文标题"我的网盘" | `src/main/resources/static/netdisk.html` 第 6 行 |
-| 定价页面中文标题"套餐购买" | `src/main/resources/static/pricing.html` 第 7 行 |
-| 管理后台中文标题"管理员后台" | `src/main/resources/static/admin.html` 第 7 行 |
+| 直连优先、中转兜底的传输策略 | `docs/ai/transfer.md` 的“传输模式”小节 |
+| 网盘页面中文标题"我的网盘" | `src/main/resources/static/netdisk.html` |
+| 定价页面中文标题"套餐购买" | `src/main/resources/static/pricing.html` |
+| 管理后台中文标题"管理员后台" | `src/main/resources/static/admin.html` |
 | 分享页面支持公开分享和取件两个标签页 | `src/main/resources/static/share.html` |
-| 首页快传已合并到 index.html | `src/main/resources/static/transfer.html`（重定向） |
-| 支持中英文双语和深色模式 | `index.html` 第 17-21 行（语言切换）、第 13-15 行（主题切换） |
-| 项目处于维护和体验打磨阶段 | `docs/STATUS.md` 第 7 行 |
+| 首页快传已合并到 index.html | `FrontendPageController` 的旧页面重定向；`src/main/resources/static/index.html` |
+| 支持中英文双语和深色模式 | `src/main/resources/static/js/lang-switch.js` 与 `theme.js` |
+| 项目处于维护和体验打磨阶段 | `docs/STATUS.md` 的“产品阶段”小节 |

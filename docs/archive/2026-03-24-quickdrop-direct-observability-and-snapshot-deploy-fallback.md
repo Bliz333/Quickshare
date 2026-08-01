@@ -77,7 +77,7 @@
 - 已尝试用新的 `deploy-preprod.sh` 再跑一轮预发布验证
 - 当前阻塞变成目标机不可达，而不是脚本逻辑错误：
   - `ssh ... port 22: Connection timed out`
-  - `curl http://145.79.143.107:8080/api/health` 超时
+  - `curl http://preprod.example.com:8080/api/health` 超时（原测试机地址已脱敏）
 - 所以本轮还没有拿到“应用这批新改动后”的第二轮 preprod 结果
 
 ## 结论

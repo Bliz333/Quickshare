@@ -28,6 +28,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -263,12 +264,13 @@ public class TransferPairingServiceImpl implements TransferPairingService {
         }
 
         String normalizedClientTransferId = normalizeClientTransferId(clientTransferId);
-        TransferAttemptLedger ledger = TransferAttemptLedger.load(task.getAttemptsJson());
-        if (ledger.isCorrupted()) {
+        Optional<TransferAttemptLedger> updatedLedger = TransferAttemptLedger.load(task.getAttemptsJson())
+                .removeIfIntact(normalizedClientTransferId);
+        if (updatedLedger.isEmpty()) {
             log.warn("Skip deleting Transfer pair task attempt because attempts JSON is corrupted. taskId={}", taskId);
             return;
         }
-        savePairTaskWithAttempts(task, ledger.remove(normalizedClientTransferId));
+        savePairTaskWithAttempts(task, updatedLedger.orElseThrow());
     }
 
     private void purgeExpiredCodes() {

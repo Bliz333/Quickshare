@@ -446,7 +446,7 @@ async function previewFile(index) {
     } else if (previewDecision.kind === 'text') {
         const originalUrl = getOriginalUrl(file);
         try {
-            const res = await BrowserSession.request(originalUrl, { sessionEnvelope: false });
+            const res = await BrowserSession.requestContent(originalUrl);
             const text = await res.text();
             container.innerHTML = `<div class="preview-text">${escapeHtml(text)}</div>`;
         } catch (e) {

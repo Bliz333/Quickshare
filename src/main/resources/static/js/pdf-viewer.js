@@ -168,9 +168,8 @@ async function loadViewerDocument() {
     setViewerStatus(viewerText('pdfViewerLoading', '正在加载 PDF 预览...'));
 
     try {
-        const response = await BrowserSession.request(viewerState.fileUrl, {
-            credentials: 'same-origin',
-            sessionEnvelope: false
+        const response = await BrowserSession.requestContent(viewerState.fileUrl, {
+            credentials: 'same-origin'
         });
         if (!response.ok) {
             throw new Error(await parseViewerError(response));

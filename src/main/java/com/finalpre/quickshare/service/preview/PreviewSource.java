@@ -1,5 +1,6 @@
 package com.finalpre.quickshare.service.preview;
 
+import com.finalpre.quickshare.service.LocalPathLease;
 import com.finalpre.quickshare.service.StorageService;
 
 import java.io.IOException;
@@ -20,7 +21,7 @@ public interface PreviewSource {
 
     InputStream openStream() throws IOException;
 
-    Path localPath() throws IOException;
+    LocalPathLease acquireLocalPath() throws IOException;
 
     static PreviewSource stored(StorageService storageService,
                                 String storageKey,
@@ -86,8 +87,8 @@ final class StorageAdapter implements PreviewSource {
     }
 
     @Override
-    public Path localPath() throws IOException {
-        return storageService.getLocalPath(storageKey);
+    public LocalPathLease acquireLocalPath() throws IOException {
+        return storageService.acquireLocalPath(storageKey);
     }
 }
 
@@ -134,7 +135,7 @@ final class LocalPathAdapter implements PreviewSource {
     }
 
     @Override
-    public Path localPath() {
-        return path;
+    public LocalPathLease acquireLocalPath() {
+        return LocalPathLease.borrowed(path);
     }
 }

@@ -235,13 +235,13 @@
             }
         }
 
-        function monitorResponse(response, onUnauthorized, sessionEnvelope) {
+        function monitorResponse(response, onUnauthorized, monitorSessionPayload) {
             return new Proxy(response, {
                 get(target, property) {
                     if (property === 'json') {
                         return async function parseMonitoredJson() {
                             const result = await target.json();
-                            if (sessionEnvelope) {
+                            if (monitorSessionPayload) {
                                 await reconcilePayload(result, onUnauthorized);
                             }
                             return result;
@@ -250,7 +250,7 @@
                     if (property === 'text') {
                         return async function parseMonitoredText() {
                             const text = await target.text();
-                            if (sessionEnvelope) {
+                            if (monitorSessionPayload) {
                                 try {
                                     await reconcilePayload(text ? JSON.parse(text) : null, onUnauthorized);
                                 } catch (error) {
@@ -266,14 +266,13 @@
             });
         }
 
-        async function request(input, init = {}) {
-            const { sessionEnvelope = true, ...transportInit } = init;
+        async function requestWithPayloadMonitoring(input, init, monitorSessionPayload) {
             const session = current();
             const requestVersion = sessionVersion;
             const owned = isOwnedRequest(input);
             const response = await adapter.request({
                 input,
-                init: transportInit,
+                init,
                 owned,
                 token: owned ? session.token : ''
             });
@@ -290,7 +289,15 @@
             if (response.status === 401) {
                 await handleUnauthorized();
             }
-            return monitorResponse(response, handleUnauthorized, sessionEnvelope);
+            return monitorResponse(response, handleUnauthorized, monitorSessionPayload);
+        }
+
+        function request(input, init = {}) {
+            return requestWithPayloadMonitoring(input, init, true);
+        }
+
+        function requestContent(input, init = {}) {
+            return requestWithPayloadMonitoring(input, init, false);
         }
 
         async function upload(input, init = {}) {
@@ -364,6 +371,7 @@
             current,
             refresh,
             request,
+            requestContent,
             signIn,
             signOut,
             upload

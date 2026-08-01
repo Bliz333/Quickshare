@@ -186,16 +186,36 @@ test.describe('BrowserSession with in-memory adapter', () => {
     const session = createMemorySession(adapter);
     session.signIn({ token: 'private-token', username: 'alice' });
 
-    const response = await session.request('https://quickshare.test/api/files/7/content', {
-      sessionEnvelope: false
-    });
+    const init = { cache: 'no-store', headers: { 'X-Preview': '1' } };
+    const response = await session.requestContent('https://quickshare.test/api/files/7/content', init);
     expect(await response.text()).toBe('{"code":401}');
     expect(session.current()).toMatchObject({
       authenticated: true,
       token: 'private-token'
     });
     expect(adapter.calls).toHaveLength(1);
-    expect(adapter.calls[0].init).toEqual({});
+    expect(adapter.calls[0].init).toEqual(init);
+  });
+
+  test('still expires an owned content request on an HTTP 401', async () => {
+    const adapter = createMemoryAdapter((kind, call) => {
+      if (call.input.endsWith('/profile')) {
+        return jsonResponse({ code: 401 }, { status: 401 });
+      }
+      return jsonResponse({ code: 200 }, { status: 401 });
+    });
+    const session = createMemorySession(adapter);
+    session.signIn({ token: 'private-token', username: 'alice' });
+
+    const response = await session.requestContent('https://quickshare.test/api/files/7/content');
+
+    expect(response.status).toBe(401);
+    expect(session.current().authenticated).toBe(false);
+    expect(adapter.calls[1]).toMatchObject({
+      input: 'https://quickshare.test/api/profile',
+      init: { credentials: 'same-origin' },
+      token: ''
+    });
   });
 
   test('ignores stale renewal and unauthorized outcomes after the session changes', async () => {
@@ -376,9 +396,7 @@ test.describe('BrowserSession interface', () => {
 
     const result = await page.evaluate(async () => {
       BrowserSession.signIn({ token: 'token-before-static', username: 'alice' });
-      const response = await BrowserSession.request('/session-static.html', {
-        sessionEnvelope: false
-      });
+      const response = await BrowserSession.requestContent('/session-static.html');
       return {
         body: await response.text(),
         session: BrowserSession.current()

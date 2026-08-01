@@ -1050,7 +1050,7 @@ function showReceiveCard({ shareToken, fileName, fileSize, contentType, e2ee }) 
         textContent.textContent = '…';
         const textPromise = e2ee?.encrypted && window.QuickShareE2EE
             ? window.QuickShareE2EE.fetchAndDecrypt(url, e2ee).then(blob => blob.text())
-            : BrowserSession.request(url, { sessionEnvelope: false })
+            : BrowserSession.requestContent(url)
                 .then(r => r.ok ? r.text() : Promise.reject('fetch failed'));
         textPromise
             .then(txt => { if (_receiveCardVersion === currentVersion) textContent.textContent = txt; })

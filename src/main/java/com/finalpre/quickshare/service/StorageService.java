@@ -2,7 +2,6 @@ package com.finalpre.quickshare.service;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
 
 /**
  * Abstraction for file storage backends (local filesystem, S3-compatible, etc.).
@@ -36,9 +35,8 @@ public interface StorageService {
     long getSize(String storageKey) throws IOException;
 
     /**
-     * Get a local Path for the file. For local storage this is the actual path;
-     * for remote storage, this downloads to a temporary file.
-     * Caller should NOT delete the returned path (it may be the real file).
+     * Acquire a local path for the file. Closing the lease releases any
+     * temporary copy while preserving borrowed local files.
      */
-    Path getLocalPath(String storageKey) throws IOException;
+    LocalPathLease acquireLocalPath(String storageKey) throws IOException;
 }

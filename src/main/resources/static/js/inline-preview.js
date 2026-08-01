@@ -195,7 +195,7 @@
             (function (pre) {
                 var url = pre.getAttribute('data-preview-url');
                 if (!url) return;
-                BrowserSession.request(url, { sessionEnvelope: false })
+                BrowserSession.requestContent(url)
                     .then(function (r) { return r.ok ? r.text() : Promise.reject('fail'); })
                     .then(function (txt) { pre.textContent = txt; })
                     .catch(function () {

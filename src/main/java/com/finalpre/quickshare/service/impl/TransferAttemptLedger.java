@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 final class TransferAttemptLedger {
@@ -54,10 +55,6 @@ final class TransferAttemptLedger {
         }
     }
 
-    boolean isCorrupted() {
-        return corrupted;
-    }
-
     TransferAttemptLedger upsert(TransferTaskAttemptVO nextAttempt) {
         Objects.requireNonNull(nextAttempt, "nextAttempt");
         List<TransferTaskAttemptVO> updated = new ArrayList<>(corrupted ? List.of() : attempts);
@@ -73,25 +70,25 @@ final class TransferAttemptLedger {
         return new TransferAttemptLedger(updated, false);
     }
 
-    TransferAttemptLedger remove(String transferMode, String transferId) {
+    Optional<TransferAttemptLedger> removeIfIntact(String transferMode, String transferId) {
         if (corrupted) {
-            return this;
+            return Optional.empty();
         }
         List<TransferTaskAttemptVO> updated = attempts.stream()
                 .filter(attempt -> !Objects.equals(attempt.getTransferMode(), transferMode)
                         || !Objects.equals(attempt.getTransferId(), transferId))
                 .toList();
-        return new TransferAttemptLedger(updated, false);
+        return Optional.of(new TransferAttemptLedger(updated, false));
     }
 
-    TransferAttemptLedger remove(String transferId) {
+    Optional<TransferAttemptLedger> removeIfIntact(String transferId) {
         if (corrupted) {
-            return this;
+            return Optional.empty();
         }
         List<TransferTaskAttemptVO> updated = attempts.stream()
                 .filter(attempt -> !Objects.equals(attempt.getTransferId(), transferId))
                 .toList();
-        return new TransferAttemptLedger(updated, false);
+        return Optional.of(new TransferAttemptLedger(updated, false));
     }
 
     View view() {

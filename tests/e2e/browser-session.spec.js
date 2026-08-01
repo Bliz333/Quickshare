@@ -342,7 +342,7 @@ test.describe('BrowserSession interface', () => {
         body: JSON.stringify({ code: 200, data: {} })
       });
     });
-    await page.goto('/login.html', { waitUntil: 'domcontentloaded' });
+    await page.goto('/login.html', { waitUntil: 'load' });
   });
 
   test('establishes one normalized session and uses renewed tokens on later requests', async ({ page }) => {

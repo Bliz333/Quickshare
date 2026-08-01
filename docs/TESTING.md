@@ -82,7 +82,7 @@ RELEASE_READY_FULL=1 ./scripts/release-ready.sh
 - 完整 Maven suite（测试 profile，关闭 Flyway）
 - JS syntax
 - Maven package
-- 静态 mock Playwright：通知、Quick Transfer、注册验证码
+- 静态 mock Playwright：浏览器会话、通知、Quick Transfer、注册验证码
 
 以下不由默认 CI 证明：
 

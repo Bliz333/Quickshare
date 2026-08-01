@@ -62,7 +62,7 @@ npx playwright test tests/e2e/quickdrop-real.spec.js
 `.github/workflows/ci.yml` 对 `main` PR 运行：
 
 1. `scripts/release-ready.sh`、完整 Maven tests、JS syntax、package；
-2. 静态 mock-only Playwright：notifications、Quick Transfer、registration captcha。
+2. 静态 mock-only Playwright：browser session、notifications、Quick Transfer、registration captcha。
 
 `netdisk-quota.spec.js`、`pricing-payment.spec.js`、真实后端 admin 用例、文件拖拽/导航与 `quickdrop-real` 需要运行中的应用，不在 GitHub 静态 mock job 内。CI 绿灯不能替代这些场景的运行态验证。
 

@@ -14,15 +14,9 @@ let paymentPollAttempts = 0;
 let paymentLastCheckedAt = null;
 let orderCheckInFlight = false;
 
-function getToken() {
-    return window.QuickShareSession?.getToken() || localStorage.getItem('token');
-}
-
 async function apiRequest(path) {
-    const token = getToken();
     const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = 'Bearer ' + token;
-    const resp = await fetch(API + path, { headers });
+    const resp = await BrowserSession.request(API + path, { headers });
     const json = await resp.json();
     if (json.code !== 200 && json.code !== 0) throw new Error(json.message || 'Request failed');
     return json.data;

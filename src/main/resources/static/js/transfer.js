@@ -318,9 +318,9 @@ function clearCompletedTransfers() {
 // ================== 带进度的下载 ==================
 async function downloadFile(index) {
     const file = files[index];
-    const token = localStorage.getItem('token');
+    const session = BrowserSession.current();
 
-    if (!token) {
+    if (!session.authenticated) {
         await showAppAlert(t('loginRequired'), {
             icon: 'fa-right-to-bracket'
         });
@@ -351,11 +351,8 @@ async function downloadFile(index) {
     animateToTransferButton();
 
     try {
-        const response = await fetch(url, {
-            signal: controller.signal,
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+        const response = await BrowserSession.request(url, {
+            signal: controller.signal
         });
 
         if (response.status === 401) {
@@ -364,8 +361,6 @@ async function downloadFile(index) {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
             window.location.href = transferPageUrl('login.html');
             return;
         }
@@ -431,8 +426,8 @@ async function handleFileUpload(event) {
     const uploadedFiles = event.target.files;
     if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-    const token = localStorage.getItem('token');
-    if (!token || token === 'test-token-12345') {
+    const session = BrowserSession.current();
+    if (!session.authenticated || session.token === 'test-token-12345') {
         await showAppAlert(t('loginRequired'), {
             icon: 'fa-right-to-bracket'
         });
@@ -441,7 +436,7 @@ async function handleFileUpload(event) {
     }
 
     for (const file of uploadedFiles) {
-        const uploaded = await uploadSingleFile(file, token);
+        const uploaded = await uploadSingleFile(file);
         if (uploaded && typeof loadFiles === 'function') {
             await loadFiles();
         }
@@ -449,7 +444,7 @@ async function handleFileUpload(event) {
 
     event.target.value = '';
 }
-async function uploadSingleFile(file, token) {
+async function uploadSingleFile(file) {
     const taskId = 'ul_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
     TransferManager.addTask({
@@ -466,58 +461,36 @@ async function uploadSingleFile(file, token) {
     animateToTransferButton();
 
     try {
-        const result = await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
+        const controller = new AbortController();
+        TransferManager.controllers.set(taskId, controller);
 
-            // 存储 xhr 用于取消
-            TransferManager.controllers.set(taskId, {
-                abort: () => {
-                    xhr.abort();
+        const formData = new FormData();
+        formData.append('file', file);
+        if (currentFolder) {
+            formData.append('folderId', currentFolder);
+        }
+
+        const result = await BrowserSession.upload(`${API_BASE}/upload`, {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal,
+            onProgress(event) {
+                if (!event.lengthComputable) {
+                    return;
                 }
-            });
 
-            xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                    // 检查是否已取消
-                    const task = TransferManager.tasks.find(t => t.id === taskId);
-                    if (task && task.status === 'cancelled') {
-                        xhr.abort();
-                        return;
-                    }
-
-                    const progress = Math.round((e.loaded / e.total) * 100);
-                    TransferManager.updateTask(taskId, {
-                        progress: progress,
-                        loaded: e.loaded,
-                        total: e.total
-                    });
+                const task = TransferManager.tasks.find(item => item.id === taskId);
+                if (task && task.status === 'cancelled') {
+                    controller.abort();
+                    return;
                 }
-            };
 
-            xhr.onload = () => {
-                if (xhr.status === 200) {
-                    try {
-                        resolve(JSON.parse(xhr.responseText));
-                    } catch (e) {
-                        reject(new Error(t('parseResponseFailed')));
-                    }
-                } else {
-                    reject(new Error(xhr.statusText || '上传失败'));
-                }
-            };
-
-            xhr.onerror = () => reject(new Error(t('networkError')));
-            xhr.onabort = () => reject(new Error('AbortError'));
-
-            const formData = new FormData();
-            formData.append('file', file);
-            if (currentFolder) {
-                formData.append('folderId', currentFolder);
+                TransferManager.updateTask(taskId, {
+                    progress: Math.round((event.loaded / event.total) * 100),
+                    loaded: event.loaded,
+                    total: event.total
+                });
             }
-
-            xhr.open('POST', `${API_BASE}/upload`);
-            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-            xhr.send(formData);
         });
 
         if (result.code === 200) {
@@ -529,15 +502,13 @@ async function uploadSingleFile(file, token) {
                 tone: 'danger',
                 icon: 'fa-user-clock'
             });
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
             window.location.href = transferPageUrl('login.html');
         } else {
             throw new Error(result.message || t('uploadFailed'));
         }
 
     } catch (error) {
-        if (error.message === 'AbortError') {
+        if (error.name === 'AbortError' || error.message === 'AbortError') {
             // 已在 cancelTask 中处理状态
             console.log('上传已取消:', file.name);
         } else {

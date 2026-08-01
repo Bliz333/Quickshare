@@ -42,7 +42,7 @@
 
     function loadSocialConfig() {
         var requestId = ++socialState.configRequestId;
-        fetch(API_BASE + '/public/registration-settings')
+        BrowserSession.request(API_BASE + '/public/registration-settings')
             .then(function (r) { return r.json(); })
             .then(function (result) {
                 if (requestId !== socialState.configRequestId) {
@@ -254,7 +254,7 @@
     }
 
     function postGoogleAuth(body) {
-        return fetch(API_BASE + '/auth/google', {
+        return BrowserSession.request(API_BASE + '/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -262,8 +262,7 @@
         .then(function (r) { return r.json(); })
         .then(function (result) {
             if (result.code === 200 && result.data) {
-                localStorage.setItem('token', result.data.token);
-                localStorage.setItem('user', JSON.stringify(result.data));
+                BrowserSession.signIn(result.data);
                 showToast(t('登录成功', 'Signed in'), 'success');
                 setTimeout(function () {
                     window.location.href = window.QuickShareRoutes && typeof window.QuickShareRoutes.cleanPageUrl === 'function'

@@ -365,9 +365,8 @@ function renderGridView(container, currentFolders, filteredFiles) {
 // ================== 文件预览 ==================
 async function previewFile(index) {
     const file = files[index];
-    const token = localStorage.getItem('token');
 
-    if (!token) {
+    if (!BrowserSession.current().authenticated) {
         await showAppAlert(t('loginRequired'), {
             icon: 'fa-right-to-bracket'
         });
@@ -447,9 +446,7 @@ async function previewFile(index) {
     } else if (previewDecision.kind === 'text') {
         const originalUrl = getOriginalUrl(file);
         try {
-            const res = await fetch(originalUrl, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await BrowserSession.request(originalUrl, { sessionEnvelope: false });
             const text = await res.text();
             container.innerHTML = `<div class="preview-text">${escapeHtml(text)}</div>`;
         } catch (e) {

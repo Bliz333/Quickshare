@@ -77,7 +77,7 @@ const TransferDirectTransfer = (() => {
     }
 
     function isSignedInTransferUser() {
-        return typeof isLoggedIn === 'function' ? isLoggedIn() : false;
+        return BrowserSession.current().authenticated;
     }
 
     function getSignalState() {
@@ -145,14 +145,11 @@ const TransferDirectTransfer = (() => {
         return file?.webkitRelativePath || file?.name || '';
     }
 
-    function transferPublicRequest(path, options = {}, withAuth = false) {
+    function transferPublicRequest(path, options = {}) {
         const headers = {
             ...(options.headers || {})
         };
-        if (withAuth && typeof getAuthHeaders === 'function') {
-            Object.assign(headers, getAuthHeaders());
-        }
-        return fetch(`${API_BASE}${path}`, {
+        return BrowserSession.request(`${API_BASE}${path}`, {
             ...options,
             headers
         }).then(async response => {
@@ -478,8 +475,7 @@ const TransferDirectTransfer = (() => {
     function canSyncTaskToServer(transfer) {
         return Boolean(
             transfer
-            && typeof isLoggedIn === 'function'
-            && isLoggedIn()
+            && BrowserSession.current().authenticated
             && transfer.senderDeviceId
             && transfer.receiverDeviceId
             && transfer.id
@@ -534,7 +530,7 @@ const TransferDirectTransfer = (() => {
             return [];
         }
 
-        const response = await fetch(`${API_BASE}/public/transfer/pair-tasks?pairSessionId=${encodeURIComponent(context.pairSessionId)}&selfChannelId=${encodeURIComponent(context.selfChannelId)}`);
+        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks?pairSessionId=${encodeURIComponent(context.pairSessionId)}&selfChannelId=${encodeURIComponent(context.selfChannelId)}`);
         const textBody = await response.text();
         const result = textBody ? JSON.parse(textBody) : null;
         if (!response.ok || !result || result.code !== 200) {
@@ -590,10 +586,9 @@ const TransferDirectTransfer = (() => {
             return null;
         }
 
-        const response = await fetch(`${API_BASE}/transfer/tasks/direct-attempts`, {
+        const response = await BrowserSession.request(`${API_BASE}/transfer/tasks/direct-attempts`, {
             method: 'POST',
             headers: {
-                ...getAuthHeaders(),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -659,7 +654,7 @@ const TransferDirectTransfer = (() => {
         }
 
         const context = getDirectSignalContext();
-        const response = await fetch(`${API_BASE}/public/transfer/pair-tasks/direct-attempts`, {
+        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks/direct-attempts`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -701,11 +696,8 @@ const TransferDirectTransfer = (() => {
         if (!transfer?.taskId || !canSyncTaskToServer(transfer)) {
             return;
         }
-        const response = await fetch(`${API_BASE}/transfer/tasks/${encodeURIComponent(transfer.taskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?deviceId=${encodeURIComponent(getCurrentDeviceId())}`, {
-            method: 'DELETE',
-            headers: {
-                ...getAuthHeaders()
-            }
+        const response = await BrowserSession.request(`${API_BASE}/transfer/tasks/${encodeURIComponent(transfer.taskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?deviceId=${encodeURIComponent(getCurrentDeviceId())}`, {
+            method: 'DELETE'
         });
         if (response.ok) {
             return;
@@ -722,7 +714,7 @@ const TransferDirectTransfer = (() => {
         const context = getDirectSignalContext();
         const pairSessionId = transfer.pairSessionId || context.pairSessionId;
         const selfChannelId = transfer.selfChannelId || context.selfChannelId;
-        const response = await fetch(`${API_BASE}/public/transfer/pair-tasks/${encodeURIComponent(transfer.pairTaskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?pairSessionId=${encodeURIComponent(pairSessionId)}&selfChannelId=${encodeURIComponent(selfChannelId)}`, {
+        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks/${encodeURIComponent(transfer.pairTaskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?pairSessionId=${encodeURIComponent(pairSessionId)}&selfChannelId=${encodeURIComponent(selfChannelId)}`, {
             method: 'DELETE'
         });
         if (response.ok) {
@@ -751,11 +743,9 @@ const TransferDirectTransfer = (() => {
         if (publicSenderLabel) {
             return publicSenderLabel;
         }
-        if (typeof getStoredAuthUser === 'function') {
-            const user = getStoredAuthUser();
-            if (user?.nickname || user?.username) {
-                return user.nickname || user.username;
-            }
+        const user = BrowserSession.current().user;
+        if (user?.nickname || user?.username) {
+            return user.nickname || user.username;
         }
         return 'Transfer';
     }
@@ -1299,8 +1289,7 @@ const TransferDirectTransfer = (() => {
             const alreadySaved = Boolean(transfer.savedToNetdiskAt);
             const canSave = !alreadySaved
                 && canDownload
-                && typeof isLoggedIn === 'function'
-                && isLoggedIn();
+                && BrowserSession.current().authenticated;
             const deleteAttrs = transfer.deleteTransferId
                 ? `data-transfer-direct-delete="${transfer.deleteTransferId}"`
                 : transfer.deleteServerTransferId
@@ -2119,11 +2108,10 @@ const TransferDirectTransfer = (() => {
             const body = encryptKey
                 ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, chunkIndex)
                 : chunk;
-            const response = await fetch(`${API_BASE}/public/transfer/shares/${encodeURIComponent(created.shareToken)}/chunks/${chunkIndex}`, {
+            const response = await BrowserSession.request(`${API_BASE}/public/transfer/shares/${encodeURIComponent(created.shareToken)}/chunks/${chunkIndex}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/octet-stream',
-                    ...(isSignedInTransferUser() && typeof getAuthHeaders === 'function' ? getAuthHeaders() : {})
+                    'Content-Type': 'application/octet-stream'
                 },
                 body
             });
@@ -2541,7 +2529,7 @@ const TransferDirectTransfer = (() => {
     }
 
     async function saveTransferToNetdisk(transferId, folderId = 0) {
-        if (typeof isLoggedIn === 'function' && !isLoggedIn()) {
+        if (!BrowserSession.current().authenticated) {
             if (typeof showAppAlert === 'function') {
                 await showAppAlert(text('transferLoginRequired', 'Please sign in before using Transfer'), {
                     icon: 'fa-right-to-bracket'
@@ -2567,16 +2555,11 @@ const TransferDirectTransfer = (() => {
         formData.append('file', blob, transfer.fileName || `transfer-${transferId}`);
         formData.append('folderId', String(Number(folderId) || 0));
 
-        const response = await fetch(`${API_BASE}/upload`, {
+        const result = await BrowserSession.upload(`${API_BASE}/upload`, {
             method: 'POST',
-            headers: {
-                ...getAuthHeaders()
-            },
             body: formData
         });
-        const textBody = await response.text();
-        const result = textBody ? JSON.parse(textBody) : null;
-        if (!response.ok || !result || result.code !== 200) {
+        if (!result || result.code !== 200) {
             throw new Error(result?.message || 'Save direct transfer failed');
         }
 
@@ -2595,7 +2578,7 @@ const TransferDirectTransfer = (() => {
     }
 
     function shouldShowIncomingArrivalDialog() {
-        const loggedIn = typeof isLoggedIn === 'function' && isLoggedIn();
+        const loggedIn = BrowserSession.current().authenticated;
         if (!loggedIn) {
             return true;
         }

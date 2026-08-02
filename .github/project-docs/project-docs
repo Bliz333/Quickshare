@@ -88,7 +88,7 @@ name: project-docs
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -99,6 +99,7 @@ permissions:
 # fail-closed merge gate (including Merge Queue) is required.
 jobs:
   doctor:
+    if: github.event.action != 'edited' || github.event.changes.base != null
     runs-on: ubuntu-latest
     steps:
       - name: Require the repository default branch as PR base
@@ -124,11 +125,28 @@ jobs:
           ref: ${{ github.sha }}
           path: trusted
           persist-credentials: false
+      - name: Require independent review for managed gate updates
+        env:
+          MANAGED_UPDATE_REVIEWED: ${{ contains(github.event.pull_request.labels.*.name, 'project-docs-upgrade-reviewed') }}
+        run: |
+          if cmp -s trusted/.github/project-docs/project-docs candidate/.github/project-docs/project-docs &&
+            cmp -s trusted/.github/workflows/project-docs.yml candidate/.github/workflows/project-docs.yml; then
+            echo "PROJECT_DOCS_MANAGED_UPDATE=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ "$MANAGED_UPDATE_REVIEWED" != "true" ]; then
+            echo "managed project-docs files changed; apply project-docs-upgrade-reviewed only after independent review" >&2
+            exit 1
+          fi
+          echo "::warning::Managed project-docs update was independently reviewed; candidate code will not execute"
+          echo "PROJECT_DOCS_MANAGED_UPDATE=true" >> "$GITHUB_ENV"
       - name: Validate pull request with trusted gate
         run: |
-          cmp trusted/.github/project-docs/project-docs candidate/.github/project-docs/project-docs
-          cmp trusted/.github/workflows/project-docs.yml candidate/.github/workflows/project-docs.yml
-          python3 trusted/.github/project-docs/project-docs doctor --repo candidate
+          args=(doctor --repo candidate --strict)
+          if [ "$PROJECT_DOCS_MANAGED_UPDATE" = "true" ]; then
+            args+=(--allow-reviewed-managed-update)
+          fi
+          python3 trusted/.github/project-docs/project-docs "${args[@]}"
 """
 CI_BLOCK_START = "<!-- project-docs: ci-start -->"
 CI_BLOCK_END = "<!-- project-docs: ci-end -->"
@@ -152,11 +170,19 @@ PLACEHOLDER_PATTERNS = (
     re.compile(r"TODO\(project-docs\)", re.IGNORECASE),
     re.compile(r"TBD\(project-docs\)", re.IGNORECASE),
 )
-SECRET_ASSIGNMENT = re.compile(
-    r"(?i)[\"']?(?:api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|"
+SECRET_KEY_PATTERN = (
+    r"(?:api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|"
     r"(?:gh|github)[_-]?token|private[_-]?token|secret[_-]?access[_-]?key|"
     r"secret(?:[_-]?key)?|aws[_-]?access[_-]?key[_-]?id|password|token)"
-    r"[\"']?\s*[:=]\s*(?:\"([^\"\r\n]{16,})\"|'([^'\r\n]{16,})'|([^\s#;,`\"']{16,}))"
+)
+SECRET_ASSIGNMENT = re.compile(
+    r"(?i)(?:\""
+    + SECRET_KEY_PATTERN
+    + r"\"|'"
+    + SECRET_KEY_PATTERN
+    + r"'|(?<![A-Za-z0-9_\"'])"
+    + SECRET_KEY_PATTERN
+    + r")\s*[:=]\s*(?:\"([^\"\r\n]+)\"|'([^'\r\n]+)'|([^\s#;,`\"']+))"
 )
 PRIVATE_KEY_MARKER = re.compile(
     r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----"
@@ -168,7 +194,9 @@ MARKDOWN_ESCAPE = re.compile(r"\\([" + re.escape(string.punctuation) + r"])")
 OBVIOUS_SECRET_PLACEHOLDER = re.compile(
     r"(?i)(?:(?:change|replace)[-_ ]?me(?:[-_ ][a-z0-9]+)*|"
     r"(?:placeholder|example|dummy|redacted|fake)(?:[-_ ][a-z0-9]+)*|"
-    r"(?:your|insert)[-_ ][a-z0-9_-]+|not[-_ ]?a[-_ ]?real(?:[-_ ][a-z0-9]+)*)"
+    r"(?:your|insert)[-_ ][a-z0-9_-]+|not[-_ ]?a[-_ ]?real(?:[-_ ][a-z0-9]+)*|"
+    r"\$\{?[A-Z][A-Z0-9_]*\}?|(?:process\.)?env(?:iron)?(?:\[[^\]]+\]|\.[a-z0-9_]+)|"
+    r"true|false|null|none|string|integer|boolean)"
 )
 class ProjectDocsError(RuntimeError):
     pass
@@ -258,6 +286,33 @@ def relative(root: Path, path: Path) -> str:
     return path.absolute().relative_to(root.absolute()).as_posix()
 
 
+def has_git_marker(path: Path) -> bool:
+    try:
+        (path / ".git").lstat()
+    except FileNotFoundError:
+        return False
+    return True
+
+
+def nested_git_boundary(
+    root: Path,
+    path: Path,
+    *,
+    include_path: bool = False,
+) -> Path | None:
+    try:
+        parts = path.absolute().relative_to(root.absolute()).parts
+    except ValueError:
+        return None
+    current = root
+    ancestors = parts if include_path else parts[:-1]
+    for part in ancestors:
+        current /= part
+        if has_git_marker(current):
+            return current
+    return None
+
+
 def is_local_state_path(root: Path, path: Path) -> bool:
     try:
         parts = path.absolute().relative_to(root.absolute()).parts
@@ -284,7 +339,7 @@ def walk_files(root: Path, max_depth: int = 3) -> Iterable[Path]:
             if name not in EXCLUDED_DIRS
             and not is_local_state_path(root, current_path / name)
             and not (current_path / name).is_symlink()
-            and not (current_path / name / ".git").exists()
+            and not has_git_marker(current_path / name)
         ]
         if depth >= max_depth:
             dirs[:] = []
@@ -440,7 +495,9 @@ def discover_validation_commands(
 def discover_ci_paths(root: Path) -> tuple[str, ...]:
     paths: list[Path] = []
     workflows = root / ".github" / "workflows"
-    if workflows.is_dir():
+    if workflows.is_dir() and nested_git_boundary(
+        root, workflows, include_path=True
+    ) is None:
         paths.extend(workflows.glob("*.yml"))
         paths.extend(workflows.glob("*.yaml"))
     for name in (".gitlab-ci.yml", "Jenkinsfile"):
@@ -548,23 +605,45 @@ def git_remote_slug(root: Path) -> str | None:
     return slug
 
 
+def reject_control_characters(value: str, *, label: str) -> None:
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        raise ProjectDocsError(f"{label} 含控制字符,无法安全写入 Markdown。")
+
+
+def markdown_text(value: str, *, label: str) -> str:
+    reject_control_characters(value, label=label)
+    return re.sub(r"([\\`*_{}\[\]<>()#+.!|])", r"\\\1", value)
+
+
+def markdown_code_span(value: str, *, label: str) -> str:
+    reject_control_characters(value, label=label)
+    longest = max((len(run) for run in re.findall(r"`+", value)), default=0)
+    delimiter = "`" * (longest + 1)
+    padding = " " if value.startswith("`") or value.endswith("`") else ""
+    return f"{delimiter}{padding}{value}{padding}{delimiter}"
+
+
 def format_source_areas(areas: Sequence[str]) -> str:
     if not areas:
         return "- 未识别出独立源码子树;从根 manifest 和现有目录开始定位。"
-    joined = "、".join(f"`{area}/`" for area in areas)
+    joined = "、".join(
+        markdown_code_span(f"{area}/", label="源码目录名") for area in areas
+    )
     return f"- 主要源码区域:{joined}。具体职责以代码和最近层 `AGENTS.md` 为准。"
 
 
 def format_commands(commands: Sequence[str]) -> str:
     if not commands:
         return "- 仓库未声明可可靠推导的验证命令;以现有 CI / 构建配置为准,不要臆造命令。"
-    return "\n".join(f"- `{command}`" for command in commands)
+    return "\n".join(
+        f"- {markdown_code_span(command, label='验证命令')}" for command in commands
+    )
 
 
 def format_ci(paths: Sequence[str]) -> str:
     if not paths:
         return "- 当前未发现 CI 配置;新增门禁时同步更新本节。"
-    joined = "、".join(f"`{path}`" for path in paths)
+    joined = "、".join(markdown_code_span(path, label="CI 路径") for path in paths)
     return (
         f"- CI 配置:{joined};CI 提供自动验证证据,"
         "内置 project-docs workflow 只辅助检查目标为默认分支的 PR,不是合并硬门禁。"
@@ -582,13 +661,13 @@ def render_agents(facts: RepoFacts) -> str:
     return render_template(
         "AGENTS.md",
         {
-            "PROJECT_NAME": facts.name,
+            "PROJECT_NAME": markdown_text(facts.name, label="项目名"),
             "TECHNOLOGIES": "、".join(facts.technologies),
             "SOURCE_AREAS": format_source_areas(facts.source_areas),
             "VALIDATION_COMMANDS": format_commands(facts.validation_commands),
             "CI_PATHS": managed_ci_block(facts.ci_paths),
-            "DEFAULT_BRANCH": facts.default_branch,
-            "DOCTOR_COMMAND": doctor_command,
+            "DEFAULT_BRANCH": markdown_code_span(facts.default_branch, label="默认分支"),
+            "DOCTOR_COMMAND": markdown_code_span(doctor_command, label="doctor 命令"),
         },
     )
 
@@ -661,6 +740,10 @@ def validate_output_path(root: Path, path: Path) -> None:
             raise ProjectDocsError(f"拒绝通过符号链接写入: {relative(root, current)}")
         if index < len(parts) - 1 and not stat.S_ISDIR(mode):
             raise ProjectDocsError(f"输出路径的父级不是目录: {relative(root, current)}")
+        if index < len(parts) - 1 and has_git_marker(current):
+            raise ProjectDocsError(
+                f"拒绝跨入嵌套 Git 仓库写入: {relative(root, current)}"
+            )
         if index == len(parts) - 1 and not stat.S_ISREG(mode):
             raise ProjectDocsError(f"输出文件位置不是普通文件: {relative(root, current)}")
     try:
@@ -1007,11 +1090,35 @@ def is_vendored_checker() -> bool:
     return tuple(parts[-3:]) == (".github", "project-docs", "project-docs")
 
 
+def upstream_project_docs() -> Path:
+    configured = os.environ.get("PROJECT_DOCS_SOURCE")
+    candidates = (
+        (Path(configured).expanduser(),)
+        if configured
+        else (Path.home() / "ai-rules" / "bin" / "project-docs",)
+    )
+    current = Path(__file__).resolve()
+    for candidate in candidates:
+        try:
+            if candidate.is_file() and candidate.resolve() != current:
+                return candidate.resolve()
+        except (OSError, RuntimeError):
+            continue
+    raise ProjectDocsError(
+        "vendored bootstrap 需要上游 project-docs;设置 PROJECT_DOCS_SOURCE 为可信的 "
+        "bin/project-docs 路径,或安装到 ~/ai-rules/bin/project-docs。"
+    )
+
+
+def delegate_vendored_bootstrap(argv: Sequence[str]) -> int:
+    source = upstream_project_docs()
+    return subprocess.run(
+        (sys.executable, str(source), *argv),
+        check=False,
+    ).returncode
+
+
 def bootstrap(root: Path, *, dry_run: bool) -> BootstrapReport:
-    if is_vendored_checker():
-        raise ProjectDocsError(
-            "目标仓库内的 vendored checker 仅支持 doctor;请使用 ~/ai-rules/bin/project-docs 运行 bootstrap。"
-        )
     if not (TEMPLATE_ROOT / "AGENTS.md").is_file():
         raise ProjectDocsError(
             "project-docs 模板资产不完整,无法运行 bootstrap。"
@@ -1037,8 +1144,9 @@ def bootstrap(root: Path, *, dry_run: bool) -> BootstrapReport:
             default_base=facts.default_base,
             has_commit=facts.has_commit,
         )
+    agents_content = render_agents(facts)
     github_workflow(root, workflow_plan, report, dry_run)
-    write_if_missing(root, root / "AGENTS.md", render_agents(facts), report, dry_run)
+    write_if_missing(root, root / "AGENTS.md", agents_content, report, dry_run)
     sync_generated_agents_ci(root, facts, report, dry_run)
     write_if_missing(
         root,
@@ -1171,6 +1279,8 @@ def is_regular_repo_file(root: Path, path: Path) -> bool:
     try:
         if not stat.S_ISREG(path.lstat().st_mode):
             return False
+        if nested_git_boundary(root, path) is not None:
+            return False
         path.resolve().relative_to(root.resolve())
     except (FileNotFoundError, OSError, RuntimeError, ValueError):
         return False
@@ -1221,7 +1331,12 @@ def is_template_file(root: Path, path: Path) -> bool:
         return False
 
 
-def check_required_files(root: Path, report: DoctorReport) -> None:
+def check_required_files(
+    root: Path,
+    report: DoctorReport,
+    *,
+    allow_reviewed_managed_update: bool = False,
+) -> None:
     agents = root / "AGENTS.md"
     claude = root / "CLAUDE.md"
     try:
@@ -1295,7 +1410,9 @@ def check_required_files(root: Path, report: DoctorReport) -> None:
         workflow_mode = workflow_path.lstat().st_mode
     except FileNotFoundError:
         workflow_mode = None
-    workflow_is_regular = workflow_mode is not None and stat.S_ISREG(workflow_mode)
+    workflow_is_regular = workflow_mode is not None and is_regular_repo_file(
+        root, workflow_path
+    )
     if workflow_mode is not None and not workflow_is_regular:
         add_finding(
             report,
@@ -1320,7 +1437,7 @@ def check_required_files(root: Path, report: DoctorReport) -> None:
             checker_content = checker_path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             checker_content = ""
-    managed_state = (
+    managed_state = allow_reviewed_managed_update or (
         MANAGED_WORKFLOW_MARKER in workflow_content
         or MANAGED_CHECKER_MARKER in checker_content
     )
@@ -1334,6 +1451,15 @@ def check_required_files(root: Path, report: DoctorReport) -> None:
                 MANAGED_WORKFLOW_PATH,
                 1,
                 "已接入项目文档门禁,但固定 workflow 缺失或不是普通文件。",
+            )
+        elif MANAGED_WORKFLOW_MARKER not in workflow_content:
+            add_finding(
+                report,
+                "error",
+                "invalid-managed-workflow",
+                MANAGED_WORKFLOW_PATH,
+                1,
+                "项目文档 workflow 缺少稳定受管标记,不能确认升级后的所有权。",
             )
         if not checker_is_regular:
             add_finding(
@@ -1360,7 +1486,10 @@ def check_required_files(root: Path, report: DoctorReport) -> None:
                     source_content = source_checker.read_text(encoding="utf-8")
                 except (OSError, UnicodeDecodeError):
                     source_content = checker_content
-                if source_content != checker_content:
+                if (
+                    source_content != checker_content
+                    and not allow_reviewed_managed_update
+                ):
                     add_finding(
                         report,
                         "error",
@@ -1369,7 +1498,11 @@ def check_required_files(root: Path, report: DoctorReport) -> None:
                         1,
                         "目标仓库的自包含 checker 落后于当前 project-docs;重新运行 bootstrap 同步。",
                     )
-        if workflow_is_regular and workflow_content != MANAGED_WORKFLOW_CONTENT:
+        if (
+            workflow_is_regular
+            and workflow_content != MANAGED_WORKFLOW_CONTENT
+            and not allow_reviewed_managed_update
+        ):
             add_finding(
                 report,
                 "error",
@@ -1812,12 +1945,15 @@ def check_content(root: Path, path: Path, content: str, report: DoctorReport) ->
                     add_finding(report, "error", "template-placeholder", rel, number, "残留项目模板占位符。")
                     break
         secrets = SECRET_ASSIGNMENT.finditer(line)
-        has_real_secret = any(
-            not OBVIOUS_SECRET_PLACEHOLDER.fullmatch(
-                next((value for value in secret.groups() if value), "")
-            )
-            for secret in secrets
-        )
+        has_real_secret = False
+        for secret in secrets:
+            value = next((candidate for candidate in secret.groups() if candidate), "")
+            if (
+                re.search(r"[A-Za-z0-9]", value)
+                and not OBVIOUS_SECRET_PLACEHOLDER.fullmatch(value)
+            ):
+                has_real_secret = True
+                break
         if PRIVATE_KEY_MARKER.search(line) or KNOWN_SECRET_TOKEN.search(line) or has_real_secret:
             add_finding(report, "error", "high-confidence-secret", rel, number, "知识文档疑似包含真实凭据。")
         for ip_match in re.finditer(
@@ -1911,9 +2047,18 @@ def changed_files(root: Path, base: str | None, report: DoctorReport) -> None:
     report.applicable_agents = sorted(applicable)
 
 
-def doctor(root: Path, *, base: str | None) -> DoctorReport:
+def doctor(
+    root: Path,
+    *,
+    base: str | None,
+    allow_reviewed_managed_update: bool = False,
+) -> DoctorReport:
     report = DoctorReport(repo=str(root))
-    check_required_files(root, report)
+    check_required_files(
+        root,
+        report,
+        allow_reviewed_managed_update=allow_reviewed_managed_update,
+    )
     files = knowledge_markdown_files(root)
     contents: dict[Path, str] = {}
     for path in files:
@@ -1992,13 +2137,21 @@ def parser() -> argparse.ArgumentParser:
     doctor_parser.add_argument("--repo", default=".")
     doctor_parser.add_argument("--base")
     doctor_parser.add_argument("--strict", action="store_true")
+    doctor_parser.add_argument(
+        "--allow-reviewed-managed-update",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     doctor_parser.add_argument("--format", choices=("human", "json"), default="human")
     return result
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = parser().parse_args(argv)
+    raw_argv = list(argv) if argv is not None else sys.argv[1:]
+    args = parser().parse_args(raw_argv)
     try:
+        if args.command == "bootstrap" and is_vendored_checker():
+            return delegate_vendored_bootstrap(raw_argv)
         root = resolve_repo(args.repo)
         if args.command == "bootstrap":
             report = bootstrap(root, dry_run=args.dry_run)
@@ -2009,7 +2162,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.dry_run or report.doctor is None:
                 return 0
             return report.doctor.exit_code()
-        report = doctor(root, base=args.base)
+        report = doctor(
+            root,
+            base=args.base,
+            allow_reviewed_managed_update=args.allow_reviewed_managed_update,
+        )
         if args.format == "json":
             print(json.dumps(report_payload(report), ensure_ascii=False, indent=2))
         else:

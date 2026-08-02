@@ -3,7 +3,7 @@ name: project-docs
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -14,6 +14,7 @@ permissions:
 # fail-closed merge gate (including Merge Queue) is required.
 jobs:
   doctor:
+    if: github.event.action != 'edited' || github.event.changes.base != null
     runs-on: ubuntu-latest
     steps:
       - name: Require the repository default branch as PR base
@@ -39,8 +40,25 @@ jobs:
           ref: ${{ github.sha }}
           path: trusted
           persist-credentials: false
+      - name: Require independent review for managed gate updates
+        env:
+          MANAGED_UPDATE_REVIEWED: ${{ contains(github.event.pull_request.labels.*.name, 'project-docs-upgrade-reviewed') }}
+        run: |
+          if cmp -s trusted/.github/project-docs/project-docs candidate/.github/project-docs/project-docs &&
+            cmp -s trusted/.github/workflows/project-docs.yml candidate/.github/workflows/project-docs.yml; then
+            echo "PROJECT_DOCS_MANAGED_UPDATE=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ "$MANAGED_UPDATE_REVIEWED" != "true" ]; then
+            echo "managed project-docs files changed; apply project-docs-upgrade-reviewed only after independent review" >&2
+            exit 1
+          fi
+          echo "::warning::Managed project-docs update was independently reviewed; candidate code will not execute"
+          echo "PROJECT_DOCS_MANAGED_UPDATE=true" >> "$GITHUB_ENV"
       - name: Validate pull request with trusted gate
         run: |
-          cmp trusted/.github/project-docs/project-docs candidate/.github/project-docs/project-docs
-          cmp trusted/.github/workflows/project-docs.yml candidate/.github/workflows/project-docs.yml
-          python3 trusted/.github/project-docs/project-docs doctor --repo candidate
+          args=(doctor --repo candidate --strict)
+          if [ "$PROJECT_DOCS_MANAGED_UPDATE" = "true" ]; then
+            args+=(--allow-reviewed-managed-update)
+          fi
+          python3 trusted/.github/project-docs/project-docs "${args[@]}"

@@ -57,6 +57,6 @@ QuickShare 是 Java 17 / Spring Boot 3.2 单体应用：后端同时提供 REST�
 
 ## 文档维护
 
-- `AGENTS.md` 只做地图和硬边界；主题细节放 `docs/ai/`，不要把新任务日志继续堆进 `STATUS.md`。
+- `AGENTS.md` 只做地图和硬边界；主题细节放 `docs/ai/`，不要把新任务日志继续堆进 `docs/STATUS.md`。
 - 代码、配置和脚本是可直接推导事实的真相源；文档只保存跨文件才能得出的稳定知识和操作边界。
 - `docs/archive/` 是历史证据，不代表当前命名、路由、测试结果或部署状态。

@@ -23,7 +23,7 @@
 执行：
 
 ```bash
-quickshare-test-ssh 'cd /root/quickshare && docker run --rm --network host --ipc=host -v /root/quickshare:/workspace -w /workspace -e PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 -e E2E_ADMIN_USERNAME=admin -e E2E_ADMIN_PASSWORD=ChangeMeAdmin123! mcr.microsoft.com/playwright:v1.58.2-noble bash -lc "npm ci && npx playwright test tests/e2e/quickdrop-real.spec.js --reporter=line"'
+quickshare-test-ssh 'cd /root/quickshare && docker run --rm --network host --ipc=host -v /root/quickshare:/workspace -w /workspace -e PLAYWRIGHT_BASE_URL=<redacted> -e E2E_ADMIN_USERNAME=<redacted> -e E2E_ADMIN_PASSWORD=redacted-password mcr.microsoft.com/playwright:v1.58.2-noble bash -lc "npm ci && npx playwright test tests/e2e/quickdrop-real.spec.js --reporter=line"'
 ```
 
 结果：

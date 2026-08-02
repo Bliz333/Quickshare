@@ -163,10 +163,8 @@ function transferRequest(path, options = {}) {
     return BrowserSession.request(`${API_BASE}${path}`, {
         ...options,
         headers
-    }).then(async response => {
-        const text = await response.text();
-        const result = text ? JSON.parse(text) : null;
-        if (!response.ok || !result || result.code !== 200) {
+    }).then(result => {
+        if (result.code !== 200) {
             throw new Error(result?.message || 'Transfer request failed');
         }
         return result.data;
@@ -2548,7 +2546,7 @@ async function sendSingleTransferFile(selectedItem, batchIndex, batchTotal) {
                 ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, chunkIndex)
                 : chunk;
 
-            const response = await BrowserSession.request(`${API_BASE}/transfer/transfers/${session.id}/chunks/${chunkIndex}?deviceId=${encodeURIComponent(getTransferDeviceId())}`, {
+            const result = await BrowserSession.request(`${API_BASE}/transfer/transfers/${session.id}/chunks/${chunkIndex}?deviceId=${encodeURIComponent(getTransferDeviceId())}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/octet-stream'
@@ -2556,9 +2554,7 @@ async function sendSingleTransferFile(selectedItem, batchIndex, batchTotal) {
                 body
             });
 
-            const text = await response.text();
-            const result = text ? JSON.parse(text) : null;
-            if (!response.ok || !result || result.code !== 200) {
+            if (result.code !== 200) {
                 throw new Error(result?.message || 'Transfer chunk upload failed');
             }
 

@@ -181,14 +181,13 @@ async function uploadAndShare() {
                 maxDownload: parseInt(document.getElementById('maxDownload').value) || null
             };
 
-            const shareRes = await BrowserSession.request(`${API_BASE}/share`, {
+            const shareData = await BrowserSession.request(`${API_BASE}/share`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(sharePayload)
             });
-            const shareData = await shareRes.json();
 
             if (shareData.code !== 200) {
                 throw new Error(shareData.message || 'Share failed');

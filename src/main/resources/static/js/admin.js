@@ -316,37 +316,26 @@ async function adminRequest(path, options = {}) {
         ...(options.headers || {})
     };
 
-    const response = await BrowserSession.request(`${API_BASE}${path}`, {
+    const result = await BrowserSession.request(`${API_BASE}${path}`, {
         ...options,
         headers
     });
 
-    const rawText = await response.text();
-    let result = null;
-
-    if (rawText) {
-        try {
-            result = JSON.parse(rawText);
-        } catch (error) {
-            result = null;
-        }
-    }
-
-    if (response.status === 401 || result?.code === 401) {
+    if (Number(result?.code) === 401) {
         redirectWithToast(t('adminSessionExpired'), routeUrl('login.html'));
         throw new Error(t('adminSessionExpired'));
     }
 
-    if (response.status === 403 || result?.code === 403) {
+    if (Number(result?.code) === 403) {
         redirectWithToast(t('adminAccessDenied'), routeUrl('netdisk.html'));
         throw new Error(t('adminAccessDenied'));
     }
 
-    if (!response.ok || (result && result.code !== 200)) {
+    if (Number(result?.code) !== 200) {
         throw new Error(result?.message || t('adminLoadFailed'));
     }
 
-    return result ? result.data : null;
+    return result.data;
 }
 
 function renderOverview() {

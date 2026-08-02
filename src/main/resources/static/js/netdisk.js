@@ -596,10 +596,9 @@ async function loadPreviewPolicy() {
     }
 
     try {
-        const response = await BrowserSession.request(`${API_BASE}/settings/file-preview`, {
+        const result = await BrowserSession.request(`${API_BASE}/settings/file-preview`, {
             method: 'GET'
         });
-        const result = await response.json();
 
         if (result.code === 401) {
             await showAppAlert(t('loginExpired'), {
@@ -812,15 +811,13 @@ function openCreateFolderDialog() {
             }
 
             try {
-                const response = await BrowserSession.request(`${API_BASE}/folders`, {
+                const result = await BrowserSession.request(`${API_BASE}/folders`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ name, parentId: currentFolder })
                 });
-                const result = await response.json();
-
                 if (result.code === 200) {
                     close();
                     showToast(t('folderCreateSuccess'), 'success');
@@ -954,7 +951,7 @@ function openShareDialog(index) {
             const expireHours = Number.isNaN(expireDays) || expireDays <= 0 ? null : expireDays * 24;
 
             try {
-                const response = await BrowserSession.request(`${API_BASE}/share`, {
+                const result = await BrowserSession.request(`${API_BASE}/share`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -965,8 +962,6 @@ function openShareDialog(index) {
                         extractCode: extractCode || null
                     })
                 });
-                const result = await response.json();
-
                 if (result.code !== 200) {
                     setError(result.message || t('shareFailed'));
                     return;
@@ -1210,15 +1205,13 @@ function refreshNetdiskAfterMutation() {
 }
 
 async function requestNetdiskMove(kind, itemId, targetFolderId) {
-    const response = await BrowserSession.request(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${itemId}/move`, {
+    const result = await BrowserSession.request(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${itemId}/move`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({ targetFolderId })
     });
-    const result = await response.json();
-
     if (result.code !== 200) {
         throw new Error(result.message || t('moveDialogValidation'));
     }
@@ -1533,15 +1526,14 @@ async function batchDeleteSelected() {
             let firstError = '';
 
             const requestDelete = async (kind, id) => {
-                const response = await BrowserSession.request(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${id}`, {
+                const result = await BrowserSession.request(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${id}`, {
                     method: 'DELETE'
                 });
 
-                if (response.status === 404) {
+                if (result.code === 404) {
                     return;
                 }
 
-                const result = await response.json();
                 if (result.code !== 200) {
                     throw new Error(result.message || t('deleteDialogUnknownError'));
                 }
@@ -1865,8 +1857,7 @@ async function _fetchFilesPage(pageNum, append) {
             );
         }
 
-        const responses = await Promise.all(fetches);
-        const jsonResults = await Promise.all(responses.map(r => r.json()));
+        const jsonResults = await Promise.all(fetches);
 
         if (seq !== _loadFilesSeq) return;
 
@@ -2038,15 +2029,13 @@ async function renameFolder(folderId, oldName) {
             }
 
             try {
-                const res = await BrowserSession.request(`${API_BASE}/folders/${folderId}/rename`, {
+                const result = await BrowserSession.request(`${API_BASE}/folders/${folderId}/rename`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ newName })
                 });
-                const result = await res.json();
-
                 if (result.code === 200) {
                     folders.forEach(folder => {
                         if (folder.id === folderId) {
@@ -2095,18 +2084,17 @@ async function deleteFolder(folderId, folderName) {
             }
 
             try {
-                const res = await BrowserSession.request(`${API_BASE}/folders/${folderId}`, {
+                const result = await BrowserSession.request(`${API_BASE}/folders/${folderId}`, {
                     method: 'DELETE'
                 });
 
-                if (res.status === 404) {
+                if (result.code === 404) {
                     close();
                     showToast(t('deleteDialogAlreadyGone'), 'error');
                     await loadFiles();
                     return;
                 }
 
-                const result = await res.json();
                 if (result.code === 200) {
                     if (currentFolder === folderId || folderPath.some(f => f.id === folderId)) {
                         currentFolder = null;
@@ -2170,18 +2158,16 @@ async function deleteFile(index) {
             }
 
             try {
-                const res = await BrowserSession.request(`${API_BASE}/files/${file.id}`, {
+                const result = await BrowserSession.request(`${API_BASE}/files/${file.id}`, {
                     method: 'DELETE'
                 });
 
-                if (res.status === 404) {
+                if (result.code === 404) {
                     close();
                     showToast(t('deleteDialogAlreadyGone'), 'error');
                     await loadFiles();
                     return;
                 }
-
-                const result = await res.json();
 
                 if (result.code === 200) {
                     close();
@@ -2223,15 +2209,13 @@ async function renameFile(index) {
             }
 
             try {
-                const res = await BrowserSession.request(`${API_BASE}/files/${file.id}/rename`, {
+                const result = await BrowserSession.request(`${API_BASE}/files/${file.id}/rename`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ newName })
                 });
-                const result = await res.json();
-
                 if (result.code === 200) {
                     close();
                     showToast(t('renameSuccess'), 'success');

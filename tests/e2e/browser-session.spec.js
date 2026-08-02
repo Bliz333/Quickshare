@@ -76,7 +76,7 @@ test.describe('BrowserSession with in-memory adapter', () => {
       user: { username: 'alice', role: 'ADMIN' }
     });
 
-    await session.request('https://quickshare.test/api/profile');
+    await expect(session.request('https://quickshare.test/api/profile')).resolves.toEqual({ code: 200 });
     expect(session.current().token).toBe('token-renewed');
     expect(adapter.calls[0]).toMatchObject({
       kind: 'request',
@@ -112,13 +112,13 @@ test.describe('BrowserSession with in-memory adapter', () => {
     });
     expect(adapter.calls).toHaveLength(0);
 
-    const response = await session.request('https://quickshare.test/api/profile');
-    expect(await response.json()).toEqual({ code: 200, data: { username: 'alice' } });
+    const result = await session.request('https://quickshare.test/api/profile');
+    expect(result).toEqual({ code: 200, data: { username: 'alice' } });
     expect(session.current()).toMatchObject({ authenticated: true, token: expiredToken });
     expect(adapter.calls).toHaveLength(1);
   });
 
-  test('keeps third-party outcomes isolated and expires owned unauthorized sessions', async () => {
+  test('returns business-code 401 while reconciling only owned sessions', async () => {
     const adapter = createMemoryAdapter((kind, call) => {
       if (call.input === 'https://third-party.test/data') {
         return jsonResponse({ code: 401 }, { refreshedToken: 'untrusted-token' });
@@ -132,12 +132,12 @@ test.describe('BrowserSession with in-memory adapter', () => {
     session.signIn({ token: 'private-token', username: 'alice' });
 
     const thirdParty = await session.request('https://third-party.test/data');
-    await thirdParty.json();
+    expect(thirdParty).toEqual({ code: 401 });
     expect(session.current().token).toBe('private-token');
     expect(adapter.calls[0]).toMatchObject({ owned: false, token: '' });
 
     const owned = await session.request('https://quickshare.test/api/private');
-    await owned.json();
+    expect(owned).toEqual({ code: 401 });
     expect(session.current().authenticated).toBe(false);
     expect(adapter.calls[2]).toMatchObject({
       input: 'https://quickshare.test/api/profile',
@@ -165,8 +165,7 @@ test.describe('BrowserSession with in-memory adapter', () => {
 
     const pending = session.request('https://quickshare.test/api/private');
     resolveStaleRequest(jsonResponse({ code: 401 }, { status: 401 }));
-    const response = await pending;
-    await response.json();
+    await expect(pending).resolves.toEqual({ code: 401 });
 
     expect(session.current()).toMatchObject({
       authenticated: true,
@@ -181,13 +180,15 @@ test.describe('BrowserSession with in-memory adapter', () => {
     });
   });
 
-  test('does not treat raw same-origin file contents as a session envelope', async () => {
-    const adapter = createMemoryAdapter(() => jsonResponse({ code: 401 }));
+  test('keeps requestContent raw and does not treat file contents as a session envelope', async () => {
+    const rawResponse = jsonResponse({ code: 401 });
+    const adapter = createMemoryAdapter(() => rawResponse);
     const session = createMemorySession(adapter);
     session.signIn({ token: 'private-token', username: 'alice' });
 
     const init = { cache: 'no-store', headers: { 'X-Preview': '1' } };
     const response = await session.requestContent('https://quickshare.test/api/files/7/content', init);
+    expect(response).toBe(rawResponse);
     expect(await response.text()).toBe('{"code":401}');
     expect(session.current()).toMatchObject({
       authenticated: true,
@@ -237,8 +238,7 @@ test.describe('BrowserSession with in-memory adapter', () => {
       { code: 401 },
       { status: 401, refreshedToken: 'token-a-renewed' }
     ));
-    const response = await pending;
-    await response.json();
+    await expect(pending).resolves.toEqual({ code: 401 });
 
     expect(session.current()).toMatchObject({
       authenticated: true,
@@ -298,6 +298,39 @@ test.describe('BrowserSession with in-memory adapter', () => {
       owned: true,
       token: 'upload-token'
     });
+  });
+
+  test('returns a Result envelope for an HTTP error response', async () => {
+    const adapter = createMemoryAdapter(() => jsonResponse({
+      code: 404,
+      message: 'File not found'
+    }, { status: 404 }));
+    const session = createMemorySession(adapter);
+
+    await expect(session.request('https://quickshare.test/api/files/404')).resolves.toEqual({
+      code: 404,
+      message: 'File not found'
+    });
+  });
+
+  test('rejects malformed JSON and propagates transport failures through the interface', async () => {
+    const malformedAdapter = createMemoryAdapter(() => ({
+      headers: { get: () => null },
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => '<html>not a Result</html>'
+    }));
+    const malformedSession = createMemorySession(malformedAdapter);
+    await expect(malformedSession.request('https://quickshare.test/api/profile'))
+      .rejects.toThrow('Invalid JSON response');
+
+    const failedAdapter = createMemoryAdapter(() => {
+      throw new Error('Network request failed');
+    });
+    const failedSession = createMemorySession(failedAdapter);
+    await expect(failedSession.request('https://quickshare.test/api/profile'))
+      .rejects.toThrow('Network request failed');
   });
 
   test('expires owned uploads before parsing unauthorized response bodies', async () => {
@@ -366,11 +399,9 @@ test.describe('BrowserSession interface', () => {
         role: 'admin'
       });
       const first = await BrowserSession.request(`${API_BASE}/session-probe`);
-      await first.json();
       const afterRenewal = BrowserSession.current();
       const second = await BrowserSession.request(`${API_BASE}/session-probe`);
-      await second.json();
-      return { established, afterRenewal, final: BrowserSession.current() };
+      return { established, first, second, afterRenewal, final: BrowserSession.current() };
     });
 
     expect(result.established).toMatchObject({
@@ -379,6 +410,8 @@ test.describe('BrowserSession interface', () => {
       isAdmin: true,
       user: { username: 'alice', role: 'ADMIN' }
     });
+    expect(result.first).toEqual({ code: 200, data: { requestCount: 1 } });
+    expect(result.second).toEqual({ code: 200, data: { requestCount: 2 } });
     expect(result.afterRenewal.token).toBe('token-renewed');
     expect(result.final.token).toBe('token-renewed');
     expect(authorizationHeaders).toEqual(['Bearer token-initial', 'Bearer token-renewed']);
@@ -470,27 +503,21 @@ test.describe('BrowserSession interface', () => {
       BrowserSession.signIn({ token: 'private-token', username: 'alice' });
       const response = await BrowserSession.request(`${thirdPartyOrigin}/session-probe`);
       const unauthorized = await BrowserSession.request(`${thirdPartyOrigin}/unauthorized`);
-      await unauthorized.json();
-      let uploadHttpError = '';
-      try {
-        await BrowserSession.upload(`${thirdPartyOrigin}/upload-http-unauthorized`);
-      } catch (error) {
-        uploadHttpError = error.message;
-      }
+      const uploadHttp = await BrowserSession.upload(`${thirdPartyOrigin}/upload-http-unauthorized`);
       const uploadJson = await BrowserSession.upload(`${thirdPartyOrigin}/upload-json-unauthorized`);
       return {
-        status: response.status,
-        unauthorizedStatus: unauthorized.status,
-        uploadHttpError,
+        responseCode: response.code,
+        unauthorizedCode: unauthorized.code,
+        uploadHttpCode: uploadHttp.code,
         uploadJsonCode: uploadJson.code,
         token: BrowserSession.current().token
       };
     }, thirdPartyOrigin);
 
     expect(result).toEqual({
-      status: 200,
-      unauthorizedStatus: 401,
-      uploadHttpError: 'Unauthorized',
+      responseCode: 200,
+      unauthorizedCode: 401,
+      uploadHttpCode: 401,
       uploadJsonCode: 401,
       token: 'private-token'
     });
@@ -546,10 +573,10 @@ test.describe('BrowserSession interface', () => {
       BrowserSession.signIn({ token: 'cross-origin-token', username: 'alice' });
       const response = await BrowserSession.request(`${API_BASE}/cross-origin-fetch`);
       const upload = await BrowserSession.upload(`${API_BASE}/cross-origin-xhr`);
-      return { fetchStatus: response.status, uploadCode: upload.code };
+      return { fetchCode: response.code, uploadCode: upload.code };
     });
 
-    expect(result).toEqual({ fetchStatus: 200, uploadCode: 200 });
+    expect(result).toEqual({ fetchCode: 200, uploadCode: 200 });
     expect(received).toEqual([
       { path: '/api/cross-origin-fetch', authorization: 'Bearer cross-origin-token', cookie: '' },
       { path: '/api/cross-origin-xhr', authorization: 'Bearer cross-origin-token', cookie: '' }
@@ -596,20 +623,17 @@ test.describe('BrowserSession interface', () => {
 
     const result = await page.evaluate(async () => {
       BrowserSession.signIn({ token: 'token-http', username: 'alice' });
-      const httpResponse = await BrowserSession.request(`${API_BASE}/http-unauthorized`);
+      const httpResult = await BrowserSession.request(`${API_BASE}/http-unauthorized`);
       const afterHttp = BrowserSession.current();
-      await httpResponse.json();
 
       BrowserSession.signIn({ token: 'token-body', username: 'alice' });
-      const bodyResponse = await BrowserSession.request(`${API_BASE}/body-unauthorized`);
-      await bodyResponse.text();
+      await BrowserSession.request(`${API_BASE}/body-unauthorized`);
       const afterBody = BrowserSession.current();
 
-      const cookieOnlyResponse = await BrowserSession.request(`${API_BASE}/http-unauthorized`);
-      await cookieOnlyResponse.json();
+      await BrowserSession.request(`${API_BASE}/http-unauthorized`);
 
       return {
-        httpStatus: httpResponse.status,
+        httpCode: httpResult.code,
         afterHttp,
         afterBody,
         storedToken: localStorage.getItem('token'),
@@ -619,7 +643,7 @@ test.describe('BrowserSession interface', () => {
 
     expect(profileRequests).toBe(2);
     expect(logoutRequests).toBe(0);
-    expect(result.httpStatus).toBe(401);
+    expect(result.httpCode).toBe(401);
     expect(result.afterHttp.authenticated).toBe(false);
     expect(result.afterBody.authenticated).toBe(false);
     expect(result.storedToken).toBeNull();

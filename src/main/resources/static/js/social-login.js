@@ -43,7 +43,6 @@
     function loadSocialConfig() {
         var requestId = ++socialState.configRequestId;
         BrowserSession.request(API_BASE + '/public/registration-settings')
-            .then(function (r) { return r.json(); })
             .then(function (result) {
                 if (requestId !== socialState.configRequestId) {
                     return;
@@ -259,7 +258,6 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         })
-        .then(function (r) { return r.json(); })
         .then(function (result) {
             if (result.code === 200 && result.data) {
                 BrowserSession.signIn(result.data);

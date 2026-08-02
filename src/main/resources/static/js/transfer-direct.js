@@ -152,10 +152,8 @@ const TransferDirectTransfer = (() => {
         return BrowserSession.request(`${API_BASE}${path}`, {
             ...options,
             headers
-        }).then(async response => {
-            const textBody = await response.text();
-            const result = textBody ? JSON.parse(textBody) : null;
-            if (!response.ok || !result || result.code !== 200) {
+        }).then(result => {
+            if (result.code !== 200) {
                 throw new Error(result?.message || 'Transfer public request failed');
             }
             return result.data;
@@ -530,10 +528,8 @@ const TransferDirectTransfer = (() => {
             return [];
         }
 
-        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks?pairSessionId=${encodeURIComponent(context.pairSessionId)}&selfChannelId=${encodeURIComponent(context.selfChannelId)}`);
-        const textBody = await response.text();
-        const result = textBody ? JSON.parse(textBody) : null;
-        if (!response.ok || !result || result.code !== 200) {
+        const result = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks?pairSessionId=${encodeURIComponent(context.pairSessionId)}&selfChannelId=${encodeURIComponent(context.selfChannelId)}`);
+        if (result.code !== 200) {
             throw new Error(result?.message || 'List public pair tasks failed');
         }
 
@@ -586,7 +582,7 @@ const TransferDirectTransfer = (() => {
             return null;
         }
 
-        const response = await BrowserSession.request(`${API_BASE}/transfer/tasks/direct-attempts`, {
+        const result = await BrowserSession.request(`${API_BASE}/transfer/tasks/direct-attempts`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -615,9 +611,7 @@ const TransferDirectTransfer = (() => {
                 downloaded: Boolean(options.downloaded)
             })
         });
-        const textBody = await response.text();
-        const result = textBody ? JSON.parse(textBody) : null;
-        if (!response.ok || !result || result.code !== 200) {
+        if (result.code !== 200) {
             throw new Error(result?.message || 'Sync direct attempt failed');
         }
         return result.data || null;
@@ -654,7 +648,7 @@ const TransferDirectTransfer = (() => {
         }
 
         const context = getDirectSignalContext();
-        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks/direct-attempts`, {
+        const result = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks/direct-attempts`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -684,9 +678,7 @@ const TransferDirectTransfer = (() => {
                 downloaded: Boolean(options.downloaded)
             })
         });
-        const textBody = await response.text();
-        const result = textBody ? JSON.parse(textBody) : null;
-        if (!response.ok || !result || result.code !== 200) {
+        if (result.code !== 200) {
             throw new Error(result?.message || 'Sync public pair task failed');
         }
         return result.data || null;
@@ -696,14 +688,12 @@ const TransferDirectTransfer = (() => {
         if (!transfer?.taskId || !canSyncTaskToServer(transfer)) {
             return;
         }
-        const response = await BrowserSession.request(`${API_BASE}/transfer/tasks/${encodeURIComponent(transfer.taskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?deviceId=${encodeURIComponent(getCurrentDeviceId())}`, {
+        const result = await BrowserSession.request(`${API_BASE}/transfer/tasks/${encodeURIComponent(transfer.taskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?deviceId=${encodeURIComponent(getCurrentDeviceId())}`, {
             method: 'DELETE'
         });
-        if (response.ok) {
+        if (result.code === 200) {
             return;
         }
-        const textBody = await response.text();
-        const result = textBody ? JSON.parse(textBody) : null;
         throw new Error(result?.message || 'Delete direct attempt failed');
     }
 
@@ -714,14 +704,12 @@ const TransferDirectTransfer = (() => {
         const context = getDirectSignalContext();
         const pairSessionId = transfer.pairSessionId || context.pairSessionId;
         const selfChannelId = transfer.selfChannelId || context.selfChannelId;
-        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks/${encodeURIComponent(transfer.pairTaskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?pairSessionId=${encodeURIComponent(pairSessionId)}&selfChannelId=${encodeURIComponent(selfChannelId)}`, {
+        const result = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks/${encodeURIComponent(transfer.pairTaskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?pairSessionId=${encodeURIComponent(pairSessionId)}&selfChannelId=${encodeURIComponent(selfChannelId)}`, {
             method: 'DELETE'
         });
-        if (response.ok) {
+        if (result.code === 200) {
             return;
         }
-        const textBody = await response.text();
-        const result = textBody ? JSON.parse(textBody) : null;
         throw new Error(result?.message || 'Delete public pair task attempt failed');
     }
 
@@ -2108,16 +2096,14 @@ const TransferDirectTransfer = (() => {
             const body = encryptKey
                 ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, chunkIndex)
                 : chunk;
-            const response = await BrowserSession.request(`${API_BASE}/public/transfer/shares/${encodeURIComponent(created.shareToken)}/chunks/${chunkIndex}`, {
+            const result = await BrowserSession.request(`${API_BASE}/public/transfer/shares/${encodeURIComponent(created.shareToken)}/chunks/${chunkIndex}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/octet-stream'
                 },
                 body
             });
-            const textBody = await response.text();
-            const result = textBody ? JSON.parse(textBody) : null;
-            if (!response.ok || !result || result.code !== 200) {
+            if (result.code !== 200) {
                 throw new Error(result?.message || 'Transfer relay upload failed');
             }
             const uploadedChunks = Number(result.data?.uploadedChunks || (chunkIndex + 1));

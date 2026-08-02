@@ -187,7 +187,11 @@
                     owned: true,
                     token: ''
                 });
-                const result = await response.json();
+                const result = await parseResultResponse(
+                    response,
+                    null,
+                    'Invalid session response'
+                );
 
                 if (sessionVersion !== expectedVersion
                     || (storage.getItem('token') || '') !== expectedToken) {
@@ -230,43 +234,36 @@
         }
 
         async function reconcilePayload(result, onUnauthorized) {
-            if (Number(result?.code) === 401) {
+            if (Number(result?.code) === 401 && typeof onUnauthorized === 'function') {
                 await onUnauthorized();
             }
         }
 
-        function monitorResponse(response, onUnauthorized, monitorSessionPayload) {
-            return new Proxy(response, {
-                get(target, property) {
-                    if (property === 'json') {
-                        return async function parseMonitoredJson() {
-                            const result = await target.json();
-                            if (monitorSessionPayload) {
-                                await reconcilePayload(result, onUnauthorized);
-                            }
-                            return result;
-                        };
-                    }
-                    if (property === 'text') {
-                        return async function parseMonitoredText() {
-                            const text = await target.text();
-                            if (monitorSessionPayload) {
-                                try {
-                                    await reconcilePayload(text ? JSON.parse(text) : null, onUnauthorized);
-                                } catch (error) {
-                                    // Non-JSON response bodies have no session envelope.
-                                }
-                            }
-                            return text;
-                        };
-                    }
-                    const value = Reflect.get(target, property, target);
-                    return typeof value === 'function' ? value.bind(target) : value;
-                }
-            });
+        function invalidResultError(response, invalidMessage) {
+            if (!response.ok) {
+                return new Error(response.statusText || 'Request failed');
+            }
+            return new Error(invalidMessage);
         }
 
-        async function requestWithPayloadMonitoring(input, init, monitorSessionPayload) {
+        async function parseResultResponse(response, onUnauthorized, invalidMessage) {
+            let result;
+            try {
+                const text = await response.text();
+                result = text ? JSON.parse(text) : null;
+            } catch (error) {
+                throw invalidResultError(response, invalidMessage);
+            }
+
+            if (!result || typeof result !== 'object' || Array.isArray(result)) {
+                throw invalidResultError(response, invalidMessage);
+            }
+
+            await reconcilePayload(result, onUnauthorized);
+            return result;
+        }
+
+        async function requestResponse(input, init) {
             const session = current();
             const requestVersion = sessionVersion;
             const owned = isOwnedRequest(input);
@@ -289,15 +286,17 @@
             if (response.status === 401) {
                 await handleUnauthorized();
             }
-            return monitorResponse(response, handleUnauthorized, monitorSessionPayload);
+            return { response, handleUnauthorized };
         }
 
-        function request(input, init = {}) {
-            return requestWithPayloadMonitoring(input, init, true);
+        async function request(input, init = {}) {
+            const { response, handleUnauthorized } = await requestResponse(input, init);
+            return parseResultResponse(response, handleUnauthorized, 'Invalid JSON response');
         }
 
-        function requestContent(input, init = {}) {
-            return requestWithPayloadMonitoring(input, init, false);
+        async function requestContent(input, init = {}) {
+            const { response } = await requestResponse(input, init);
+            return response;
         }
 
         async function upload(input, init = {}) {
@@ -325,24 +324,7 @@
                 await handleUnauthorized();
             }
 
-            const text = await response.text();
-            let result = null;
-            try {
-                result = text ? JSON.parse(text) : null;
-            } catch (error) {
-                if (!response.ok) {
-                    throw new Error(response.statusText || 'Upload failed');
-                }
-                throw new Error('Invalid upload response');
-            }
-
-            if (Number(result?.code) === 401) {
-                await handleUnauthorized();
-            }
-            if (!response.ok) {
-                throw new Error(result?.message || response.statusText || 'Upload failed');
-            }
-            return result;
+            return parseResultResponse(response, handleUnauthorized, 'Invalid upload response');
         }
 
         async function refresh() {
@@ -352,12 +334,11 @@
             }
             const requestVersion = sessionVersion;
 
-            const response = await request(`${apiBase}/profile`);
-            const result = await response.json();
-            if (response.status === 401 || Number(result?.code) === 401) {
+            const result = await request(`${apiBase}/profile`);
+            if (Number(result?.code) === 401) {
                 return null;
             }
-            if (!response.ok || Number(result?.code) !== 200 || !result.data) {
+            if (Number(result?.code) !== 200 || !result.data) {
                 throw new Error(result?.message || 'Failed to load current profile');
             }
             if (sessionVersion !== requestVersion) {

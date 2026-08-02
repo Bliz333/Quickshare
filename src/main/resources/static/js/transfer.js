@@ -351,7 +351,7 @@ async function downloadFile(index) {
     animateToTransferButton();
 
     try {
-        const response = await BrowserSession.request(url, {
+        const response = await BrowserSession.requestContent(url, {
             signal: controller.signal
         });
 

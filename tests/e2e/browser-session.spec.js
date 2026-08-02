@@ -76,10 +76,11 @@ test.describe('BrowserSession with in-memory adapter', () => {
       user: { username: 'alice', role: 'ADMIN' }
     });
 
-    await session.request('https://quickshare.test/api/profile');
+    await expect(session.request('/profile')).resolves.toEqual({ code: 200 });
     expect(session.current().token).toBe('token-renewed');
     expect(adapter.calls[0]).toMatchObject({
       kind: 'request',
+      input: 'https://quickshare.test/api/profile',
       owned: true,
       token: 'token-initial'
     });
@@ -89,6 +90,24 @@ test.describe('BrowserSession with in-memory adapter', () => {
     expect(adapter.calls[1]).toMatchObject({
       input: 'https://quickshare.test/api/auth/logout',
       token: 'token-renewed'
+    });
+  });
+
+  test('requires owned backend routes while keeping arbitrary URLs on requestContent', async () => {
+    const adapter = createMemoryAdapter();
+    const session = createMemorySession(adapter);
+
+    await expect(session.request('https://third-party.test/data'))
+      .rejects.toThrow('BrowserSession backend routes must start with /');
+    await expect(session.upload('https://third-party.test/upload'))
+      .rejects.toThrow('BrowserSession backend routes must start with /');
+
+    await session.requestContent('https://third-party.test/data');
+    expect(adapter.calls).toHaveLength(1);
+    expect(adapter.calls[0]).toMatchObject({
+      input: 'https://third-party.test/data',
+      owned: false,
+      token: ''
     });
   });
 
@@ -112,13 +131,13 @@ test.describe('BrowserSession with in-memory adapter', () => {
     });
     expect(adapter.calls).toHaveLength(0);
 
-    const response = await session.request('https://quickshare.test/api/profile');
-    expect(await response.json()).toEqual({ code: 200, data: { username: 'alice' } });
+    const result = await session.request('/profile');
+    expect(result).toEqual({ code: 200, data: { username: 'alice' } });
     expect(session.current()).toMatchObject({ authenticated: true, token: expiredToken });
     expect(adapter.calls).toHaveLength(1);
   });
 
-  test('keeps third-party outcomes isolated and expires owned unauthorized sessions', async () => {
+  test('returns business-code 401 while isolating third-party raw content', async () => {
     const adapter = createMemoryAdapter((kind, call) => {
       if (call.input === 'https://third-party.test/data') {
         return jsonResponse({ code: 401 }, { refreshedToken: 'untrusted-token' });
@@ -131,13 +150,13 @@ test.describe('BrowserSession with in-memory adapter', () => {
     const session = createMemorySession(adapter);
     session.signIn({ token: 'private-token', username: 'alice' });
 
-    const thirdParty = await session.request('https://third-party.test/data');
-    await thirdParty.json();
+    const thirdParty = await session.requestContent('https://third-party.test/data');
+    expect(await thirdParty.json()).toEqual({ code: 401 });
     expect(session.current().token).toBe('private-token');
     expect(adapter.calls[0]).toMatchObject({ owned: false, token: '' });
 
-    const owned = await session.request('https://quickshare.test/api/private');
-    await owned.json();
+    const owned = await session.request('/private');
+    expect(owned).toEqual({ code: 401 });
     expect(session.current().authenticated).toBe(false);
     expect(adapter.calls[2]).toMatchObject({
       input: 'https://quickshare.test/api/profile',
@@ -163,10 +182,9 @@ test.describe('BrowserSession with in-memory adapter', () => {
     const session = createMemorySession(adapter);
     session.signIn({ token: 'nearly-expired-token', username: 'alice' });
 
-    const pending = session.request('https://quickshare.test/api/private');
+    const pending = session.request('/private');
     resolveStaleRequest(jsonResponse({ code: 401 }, { status: 401 }));
-    const response = await pending;
-    await response.json();
+    await expect(pending).resolves.toEqual({ code: 401 });
 
     expect(session.current()).toMatchObject({
       authenticated: true,
@@ -181,13 +199,15 @@ test.describe('BrowserSession with in-memory adapter', () => {
     });
   });
 
-  test('does not treat raw same-origin file contents as a session envelope', async () => {
-    const adapter = createMemoryAdapter(() => jsonResponse({ code: 401 }));
+  test('keeps requestContent raw and does not treat file contents as a session envelope', async () => {
+    const rawResponse = jsonResponse({ code: 401 });
+    const adapter = createMemoryAdapter(() => rawResponse);
     const session = createMemorySession(adapter);
     session.signIn({ token: 'private-token', username: 'alice' });
 
     const init = { cache: 'no-store', headers: { 'X-Preview': '1' } };
     const response = await session.requestContent('https://quickshare.test/api/files/7/content', init);
+    expect(response).toBe(rawResponse);
     expect(await response.text()).toBe('{"code":401}');
     expect(session.current()).toMatchObject({
       authenticated: true,
@@ -231,14 +251,13 @@ test.describe('BrowserSession with in-memory adapter', () => {
     const session = createMemorySession(adapter);
     session.signIn({ token: 'token-a', username: 'alice' });
 
-    const pending = session.request('https://quickshare.test/api/private');
+    const pending = session.request('/private');
     session.signIn({ token: 'token-b', username: 'bob' });
     resolveRequest(jsonResponse(
       { code: 401 },
       { status: 401, refreshedToken: 'token-a-renewed' }
     ));
-    const response = await pending;
-    await response.json();
+    await expect(pending).resolves.toEqual({ code: 401 });
 
     expect(session.current()).toMatchObject({
       authenticated: true,
@@ -246,6 +265,81 @@ test.describe('BrowserSession with in-memory adapter', () => {
       user: { username: 'bob' }
     });
     expect(adapter.calls).toHaveLength(1);
+  });
+
+  test('shares one cookie revalidation across concurrent request and upload outcomes', async () => {
+    let profileRequests = 0;
+    let resolveProfile;
+    const adapter = createMemoryAdapter((kind, call) => {
+      if (call.input.endsWith('/profile')) {
+        profileRequests += 1;
+        return new Promise((resolve) => {
+          resolveProfile = resolve;
+        });
+      }
+      return jsonResponse({ code: 401 }, { status: 401 });
+    });
+    const session = createMemorySession(adapter);
+    session.signIn({ token: 'shared-token', username: 'alice' });
+
+    const requestPending = session.request('/private');
+    const uploadPending = session.upload('/upload');
+
+    await expect.poll(() => profileRequests).toBe(1);
+    resolveProfile(jsonResponse({ code: 401 }, { status: 401 }));
+
+    await expect(requestPending).resolves.toEqual({ code: 401 });
+    await expect(uploadPending).resolves.toEqual({ code: 401 });
+    expect(adapter.calls.filter((call) => call.input.endsWith('/profile'))).toHaveLength(1);
+    expect(session.current().authenticated).toBe(false);
+  });
+
+  test('keeps stale and current unauthorized contexts isolated', async () => {
+    const profileResolvers = [];
+    const adapter = createMemoryAdapter((kind, call) => {
+      if (call.input.endsWith('/profile')) {
+        return new Promise((resolve) => profileResolvers.push(resolve));
+      }
+      return jsonResponse({ code: 401 }, { status: 401 });
+    });
+    const session = createMemorySession(adapter);
+    session.signIn({ token: 'token-a', username: 'alice' });
+
+    const stalePending = session.request('/private-a');
+    await expect.poll(() => profileResolvers.length).toBe(1);
+    session.signIn({ token: 'token-b', username: 'bob' });
+    const currentPending = session.upload('/private-b');
+    await expect.poll(() => profileResolvers.length).toBe(2);
+
+    profileResolvers[0](jsonResponse({ code: 200, data: { username: 'alice' } }));
+    profileResolvers[1](jsonResponse({ code: 401 }, { status: 401 }));
+
+    await expect(stalePending).resolves.toEqual({ code: 401 });
+    await expect(currentPending).resolves.toEqual({ code: 401 });
+    expect(session.current().authenticated).toBe(false);
+  });
+
+  test('cleans failed revalidation coordination before the next session context', async () => {
+    let profileRequests = 0;
+    const adapter = createMemoryAdapter((kind, call) => {
+      if (call.input.endsWith('/profile')) {
+        profileRequests += 1;
+        if (profileRequests === 1) {
+          throw new Error('profile unavailable');
+        }
+        return jsonResponse({ code: 401 }, { status: 401 });
+      }
+      return jsonResponse({ code: 401 }, { status: 401 });
+    });
+    const session = createMemorySession(adapter);
+    session.signIn({ token: 'token-a', username: 'alice' });
+
+    await expect(session.request('/private-a')).resolves.toEqual({ code: 401 });
+    session.signIn({ token: 'token-b', username: 'bob' });
+    await expect(session.upload('/private-b')).resolves.toEqual({ code: 401 });
+
+    expect(profileRequests).toBe(2);
+    expect(session.current().authenticated).toBe(false);
   });
 
   test('keeps a newer profile when an older refresh completes late', async () => {
@@ -285,7 +379,7 @@ test.describe('BrowserSession with in-memory adapter', () => {
     const session = createMemorySession(adapter);
     session.signIn({ token: 'upload-token', username: 'alice' });
 
-    const result = await session.upload('https://quickshare.test/api/upload', {
+    const result = await session.upload('/upload', {
       body: 'payload',
       onProgress: (event) => progress.push(event.loaded)
     });
@@ -298,6 +392,39 @@ test.describe('BrowserSession with in-memory adapter', () => {
       owned: true,
       token: 'upload-token'
     });
+  });
+
+  test('returns a Result envelope for an HTTP error response', async () => {
+    const adapter = createMemoryAdapter(() => jsonResponse({
+      code: 404,
+      message: 'File not found'
+    }, { status: 404 }));
+    const session = createMemorySession(adapter);
+
+    await expect(session.request('/files/404')).resolves.toEqual({
+      code: 404,
+      message: 'File not found'
+    });
+  });
+
+  test('rejects malformed JSON and propagates transport failures through the interface', async () => {
+    const malformedAdapter = createMemoryAdapter(() => ({
+      headers: { get: () => null },
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => '<html>not a Result</html>'
+    }));
+    const malformedSession = createMemorySession(malformedAdapter);
+    await expect(malformedSession.request('/profile'))
+      .rejects.toThrow('Invalid JSON response');
+
+    const failedAdapter = createMemoryAdapter(() => {
+      throw new Error('Network request failed');
+    });
+    const failedSession = createMemorySession(failedAdapter);
+    await expect(failedSession.request('/profile'))
+      .rejects.toThrow('Network request failed');
   });
 
   test('expires owned uploads before parsing unauthorized response bodies', async () => {
@@ -317,7 +444,7 @@ test.describe('BrowserSession with in-memory adapter', () => {
     const session = createMemorySession(adapter);
     session.signIn({ token: 'upload-token', username: 'alice' });
 
-    await expect(session.upload('https://quickshare.test/api/upload', {
+    await expect(session.upload('/upload', {
       body: 'payload'
     })).rejects.toThrow('Unauthorized');
 
@@ -365,12 +492,10 @@ test.describe('BrowserSession interface', () => {
         username: 'alice',
         role: 'admin'
       });
-      const first = await BrowserSession.request(`${API_BASE}/session-probe`);
-      await first.json();
+      const first = await BrowserSession.request('/session-probe');
       const afterRenewal = BrowserSession.current();
-      const second = await BrowserSession.request(`${API_BASE}/session-probe`);
-      await second.json();
-      return { established, afterRenewal, final: BrowserSession.current() };
+      const second = await BrowserSession.request('/session-probe');
+      return { established, first, second, afterRenewal, final: BrowserSession.current() };
     });
 
     expect(result.established).toMatchObject({
@@ -379,6 +504,8 @@ test.describe('BrowserSession interface', () => {
       isAdmin: true,
       user: { username: 'alice', role: 'ADMIN' }
     });
+    expect(result.first).toEqual({ code: 200, data: { requestCount: 1 } });
+    expect(result.second).toEqual({ code: 200, data: { requestCount: 2 } });
     expect(result.afterRenewal.token).toBe('token-renewed');
     expect(result.final.token).toBe('token-renewed');
     expect(authorizationHeaders).toEqual(['Bearer token-initial', 'Bearer token-renewed']);
@@ -447,54 +574,39 @@ test.describe('BrowserSession interface', () => {
         body: JSON.stringify({ code: 401 })
       });
     });
-    await page.route(`${thirdPartyOrigin}/upload-http-unauthorized`, async (route) => {
-      authorizationHeaders.push(route.request().headers().authorization || '');
-      await route.fulfill({
-        status: 401,
-        contentType: 'application/json',
-        headers: { 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ code: 401 })
-      });
-    });
-    await page.route(`${thirdPartyOrigin}/upload-json-unauthorized`, async (route) => {
-      authorizationHeaders.push(route.request().headers().authorization || '');
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        headers: { 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ code: 401 })
-      });
-    });
-
     const result = await page.evaluate(async (thirdPartyOrigin) => {
       BrowserSession.signIn({ token: 'private-token', username: 'alice' });
-      const response = await BrowserSession.request(`${thirdPartyOrigin}/session-probe`);
-      const unauthorized = await BrowserSession.request(`${thirdPartyOrigin}/unauthorized`);
-      await unauthorized.json();
-      let uploadHttpError = '';
+      const response = await BrowserSession.requestContent(`${thirdPartyOrigin}/session-probe`);
+      const unauthorized = await BrowserSession.requestContent(`${thirdPartyOrigin}/unauthorized`);
+      let requestError = '';
+      let uploadError = '';
       try {
-        await BrowserSession.upload(`${thirdPartyOrigin}/upload-http-unauthorized`);
+        await BrowserSession.request(`${thirdPartyOrigin}/session-probe`);
       } catch (error) {
-        uploadHttpError = error.message;
+        requestError = error.message;
       }
-      const uploadJson = await BrowserSession.upload(`${thirdPartyOrigin}/upload-json-unauthorized`);
+      try {
+        await BrowserSession.upload(`${thirdPartyOrigin}/upload`);
+      } catch (error) {
+        uploadError = error.message;
+      }
       return {
-        status: response.status,
+        responseStatus: response.status,
         unauthorizedStatus: unauthorized.status,
-        uploadHttpError,
-        uploadJsonCode: uploadJson.code,
+        requestError,
+        uploadError,
         token: BrowserSession.current().token
       };
     }, thirdPartyOrigin);
 
     expect(result).toEqual({
-      status: 200,
+      responseStatus: 200,
       unauthorizedStatus: 401,
-      uploadHttpError: 'Unauthorized',
-      uploadJsonCode: 401,
+      requestError: 'BrowserSession backend routes must start with /',
+      uploadError: 'BrowserSession backend routes must start with /',
       token: 'private-token'
     });
-    expect(authorizationHeaders).toEqual(['', '', '', '']);
+    expect(authorizationHeaders).toEqual(['', '']);
     expect(logoutRequests).toBe(0);
   });
 
@@ -544,12 +656,12 @@ test.describe('BrowserSession interface', () => {
     await page.addScriptTag({ path: 'src/main/resources/static/js/session.js' });
     const result = await page.evaluate(async () => {
       BrowserSession.signIn({ token: 'cross-origin-token', username: 'alice' });
-      const response = await BrowserSession.request(`${API_BASE}/cross-origin-fetch`);
-      const upload = await BrowserSession.upload(`${API_BASE}/cross-origin-xhr`);
-      return { fetchStatus: response.status, uploadCode: upload.code };
+      const response = await BrowserSession.request('/cross-origin-fetch');
+      const upload = await BrowserSession.upload('/cross-origin-xhr');
+      return { fetchCode: response.code, uploadCode: upload.code };
     });
 
-    expect(result).toEqual({ fetchStatus: 200, uploadCode: 200 });
+    expect(result).toEqual({ fetchCode: 200, uploadCode: 200 });
     expect(received).toEqual([
       { path: '/api/cross-origin-fetch', authorization: 'Bearer cross-origin-token', cookie: '' },
       { path: '/api/cross-origin-xhr', authorization: 'Bearer cross-origin-token', cookie: '' }
@@ -596,20 +708,17 @@ test.describe('BrowserSession interface', () => {
 
     const result = await page.evaluate(async () => {
       BrowserSession.signIn({ token: 'token-http', username: 'alice' });
-      const httpResponse = await BrowserSession.request(`${API_BASE}/http-unauthorized`);
+      const httpResult = await BrowserSession.request('/http-unauthorized');
       const afterHttp = BrowserSession.current();
-      await httpResponse.json();
 
       BrowserSession.signIn({ token: 'token-body', username: 'alice' });
-      const bodyResponse = await BrowserSession.request(`${API_BASE}/body-unauthorized`);
-      await bodyResponse.text();
+      await BrowserSession.request('/body-unauthorized');
       const afterBody = BrowserSession.current();
 
-      const cookieOnlyResponse = await BrowserSession.request(`${API_BASE}/http-unauthorized`);
-      await cookieOnlyResponse.json();
+      await BrowserSession.request('/http-unauthorized');
 
       return {
-        httpStatus: httpResponse.status,
+        httpCode: httpResult.code,
         afterHttp,
         afterBody,
         storedToken: localStorage.getItem('token'),
@@ -619,7 +728,7 @@ test.describe('BrowserSession interface', () => {
 
     expect(profileRequests).toBe(2);
     expect(logoutRequests).toBe(0);
-    expect(result.httpStatus).toBe(401);
+    expect(result.httpCode).toBe(401);
     expect(result.afterHttp.authenticated).toBe(false);
     expect(result.afterBody.authenticated).toBe(false);
     expect(result.storedToken).toBeNull();
@@ -640,12 +749,12 @@ test.describe('BrowserSession interface', () => {
 
     const result = await page.evaluate(async () => {
       BrowserSession.signIn({ token: 'xhr-token-initial', username: 'alice' });
-      const upload = await BrowserSession.upload(`${API_BASE}/session-xhr`);
+      const upload = await BrowserSession.upload('/session-xhr');
       const controller = new AbortController();
       controller.abort();
       let abortName = '';
       try {
-        await BrowserSession.upload(`${API_BASE}/session-xhr`, { signal: controller.signal });
+        await BrowserSession.upload('/session-xhr', { signal: controller.signal });
       } catch (error) {
         abortName = error.name;
       }

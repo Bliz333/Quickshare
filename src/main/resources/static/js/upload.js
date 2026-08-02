@@ -163,7 +163,7 @@ async function uploadAndShare() {
             const formData = new FormData();
             formData.append('file', file, normalizeUploadFileName(file));
 
-            const upData = await BrowserSession.upload(`${API_BASE}/upload`, {
+            const upData = await BrowserSession.upload('/upload', {
                 method: 'POST',
                 body: formData
             });
@@ -181,14 +181,13 @@ async function uploadAndShare() {
                 maxDownload: parseInt(document.getElementById('maxDownload').value) || null
             };
 
-            const shareRes = await BrowserSession.request(`${API_BASE}/share`, {
+            const shareData = await BrowserSession.request('/share', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(sharePayload)
             });
-            const shareData = await shareRes.json();
 
             if (shareData.code !== 200) {
                 throw new Error(shareData.message || 'Share failed');

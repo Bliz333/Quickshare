@@ -81,13 +81,11 @@ async function handleLogin(event) {
     loginBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>' + t('loggingIn') + '</span>';
 
     try {
-        const response = await BrowserSession.request(`${API_BASE}/auth/login`, {
+        const result = await BrowserSession.request('/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
-
-        const result = await response.json();
 
         if (result.code === 200) {
             BrowserSession.signIn(result.data);

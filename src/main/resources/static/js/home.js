@@ -659,7 +659,7 @@ async function initiateDirectSession(targetChannelId) {
     }
     const targetDeviceId = deviceMatch[1];
     try {
-        const res = await BrowserSession.request(`${apiBase()}/api/transfer/direct-sessions`, {
+        const body = await BrowserSession.request('/transfer/direct-sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -667,8 +667,7 @@ async function initiateDirectSession(targetChannelId) {
                 targetDeviceId: targetDeviceId,
             }),
         });
-        const body = await res.json();
-        if (!res.ok || body.code !== 200) {
+        if (body.code !== 200) {
             throw new Error(body?.message || 'Direct session failed');
         }
         // pair-ready will arrive via WebSocket, triggering onPairReady → upload
@@ -747,7 +746,7 @@ async function uploadToPublicShare(file, onProgress, recipientOffer = null) {
         throw new Error('Recipient encryption key is unavailable');
     }
 
-    const createRes = await BrowserSession.request(`${apiBase()}/api/public/transfer/shares`, {
+    const createBody = await BrowserSession.request('/public/transfer/shares', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -758,8 +757,6 @@ async function uploadToPublicShare(file, onProgress, recipientOffer = null) {
             chunkSize: HOME_CHUNK_SIZE,
         }),
     });
-    if (!createRes.ok) throw new Error('创建传输失败 (' + createRes.status + ')');
-    const createBody = await createRes.json();
     if (!createBody || createBody.code !== 200) throw new Error(createBody?.message || '创建传输失败');
     const shareToken = createBody.data?.shareToken;
     if (!shareToken) throw new Error('未获取到 shareToken');
@@ -770,12 +767,14 @@ async function uploadToPublicShare(file, onProgress, recipientOffer = null) {
         const body = encryptKey
             ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, i)
             : chunk;
-        const res = await BrowserSession.request(`${apiBase()}/api/public/transfer/shares/${shareToken}/chunks/${i}`, {
+        const res = await BrowserSession.request(`/public/transfer/shares/${shareToken}/chunks/${i}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/octet-stream' },
             body,
         });
-        if (!res.ok) throw new Error(`分片 ${i + 1}/${totalChunks} 上传失败`);
+        if (res.code !== 200) {
+            throw new Error(res.message || `分片 ${i + 1}/${totalChunks} 上传失败`);
+        }
         const pct = Math.round(((i + 1) / totalChunks) * 100);
         if (typeof onProgress === 'function') {
             onProgress(pct);
@@ -837,7 +836,7 @@ async function initiateDirectSessionBatch(targetChannelId) {
     }
     const targetDeviceId = deviceMatch[1];
     try {
-        const res = await BrowserSession.request(`${apiBase()}/api/transfer/direct-sessions`, {
+        const body = await BrowserSession.request('/transfer/direct-sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -845,8 +844,7 @@ async function initiateDirectSessionBatch(targetChannelId) {
                 targetDeviceId,
             }),
         });
-        const body = await res.json();
-        if (!res.ok || body.code !== 200) {
+        if (body.code !== 200) {
             throw new Error(body?.message || 'Direct session failed');
         }
     } catch (err) {
@@ -1201,16 +1199,14 @@ async function saveReceivedShareToNetdisk() {
         return;
     }
     try {
-        const response = await BrowserSession.request(`${apiBase()}/api/transfer/public-shares/${encodeURIComponent(share.shareToken)}/save`, {
+        const result = await BrowserSession.request(`/transfer/public-shares/${encodeURIComponent(share.shareToken)}/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ folderId: 0 })
         });
-        const text = await response.text();
-        const result = text ? JSON.parse(text) : null;
-        if (!response.ok || !result || result.code !== 200) {
+        if (result.code !== 200) {
             throw new Error(result?.message || 'Save failed');
         }
         showHomeToast(homeText('transferSavedToNetdisk', '已保存到你的网盘'), 'success');
@@ -1339,7 +1335,7 @@ function localizeHomeErrorMessage(message) {
 async function createPairCode() {
     try {
         const session = BrowserSession.current();
-        const res = await BrowserSession.request(`${apiBase()}/api/public/transfer/pair-codes`, {
+        const body = await BrowserSession.request('/public/transfer/pair-codes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1349,8 +1345,7 @@ async function createPairCode() {
                 deviceType: detectDeviceType()
             }),
         });
-        const body = await res.json();
-        if (!res.ok || body.code !== 200) {
+        if (body.code !== 200) {
             showHomeToast(body?.message || homeText('homeCreatePairCodeFailed', '生成配对码失败'), 'error');
             return;
         }
@@ -1384,7 +1379,7 @@ async function joinByPairCode() {
     }
     try {
         const session = BrowserSession.current();
-        const res = await BrowserSession.request(`${apiBase()}/api/public/transfer/pair-codes/${encodeURIComponent(code)}/claim`, {
+        const body = await BrowserSession.request(`/public/transfer/pair-codes/${encodeURIComponent(code)}/claim`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1394,8 +1389,7 @@ async function joinByPairCode() {
                 deviceType: detectDeviceType()
             }),
         });
-        const body = await res.json();
-        if (!res.ok || body.code !== 200) {
+        if (body.code !== 200) {
             showHomeToast(localizeHomeErrorMessage(body?.message || homeText('homePairCodeExpired', '配对码无效或已过期')), 'error');
             return;
         }
@@ -1502,7 +1496,7 @@ async function sendTextFromChooser() {
 async function syncAccountDevices() {
     if (!BrowserSession.current().authenticated) return;
     try {
-        const res = await BrowserSession.request(`${apiBase()}/api/transfer/sync`, {
+        const body = await BrowserSession.request('/transfer/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1511,8 +1505,7 @@ async function syncAccountDevices() {
                 deviceType: detectDeviceType(),
             }),
         });
-        if (!res.ok) return;
-        const body = await res.json();
+        if (body.code !== 200) return;
         homeState.accountDevices = (body.data?.devices || []).filter(d => d.deviceId !== getHomeDeviceId() && d.online);
         renderRing();
     } catch { /* ignore */ }

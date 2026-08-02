@@ -66,11 +66,9 @@ function formatHomeNotificationDate(value) {
 }
 
 async function fetchHomeNotifications(path) {
-    const response = await BrowserSession.request(`${API_BASE}${path}`);
-    const text = await response.text();
-    const result = text ? JSON.parse(text) : null;
+    const result = await BrowserSession.request(path);
 
-    if (!response.ok || !result || result.code !== 200) {
+    if (result.code !== 200) {
         throw new Error(result?.message || 'Failed to load notifications');
     }
 

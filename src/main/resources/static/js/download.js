@@ -130,10 +130,8 @@ async function getPickupInfo() {
     }
 
     try {
-        const res = await BrowserSession.request(`${API_BASE}/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}`);
-        const text = await res.text();
-        const data = text ? JSON.parse(text) : null;
-        if (!res.ok || !data || data.code !== 200) {
+        const data = await BrowserSession.request(`/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}`);
+        if (data.code !== 200) {
             throw new Error(data?.message || (lang === 'zh' ? '获取取件信息失败' : 'Failed to fetch pickup info'));
         }
 
@@ -193,16 +191,14 @@ async function savePickupToNetdisk() {
     }
 
     try {
-        const response = await BrowserSession.request(`${API_BASE}/transfer/public-shares/${encodeURIComponent(_pickupShareToken)}/save`, {
+        const result = await BrowserSession.request(`/transfer/public-shares/${encodeURIComponent(_pickupShareToken)}/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ folderId: 0 })
         });
-        const text = await response.text();
-        const result = text ? JSON.parse(text) : null;
-        if (!response.ok || !result || result.code !== 200) {
+        if (result.code !== 200) {
             throw new Error(result?.message || (lang === 'zh' ? '保存失败' : 'Save failed'));
         }
         showToast(t('savedToNetdisk'), 'success');
@@ -250,9 +246,8 @@ async function getShareInfo() {
     }
 
     try {
-        const url = `${API_BASE}/share/${sCode}?extractCode=${encodeURIComponent(eCode)}`;
-        const res = await BrowserSession.request(url);
-        const data = await res.json();
+        const route = `/share/${sCode}?extractCode=${encodeURIComponent(eCode)}`;
+        const data = await BrowserSession.request(route);
 
         if (data.code !== 200) {
             throw new Error(data.message || (lang === 'zh' ? '获取失败' : 'Failed to get info'));

@@ -610,9 +610,8 @@ const TransferSignalManager = (() => {
             state.rtcConfig = { directTransferEnabled: false, iceServers: [] };
             return state.rtcConfig;
         }
-        const response = await BrowserSession.request(`${API_BASE}/public/transfer/rtc-config`);
-        const result = await response.json();
-        if (!response.ok || result.code !== 200) {
+        const result = await BrowserSession.request('/public/transfer/rtc-config');
+        if (result.code !== 200) {
             throw new Error(result.message || 'RTC config failed');
         }
         state.rtcConfig = result.data || { directTransferEnabled: false, iceServers: [] };
@@ -916,7 +915,7 @@ const TransferSignalManager = (() => {
 
     async function createPairCode() {
         const session = BrowserSession.current();
-        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-codes`, {
+        const result = await BrowserSession.request('/public/transfer/pair-codes', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -928,8 +927,7 @@ const TransferSignalManager = (() => {
                 deviceType: detectDeviceType()
             })
         });
-        const result = await response.json();
-        if (!response.ok || result.code !== 200) {
+        if (result.code !== 200) {
             throw new Error(result.message || 'Create pair code failed');
         }
         state.latestCode = result.data.code || '';
@@ -943,7 +941,7 @@ const TransferSignalManager = (() => {
             throw new Error(text('transferPairCodeRequired', 'Match code is required'));
         }
         const session = BrowserSession.current();
-        const response = await BrowserSession.request(`${API_BASE}/public/transfer/pair-codes/${encodeURIComponent(normalizedCode)}/claim`, {
+        const result = await BrowserSession.request(`/public/transfer/pair-codes/${encodeURIComponent(normalizedCode)}/claim`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -955,8 +953,7 @@ const TransferSignalManager = (() => {
                 deviceType: detectDeviceType()
             })
         });
-        const result = await response.json();
-        if (!response.ok || result.code !== 200) {
+        if (result.code !== 200) {
             throw new Error(result.message || 'Claim pair code failed');
         }
         state.pairSessionId = result.data.pairSessionId || '';
@@ -971,7 +968,7 @@ const TransferSignalManager = (() => {
     }
 
     async function createSameAccountDirectSession(targetDeviceId) {
-        const response = await BrowserSession.request(`${API_BASE}/transfer/direct-sessions`, {
+        const result = await BrowserSession.request('/transfer/direct-sessions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -981,8 +978,7 @@ const TransferSignalManager = (() => {
                 targetDeviceId
             })
         });
-        const result = await response.json();
-        if (!response.ok || result.code !== 200) {
+        if (result.code !== 200) {
             throw new Error(result.message || 'Create direct session failed');
         }
         return result.data || {};

@@ -567,12 +567,13 @@ def collect_facts(root: Path) -> RepoFacts:
 def render_template(name: str, values: dict[str, str]) -> str:
     content = (TEMPLATE_ROOT / name).read_text(encoding="utf-8")
     content = content.replace(TEMPLATE_MARKER + "\n", "", 1)
-    for key, value in values.items():
-        content = content.replace("{{" + key + "}}", value)
-    unresolved = re.findall(r"\{\{[A-Z][A-Z0-9_]*\}\}", content)
+    variable = re.compile(r"\{\{([A-Z][A-Z0-9_]*)\}\}")
+    unresolved = sorted(
+        {match.group(1) for match in variable.finditer(content)} - values.keys()
+    )
     if unresolved:
         raise ProjectDocsError(f"模板 {name} 有未解析变量: {', '.join(unresolved)}")
-    return content
+    return variable.sub(lambda match: values[match.group(1)], content)
 
 
 def git_remote_slug(root: Path) -> str | None:
@@ -860,6 +861,8 @@ def sync_managed_file(
     marker: str,
     report: BootstrapReport,
     dry_run: bool,
+    *,
+    executable: bool = False,
 ) -> None:
     validate_output_path(root, path)
     rel = relative(root, path)
@@ -869,7 +872,16 @@ def sync_managed_file(
         except (OSError, UnicodeDecodeError) as exc:
             raise ProjectDocsError(f"无法读取 {rel}: {exc}") from exc
         if existing == content:
-            report.preserved.append(rel)
+            needs_execute = executable and not (
+                path.lstat().st_mode
+                & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            )
+            if needs_execute:
+                report.updated.append(rel)
+                if not dry_run:
+                    path.chmod(stat.S_IMODE(path.lstat().st_mode) | stat.S_IXUSR)
+            else:
+                report.preserved.append(rel)
             return
         owned_workflow = rel == MANAGED_WORKFLOW_PATH and has_managed_checker(root)
         if marker not in existing and not owned_workflow:
@@ -883,6 +895,8 @@ def sync_managed_file(
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+    if executable:
+        path.chmod(stat.S_IMODE(path.lstat().st_mode) | stat.S_IXUSR)
 
 
 def github_workflow(
@@ -908,6 +922,7 @@ def github_workflow(
         MANAGED_CHECKER_MARKER,
         report,
         dry_run,
+        executable=True,
     )
     sync_managed_file(
         root,
@@ -1331,6 +1346,22 @@ def is_template_file(root: Path, path: Path) -> bool:
         return False
 
 
+def is_version_like_ipv4(line: str, match: re.Match[str]) -> bool:
+    prefix = line[: match.start()]
+    suffix = line[match.end() :]
+    if re.search(r"(?i)\b(?:v|version)[:\s]*$", prefix):
+        return True
+    return bool(
+        re.search(r"(?i)(?:linux|kernel)\s*$", prefix)
+        and re.match(
+            r"(?i)-(?:microsoft(?:-standard)?-wsl(?:1|2)?|generic|amd64|lts|"
+            r"azure|aws|gcp|oracle|rt(?:[0-9]+)?|arch[0-9]+-[0-9]+)"
+            r"(?=$|[\s)`\],.;:])",
+            suffix,
+        )
+    )
+
+
 def check_required_files(
     root: Path,
     report: DoctorReport,
@@ -1471,6 +1502,18 @@ def check_required_files(
                 "自包含项目文档门禁缺少仓库内普通 checker 文件。",
             )
         else:
+            if not (
+                checker_path.lstat().st_mode
+                & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            ):
+                add_finding(
+                    report,
+                    "error",
+                    "non-executable-managed-checker",
+                    MANAGED_CHECKER_PATH,
+                    1,
+                    "项目内 project-docs checker 必须保留可执行位,确保文档声明的直接入口可用。",
+                )
             if MANAGED_CHECKER_MARKER not in checker_content:
                 add_finding(
                     report,
@@ -1940,8 +1983,9 @@ def check_content(root: Path, path: Path, content: str, report: DoctorReport) ->
         )
     for number, line in enumerate(lines, 1):
         if not is_template:
+            prose = strip_inline_code(line)
             for pattern in PLACEHOLDER_PATTERNS:
-                if pattern.search(line):
+                if pattern.search(prose):
                     add_finding(report, "error", "template-placeholder", rel, number, "残留项目模板占位符。")
                     break
         secrets = SECRET_ASSIGNMENT.finditer(line)
@@ -1961,10 +2005,7 @@ def check_content(root: Path, path: Path, content: str, report: DoctorReport) ->
             line,
         ):
             raw_ip = ip_match.group(0)
-            if re.search(r"(?i)(?:linux|kernel)\s*$", line[: ip_match.start()]) and re.match(
-                r"(?i)-microsoft(?:-standard)?-wsl(?:1|2)?(?=$|[\s)`\],.;:])",
-                line[ip_match.end() :],
-            ):
+            if is_version_like_ipv4(line, ip_match):
                 continue
             try:
                 address = ipaddress.ip_address(raw_ip)

@@ -130,7 +130,7 @@ async function getPickupInfo() {
     }
 
     try {
-        const data = await BrowserSession.request(`${API_BASE}/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}`);
+        const data = await BrowserSession.request(`/public/transfer/shares/${encodeURIComponent(_pickupShareToken)}`);
         if (data.code !== 200) {
             throw new Error(data?.message || (lang === 'zh' ? '获取取件信息失败' : 'Failed to fetch pickup info'));
         }
@@ -191,7 +191,7 @@ async function savePickupToNetdisk() {
     }
 
     try {
-        const result = await BrowserSession.request(`${API_BASE}/transfer/public-shares/${encodeURIComponent(_pickupShareToken)}/save`, {
+        const result = await BrowserSession.request(`/transfer/public-shares/${encodeURIComponent(_pickupShareToken)}/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -246,8 +246,8 @@ async function getShareInfo() {
     }
 
     try {
-        const url = `${API_BASE}/share/${sCode}?extractCode=${encodeURIComponent(eCode)}`;
-        const data = await BrowserSession.request(url);
+        const route = `/share/${sCode}?extractCode=${encodeURIComponent(eCode)}`;
+        const data = await BrowserSession.request(route);
 
         if (data.code !== 200) {
             throw new Error(data.message || (lang === 'zh' ? '获取失败' : 'Failed to get info'));

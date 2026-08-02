@@ -596,7 +596,7 @@ async function loadPreviewPolicy() {
     }
 
     try {
-        const result = await BrowserSession.request(`${API_BASE}/settings/file-preview`, {
+        const result = await BrowserSession.request('/settings/file-preview', {
             method: 'GET'
         });
 
@@ -811,7 +811,7 @@ function openCreateFolderDialog() {
             }
 
             try {
-                const result = await BrowserSession.request(`${API_BASE}/folders`, {
+                const result = await BrowserSession.request('/folders', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -951,7 +951,7 @@ function openShareDialog(index) {
             const expireHours = Number.isNaN(expireDays) || expireDays <= 0 ? null : expireDays * 24;
 
             try {
-                const result = await BrowserSession.request(`${API_BASE}/share`, {
+                const result = await BrowserSession.request('/share', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1205,7 +1205,7 @@ function refreshNetdiskAfterMutation() {
 }
 
 async function requestNetdiskMove(kind, itemId, targetFolderId) {
-    const result = await BrowserSession.request(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${itemId}/move`, {
+    const result = await BrowserSession.request(`/${kind === 'folder' ? 'folders' : 'files'}/${itemId}/move`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
@@ -1526,7 +1526,7 @@ async function batchDeleteSelected() {
             let firstError = '';
 
             const requestDelete = async (kind, id) => {
-                const result = await BrowserSession.request(`${API_BASE}/${kind === 'folder' ? 'folders' : 'files'}/${id}`, {
+                const result = await BrowserSession.request(`/${kind === 'folder' ? 'folders' : 'files'}/${id}`, {
                     method: 'DELETE'
                 });
 
@@ -1839,18 +1839,18 @@ async function _fetchFilesPage(pageNum, append) {
     _filesLoading = true;
     try {
         const cacheBuster = `_=${Date.now()}`;
-        let filesUrl = `${API_BASE}/files?${cacheBuster}&pageNum=${pageNum}&pageSize=${NETDISK_PAGE_SIZE}`;
-        if (currentFolder !== null) filesUrl += `&folderId=${currentFolder}`;
+        let filesRoute = `/files?${cacheBuster}&pageNum=${pageNum}&pageSize=${NETDISK_PAGE_SIZE}`;
+        if (currentFolder !== null) filesRoute += `&folderId=${currentFolder}`;
 
         const fetches = [
-            BrowserSession.request(filesUrl, {
+            BrowserSession.request(filesRoute, {
                 method: 'GET',
                 cache: 'no-store'
             })
         ];
         if (!append) {
             fetches.unshift(
-                BrowserSession.request(`${API_BASE}/folders/all?${cacheBuster}`, {
+                BrowserSession.request(`/folders/all?${cacheBuster}`, {
                     method: 'GET',
                     cache: 'no-store'
                 })
@@ -2029,7 +2029,7 @@ async function renameFolder(folderId, oldName) {
             }
 
             try {
-                const result = await BrowserSession.request(`${API_BASE}/folders/${folderId}/rename`, {
+                const result = await BrowserSession.request(`/folders/${folderId}/rename`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -2084,7 +2084,7 @@ async function deleteFolder(folderId, folderName) {
             }
 
             try {
-                const result = await BrowserSession.request(`${API_BASE}/folders/${folderId}`, {
+                const result = await BrowserSession.request(`/folders/${folderId}`, {
                     method: 'DELETE'
                 });
 
@@ -2158,7 +2158,7 @@ async function deleteFile(index) {
             }
 
             try {
-                const result = await BrowserSession.request(`${API_BASE}/files/${file.id}`, {
+                const result = await BrowserSession.request(`/files/${file.id}`, {
                     method: 'DELETE'
                 });
 
@@ -2209,7 +2209,7 @@ async function renameFile(index) {
             }
 
             try {
-                const result = await BrowserSession.request(`${API_BASE}/files/${file.id}/rename`, {
+                const result = await BrowserSession.request(`/files/${file.id}/rename`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'

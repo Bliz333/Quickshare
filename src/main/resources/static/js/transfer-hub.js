@@ -160,7 +160,7 @@ function transferRequest(path, options = {}) {
         ...(options.headers || {})
     };
 
-    return BrowserSession.request(`${API_BASE}${path}`, {
+    return BrowserSession.request(path, {
         ...options,
         headers
     }).then(result => {
@@ -2546,7 +2546,7 @@ async function sendSingleTransferFile(selectedItem, batchIndex, batchTotal) {
                 ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, chunkIndex)
                 : chunk;
 
-            const result = await BrowserSession.request(`${API_BASE}/transfer/transfers/${session.id}/chunks/${chunkIndex}?deviceId=${encodeURIComponent(getTransferDeviceId())}`, {
+            const result = await BrowserSession.request(`/transfer/transfers/${session.id}/chunks/${chunkIndex}?deviceId=${encodeURIComponent(getTransferDeviceId())}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/octet-stream'

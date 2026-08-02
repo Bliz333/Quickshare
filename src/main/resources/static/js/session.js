@@ -53,6 +53,7 @@
         }
 
         let sessionVersion = 0;
+        const pendingUnauthorizedByVersion = new Map();
 
         function normalizeRole(role) {
             return typeof role === 'string' && role.trim()
@@ -136,6 +137,14 @@
             return expectedToken;
         }
 
+        function backendInput(route) {
+            const value = typeof route === 'string' ? route.trim() : '';
+            if (!value.startsWith('/') || value.startsWith('//')) {
+                throw new TypeError('BrowserSession backend routes must start with /');
+            }
+            return `${String(apiBase || '').replace(/\/+$/, '')}/${value.replace(/^\/+/, '')}`;
+        }
+
         function requestOrigin(input) {
             try {
                 const value = typeof input === 'string' || input instanceof URL ? input : input.url;
@@ -145,7 +154,7 @@
             }
         }
 
-        function isOwnedRequest(input) {
+        function isOwnedContentRequest(input) {
             const origin = requestOrigin(input);
             const apiOrigin = requestOrigin(apiBase);
             return Boolean(origin && (origin === applicationOrigin || origin === apiOrigin));
@@ -154,7 +163,7 @@
         function notifyServerLogout(token) {
             try {
                 adapter.request({
-                    input: `${apiBase}/auth/logout`,
+                    input: backendInput('/auth/logout'),
                     init: {
                         method: 'POST',
                         credentials: 'same-origin',
@@ -182,7 +191,7 @@
 
             try {
                 const response = await adapter.request({
-                    input: `${apiBase}/profile`,
+                    input: backendInput('/profile'),
                     init: { credentials: 'same-origin' },
                     owned: true,
                     token: ''
@@ -217,19 +226,37 @@
             return false;
         }
 
+        function coordinateUnauthorized(expectedToken, expectedVersion) {
+            const existing = pendingUnauthorizedByVersion.get(expectedVersion);
+            if (existing?.token === expectedToken) {
+                return existing.promise;
+            }
+
+            const pending = revalidateCookieSession(expectedToken, expectedVersion);
+            const entry = { token: expectedToken, promise: pending };
+            pendingUnauthorizedByVersion.set(expectedVersion, entry);
+            const clearPending = () => {
+                if (pendingUnauthorizedByVersion.get(expectedVersion) === entry) {
+                    pendingUnauthorizedByVersion.delete(expectedVersion);
+                }
+            };
+            pending.then(clearPending, clearPending);
+            return pending;
+        }
+
         function createUnauthorizedHandler(owned, expectedToken, expectedVersion) {
-            let pending = null;
-            return async function handleUnauthorized() {
+            let handled = null;
+            return function handleUnauthorized() {
                 if (!owned || expectedToken === null || sessionVersion !== expectedVersion) {
-                    return false;
+                    return Promise.resolve(false);
                 }
                 if (!expectedToken && !storage.getItem('user')) {
-                    return false;
+                    return Promise.resolve(false);
                 }
-                if (!pending) {
-                    pending = revalidateCookieSession(expectedToken, expectedVersion);
+                if (!handled) {
+                    handled = coordinateUnauthorized(expectedToken, expectedVersion);
                 }
-                return pending;
+                return handled;
             };
         }
 
@@ -263,10 +290,9 @@
             return result;
         }
 
-        async function requestResponse(input, init) {
+        async function requestResponse(input, init, owned) {
             const session = current();
             const requestVersion = sessionVersion;
-            const owned = isOwnedRequest(input);
             const response = await adapter.request({
                 input,
                 init,
@@ -289,33 +315,34 @@
             return { response, handleUnauthorized };
         }
 
-        async function request(input, init = {}) {
-            const { response, handleUnauthorized } = await requestResponse(input, init);
+        async function request(route, init = {}) {
+            const { response, handleUnauthorized } = await requestResponse(
+                backendInput(route),
+                init,
+                true
+            );
             return parseResultResponse(response, handleUnauthorized, 'Invalid JSON response');
         }
 
         async function requestContent(input, init = {}) {
-            const { response } = await requestResponse(input, init);
+            const { response } = await requestResponse(input, init, isOwnedContentRequest(input));
             return response;
         }
 
-        async function upload(input, init = {}) {
+        async function upload(route, init = {}) {
             const session = current();
             const requestVersion = sessionVersion;
-            const owned = isOwnedRequest(input);
+            const input = backendInput(route);
             const response = await adapter.upload({
                 input,
                 init,
-                owned,
-                token: owned ? session.token : ''
+                owned: true,
+                token: session.token
             });
 
-            let responseSessionToken = session.token;
-            if (owned) {
-                responseSessionToken = captureRefreshedToken(response, session.token, requestVersion);
-            }
+            const responseSessionToken = captureRefreshedToken(response, session.token, requestVersion);
             const handleUnauthorized = createUnauthorizedHandler(
-                owned,
+                true,
                 responseSessionToken,
                 requestVersion
             );
@@ -334,7 +361,7 @@
             }
             const requestVersion = sessionVersion;
 
-            const result = await request(`${apiBase}/profile`);
+            const result = await request('/profile');
             if (Number(result?.code) === 401) {
                 return null;
             }

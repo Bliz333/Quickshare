@@ -2,7 +2,6 @@
  * pricing.js - 套餐购买页面逻辑
  */
 
-const API = window.AppConfig?.API_BASE || '/api';
 const PAY_TYPE_META = {
     alipay: { icon: 'fa-brands fa-alipay', color: '#1677ff', labelKey: 'pricingAlipay' },
     wxpay: { icon: 'fa-brands fa-weixin', color: '#07c160', labelKey: 'pricingWxpay' },
@@ -23,7 +22,7 @@ function isLoggedIn() {
 
 async function apiRequest(path, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-    const json = await BrowserSession.request(API + path, { ...options, headers });
+    const json = await BrowserSession.request(path, { ...options, headers });
     if (json.code !== 200 && json.code !== 0) throw new Error(json.message || 'Request failed');
     return json.data;
 }

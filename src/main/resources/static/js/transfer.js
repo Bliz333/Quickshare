@@ -470,7 +470,7 @@ async function uploadSingleFile(file) {
             formData.append('folderId', currentFolder);
         }
 
-        const result = await BrowserSession.upload(`${API_BASE}/upload`, {
+        const result = await BrowserSession.upload('/upload', {
             method: 'POST',
             body: formData,
             signal: controller.signal,

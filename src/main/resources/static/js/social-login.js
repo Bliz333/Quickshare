@@ -42,7 +42,7 @@
 
     function loadSocialConfig() {
         var requestId = ++socialState.configRequestId;
-        BrowserSession.request(API_BASE + '/public/registration-settings')
+        BrowserSession.request('/public/registration-settings')
             .then(function (result) {
                 if (requestId !== socialState.configRequestId) {
                     return;
@@ -253,7 +253,7 @@
     }
 
     function postGoogleAuth(body) {
-        return BrowserSession.request(API_BASE + '/auth/google', {
+        return BrowserSession.request('/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)

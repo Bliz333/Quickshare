@@ -316,7 +316,7 @@ async function adminRequest(path, options = {}) {
         ...(options.headers || {})
     };
 
-    const result = await BrowserSession.request(`${API_BASE}${path}`, {
+    const result = await BrowserSession.request(path, {
         ...options,
         headers
     });

@@ -659,7 +659,7 @@ async function initiateDirectSession(targetChannelId) {
     }
     const targetDeviceId = deviceMatch[1];
     try {
-        const body = await BrowserSession.request(`${apiBase()}/api/transfer/direct-sessions`, {
+        const body = await BrowserSession.request('/transfer/direct-sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -746,7 +746,7 @@ async function uploadToPublicShare(file, onProgress, recipientOffer = null) {
         throw new Error('Recipient encryption key is unavailable');
     }
 
-    const createBody = await BrowserSession.request(`${apiBase()}/api/public/transfer/shares`, {
+    const createBody = await BrowserSession.request('/public/transfer/shares', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -767,7 +767,7 @@ async function uploadToPublicShare(file, onProgress, recipientOffer = null) {
         const body = encryptKey
             ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, i)
             : chunk;
-        const res = await BrowserSession.request(`${apiBase()}/api/public/transfer/shares/${shareToken}/chunks/${i}`, {
+        const res = await BrowserSession.request(`/public/transfer/shares/${shareToken}/chunks/${i}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/octet-stream' },
             body,
@@ -836,7 +836,7 @@ async function initiateDirectSessionBatch(targetChannelId) {
     }
     const targetDeviceId = deviceMatch[1];
     try {
-        const body = await BrowserSession.request(`${apiBase()}/api/transfer/direct-sessions`, {
+        const body = await BrowserSession.request('/transfer/direct-sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1199,7 +1199,7 @@ async function saveReceivedShareToNetdisk() {
         return;
     }
     try {
-        const result = await BrowserSession.request(`${apiBase()}/api/transfer/public-shares/${encodeURIComponent(share.shareToken)}/save`, {
+        const result = await BrowserSession.request(`/transfer/public-shares/${encodeURIComponent(share.shareToken)}/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1335,7 +1335,7 @@ function localizeHomeErrorMessage(message) {
 async function createPairCode() {
     try {
         const session = BrowserSession.current();
-        const body = await BrowserSession.request(`${apiBase()}/api/public/transfer/pair-codes`, {
+        const body = await BrowserSession.request('/public/transfer/pair-codes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1379,7 +1379,7 @@ async function joinByPairCode() {
     }
     try {
         const session = BrowserSession.current();
-        const body = await BrowserSession.request(`${apiBase()}/api/public/transfer/pair-codes/${encodeURIComponent(code)}/claim`, {
+        const body = await BrowserSession.request(`/public/transfer/pair-codes/${encodeURIComponent(code)}/claim`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1496,7 +1496,7 @@ async function sendTextFromChooser() {
 async function syncAccountDevices() {
     if (!BrowserSession.current().authenticated) return;
     try {
-        const body = await BrowserSession.request(`${apiBase()}/api/transfer/sync`, {
+        const body = await BrowserSession.request('/transfer/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

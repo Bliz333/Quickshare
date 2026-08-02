@@ -104,7 +104,7 @@ async function handleLogout() {
 
 async function openAdminConsole() {
     try {
-        const result = await BrowserSession.request(`${API_BASE}/admin/settings/admin-console`);
+        const result = await BrowserSession.request('/admin/settings/admin-console');
         if (Number(result?.code) !== 200 || !result.data?.entryPath) {
             throw new Error(result?.message || 'Failed to resolve admin console path');
         }

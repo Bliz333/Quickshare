@@ -2,7 +2,6 @@
  * payment-result.js - 支付结果页逻辑
  */
 
-const API = window.AppConfig?.API_BASE || '/api';
 const PAYMENT_POLL_INTERVAL_SECONDS = 3;
 const PAYMENT_POLL_MAX_ATTEMPTS = 10;
 
@@ -16,7 +15,7 @@ let orderCheckInFlight = false;
 
 async function apiRequest(path) {
     const headers = { 'Content-Type': 'application/json' };
-    const json = await BrowserSession.request(API + path, { headers });
+    const json = await BrowserSession.request(path, { headers });
     if (json.code !== 200 && json.code !== 0) throw new Error(json.message || 'Request failed');
     return json.data;
 }

@@ -149,7 +149,7 @@ const TransferDirectTransfer = (() => {
         const headers = {
             ...(options.headers || {})
         };
-        return BrowserSession.request(`${API_BASE}${path}`, {
+        return BrowserSession.request(path, {
             ...options,
             headers
         }).then(result => {
@@ -528,7 +528,7 @@ const TransferDirectTransfer = (() => {
             return [];
         }
 
-        const result = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks?pairSessionId=${encodeURIComponent(context.pairSessionId)}&selfChannelId=${encodeURIComponent(context.selfChannelId)}`);
+        const result = await BrowserSession.request(`/public/transfer/pair-tasks?pairSessionId=${encodeURIComponent(context.pairSessionId)}&selfChannelId=${encodeURIComponent(context.selfChannelId)}`);
         if (result.code !== 200) {
             throw new Error(result?.message || 'List public pair tasks failed');
         }
@@ -582,7 +582,7 @@ const TransferDirectTransfer = (() => {
             return null;
         }
 
-        const result = await BrowserSession.request(`${API_BASE}/transfer/tasks/direct-attempts`, {
+        const result = await BrowserSession.request('/transfer/tasks/direct-attempts', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -648,7 +648,7 @@ const TransferDirectTransfer = (() => {
         }
 
         const context = getDirectSignalContext();
-        const result = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks/direct-attempts`, {
+        const result = await BrowserSession.request('/public/transfer/pair-tasks/direct-attempts', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -688,7 +688,7 @@ const TransferDirectTransfer = (() => {
         if (!transfer?.taskId || !canSyncTaskToServer(transfer)) {
             return;
         }
-        const result = await BrowserSession.request(`${API_BASE}/transfer/tasks/${encodeURIComponent(transfer.taskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?deviceId=${encodeURIComponent(getCurrentDeviceId())}`, {
+        const result = await BrowserSession.request(`/transfer/tasks/${encodeURIComponent(transfer.taskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?deviceId=${encodeURIComponent(getCurrentDeviceId())}`, {
             method: 'DELETE'
         });
         if (result.code === 200) {
@@ -704,7 +704,7 @@ const TransferDirectTransfer = (() => {
         const context = getDirectSignalContext();
         const pairSessionId = transfer.pairSessionId || context.pairSessionId;
         const selfChannelId = transfer.selfChannelId || context.selfChannelId;
-        const result = await BrowserSession.request(`${API_BASE}/public/transfer/pair-tasks/${encodeURIComponent(transfer.pairTaskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?pairSessionId=${encodeURIComponent(pairSessionId)}&selfChannelId=${encodeURIComponent(selfChannelId)}`, {
+        const result = await BrowserSession.request(`/public/transfer/pair-tasks/${encodeURIComponent(transfer.pairTaskId)}/direct-attempts/${encodeURIComponent(transfer.id)}?pairSessionId=${encodeURIComponent(pairSessionId)}&selfChannelId=${encodeURIComponent(selfChannelId)}`, {
             method: 'DELETE'
         });
         if (result.code === 200) {
@@ -2096,7 +2096,7 @@ const TransferDirectTransfer = (() => {
             const body = encryptKey
                 ? await window.QuickShareE2EE.encryptChunk(encryptKey, chunk, e2ee, chunkIndex)
                 : chunk;
-            const result = await BrowserSession.request(`${API_BASE}/public/transfer/shares/${encodeURIComponent(created.shareToken)}/chunks/${chunkIndex}`, {
+            const result = await BrowserSession.request(`/public/transfer/shares/${encodeURIComponent(created.shareToken)}/chunks/${chunkIndex}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/octet-stream'
@@ -2541,7 +2541,7 @@ const TransferDirectTransfer = (() => {
         formData.append('file', blob, transfer.fileName || `transfer-${transferId}`);
         formData.append('folderId', String(Number(folderId) || 0));
 
-        const result = await BrowserSession.upload(`${API_BASE}/upload`, {
+        const result = await BrowserSession.upload('/upload', {
             method: 'POST',
             body: formData
         });

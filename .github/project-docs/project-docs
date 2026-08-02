@@ -127,15 +127,15 @@ jobs:
           persist-credentials: false
       - name: Require independent review for managed gate updates
         env:
-          MANAGED_UPDATE_REVIEWED: ${{ contains(github.event.pull_request.labels.*.name, 'project-docs-upgrade-reviewed') }}
+          MANAGED_UPDATE_REVIEW_EVENT: ${{ github.event.action == 'labeled' && github.event.label.name == 'project-docs-upgrade-reviewed' }}
         run: |
           if cmp -s trusted/.github/project-docs/project-docs candidate/.github/project-docs/project-docs &&
             cmp -s trusted/.github/workflows/project-docs.yml candidate/.github/workflows/project-docs.yml; then
             echo "PROJECT_DOCS_MANAGED_UPDATE=false" >> "$GITHUB_ENV"
             exit 0
           fi
-          if [ "$MANAGED_UPDATE_REVIEWED" != "true" ]; then
-            echo "managed project-docs files changed; apply project-docs-upgrade-reviewed only after independent review" >&2
+          if [ "$MANAGED_UPDATE_REVIEW_EVENT" != "true" ]; then
+            echo "managed project-docs files changed; remove and reapply project-docs-upgrade-reviewed after reviewing the current head" >&2
             exit 1
           fi
           echo "::warning::Managed project-docs update was independently reviewed; candidate code will not execute"
@@ -1972,6 +1972,26 @@ def check_content(root: Path, path: Path, content: str, report: DoctorReport) ->
                 continue
             if address.is_global:
                 add_finding(report, "warning", "public-ip", rel, number, f"知识文档含公网 IP {raw_ip};确认是否应移入 .agents/local/。")
+        for ip_match in re.finditer(
+            r"\[([0-9A-Fa-f:.]+)\]|(?<![0-9A-Fa-f:.])([0-9A-Fa-f:.]*:[0-9A-Fa-f:.]+)(?![0-9A-Fa-f:.])",
+            line,
+        ):
+            raw_ip = next(candidate for candidate in ip_match.groups() if candidate)
+            if raw_ip.count(":") < 2:
+                continue
+            try:
+                address = ipaddress.ip_address(raw_ip)
+            except ValueError:
+                continue
+            if address.version == 6 and address.is_global:
+                add_finding(
+                    report,
+                    "warning",
+                    "public-ip",
+                    rel,
+                    number,
+                    f"知识文档含公网 IP {raw_ip};确认是否应移入 .agents/local/。",
+                )
     if path.name == "AGENTS.md":
         if path == root / "AGENTS.md" and len(lines) < 20:
             add_finding(report, "warning", "thin-root-map", rel, 1, "根 AGENTS.md 少于 20 行;确认是否缺少项目边界、验证或模块路由。")

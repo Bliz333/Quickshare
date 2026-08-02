@@ -42,15 +42,15 @@ jobs:
           persist-credentials: false
       - name: Require independent review for managed gate updates
         env:
-          MANAGED_UPDATE_REVIEWED: ${{ contains(github.event.pull_request.labels.*.name, 'project-docs-upgrade-reviewed') }}
+          MANAGED_UPDATE_REVIEW_EVENT: ${{ github.event.action == 'labeled' && github.event.label.name == 'project-docs-upgrade-reviewed' }}
         run: |
           if cmp -s trusted/.github/project-docs/project-docs candidate/.github/project-docs/project-docs &&
             cmp -s trusted/.github/workflows/project-docs.yml candidate/.github/workflows/project-docs.yml; then
             echo "PROJECT_DOCS_MANAGED_UPDATE=false" >> "$GITHUB_ENV"
             exit 0
           fi
-          if [ "$MANAGED_UPDATE_REVIEWED" != "true" ]; then
-            echo "managed project-docs files changed; apply project-docs-upgrade-reviewed only after independent review" >&2
+          if [ "$MANAGED_UPDATE_REVIEW_EVENT" != "true" ]; then
+            echo "managed project-docs files changed; remove and reapply project-docs-upgrade-reviewed after reviewing the current head" >&2
             exit 1
           fi
           echo "::warning::Managed project-docs update was independently reviewed; candidate code will not execute"
